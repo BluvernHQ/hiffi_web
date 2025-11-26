@@ -47,7 +47,7 @@ export default function SignupPage() {
         const result = await apiClient.checkUsernameAvailability(username)
         setUsernameAvailable(result.available)
       } catch (error) {
-        console.error("[v0] Username check failed:", error)
+        console.error("[hiffi] Username check failed:", error)
       } finally {
         setCheckingUsername(false)
       }
@@ -189,11 +189,20 @@ export default function SignupPage() {
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading || !usernameAvailable}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading || checkingUsername || username.length < 3 || usernameAvailable === false}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...
+                </>
+              ) : checkingUsername ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Checking username...
                 </>
               ) : (
                 "Create account"

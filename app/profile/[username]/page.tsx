@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Edit, Share2, MapPin, LinkIcon, Calendar, UserPlus, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter } from '@/lib/utils';
+import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 
 // Generate a gradient color based on user's name/username
 function getGradientFromName(name: string): string {
@@ -46,6 +47,7 @@ export default function ProfilePage() {
   const [userVideos, setUserVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasTriedFetch, setHasTriedFetch] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
@@ -67,9 +69,9 @@ export default function ProfilePage() {
         setIsLoading(true);
         setHasTriedFetch(true);
         const userData = await apiClient.getUserByUsername(username);
-        console.log("[v0] User data from API:", userData);
-        console.log("[v0] Followers:", userData?.followers, userData?.user?.followers);
-        console.log("[v0] Following:", userData?.following, userData?.user?.following);
+        console.log("[hiffi] User data from API:", userData);
+        console.log("[hiffi] Followers:", userData?.followers, userData?.user?.followers);
+        console.log("[hiffi] Following:", userData?.following, userData?.user?.following);
         // Handle both direct response and nested user object
         const profileData = userData?.user || userData;
         setProfileUser(profileData);
@@ -83,7 +85,7 @@ export default function ProfilePage() {
             );
             setIsFollowing(isFollowingStatus);
           } catch (followError) {
-            console.error("[v0] Failed to check following status:", followError);
+            console.error("[hiffi] Failed to check following status:", followError);
             setIsFollowing(userData.isfollowing || false);
           }
         } else {
@@ -93,12 +95,13 @@ export default function ProfilePage() {
         // Fetch user's videos
         const videosResponse = await apiClient.getVideoList({ page: 1, limit: 50, search: username });
         // Filter videos by this user
-        const filteredVideos = videosResponse.videos.filter(
+        const videosArray = videosResponse.videos || []
+        const filteredVideos = videosArray.filter(
           (v: any) => (v.user_username || v.userUsername) === username
         );
         setUserVideos(filteredVideos);
       } catch (error: any) {
-        console.error("[v0] Failed to fetch user data:", error);
+        console.error("[hiffi] Failed to fetch user data:", error);
         // Only set to null if it's a real error (not just auth not ready)
         if (error?.status !== 401 || authLoading) {
           setProfileUser(null);
@@ -133,12 +136,12 @@ export default function ProfilePage() {
         // Refresh recipient user's profile data to get updated follower count
         try {
           const refreshedUserData = await apiClient.getUserByUsername(username);
-          console.log("[v0] Refreshed user data after unfollow:", refreshedUserData);
+          console.log("[hiffi] Refreshed user data after unfollow:", refreshedUserData);
           // Handle both direct response and nested user object
           const profileData = refreshedUserData?.user || refreshedUserData;
           setProfileUser(profileData);
         } catch (refreshError) {
-          console.error("[v0] Failed to refresh user data:", refreshError);
+          console.error("[hiffi] Failed to refresh user data:", refreshError);
           // Update optimistically if refresh fails
           if (profileUser) {
             setProfileUser({ 
@@ -160,12 +163,12 @@ export default function ProfilePage() {
         // Refresh recipient user's profile data to get updated follower count
         try {
           const refreshedUserData = await apiClient.getUserByUsername(username);
-          console.log("[v0] Refreshed user data after follow:", refreshedUserData);
+          console.log("[hiffi] Refreshed user data after follow:", refreshedUserData);
           // Handle both direct response and nested user object
           const profileData = refreshedUserData?.user || refreshedUserData;
           setProfileUser(profileData);
         } catch (refreshError) {
-          console.error("[v0] Failed to refresh user data:", refreshError);
+          console.error("[hiffi] Failed to refresh user data:", refreshError);
           // Update optimistically if refresh fails
           if (profileUser) {
             setProfileUser({ 
@@ -190,10 +193,10 @@ export default function ProfilePage() {
         );
         setIsFollowing(verifiedStatus);
       } catch (verifyError) {
-        console.error("[v0] Failed to verify following status:", verifyError);
+        console.error("[hiffi] Failed to verify following status:", verifyError);
       }
     } catch (error) {
-      console.error("[v0] Failed to follow/unfollow user:", error);
+      console.error("[hiffi] Failed to follow/unfollow user:", error);
       toast({
         title: "Error",
         description: `Failed to ${isFollowing ? "unfollow" : "follow"} user`,
@@ -281,7 +284,12 @@ export default function ProfilePage() {
                     </AvatarFallback>
                   </Avatar>
                   {isOwnProfile && (
-                    <Button size="icon" variant="secondary" className="absolute bottom-0 right-0 rounded-full shadow-md h-7 w-7 sm:h-8 sm:w-8">
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="absolute bottom-0 right-0 rounded-full shadow-md h-7 w-7 sm:h-8 sm:w-8"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
                       <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </Button>
                   )}
@@ -307,7 +315,11 @@ export default function ProfilePage() {
 
                 <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-4 sm:mt-0 sm:pb-4">
                   {isOwnProfile ? (
-                    <Button className="flex-1 sm:flex-none" size="sm">
+                    <Button 
+                      className="flex-1 sm:flex-none" 
+                      size="sm"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Profile
                     </Button>
@@ -409,6 +421,16 @@ export default function ProfilePage() {
           </div>
         </main>
       </div>
+
+      {/* Edit Profile Dialog */}
+      {isOwnProfile && profileUser && (
+        <EditProfileDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          currentName={profileUser.name || profileUser.username || ""}
+          currentUsername={profileUser.username || username}
+        />
+      )}
     </div>
   );
 }

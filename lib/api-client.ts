@@ -16,7 +16,7 @@ class ApiClient {
       const token = await user.getIdToken(true)
       return token
     } catch (error) {
-      console.error("[v0] Failed to get auth token:", error)
+      console.error("[hiffi] Failed to get auth token:", error)
       return null
     }
   }
@@ -150,6 +150,20 @@ class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(data),
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+      false,
+    )
+  }
+
+  async vectorSearch(searchQuery: string): Promise<{ status: string; videos: any[] }> {
+    const token = await this.getAuthToken()
+    const encodedQuery = encodeURIComponent(searchQuery.trim())
+    return this.request(
+      `/videos/vector/search/${encodedQuery}`,
+      {
+        method: "POST",
+        body: JSON.stringify({}), // Empty body for POST request
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
       false,
@@ -311,7 +325,7 @@ class ApiClient {
         (follow) => follow.followed_to === targetUsername
       );
     } catch (error) {
-      console.error("[v0] Failed to check following status:", error);
+      console.error("[hiffi] Failed to check following status:", error);
       return false;
     }
   }

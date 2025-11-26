@@ -2,34 +2,23 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, CheckCircle2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [signupSuccess, setSignupSuccess] = useState(false)
   const { login, user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
-
-  // Check for signup success parameter
-  useEffect(() => {
-    if (searchParams.get("signup") === "success") {
-      setSignupSuccess(true)
-      // Clear the query parameter from URL
-      router.replace("/login", { scroll: false })
-    }
-  }, [searchParams, router])
 
   // Redirect to home if already logged in
   useEffect(() => {
@@ -82,14 +71,6 @@ export default function LoginPage() {
           <CardDescription className="text-center">Enter your email to sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
-          {signupSuccess && (
-            <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <p className="text-sm text-green-800 dark:text-green-200">
-                Account created successfully! Please sign in to continue.
-              </p>
-            </div>
-          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -137,5 +118,22 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   )
 }

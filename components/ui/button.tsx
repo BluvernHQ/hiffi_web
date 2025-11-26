@@ -41,6 +41,7 @@ function Button({
   variant,
   size,
   asChild = false,
+  type,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
@@ -48,11 +49,14 @@ function Button({
   }) {
   const Comp = asChild ? Slot : 'button'
 
+  // Don't pass type to Slot (Link components don't need type)
+  const buttonProps = asChild ? props : { type: type || 'button', ...props }
+
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
+      {...buttonProps}
     />
   )
 }

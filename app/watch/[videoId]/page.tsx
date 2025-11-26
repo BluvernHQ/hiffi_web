@@ -95,15 +95,16 @@ export default function WatchPage() {
 
       try {
         setIsLoading(true)
-        console.log("[v0] Fetching video data for:", params.videoId)
+        console.log("[hiffi] Fetching video data for:", params.videoId)
 
         const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
-        setRelatedVideos(videosResponse.videos.filter((v: any) => (v.video_id || v.videoId) !== params.videoId))
+        const videosArray = videosResponse.videos || []
+        setRelatedVideos(videosArray.filter((v: any) => (v.video_id || v.videoId) !== params.videoId))
 
-        const videoFromList = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === params.videoId)
+        const videoFromList = videosArray.find((v: any) => (v.video_id || v.videoId) === params.videoId)
 
         if (videoFromList) {
-          console.log("[v0] Found video from list:", videoFromList)
+          console.log("[hiffi] Found video from list:", videoFromList)
           setVideo(videoFromList)
           
           // Sync vote state with video data
@@ -120,13 +121,13 @@ export default function WatchPage() {
           if (videoCreatorUsername) {
             try {
               const creatorData = await apiClient.getUserByUsername(videoCreatorUsername)
-              console.log("[v0] Creator data from API:", creatorData);
-              console.log("[v0] Creator followers:", creatorData?.followers, creatorData?.user?.followers);
+              console.log("[hiffi] Creator data from API:", creatorData);
+              console.log("[hiffi] Creator followers:", creatorData?.followers, creatorData?.user?.followers);
               // Handle both direct response and nested user object
               const creatorProfile = creatorData?.user || creatorData;
               setVideoCreator(creatorProfile)
             } catch (creatorError) {
-              console.error("[v0] Failed to fetch creator data:", creatorError)
+              console.error("[hiffi] Failed to fetch creator data:", creatorError)
               // Continue without creator data
             }
             
@@ -140,7 +141,7 @@ export default function WatchPage() {
                 )
                 setIsFollowing(isFollowingStatus)
               } catch (followError) {
-                console.error("[v0] Failed to check following status:", followError)
+                console.error("[hiffi] Failed to check following status:", followError)
                 setIsFollowing(videoFromList.isfollowing || false)
               } finally {
                 setIsCheckingFollow(false)
@@ -150,7 +151,7 @@ export default function WatchPage() {
             }
           }
         } else {
-          console.log("[v0] Video not found in list, showing first video as fallback")
+          console.log("[hiffi] Video not found in list, showing first video as fallback")
           if (videosResponse.videos.length > 0) {
             setVideo(videosResponse.videos[0])
           } else {
@@ -158,7 +159,7 @@ export default function WatchPage() {
           }
         }
       } catch (error) {
-        console.error("[v0] Failed to fetch video data:", error)
+        console.error("[hiffi] Failed to fetch video data:", error)
         setUrlError("Failed to load video")
       } finally {
         setIsLoading(false)
@@ -208,7 +209,7 @@ export default function WatchPage() {
         const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
-          console.log("[v0] Updated video data after upvote:", updatedVideo);
+          console.log("[hiffi] Updated video data after upvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
           const voteStatus = updatedVideo.uservotestatus || updatedVideo.user_vote_status
@@ -220,7 +221,7 @@ export default function WatchPage() {
           })
         }
       } catch (refreshError) {
-        console.error("[v0] Failed to refresh video data:", refreshError)
+        console.error("[hiffi] Failed to refresh video data:", refreshError)
         // Keep optimistic update if refresh fails
       }
 
@@ -229,7 +230,7 @@ export default function WatchPage() {
         description: wasLiked ? "Upvote removed" : "Video upvoted",
       })
     } catch (error) {
-      console.error("[v0] Failed to upvote video:", error)
+      console.error("[hiffi] Failed to upvote video:", error)
       toast({
         title: "Error",
         description: "Failed to upvote video",
@@ -278,7 +279,7 @@ export default function WatchPage() {
         const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
-          console.log("[v0] Updated video data after downvote:", updatedVideo);
+          console.log("[hiffi] Updated video data after downvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
           const voteStatus = updatedVideo.uservotestatus || updatedVideo.user_vote_status
@@ -290,7 +291,7 @@ export default function WatchPage() {
           })
         }
       } catch (refreshError) {
-        console.error("[v0] Failed to refresh video data:", refreshError)
+        console.error("[hiffi] Failed to refresh video data:", refreshError)
         // Keep optimistic update if refresh fails
       }
 
@@ -299,7 +300,7 @@ export default function WatchPage() {
         description: wasDisliked ? "Downvote removed" : "Video downvoted",
       })
     } catch (error) {
-      console.error("[v0] Failed to downvote video:", error)
+      console.error("[hiffi] Failed to downvote video:", error)
       toast({
         title: "Error",
         description: "Failed to downvote video",
@@ -330,12 +331,12 @@ export default function WatchPage() {
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
           const creatorData = await apiClient.getUserByUsername(username)
-          console.log("[v0] Refreshed creator data after unfollow:", creatorData);
+          console.log("[hiffi] Refreshed creator data after unfollow:", creatorData);
           // Handle both direct response and nested user object
           const creatorProfile = creatorData?.user || creatorData;
           setVideoCreator(creatorProfile)
         } catch (refreshError) {
-          console.error("[v0] Failed to refresh creator data:", refreshError)
+          console.error("[hiffi] Failed to refresh creator data:", refreshError)
           // Update optimistically if refresh fails
           if (videoCreator) {
             setVideoCreator({
@@ -356,12 +357,12 @@ export default function WatchPage() {
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
           const creatorData = await apiClient.getUserByUsername(username)
-          console.log("[v0] Refreshed creator data after follow:", creatorData);
+          console.log("[hiffi] Refreshed creator data after follow:", creatorData);
           // Handle both direct response and nested user object
           const creatorProfile = creatorData?.user || creatorData;
           setVideoCreator(creatorProfile)
         } catch (refreshError) {
-          console.error("[v0] Failed to refresh creator data:", refreshError)
+          console.error("[hiffi] Failed to refresh creator data:", refreshError)
           // Update optimistically if refresh fails
           if (videoCreator) {
             setVideoCreator({
@@ -385,10 +386,10 @@ export default function WatchPage() {
         )
         setIsFollowing(verifiedStatus)
       } catch (verifyError) {
-        console.error("[v0] Failed to verify following status:", verifyError)
+        console.error("[hiffi] Failed to verify following status:", verifyError)
       }
     } catch (error) {
-      console.error("[v0] Failed to follow/unfollow user:", error)
+      console.error("[hiffi] Failed to follow/unfollow user:", error)
       toast({
         title: "Error",
         description: `Failed to ${isFollowing ? "unfollow" : "follow"} user`,
@@ -433,7 +434,26 @@ export default function WatchPage() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    <Link href={`/profile/${video.userUsername || video.user_username}`}>
+                    {user ? (
+                      <Link href={`/profile/${video.userUsername || video.user_username}`}>
+                        <Avatar className="h-10 w-10 flex-shrink-0">
+                          <AvatarImage src={video.userAvatar || video.user_avatar || ""} />
+                          <AvatarFallback 
+                            className="text-white font-semibold"
+                            style={{ 
+                              backgroundColor: getColorFromName(
+                                (video.userName || video.user_name || video.userUsername || video.user_username || "U")
+                              ) 
+                            }}
+                          >
+                            {getAvatarLetter({ 
+                              name: video.userName || video.user_name, 
+                              username: video.userUsername || video.user_username 
+                            }, "U")}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                    ) : (
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage src={video.userAvatar || video.user_avatar || ""} />
                         <AvatarFallback 
@@ -450,14 +470,20 @@ export default function WatchPage() {
                           }, "U")}
                         </AvatarFallback>
                       </Avatar>
-                    </Link>
+                    )}
                     <div className="min-w-0">
-                      <Link
-                        href={`/profile/${video.userUsername || video.user_username}`}
-                        className="font-semibold hover:text-primary block truncate"
-                      >
-                        {video.userUsername || video.user_username}
-                      </Link>
+                      {user ? (
+                        <Link
+                          href={`/profile/${video.userUsername || video.user_username}`}
+                          className="font-semibold hover:text-primary block truncate"
+                        >
+                          {video.userUsername || video.user_username}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold block truncate">
+                          {video.userUsername || video.user_username}
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground">
                         {(videoCreator?.followers ?? 0).toLocaleString()} followers
                       </span>

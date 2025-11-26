@@ -54,7 +54,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
       setComments(response.comments || [])
       setHasMore(response.comments?.length === 20)
     } catch (error) {
-      console.error("[v0] Failed to fetch comments:", error)
+      console.error("[hiffi] Failed to fetch comments:", error)
       toast({
         title: "Error",
         description: "Failed to load comments",
@@ -82,7 +82,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
       // Refresh comments
       await fetchComments()
     } catch (error) {
-      console.error("[v0] Failed to post comment:", error)
+      console.error("[hiffi] Failed to post comment:", error)
       toast({
         title: "Error",
         description: "Failed to post comment",
@@ -101,7 +101,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
       setPage(nextPage)
       setHasMore(response.comments?.length === 20)
     } catch (error) {
-      console.error("[v0] Failed to load more comments:", error)
+      console.error("[hiffi] Failed to load more comments:", error)
     }
   }
 
@@ -202,7 +202,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
       setReplies(response.replies || [])
       setShowReplies(true)
     } catch (error) {
-      console.error("[v0] Failed to fetch replies:", error)
+      console.error("[hiffi] Failed to fetch replies:", error)
       toast({
         title: "Error",
         description: "Failed to load replies",
@@ -255,7 +255,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
         onReplyAdded()
       }
     } catch (error) {
-      console.error("[v0] Failed to post reply:", error)
+      console.error("[hiffi] Failed to post reply:", error)
       
       // Remove optimistic reply on error
       setReplies(replies.filter(r => !r.reply_id.startsWith('temp-')))
@@ -290,9 +290,13 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
       </Avatar>
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
-          <Link href={`/profile/${comment.comment_by_username}`} className="font-semibold text-sm hover:text-primary">
-            @{comment.comment_by_username}
-          </Link>
+          {user ? (
+            <Link href={`/profile/${comment.comment_by_username}`} className="font-semibold text-sm hover:text-primary">
+              @{comment.comment_by_username}
+            </Link>
+          ) : (
+            <span className="font-semibold text-sm">@{comment.comment_by_username}</span>
+          )}
           <span className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(comment.commented_at), { addSuffix: true })}
           </span>

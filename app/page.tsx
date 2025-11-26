@@ -31,15 +31,23 @@ export default function HomePage() {
         limit: 10,
       })
 
+      // Handle null or undefined videos array
+      const videosArray = response.videos || []
+
       if (pageNum === 1) {
-        setVideos(response.videos)
+        setVideos(videosArray)
       } else {
-        setVideos((prev) => [...prev, ...response.videos])
+        setVideos((prev) => [...prev, ...videosArray])
       }
 
-      setHasMore(response.videos.length === 10)
+      setHasMore(videosArray.length === 10)
     } catch (error) {
-      console.error("[v0] Failed to fetch videos:", error)
+      console.error("[hiffi] Failed to fetch videos:", error)
+      // Set empty array on error to prevent null reference errors
+      if (pageNum === 1) {
+        setVideos([])
+      }
+      setHasMore(false)
     } finally {
       setLoading(false)
     }
@@ -52,12 +60,13 @@ export default function HomePage() {
     try {
       setLoadingFollowing(true)
       const response = await apiClient.getFollowingList(userData.username, 1, 100)
+      const followingArray = response.following || []
       const followingSet = new Set(
-        response.following.map((follow: any) => follow.followed_to)
+        followingArray.map((follow: any) => follow.followed_to)
       )
       setFollowedUsers(followingSet)
     } catch (error) {
-      console.error("[v0] Failed to fetch following list:", error)
+      console.error("[hiffi] Failed to fetch following list:", error)
       setFollowedUsers(new Set())
     } finally {
       setLoadingFollowing(false)

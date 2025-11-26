@@ -16,12 +16,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(1)
+  // Start unmuted by default
   const [isMuted, setIsMuted] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const playPromiseRef = useRef<Promise<void> | null>(null)
   const [signedVideoUrl, setSignedVideoUrl] = useState<string>("")
   const [isLoadingUrl, setIsLoadingUrl] = useState(true)
   const [urlError, setUrlError] = useState<string>("")
@@ -36,10 +38,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
 
       try {
         setIsLoadingUrl(true)
-        console.log("[v0] Fetching signed URL for video path:", videoUrl)
+        console.log("[hiffi] Fetching signed URL for video path:", videoUrl)
 
         const response = await apiClient.getVideoUrl(videoUrl)
-        console.log("[v0] Received signed URL response:", response)
+        console.log("[hiffi] Received signed URL response:", response)
 
         if (!response.video_url) {
           throw new Error("No video_url in response")
@@ -48,7 +50,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         setSignedVideoUrl(response.video_url)
         setUrlError("")
       } catch (error) {
-        console.error("[v0] Failed to fetch signed video URL:", error)
+        console.error("[hiffi] Failed to fetch signed video URL:", error)
         setUrlError("Failed to load video")
       } finally {
         setIsLoadingUrl(false)
@@ -59,15 +61,106 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   }, [videoUrl])
 
   useEffect(() => {
-    if (autoPlay && videoRef.current && signedVideoUrl) {
-      videoRef.current.play().then(() => {
-        setIsPlaying(true)
-      }).catch(() => {
-        // Autoplay prevented
-        setIsPlaying(false)
-      })
+    if (!autoPlay || !videoRef.current || !signedVideoUrl) return
+
+    const video = videoRef.current
+    let fallbackPlayHandler: (() => void) | null = null
+    
+    // Function to attempt playback immediately (YouTube-like behavior)
+    const attemptAutoplay = () => {
+      // Don't try if already playing
+      if (!video.paused) return
+      
+      // Clear any existing play promise
+      if (playPromiseRef.current) {
+        playPromiseRef.current.catch(() => {
+          // Ignore errors from cancelled promises
+        })
+        playPromiseRef.current = null
+      }
+
+      // Try to play immediately (browser will buffer in background)
+      const playPromise = video.play()
+      if (playPromise !== undefined) {
+        playPromiseRef.current = playPromise
+        playPromise
+          .then(() => {
+            setIsPlaying(true)
+          })
+          .catch((error) => {
+            // If autoplay is blocked, try with muted (like YouTube does)
+            if (error.name === 'NotAllowedError' && !video.muted) {
+              video.muted = true
+              setIsMuted(true)
+              const mutedPlayPromise = video.play()
+              if (mutedPlayPromise !== undefined) {
+                playPromiseRef.current = mutedPlayPromise
+                mutedPlayPromise
+                  .then(() => {
+                    setIsPlaying(true)
+                  })
+                  .catch(() => {
+                    setIsPlaying(false)
+                  })
+                  .finally(() => {
+                    if (playPromiseRef.current === mutedPlayPromise) {
+                      playPromiseRef.current = null
+                    }
+                  })
+              }
+            } else if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+              // If it's a loading error, wait for canplay as fallback
+              fallbackPlayHandler = () => {
+                if (video.paused) {
+                  const fallbackPromise = video.play()
+                  if (fallbackPromise !== undefined) {
+                    fallbackPromise
+                      .then(() => setIsPlaying(true))
+                      .catch(() => setIsPlaying(false))
+                  }
+                }
+              }
+              video.addEventListener('canplay', fallbackPlayHandler, { once: true })
+            } else {
+              setIsPlaying(false)
+            }
+          })
+          .finally(() => {
+            if (playPromiseRef.current === playPromise) {
+              playPromiseRef.current = null
+            }
+          })
+      }
+    }
+
+    // Attempt to play immediately when URL is available
+    // Use requestAnimationFrame to ensure video element has processed the src change
+    const rafId = requestAnimationFrame(() => {
+      attemptAutoplay()
+    })
+
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(rafId)
+      if (fallbackPlayHandler) {
+        video.removeEventListener('canplay', fallbackPlayHandler)
+      }
+      if (playPromiseRef.current) {
+        playPromiseRef.current.catch(() => {
+          // Ignore cleanup errors
+        })
+        playPromiseRef.current = null
+      }
     }
   }, [autoPlay, signedVideoUrl])
+
+  // Sync muted state with video element
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    
+    video.muted = isMuted
+  }, [isMuted, signedVideoUrl])
 
   useEffect(() => {
     const video = videoRef.current
@@ -86,14 +179,36 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   }, [signedVideoUrl])
 
   const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-        // State will be updated by pause event listener
-      } else {
-        videoRef.current.play()
-        // State will be updated by play event listener
+    if (!videoRef.current) return
+
+    if (isPlaying) {
+      videoRef.current.pause()
+      // Clear any pending play promise since we're pausing
+      if (playPromiseRef.current) {
+        playPromiseRef.current.catch(() => {
+          // Ignore AbortError from interrupted play
+        })
+        playPromiseRef.current = null
       }
+      // State will be updated by pause event listener
+    } else {
+      const playPromise = videoRef.current.play()
+      if (playPromise !== undefined) {
+        playPromiseRef.current = playPromise
+        playPromise
+          .catch((error) => {
+            // Ignore AbortError - happens when play() is interrupted by pause()
+            if (error.name !== 'AbortError') {
+              console.error('[hiffi] Play failed:', error)
+            }
+          })
+          .finally(() => {
+            if (playPromiseRef.current === playPromise) {
+              playPromiseRef.current = null
+            }
+          })
+      }
+      // State will be updated by play event listener
     }
   }
 
@@ -200,6 +315,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         src={signedVideoUrl}
         poster={poster}
         className="w-full h-full object-contain"
+        preload="auto"
+        playsInline
+        muted={isMuted}
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}

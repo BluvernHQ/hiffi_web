@@ -1,54 +1,57 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
 import { VideoGrid } from '@/components/video/video-grid';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Loader2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const [results, setResults] = useState<any[]>([]);
+  const [allVideos, setAllVideos] = useState<any[]>([]); // Cache all results
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toast } = useToast();
 
-  const fetchSearchResults = async (searchQuery: string, pageNum: number = 1) => {
+  const fetchSearchResults = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
+      setAllVideos([]);
       return;
     }
 
     try {
       setLoading(true);
-      const response = await apiClient.getVideoList({
-        page: pageNum,
-        limit: 20,
-        search: searchQuery.trim()
-      });
+      // Use vector search for better semantic search results
+      const response = await apiClient.vectorSearch(searchQuery.trim());
 
-      if (pageNum === 1) {
-        setResults(response.videos || []);
-      } else {
-        setResults(prev => [...prev, ...(response.videos || [])]);
-      }
-
-      setHasMore(response.videos && response.videos.length === 20);
-    } catch (error) {
-      console.error('[v0] Failed to fetch search results:', error);
+      // Vector search returns all results at once
+      const videos = response.videos || [];
+      setAllVideos(videos);
+      
+      // Show first page of results
+      const limit = 20;
+      const firstPageVideos = videos.slice(0, limit);
+      setResults(firstPageVideos);
+      setPage(1);
+      setHasMore(videos.length > limit);
+    } catch (error: any) {
+      console.error('[hiffi] Failed to fetch search results:', error);
       toast({
         title: "Error",
-        description: "Failed to load search results",
+        description: error?.message || "Failed to load search results. Please try again.",
         variant: "destructive",
       });
       setResults([]);
+      setAllVideos([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -56,11 +59,10 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (query) {
-      setPage(1);
-      setHasMore(true);
-      fetchSearchResults(query, 1);
+      fetchSearchResults(query);
     } else {
       setResults([]);
+      setAllVideos([]);
       setPage(1);
       setHasMore(false);
     }
@@ -68,10 +70,16 @@ export default function SearchPage() {
   }, [query]);
 
   const loadMore = () => {
-    if (!loading && hasMore && query) {
+    if (!loading && hasMore && allVideos.length > 0) {
+      const limit = 20;
       const nextPage = page + 1;
+      const startIndex = (nextPage - 1) * limit;
+      const endIndex = startIndex + limit;
+      const nextPageVideos = allVideos.slice(startIndex, endIndex);
+      
+      setResults(prev => [...prev, ...nextPageVideos]);
       setPage(nextPage);
-      fetchSearchResults(query, nextPage);
+      setHasMore(endIndex < allVideos.length);
     }
   };
 
@@ -93,49 +101,37 @@ export default function SearchPage() {
               </div>
 
               {query ? (
-                <Tabs defaultValue="videos" className="space-y-6">
-                  <TabsList>
-                    <TabsTrigger value="videos">Videos</TabsTrigger>
-                    <TabsTrigger value="creators">Creators</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="videos" className="mt-6">
-                    {loading && results.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-                        <p className="text-muted-foreground">Searching for "{query}"...</p>
+                <>
+                  {loading && results.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                      <p className="text-muted-foreground">Searching for "{query}"...</p>
+                    </div>
+                  ) : results.length > 0 ? (
+                    <>
+                      <div className="mb-4 text-sm text-muted-foreground">
+                        Showing {results.length} of {allVideos.length} {allVideos.length === 1 ? 'result' : 'results'}
                       </div>
-                    ) : results.length > 0 ? (
-                      <>
-                        <VideoGrid
-                          videos={results}
-                          loading={loading && results.length > 0}
-                          hasMore={hasMore}
-                          onLoadMore={loadMore}
-                        />
-                      </>
-                    ) : query ? (
-                      <div className="text-center py-12">
-                        <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No videos found</h3>
-                        <p className="text-muted-foreground">Try different keywords or check your spelling</p>
-                      </div>
-                    ) : null}
-                  </TabsContent>
-
-                  <TabsContent value="creators" className="mt-6">
+                      <VideoGrid
+                        videos={results}
+                        loading={loading && results.length > 0}
+                        hasMore={hasMore}
+                        onLoadMore={loadMore}
+                      />
+                    </>
+                  ) : (
                     <div className="text-center py-12">
                       <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No creators found</h3>
-                      <p className="text-muted-foreground">Try different keywords</p>
+                      <h3 className="text-lg font-semibold mb-2">No videos found</h3>
+                      <p className="text-muted-foreground">Try different keywords or check your spelling</p>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Start searching</h3>
-                  <p className="text-muted-foreground">Enter a search term to find videos and creators</p>
+                  <p className="text-muted-foreground">Enter a search term to find videos</p>
                 </div>
               )}
             </div>
@@ -143,5 +139,32 @@ export default function SearchPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col">
+          <Navbar onMenuClick={() => {}} />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar isMobileOpen={false} onMobileClose={() => {}} />
+            <main className="flex-1 overflow-y-auto w-full min-w-0">
+              <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+                <div className="max-w-7xl mx-auto">
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-muted-foreground">Loading search...</p>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
   );
 }

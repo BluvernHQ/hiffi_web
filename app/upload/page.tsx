@@ -10,12 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, X, ImageIcon, Film, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, X, ImageIcon, Film, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
+import { extractVideoThumbnail, extractMultipleVideoThumbnails, blobToFile } from '@/lib/video-utils';
 
 export default function UploadPage() {
   const { user, loading: authLoading } = useAuth();
@@ -25,6 +26,9 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [autoThumbnails, setAutoThumbnails] = useState<string[]>([]); // Preview URLs for auto-generated thumbnails
+  const [autoThumbnailBlobs, setAutoThumbnailBlobs] = useState<Blob[]>([]); // Actual blob data for upload
+  const [extractingThumbnail, setExtractingThumbnail] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -37,13 +41,41 @@ export default function UploadPage() {
   // Show login prompt if not logged in instead of redirecting
   // Allow users to browse and choose to login when ready
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (selectedFile.type.startsWith('video/')) {
         setFile(selectedFile);
         setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
+        setThumbnail(null);
+        setThumbnailPreview(null);
+        setAutoThumbnails([]);
         setUploadStep('details');
+        
+        // Automatically extract thumbnails from video
+        try {
+          setExtractingThumbnail(true);
+          const thumbnailBlobs = await extractMultipleVideoThumbnails(selectedFile, 3);
+          const previewUrls = thumbnailBlobs.map(blob => URL.createObjectURL(blob));
+          setAutoThumbnails(previewUrls);
+          setAutoThumbnailBlobs(thumbnailBlobs);
+          
+          // Set the first auto-generated thumbnail as default
+          if (thumbnailBlobs.length > 0) {
+            const firstThumbnail = blobToFile(thumbnailBlobs[0], 'thumbnail.jpg');
+            setThumbnail(firstThumbnail);
+            setThumbnailPreview(previewUrls[0]);
+          }
+        } catch (error) {
+          console.error('[Upload] Failed to extract thumbnails:', error);
+          toast({
+            title: "Notice",
+            description: "Could not extract thumbnail from video. You can upload one manually or the system will generate one automatically.",
+            variant: "default",
+          });
+        } finally {
+          setExtractingThumbnail(false);
+        }
       } else {
         alert('Please select a valid video file');
       }
@@ -64,12 +96,32 @@ export default function UploadPage() {
     }
   };
 
+  const handleSelectAutoThumbnail = (index: number) => {
+    if (index >= autoThumbnails.length || index >= autoThumbnailBlobs.length) return;
+    
+    // Use the already extracted thumbnail blob
+    const selectedBlob = autoThumbnailBlobs[index];
+    const thumbnailFile = blobToFile(selectedBlob, 'thumbnail.jpg');
+    
+    setThumbnail(thumbnailFile);
+    setThumbnailPreview(autoThumbnails[index]);
+  };
+
+  const handleRemoveThumbnail = () => {
+    setThumbnail(null);
+    setThumbnailPreview(null);
+    // Clean up auto thumbnail URLs
+    autoThumbnails.forEach(url => URL.revokeObjectURL(url));
+    setAutoThumbnails([]);
+    setAutoThumbnailBlobs([]);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -78,7 +130,35 @@ export default function UploadPage() {
       if (droppedFile.type.startsWith('video/')) {
         setFile(droppedFile);
         setTitle(droppedFile.name.replace(/\.[^/.]+$/, ""));
+        setThumbnail(null);
+        setThumbnailPreview(null);
+        setAutoThumbnails([]);
         setUploadStep('details');
+        
+        // Automatically extract thumbnails from video
+        try {
+          setExtractingThumbnail(true);
+          const thumbnailBlobs = await extractMultipleVideoThumbnails(droppedFile, 3);
+          const previewUrls = thumbnailBlobs.map(blob => URL.createObjectURL(blob));
+          setAutoThumbnails(previewUrls);
+          setAutoThumbnailBlobs(thumbnailBlobs);
+          
+          // Set the first auto-generated thumbnail as default
+          if (thumbnailBlobs.length > 0) {
+            const firstThumbnail = blobToFile(thumbnailBlobs[0], 'thumbnail.jpg');
+            setThumbnail(firstThumbnail);
+            setThumbnailPreview(previewUrls[0]);
+          }
+        } catch (error) {
+          console.error('[Upload] Failed to extract thumbnails:', error);
+          toast({
+            title: "Notice",
+            description: "Could not extract thumbnail from video. You can upload one manually or the system will generate one automatically.",
+            variant: "default",
+          });
+        } finally {
+          setExtractingThumbnail(false);
+        }
       }
     }
   };
@@ -137,7 +217,7 @@ export default function UploadPage() {
         description: "Video uploaded successfully!",
       });
     } catch (error) {
-      console.error("[v0] Upload failed:", error);
+      console.error("[hiffi] Upload failed:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
       toast({
         title: "Upload failed",
@@ -282,33 +362,106 @@ export default function UploadPage() {
                       <p className="text-xs text-muted-foreground">Tags help people find your video.</p>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Thumbnail</Label>
-                      <div className="flex gap-4 items-start">
-                        <div 
-                          className="relative w-40 aspect-video bg-muted rounded-lg overflow-hidden border flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => thumbnailInputRef.current?.click()}
-                        >
-                          {thumbnailPreview ? (
-                            <Image src={thumbnailPreview || "/placeholder.svg"} alt="Thumbnail preview" fill className="object-cover" />
-                          ) : (
-                            <div className="flex flex-col items-center text-muted-foreground">
-                              <ImageIcon className="h-6 w-6 mb-1" />
-                              <span className="text-xs">Upload</span>
-                            </div>
-                          )}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Label>Thumbnail (Optional)</Label>
+                        <Sparkles className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Auto-generated if not provided</span>
+                      </div>
+                      
+                      {extractingThumbnail && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span>Extracting thumbnails from video...</span>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-muted-foreground mb-2">
-                            Select or upload a picture that shows what's in your video. A good thumbnail stands out and draws viewers' attention.
-                          </p>
-                          <input 
-                            type="file" 
-                            ref={thumbnailInputRef} 
-                            className="hidden" 
-                            accept="image/*" 
-                            onChange={handleThumbnailSelect}
-                          />
+                      )}
+
+                      {autoThumbnails.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium">Select a frame from your video:</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            {autoThumbnails.map((url, index) => (
+                              <div
+                                key={index}
+                                className={`relative aspect-video bg-muted rounded-lg overflow-hidden border-2 cursor-pointer transition-all hover:opacity-80 ${
+                                  thumbnailPreview === url
+                                    ? 'border-primary ring-2 ring-primary ring-offset-2'
+                                    : 'border-border hover:border-primary/50'
+                                }`}
+                                onClick={() => handleSelectAutoThumbnail(index)}
+                              >
+                                <Image src={url} alt={`Thumbnail option ${index + 1}`} fill className="object-cover" />
+                                {thumbnailPreview === url && (
+                                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                    <CheckCircle2 className="h-6 w-6 text-primary" />
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div className="flex gap-4 items-start">
+                          <div className="relative w-40 aspect-video bg-muted rounded-lg overflow-hidden border flex items-center justify-center">
+                            {thumbnailPreview ? (
+                              <>
+                                <Image src={thumbnailPreview || "/placeholder.svg"} alt="Thumbnail preview" fill className="object-cover" />
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute top-2 right-2 h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveThumbnail();
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center text-muted-foreground">
+                                <ImageIcon className="h-6 w-6 mb-1" />
+                                <span className="text-xs">No thumbnail</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <p className="text-sm text-muted-foreground">
+                              {thumbnailPreview 
+                                ? "Thumbnail selected. Click to change or upload a custom image."
+                                : "Upload a custom thumbnail image, or leave empty to use an auto-generated frame from your video."}
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => thumbnailInputRef.current?.click()}
+                              >
+                                <ImageIcon className="h-4 w-4 mr-2" />
+                                Upload Custom
+                              </Button>
+                              {thumbnailPreview && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleRemoveThumbnail}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                            <input 
+                              type="file" 
+                              ref={thumbnailInputRef} 
+                              className="hidden" 
+                              accept="image/*" 
+                              onChange={handleThumbnailSelect}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -356,6 +509,10 @@ export default function UploadPage() {
                       setFile(null);
                       setThumbnail(null);
                       setThumbnailPreview(null);
+                      // Clean up auto thumbnail URLs
+                      autoThumbnails.forEach(url => URL.revokeObjectURL(url));
+                      setAutoThumbnails([]);
+                      setAutoThumbnailBlobs([]);
                       setTitle('');
                       setDescription('');
                       setTags('');

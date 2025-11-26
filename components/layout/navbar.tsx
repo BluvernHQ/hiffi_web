@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Bell, Menu, UserIcon, LogOut } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,10 +66,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     <Upload className="h-5 w-5" />
                     <span className="sr-only">Upload</span>
                   </Link>
-                </Button>
-                <Button variant="ghost" size="icon" className="hidden md:flex">
-                  <Bell className="h-5 w-5" />
-                  <span className="sr-only">Notifications</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

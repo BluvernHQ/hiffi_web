@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
@@ -11,16 +10,18 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'Hiffi - Streaming Platform',
   description: 'Modern video streaming platform for creators',
-  generator: 'v0.app',
+  generator: 'hiffi.app',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
+        url: '/icon-light-32x32.svg',
         media: '(prefers-color-scheme: light)',
+        type: 'image/svg+xml',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: '/icon-dark-32x32.svg',
         media: '(prefers-color-scheme: dark)',
+        type: 'image/svg+xml',
       },
       {
         url: '/icon.svg',
@@ -43,7 +44,6 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <Toaster />
-        <Analytics />
       </body>
     </html>
   )

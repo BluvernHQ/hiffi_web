@@ -11,6 +11,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Play } from "lucide-react"
 import { getThumbnailUrl } from "@/lib/storage"
 import { getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 
 interface VideoCardProps {
   video: {
@@ -36,6 +37,7 @@ interface VideoCardProps {
 
 export function VideoCard({ video, priority = false }: VideoCardProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = video.videoThumbnail || video.video_thumbnail || ""
   const title = video.videoTitle || video.video_title || ""
@@ -94,13 +96,17 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                 {title || "Untitled Video"}
               </h3>
               <div className="flex items-center gap-1.5 mt-1 text-xs sm:text-sm text-muted-foreground">
-                <Link
-                  href={`/profile/${username}`}
-                  className="hover:text-foreground truncate font-medium"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  @{username || "unknown"}
-                </Link>
+                {user ? (
+                  <Link
+                    href={`/profile/${username}`}
+                    className="hover:text-foreground truncate font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    @{username || "unknown"}
+                  </Link>
+                ) : (
+                  <span className="truncate font-medium">@{username || "unknown"}</span>
+                )}
                 <span>•</span>
                 <span className="whitespace-nowrap">{timeAgo}</span>
               </div>

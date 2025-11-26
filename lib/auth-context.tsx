@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUserData = async (forceRefresh = false) => {
     if (!auth.currentUser) {
-      console.log("[v0] No current user, skipping user data refresh")
+      console.log("[hiffi] No current user, skipping user data refresh")
       setUserData(null)
       // Clear cached data
       if (typeof window !== "undefined") {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cachedData && cachedTimestamp) {
         const age = Date.now() - Number.parseInt(cachedTimestamp)
         if (age < USER_DATA_CACHE_DURATION) {
-          console.log("[v0] Using cached user data")
+          console.log("[hiffi] Using cached user data")
           setUserData(JSON.parse(cachedData))
           return
         }
@@ -63,11 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      console.log("[v0] Fetching user data from API")
+      console.log("[hiffi] Fetching user data from API")
       const response = await apiClient.getCurrentUser()
 
       if (response.success && response.user) {
-        console.log("[v0] User data fetched successfully:", response.user.username)
+        console.log("[hiffi] User data fetched successfully:", response.user.username)
         setUserData(response.user)
 
         // Cache the user data
@@ -76,26 +76,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
         }
       } else {
-        console.warn("[v0] API returned unsuccessful response")
+        console.warn("[hiffi] API returned unsuccessful response or user not found in backend")
         setUserData(null)
       }
-    } catch (error) {
-      console.error("[v0] Failed to fetch user data:", error)
-      setUserData(null)
-
-      // Clear cached data on error
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(USER_DATA_KEY)
-        localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+    } catch (error: any) {
+      console.error("[hiffi] Failed to fetch user data:", error)
+      
+      // If user doesn't exist in backend (404), sign them out from Firebase
+      // This handles the case where Firebase user exists but backend user doesn't
+      if (error?.status === 404 || error?.message?.includes("User not found") || error?.message?.includes("404")) {
+        console.warn("[hiffi] User not found in backend, signing out from Firebase")
+        try {
+          await firebaseSignOut(auth)
+          setUser(null)
+          setUserData(null)
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(USER_DATA_KEY)
+            localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+          }
+        } catch (signOutError) {
+          console.error("[hiffi] Failed to sign out:", signOutError)
+        }
+      } else {
+        setUserData(null)
+        // Clear cached data on error
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(USER_DATA_KEY)
+          localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+        }
       }
     }
   }
 
   useEffect(() => {
-    console.log("[v0] Setting up auth state listener")
+    console.log("[hiffi] Setting up auth state listener")
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("[v0] Auth state changed:", firebaseUser ? `User: ${firebaseUser.email}` : "No user")
+      console.log("[hiffi] Auth state changed:", firebaseUser ? `User: ${firebaseUser.email}` : "No user")
       setUser(firebaseUser)
 
       if (firebaseUser) {
@@ -113,50 +130,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
-      console.log("[v0] Cleaning up auth state listener")
+      console.log("[hiffi] Cleaning up auth state listener")
       unsubscribe()
     }
   }, [])
 
   const login = async (email: string, password: string) => {
     try {
-      console.log("[v0] Attempting login for:", email)
+      console.log("[hiffi] Attempting login for:", email)
       const result = await signInWithEmailAndPassword(auth, email, password)
-      console.log("[v0] Firebase login successful")
+      console.log("[hiffi] Firebase login successful")
 
-      await refreshUserData(true) // Force refresh on login
-      console.log("[v0] User data refreshed after login")
-
+      // Force refresh user data and verify user exists in backend
+      // refreshUserData will handle signing out if user doesn't exist (404)
+      await refreshUserData(true)
+      
+      // Verify user still exists after refresh (refreshUserData signs out on 404)
+      const currentUser = auth.currentUser
+      if (!currentUser) {
+        throw new Error("User account not found in backend. Please sign up first.")
+      }
+      
+      console.log("[hiffi] User data refreshed after login")
       router.push("/")
     } catch (error: any) {
-      console.error("[v0] Sign in failed:", error)
+      console.error("[hiffi] Sign in failed:", error)
+      // If Firebase auth failed
+      if (error.code?.startsWith("auth/")) {
+        throw new Error(error.message || "Failed to sign in")
+      }
+      // If user was signed out due to not existing in backend
+      if (error.message?.includes("User account not found") || error.message?.includes("not found")) {
+        throw new Error("User account not found in backend. Please sign up first.")
+      }
       throw new Error(error.message || "Failed to sign in")
     }
   }
 
   const signup = async (email: string, password: string, username: string, name: string) => {
     try {
-      console.log("[v0] Attempting signup for:", email, username)
+      console.log("[hiffi] Attempting signup for:", email, username)
 
       // Create Firebase user
       await createUserWithEmailAndPassword(auth, email, password)
-      console.log("[v0] Firebase user created")
+      console.log("[hiffi] Firebase user created")
 
       // Create backend user profile
       await apiClient.createUser({ username, name })
-      console.log("[v0] Backend user profile created")
+      console.log("[hiffi] Backend user profile created")
 
-      // Sign out and require re-login (as per docs)
-      await firebaseSignOut(auth)
-      console.log("[v0] User signed out after registration")
+      // Refresh user data to get the newly created profile
+      await refreshUserData(true)
+      console.log("[hiffi] User data refreshed after signup")
 
-      setUser(null)
-      setUserData(null)
-
-      // Navigate to login page with success message
-      router.push("/login?signup=success")
+      // User is already logged in via Firebase, just navigate to home
+      router.push("/")
     } catch (error: any) {
-      console.error("[v0] Sign up failed:", error)
+      console.error("[hiffi] Sign up failed:", error)
+      
+      // If backend user creation failed but Firebase user was created, sign out
+      if (auth.currentUser) {
+        try {
+          await firebaseSignOut(auth)
+          setUser(null)
+          setUserData(null)
+        } catch (signOutError) {
+          console.error("[hiffi] Failed to sign out after signup error:", signOutError)
+        }
+      }
+      
       // Preserve Firebase error code for better error handling
       const errorWithCode: any = new Error(error.message || "Failed to sign up")
       errorWithCode.code = error.code || error.error?.code
@@ -166,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      console.log("[v0] Attempting logout")
+      console.log("[hiffi] Attempting logout")
       await firebaseSignOut(auth)
 
       setUser(null)
@@ -178,11 +220,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
       }
 
-      console.log("[v0] Logout successful")
+      console.log("[hiffi] Logout successful")
       // Don't redirect - let user stay on current page
       // User can browse as guest and choose to login/signup when ready
     } catch (error) {
-      console.error("[v0] Sign out failed:", error)
+      console.error("[hiffi] Sign out failed:", error)
       throw error
     }
   }
