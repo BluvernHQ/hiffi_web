@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
-import { getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 
 interface Comment {
   comment_id: string
@@ -123,7 +123,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
       {user ? (
         <div className="flex gap-4">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={userData?.avatar_url || userData?.avatarUrl || userData?.profilepicture || ""} />
+            <AvatarImage src={getProfilePictureUrl(userData)} />
             <AvatarFallback 
               className="text-white font-semibold"
               style={{ backgroundColor: getColorFromName((userData?.name || userData?.username || "U")) }}
@@ -273,7 +273,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
   return (
     <div className="flex gap-4">
       <Avatar className="h-10 w-10">
-        <AvatarImage src={(comment as any).comment_by_avatar || (comment as any).comment_by_avatar_url || ""} />
+        <AvatarImage src={getProfilePictureUrl(comment)} />
         <AvatarFallback 
           className="text-white font-semibold"
           style={{ 
@@ -324,7 +324,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
           <form onSubmit={handleReplySubmit} className="mt-2 space-y-2">
             <div className="flex gap-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={userData?.avatar_url || userData?.avatarUrl || userData?.profilepicture || ""} />
+                <AvatarImage src={getProfilePictureUrl(userData)} />
                 <AvatarFallback 
                   className="text-white font-semibold text-sm"
                   style={{ backgroundColor: getColorFromName((userData?.name || userData?.username || "U")) }}
@@ -392,7 +392,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
                 {replies.map((reply) => (
                   <div key={reply.reply_id} className="flex gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={(reply as any).reply_by_avatar || (reply as any).reply_by_avatar_url || ""} />
+                      <AvatarImage src={getProfilePictureUrl(reply)} />
                       <AvatarFallback 
                         className="text-white font-semibold text-sm"
                         style={{ 

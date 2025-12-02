@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Check, X } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
@@ -16,6 +17,10 @@ interface EditProfileDialogProps {
   onOpenChange: (open: boolean) => void
   currentName: string
   currentUsername: string
+  currentBio?: string
+  currentLocation?: string
+  currentWebsite?: string
+  onProfileUpdated?: () => void
 }
 
 export function EditProfileDialog({
@@ -23,9 +28,16 @@ export function EditProfileDialog({
   onOpenChange,
   currentName,
   currentUsername,
+  currentBio = "",
+  currentLocation = "",
+  currentWebsite = "",
+  onProfileUpdated,
 }: EditProfileDialogProps) {
   const [name, setName] = useState(currentName)
   const [username, setUsername] = useState(currentUsername)
+  const [bio, setBio] = useState(currentBio)
+  const [location, setLocation] = useState(currentLocation)
+  const [website, setWebsite] = useState(currentWebsite)
   const [isLoading, setIsLoading] = useState(false)
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
@@ -38,9 +50,12 @@ export function EditProfileDialog({
     if (open) {
       setName(currentName)
       setUsername(currentUsername)
+      setBio(currentBio || "")
+      setLocation(currentLocation || "")
+      setWebsite(currentWebsite || "")
       setUsernameAvailable(null)
     }
-  }, [open, currentName, currentUsername])
+  }, [open, currentName, currentUsername, currentBio, currentLocation, currentWebsite])
 
   // Check username availability
   useEffect(() => {
@@ -72,8 +87,11 @@ export function EditProfileDialog({
     // Validate that at least one field has changed
     const nameChanged = name.trim() !== currentName.trim()
     const usernameChanged = username.toLowerCase() !== currentUsername.toLowerCase()
+    const bioChanged = bio.trim() !== (currentBio || "").trim()
+    const locationChanged = location.trim() !== (currentLocation || "").trim()
+    const websiteChanged = website.trim() !== (currentWebsite || "").trim()
     
-    if (!nameChanged && !usernameChanged) {
+    if (!nameChanged && !usernameChanged && !bioChanged && !locationChanged && !websiteChanged) {
       toast({
         title: "No changes",
         description: "Please make at least one change before saving.",
@@ -103,16 +121,42 @@ export function EditProfileDialog({
       }
     }
 
+    // Validate website format if provided
+    if (websiteChanged && website.trim()) {
+      const websiteValue = website.trim()
+      // Remove protocol if present, we'll add it when displaying
+      const cleanWebsite = websiteValue.replace(/^https?:\/\//, '')
+      if (cleanWebsite.length === 0) {
+        toast({
+          title: "Invalid website",
+          description: "Please enter a valid website URL.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     setIsLoading(true)
 
     try {
       // Prepare update data - only include changed fields
-      const updateData: { name?: string; username?: string } = {}
+      const updateData: { name?: string; username?: string; bio?: string; location?: string; website?: string } = {}
       if (nameChanged) {
         updateData.name = name.trim()
       }
       if (usernameChanged) {
         updateData.username = username.toLowerCase().trim()
+      }
+      if (bioChanged) {
+        updateData.bio = bio.trim()
+      }
+      if (locationChanged) {
+        updateData.location = location.trim()
+      }
+      if (websiteChanged) {
+        // Store website without protocol
+        const cleanWebsite = website.trim().replace(/^https?:\/\//, '')
+        updateData.website = cleanWebsite || undefined
       }
 
       // Update user profile
@@ -129,6 +173,9 @@ export function EditProfileDialog({
       // If username changed, navigate to new profile URL
       if (usernameChanged) {
         router.push(`/profile/${username.toLowerCase().trim()}`)
+      } else {
+        // Trigger profile refresh callback
+        onProfileUpdated?.()
       }
 
       onOpenChange(false)
@@ -146,7 +193,12 @@ export function EditProfileDialog({
     }
   }
 
-  const hasChanges = name.trim() !== currentName.trim() || username.toLowerCase() !== currentUsername.toLowerCase()
+  const hasChanges = 
+    name.trim() !== currentName.trim() || 
+    username.toLowerCase() !== currentUsername.toLowerCase() ||
+    bio.trim() !== (currentBio || "").trim() ||
+    location.trim() !== (currentLocation || "").trim() ||
+    website.trim() !== (currentWebsite || "").trim()
   const canSave = hasChanges && (username === currentUsername || usernameAvailable !== false) && !checkingUsername
 
   return (
@@ -155,10 +207,10 @@ export function EditProfileDialog({
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
           <DialogDescription>
-            Update your profile information. You can change your name and username.
+            Update your profile information. All fields are optional.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
@@ -203,6 +255,47 @@ export function EditProfileDialog({
                 Username must be at least 3 characters
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              placeholder="Tell us about yourself"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              disabled={isLoading}
+              rows={4}
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground">
+              {bio.length}/500 characters
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              placeholder="City, Country"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="website">Website</Label>
+            <Input
+              id="website"
+              placeholder="example.com"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              disabled={isLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter your website URL (without https://)
+            </p>
           </div>
 
           <DialogFooter>

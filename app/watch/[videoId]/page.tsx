@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
@@ -14,7 +14,7 @@ import { ThumbsUp, ThumbsDown } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
-import { cn, getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { cn, getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
@@ -89,19 +89,41 @@ export default function WatchPage() {
     downvoted: false,
   })
 
+  const currentVideoIdRef = useRef<string | null>(null)
+  const isFetchingRef = useRef(false)
+
   useEffect(() => {
     async function fetchVideoData() {
       if (!params.videoId) return
 
+      const videoId = params.videoId as string
+
+      // Prevent duplicate calls for the same videoId
+      if (isFetchingRef.current && currentVideoIdRef.current === videoId) {
+        console.log("[hiffi] Already fetching video data for:", videoId, "- skipping duplicate call")
+        return
+      }
+
+      // Mark as fetching and set current videoId
+      isFetchingRef.current = true
+      currentVideoIdRef.current = videoId
+
       try {
         setIsLoading(true)
-        console.log("[hiffi] Fetching video data for:", params.videoId)
+        console.log("[hiffi] Fetching video data for:", videoId)
 
         const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
-        const videosArray = videosResponse.videos || []
-        setRelatedVideos(videosArray.filter((v: any) => (v.video_id || v.videoId) !== params.videoId))
+        
+        // Check if videoId changed during fetch (component unmounted or videoId changed)
+        if (currentVideoIdRef.current !== videoId) {
+          console.log("[hiffi] VideoId changed during fetch, ignoring response")
+          return
+        }
 
-        const videoFromList = videosArray.find((v: any) => (v.video_id || v.videoId) === params.videoId)
+        const videosArray = videosResponse.videos || []
+        setRelatedVideos(videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId))
+
+        const videoFromList = videosArray.find((v: any) => (v.video_id || v.videoId) === videoId)
 
         if (videoFromList) {
           console.log("[hiffi] Found video from list:", videoFromList)
@@ -120,14 +142,24 @@ export default function WatchPage() {
           const videoCreatorUsername = videoFromList.userUsername || videoFromList.user_username
           if (videoCreatorUsername) {
             try {
-              const creatorData = await apiClient.getUserByUsername(videoCreatorUsername)
-              console.log("[hiffi] Creator data from API:", creatorData);
-              console.log("[hiffi] Creator followers:", creatorData?.followers, creatorData?.user?.followers);
-              // Handle both direct response and nested user object
-              const creatorProfile = creatorData?.user || creatorData;
+              const creatorResponse = await apiClient.getUserByUsername(videoCreatorUsername)
+              
+              // Check if videoId changed during fetch
+              if (currentVideoIdRef.current !== videoId) {
+                return
+              }
+
+              console.log("[hiffi] Creator data from API:", creatorResponse);
+              // Handle API response format: { success: true, user: {...} }
+              const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
+              console.log("[hiffi] Creator profile:", creatorProfile);
+              console.log("[hiffi] Creator followers:", creatorProfile?.followers);
               setVideoCreator(creatorProfile)
-            } catch (creatorError) {
-              console.error("[hiffi] Failed to fetch creator data:", creatorError)
+            } catch (creatorError: any) {
+              // Only log error if videoId hasn't changed and not 401 (unauthorized is expected for non-authenticated users)
+              if (currentVideoIdRef.current === videoId && creatorError?.status !== 401) {
+                console.error("[hiffi] Failed to fetch creator data:", creatorError)
+              }
               // Continue without creator data
             }
             
@@ -139,12 +171,22 @@ export default function WatchPage() {
                   userData.username,
                   videoCreatorUsername
                 )
+                
+                // Check if videoId changed during fetch
+                if (currentVideoIdRef.current !== videoId) {
+                  return
+                }
+
                 setIsFollowing(isFollowingStatus)
               } catch (followError) {
-                console.error("[hiffi] Failed to check following status:", followError)
+                if (currentVideoIdRef.current === videoId) {
+                  console.error("[hiffi] Failed to check following status:", followError)
+                }
                 setIsFollowing(videoFromList.isfollowing || false)
               } finally {
-                setIsCheckingFollow(false)
+                if (currentVideoIdRef.current === videoId) {
+                  setIsCheckingFollow(false)
+                }
               }
             } else {
               setIsFollowing(false)
@@ -158,16 +200,35 @@ export default function WatchPage() {
             throw new Error("No videos found")
           }
         }
-      } catch (error) {
-        console.error("[hiffi] Failed to fetch video data:", error)
-        setUrlError("Failed to load video")
+      } catch (error: any) {
+        // Don't log errors if videoId changed
+        if (currentVideoIdRef.current === videoId) {
+          console.error("[hiffi] Failed to fetch video data:", error)
+          setUrlError("Failed to load video")
+        }
       } finally {
-        setIsLoading(false)
+        // Only update loading state if this is still the current videoId
+        if (currentVideoIdRef.current === videoId) {
+          setIsLoading(false)
+        }
+        // Reset fetching flag only if this is still the current videoId
+        if (currentVideoIdRef.current === videoId) {
+          isFetchingRef.current = false
+        }
       }
     }
 
     fetchVideoData()
-  }, [params.videoId])
+
+    // Cleanup function to reset fetching flag if component unmounts or videoId changes
+    return () => {
+      // Only reset if this is still the current videoId (component unmounting)
+      if (currentVideoIdRef.current === params.videoId) {
+        isFetchingRef.current = false
+        currentVideoIdRef.current = null
+      }
+    }
+  }, [params.videoId, userData?.username])
 
   const handleLike = async () => {
     if (!user) {
@@ -330,10 +391,10 @@ export default function WatchPage() {
         
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
-          const creatorData = await apiClient.getUserByUsername(username)
-          console.log("[hiffi] Refreshed creator data after unfollow:", creatorData);
-          // Handle both direct response and nested user object
-          const creatorProfile = creatorData?.user || creatorData;
+          const creatorResponse = await apiClient.getUserByUsername(username)
+          console.log("[hiffi] Refreshed creator data after unfollow:", creatorResponse);
+          // Handle API response format: { success: true, user: {...} }
+          const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
         } catch (refreshError) {
           console.error("[hiffi] Failed to refresh creator data:", refreshError)
@@ -356,10 +417,10 @@ export default function WatchPage() {
         
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
-          const creatorData = await apiClient.getUserByUsername(username)
-          console.log("[hiffi] Refreshed creator data after follow:", creatorData);
-          // Handle both direct response and nested user object
-          const creatorProfile = creatorData?.user || creatorData;
+          const creatorResponse = await apiClient.getUserByUsername(username)
+          console.log("[hiffi] Refreshed creator data after follow:", creatorResponse);
+          // Handle API response format: { success: true, user: {...} }
+          const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
         } catch (refreshError) {
           console.error("[hiffi] Failed to refresh creator data:", refreshError)
@@ -437,7 +498,7 @@ export default function WatchPage() {
                     {user ? (
                       <Link href={`/profile/${video.userUsername || video.user_username}`}>
                         <Avatar className="h-10 w-10 flex-shrink-0">
-                          <AvatarImage src={video.userAvatar || video.user_avatar || ""} />
+                          <AvatarImage src={getProfilePictureUrl(video)} />
                           <AvatarFallback 
                             className="text-white font-semibold"
                             style={{ 
@@ -455,7 +516,7 @@ export default function WatchPage() {
                       </Link>
                     ) : (
                       <Avatar className="h-10 w-10 flex-shrink-0">
-                        <AvatarImage src={video.userAvatar || video.user_avatar || ""} />
+                        <AvatarImage src={getProfilePictureUrl(video)} />
                         <AvatarFallback 
                           className="text-white font-semibold"
                           style={{ 

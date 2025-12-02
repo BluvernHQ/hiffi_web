@@ -1,31 +1,41 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Loader2, Shield } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
-function LoginForm() {
+export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const { login, user, loading: authLoading } = useAuth()
+  const { login, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
 
-  // Redirect to home if already logged in
+  // Check if user is admin and redirect to dashboard
   useEffect(() => {
-    if (!authLoading && user) {
-      router.push("/")
+    if (!authLoading && user && userData) {
+      if (userData.role === "admin") {
+        router.push("/admin/dashboard")
+      } else {
+        // User is logged in but not admin, redirect to home
+        router.push("/")
+        toast({
+          title: "Access Denied",
+          description: "You do not have admin privileges.",
+          variant: "destructive",
+        })
+      }
     }
-  }, [user, authLoading, router])
+  }, [user, userData, authLoading, router, toast])
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -39,8 +49,8 @@ function LoginForm() {
     )
   }
 
-  // Don't render login form if already logged in (redirect will happen)
-  if (user) {
+  // Don't render login form if already logged in as admin (redirect will happen)
+  if (user && userData?.role === "admin") {
     return null
   }
 
@@ -51,9 +61,9 @@ function LoginForm() {
 
     try {
       await login(email, password)
+      // After login, check role in useEffect
     } catch (err: any) {
       setError(err.message || "Invalid email or password")
-    } finally {
       setIsLoading(false)
     }
   }
@@ -62,25 +72,15 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <div className="flex justify-end mb-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/")}
-              disabled={isLoading}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Skip
-            </Button>
-          </div>
           <div className="flex justify-center mb-4">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-2xl">H</span>
+              <Shield className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center font-bold">Welcome back</CardTitle>
-          <CardDescription className="text-center">Enter your email to sign in to your account</CardDescription>
+          <CardTitle className="text-2xl text-center font-bold">Admin Login</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to access the admin panel
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -89,16 +89,14 @@ function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="admin@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -120,32 +118,8 @@ function LoginForm() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <div className="text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
-              Sign up
-            </Link>
-          </div>
-        </CardFooter>
       </Card>
     </div>
   )
 }
 
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
-      }
-    >
-      <LoginForm />
-    </Suspense>
-  )
-}

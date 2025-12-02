@@ -1,6 +1,6 @@
 "use client"
 
-import { Video, Upload } from "lucide-react"
+import { Video, Upload, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -16,7 +16,8 @@ export function EmptyVideoState({
   description,
   showUploadButton = true 
 }: EmptyVideoStateProps) {
-  const { user } = useAuth()
+  const { user, userData } = useAuth()
+  const isCreator = userData?.role === "creator"
   const defaultDescription = user 
     ? "Be the first to share a video and start the community!"
     : "Sign in to share your first video and start the community!"
@@ -35,11 +36,20 @@ export function EmptyVideoState({
         {description || defaultDescription}
       </p>
       
-      {showUploadButton && user && (
+      {showUploadButton && user && isCreator && (
         <Button asChild size="lg" className="mt-2">
           <Link href="/upload">
             <Upload className="mr-2 h-4 w-4" />
             Upload Your First Video
+          </Link>
+        </Button>
+      )}
+      
+      {showUploadButton && user && !isCreator && (
+        <Button asChild size="lg" variant="outline" className="mt-2">
+          <Link href="/creator/apply">
+            <Sparkles className="mr-2 h-4 w-4" />
+            Become a Creator
           </Link>
         </Button>
       )}

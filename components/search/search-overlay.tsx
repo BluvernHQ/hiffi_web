@@ -21,11 +21,10 @@ interface SearchResult {
 }
 
 const TRENDING_SEARCHES = [
-  'gaming highlights',
-  'cooking tutorials',
-  'travel vlogs',
-  'music production',
-  'fitness workouts',
+  'hip hop music',
+  'rap battles',
+  'trap beats',
+  'rap freestyle',
 ];
 
 export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -84,7 +83,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
     }
 
     return () => {
-      if (debounceTimerRef.current) {
+      if (debounceTimerRef.current) { 
         clearTimeout(debounceTimerRef.current);
       }
     };
@@ -116,7 +115,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 ref={inputRef}
-                type="search"
+                type="text"
                 placeholder="Search videos..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

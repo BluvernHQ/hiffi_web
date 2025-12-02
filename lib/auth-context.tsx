@@ -20,7 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string, username: string, name: string) => Promise<void>
   logout: () => Promise<void>
-  refreshUserData: () => Promise<void>
+  refreshUserData: (forceRefresh?: boolean) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const refreshUserData = async (forceRefresh = false) => {
+  const refreshUserData = async (forceRefresh = false): Promise<any | null> => {
     if (!auth.currentUser) {
       console.log("[hiffi] No current user, skipping user data refresh")
       setUserData(null)
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(USER_DATA_KEY)
         localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
       }
-      return
+      return null
     }
 
     // Check cache if not forcing refresh
@@ -56,8 +56,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const age = Date.now() - Number.parseInt(cachedTimestamp)
         if (age < USER_DATA_CACHE_DURATION) {
           console.log("[hiffi] Using cached user data")
-          setUserData(JSON.parse(cachedData))
-          return
+          const cachedUserData = JSON.parse(cachedData)
+          setUserData(cachedUserData)
+          return cachedUserData
         }
       }
     }
@@ -75,9 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.user))
           localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
         }
+        return response.user
       } else {
         console.warn("[hiffi] API returned unsuccessful response or user not found in backend")
         setUserData(null)
+        return null
       }
     } catch (error: any) {
       console.error("[hiffi] Failed to fetch user data:", error)
@@ -105,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
         }
       }
+      return null
     }
   }
 
@@ -171,19 +175,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("[hiffi] Attempting signup for:", email, username)
 
-      // Create Firebase user
-      await createUserWithEmailAndPassword(auth, email, password)
-      console.log("[hiffi] Firebase user created")
+      // Create Firebase user (this automatically signs the user in)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      console.log("[hiffi] Firebase user created and signed in")
+
+      // Verify user is authenticated
+      if (!auth.currentUser || !userCredential.user) {
+        throw new Error("Failed to authenticate user after signup")
+      }
+
+      // Update user state immediately to ensure auth context is updated
+      setUser(userCredential.user)
+      console.log("[hiffi] User state updated")
 
       // Create backend user profile
       await apiClient.createUser({ username, name })
       console.log("[hiffi] Backend user profile created")
 
       // Refresh user data to get the newly created profile
-      await refreshUserData(true)
-      console.log("[hiffi] User data refreshed after signup")
+      // This will also update the userData state
+      const loadedUserData = await refreshUserData(true)
+      console.log("[hiffi] User data refreshed after signup", loadedUserData)
 
-      // User is already logged in via Firebase, just navigate to home
+      // Verify we have a current user and user data
+      const currentUser = auth.currentUser
+      if (!currentUser) {
+        throw new Error("User authentication lost after signup")
+      }
+
+      if (!loadedUserData) {
+        throw new Error("Failed to load user data after signup")
+      }
+
+      // Wait a moment for state updates to propagate to all components
+      await new Promise(resolve => setTimeout(resolve, 150))
+
+      // User is authenticated and data is loaded, navigate to home
+      console.log("[hiffi] Signup complete, user authenticated with data loaded, navigating to home")
       router.push("/")
     } catch (error: any) {
       console.error("[hiffi] Sign up failed:", error)

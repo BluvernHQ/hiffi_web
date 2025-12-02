@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Menu, UserIcon, LogOut } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,17 +16,25 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { useState } from "react"
-import { getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 
-export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
+interface NavbarProps {
+  onMenuClick?: () => void
+  currentFilter?: 'all' | 'trending' | 'following'
+}
+
+export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  
+  // Hide upload button on following page
+  const showUploadButton = currentFilter !== 'following'
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center px-4">
-          <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex h-16 items-center">
+          <div className="flex items-center gap-4 md:gap-6 px-4">
             <Button 
               variant="ghost" 
               size="icon" 
@@ -58,21 +66,34 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-4 pr-4">
             {user && userData ? (
               <>
-                <Button variant="ghost" size="icon" asChild className="hidden md:flex">
-                  <Link href="/upload">
-                    <Upload className="h-5 w-5" />
-                    <span className="sr-only">Upload</span>
-                  </Link>
-                </Button>
+                {showUploadButton && (
+                  <>
+                    {userData.role === "creator" ? (
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex">
+                        <Link href="/upload">
+                          <Upload className="h-5 w-5" />
+                          <span className="sr-only">Upload</span>
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex">
+                        <Link href="/creator/apply">
+                          <Sparkles className="h-5 w-5" />
+                          <span className="sr-only">Become Creator</span>
+                        </Link>
+                      </Button>
+                    )}
+                  </>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
                         <AvatarImage
-                          src={userData.avatar_url || userData.avatarUrl || userData.profilepicture || ""}
+                          src={getProfilePictureUrl(userData)}
                           alt={userData.name || userData.username || "User"}
                         />
                         <AvatarFallback 
@@ -98,12 +119,23 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/upload">
-                        <Upload className="mr-2 h-4 w-4" />
-                        <span>Upload Video</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    {userData.role === "creator" ? (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/creator/apply">
+                            <Video className="mr-2 h-4 w-4" />
+                            <span>Hiffi Studio</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem asChild>
+                        <Link href="/creator/apply">
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          <span>Become a Creator</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                       <LogOut className="mr-2 h-4 w-4" />

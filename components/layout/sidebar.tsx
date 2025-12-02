@@ -18,7 +18,6 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface SidebarProps {
   className?: string
@@ -133,19 +132,19 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
       {/* Sidebar */}
       <aside
         className={cn(
-          // Base styles - desktop: relative (in document flow)
+          // Base styles - desktop: sticky fixed position
           "w-64 flex-shrink-0 border-r bg-background",
           // Mobile: fixed overlay (taken out of flow)
           "fixed left-0 top-0 z-40 h-screen shadow-lg transition-transform duration-300 ease-in-out",
-          // Desktop: relative positioning (in flow, takes space in flex container)
-          "lg:relative lg:left-auto lg:top-auto lg:z-auto lg:h-full lg:shadow-none lg:translate-x-0",
+          // Desktop: sticky positioning (fixed to viewport, doesn't scroll with page)
+          "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:translate-x-0 lg:overflow-y-auto",
           // Hide on mobile when closed, always visible on desktop
           !mobileOpen && "-translate-x-full lg:translate-x-0",
           className
         )}
       >
         <div className="flex flex-col h-full">
-        <ScrollArea className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
           {/* Mobile Header */}
           <div className="flex h-16 items-center justify-between border-b px-4 lg:hidden shrink-0">
             <h2 className="text-lg font-semibold">Menu</h2>
@@ -191,7 +190,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
               </div>
             )} */}
           </nav>
-        </ScrollArea>
+        </div>
         </div>
       </aside>
     </>

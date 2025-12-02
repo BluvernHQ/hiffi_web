@@ -4,52 +4,90 @@ import { useState, useEffect } from "react"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
 import { VideoGrid } from "@/components/video/video-grid"
-import { Button } from "@/components/ui/button"
-import { Upload, Plus } from "lucide-react"
-import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 
 type FilterType = 'all' | 'trending' | 'following'
 
+const VIDEOS_PER_PAGE = 10
+
 export default function HomePage() {
   const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all')
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
   const [loadingFollowing, setLoadingFollowing] = useState(false)
+  const [isFetching, setIsFetching] = useState(false) // Prevent duplicate requests
   const { user, userData } = useAuth()
 
-  const fetchVideos = async (pageNum: number) => {
+  const fetchVideos = async (pageNum: number, isInitialLoad: boolean = false) => {
+    // Prevent duplicate requests
+    if (isFetching) {
+      console.log("[hiffi] Already fetching, skipping duplicate request")
+      return
+    }
+
     try {
-      setLoading(true)
+      setIsFetching(true)
+      
+      if (isInitialLoad) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+      
+      console.log(`[hiffi] Fetching videos - Page: ${pageNum}, Limit: ${VIDEOS_PER_PAGE}`)
+      
       const response = await apiClient.getVideoList({
         page: pageNum,
-        limit: 10,
+        limit: VIDEOS_PER_PAGE,
       })
 
       // Handle null or undefined videos array
       const videosArray = response.videos || []
+      
+      console.log(`[hiffi] Received ${videosArray.length} videos for page ${pageNum}`)
 
       if (pageNum === 1) {
         setVideos(videosArray)
       } else {
-        setVideos((prev) => [...prev, ...videosArray])
+        // Append new videos to existing ones
+        setVideos((prev) => {
+          // Prevent duplicates by checking video IDs
+          const existingIds = new Set(prev.map(v => v.videoId || v.video_id))
+          const newVideos = videosArray.filter(v => !existingIds.has(v.videoId || v.video_id))
+          return [...prev, ...newVideos]
+        })
       }
 
-      setHasMore(videosArray.length === 10)
+      // If we got fewer videos than requested, there are no more pages
+      setHasMore(videosArray.length === VIDEOS_PER_PAGE)
+      
+      if (videosArray.length < VIDEOS_PER_PAGE) {
+        console.log(`[hiffi] Reached end of pagination. Got ${videosArray.length} videos, expected ${VIDEOS_PER_PAGE}`)
+      }
     } catch (error) {
       console.error("[hiffi] Failed to fetch videos:", error)
-      // Set empty array on error to prevent null reference errors
-      if (pageNum === 1) {
+      
+      // Retry logic for pagination (but not for initial load)
+      if (pageNum > 1) {
+        console.log("[hiffi] Retrying pagination request...")
+        // Don't retry immediately, let user try scrolling again
+        // Just set hasMore to false to prevent infinite retry loops
+        setHasMore(false)
+      } else {
+        // Set empty array on error for initial load
         setVideos([])
+        setHasMore(false)
       }
-      setHasMore(false)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
+      setIsFetching(false)
     }
   }
 
@@ -73,10 +111,14 @@ export default function HomePage() {
     }
   }
 
+  // Reset and fetch videos when filter changes
   useEffect(() => {
-    fetchVideos(1)
+    setPage(1)
+    setHasMore(true)
+    setVideos([])
+    fetchVideos(1, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [currentFilter])
 
   // Fetch following list when filter changes to 'following' and user is logged in
   useEffect(() => {
@@ -89,10 +131,18 @@ export default function HomePage() {
   }, [currentFilter, userData?.username])
 
   const loadMoreVideos = () => {
-    if (!loading && hasMore) {
+    // Only load more if:
+    // 1. Not currently loading (initial or more)
+    // 2. Not already fetching
+    // 3. There are more videos available
+    // 4. Filter is 'all' (pagination only works for all videos)
+    if (!loading && !loadingMore && !isFetching && hasMore && currentFilter === 'all') {
       const nextPage = page + 1
+      console.log(`[hiffi] Loading more videos - Moving to page ${nextPage}`)
       setPage(nextPage)
-      fetchVideos(nextPage)
+      fetchVideos(nextPage, false)
+    } else {
+      console.log(`[hiffi] Cannot load more - loading: ${loading}, loadingMore: ${loadingMore}, isFetching: ${isFetching}, hasMore: ${hasMore}, filter: ${currentFilter}`)
     }
   }
 
@@ -117,11 +167,15 @@ export default function HomePage() {
 
   const displayVideos = getDisplayVideos()
   const shouldShowLoadMore = currentFilter === 'all' && hasMore
-  const isLoadingVideos = loading || (currentFilter === 'following' && loadingFollowing)
+  // Show loading state: initial load OR loading more OR loading following list
+  const isLoadingVideos = loading || loadingMore || (currentFilter === 'following' && loadingFollowing)
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <Navbar 
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        currentFilter={currentFilter}
+      />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           isMobileOpen={isSidebarOpen} 
@@ -129,21 +183,13 @@ export default function HomePage() {
           currentFilter={currentFilter}
           onFilterChange={setCurrentFilter}
         />
-        <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
+        <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 h-[calc(100vh-4rem)]">
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                   <div className="flex items-center justify-between mb-1 sm:justify-start">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Discover</h1>
-                    {user && (
-                      <Button asChild size="icon" className="h-10 w-10 rounded-full sm:hidden ml-auto">
-                        <Link href="/upload">
-                          <Plus className="h-5 w-5" />
-                          <span className="sr-only">Upload Video</span>
-                        </Link>
-                      </Button>
-                    )}
                   </div>
                   {currentFilter !== 'all' && (
                     <p className="text-sm text-muted-foreground mt-1">
@@ -152,15 +198,15 @@ export default function HomePage() {
                     </p>
                   )}
                 </div>
-                {user && (
-                  <Button asChild size="sm" className="hidden sm:flex w-fit">
-                    <Link href="/upload">
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Video
-                    </Link>
-                  </Button>
-                )}
               </div>
+
+              {/* Video count indicator (optional, subtle) */}
+              {displayVideos.length > 0 && !loading && (
+                <div className="text-xs text-muted-foreground mb-4 text-center sm:text-left">
+                  Showing {displayVideos.length} {displayVideos.length === 1 ? 'video' : 'videos'}
+                  {currentFilter === 'all' && hasMore && ' • Scroll for more'}
+                </div>
+              )}
 
               <VideoGrid 
                 videos={displayVideos} 

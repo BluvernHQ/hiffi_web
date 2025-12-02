@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { formatDistanceToNow } from "date-fns"
 import { Play } from "lucide-react"
 import { getThumbnailUrl } from "@/lib/storage"
-import { getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 
 interface VideoCardProps {
@@ -83,7 +83,7 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
           </div>
           <div className="flex gap-2 sm:gap-3 px-1">
             <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
-              <AvatarImage src={(video as any).userAvatar || (video as any).user_avatar || ""} alt={username} />
+              <AvatarImage src={getProfilePictureUrl(video)} alt={username} />
               <AvatarFallback 
                 className="text-white font-semibold text-xs"
                 style={{ backgroundColor: getColorFromName(username || "U") }}

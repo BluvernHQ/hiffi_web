@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { extractVideoThumbnail, extractMultipleVideoThumbnails, blobToFile } from '@/lib/video-utils';
 
 export default function UploadPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userData, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -247,6 +247,20 @@ export default function UploadPage() {
       </div>
     );
   }
+
+  // Check if user is a creator
+  useEffect(() => {
+    if (!authLoading && user && userData) {
+      const isCreator = userData.role === "creator" || userData.is_creator === true
+      if (!isCreator) {
+        toast({
+          title: "Creator Status Required",
+          description: "You need to become a creator to upload videos.",
+        })
+        router.push("/creator/apply")
+      }
+    }
+  }, [user, userData, authLoading, router, toast])
 
   // Show login prompt if not authenticated
   if (!user) {

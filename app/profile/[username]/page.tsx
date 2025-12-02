@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -8,34 +8,14 @@ import { VideoGrid } from '@/components/video/video-grid';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, Share2, MapPin, LinkIcon, Calendar, UserPlus, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
-import { getColorFromName, getAvatarLetter } from '@/lib/utils';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
-
-// Generate a gradient color based on user's name/username
-function getGradientFromName(name: string): string {
-  // Convert name to a number for consistent color generation
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  
-  // Generate two colors for gradient
-  const hue1 = Math.abs(hash) % 360;
-  const hue2 = (hue1 + 60) % 360; // Offset by 60 degrees for complementary colors
-  
-  // Use HSL for vibrant colors
-  const sat1 = 65 + (Math.abs(hash) % 20); // 65-85% saturation
-  const sat2 = 65 + (Math.abs(hash * 2) % 20);
-  const light1 = 45 + (Math.abs(hash) % 15); // 45-60% lightness
-  const light2 = 50 + (Math.abs(hash * 3) % 15);
-  
-  return `linear-gradient(135deg, hsl(${hue1}, ${sat1}%, ${light1}%), hsl(${hue2}, ${sat2}%, ${light2}%))`;
-}
 
 export default function ProfilePage() {
   const params = useParams();
@@ -51,9 +31,9 @@ export default function ProfilePage() {
   
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
+  const isRegularUser = profileUser?.role === "user" || profileUser?.role === undefined;
 
-  useEffect(() => {
-    async function fetchUserData() {
+  const fetchUserData = useCallback(async () => {
       if (!username) {
         setIsLoading(false);
         setHasTriedFetch(true);
@@ -68,12 +48,14 @@ export default function ProfilePage() {
       try {
         setIsLoading(true);
         setHasTriedFetch(true);
-        const userData = await apiClient.getUserByUsername(username);
-        console.log("[hiffi] User data from API:", userData);
-        console.log("[hiffi] Followers:", userData?.followers, userData?.user?.followers);
-        console.log("[hiffi] Following:", userData?.following, userData?.user?.following);
-        // Handle both direct response and nested user object
-        const profileData = userData?.user || userData;
+        const response = await apiClient.getUserByUsername(username);
+        console.log("[hiffi] User data from API:", response);
+        
+        // Handle API response format: { success: true, user: {...} }
+        const profileData = (response?.success && response?.user) ? response.user : (response?.user || response);
+        console.log("[hiffi] Profile data:", profileData);
+        console.log("[hiffi] Followers:", profileData?.followers);
+        console.log("[hiffi] Following:", profileData?.following);
         setProfileUser(profileData);
         
         // Check if current user is following this profile user
@@ -86,7 +68,7 @@ export default function ProfilePage() {
             setIsFollowing(isFollowingStatus);
           } catch (followError) {
             console.error("[hiffi] Failed to check following status:", followError);
-            setIsFollowing(userData.isfollowing || false);
+          setIsFollowing(profileData?.isfollowing || false);
           }
         } else {
           setIsFollowing(false); // Can't follow yourself
@@ -114,10 +96,11 @@ export default function ProfilePage() {
       } finally {
         setIsLoading(false);
       }
-    }
-
-    fetchUserData();
   }, [username, toast, authLoading, currentUserData?.username]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const handleFollow = async () => {
     if (!currentUserData) {
@@ -135,10 +118,10 @@ export default function ProfilePage() {
         
         // Refresh recipient user's profile data to get updated follower count
         try {
-          const refreshedUserData = await apiClient.getUserByUsername(username);
-          console.log("[hiffi] Refreshed user data after unfollow:", refreshedUserData);
-          // Handle both direct response and nested user object
-          const profileData = refreshedUserData?.user || refreshedUserData;
+          const refreshedResponse = await apiClient.getUserByUsername(username);
+          console.log("[hiffi] Refreshed user data after unfollow:", refreshedResponse);
+          // Handle API response format: { success: true, user: {...} }
+          const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
         } catch (refreshError) {
           console.error("[hiffi] Failed to refresh user data:", refreshError);
@@ -162,10 +145,10 @@ export default function ProfilePage() {
         
         // Refresh recipient user's profile data to get updated follower count
         try {
-          const refreshedUserData = await apiClient.getUserByUsername(username);
-          console.log("[hiffi] Refreshed user data after follow:", refreshedUserData);
-          // Handle both direct response and nested user object
-          const profileData = refreshedUserData?.user || refreshedUserData;
+          const refreshedResponse = await apiClient.getUserByUsername(username);
+          console.log("[hiffi] Refreshed user data after follow:", refreshedResponse);
+          // Handle API response format: { success: true, user: {...} }
+          const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
         } catch (refreshError) {
           console.error("[hiffi] Failed to refresh user data:", refreshError);
@@ -243,6 +226,223 @@ export default function ProfilePage() {
     return null;
   }
 
+  // Show personal profile view for regular users viewing their own profile
+  if (isRegularUser && isOwnProfile) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
+          <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
+            {/* Cover Image / Banner */}
+            <div className="h-48 md:h-64 w-full relative overflow-hidden">
+              {profileUser.coverUrl ? (
+                <img 
+                  src={profileUser.coverUrl} 
+                  alt="Cover" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img 
+                  src="/abstract-orange-pattern.png" 
+                  alt="Profile header" 
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
+
+            <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+              <div className="max-w-4xl mx-auto pb-8">
+                {/* Profile Header */}
+                <div className="relative -mt-20 mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+                  <div className="relative">
+                    <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-background shadow-lg">
+                      <AvatarImage 
+                        src={getProfilePictureUrl(profileUser)} 
+                      />
+                      <AvatarFallback 
+                        className="text-3xl sm:text-4xl font-bold text-white"
+                        style={{
+                          backgroundColor: getColorFromName((profileUser.name && profileUser.name.trim()) || profileUser.username || username || "User"),
+                        }}
+                      >
+                        {getAvatarLetter(profileUser, username || "U")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="absolute bottom-0 right-0 rounded-full shadow-md h-7 w-7 sm:h-8 sm:w-8"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
+                      <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
+                
+                  <div className="flex-1 min-w-0 pt-2 sm:pt-0 sm:pb-2">
+                    {profileUser.name && profileUser.name.trim() ? (
+                      <>
+                        <h1 className="text-2xl sm:text-3xl font-bold truncate">
+                          {profileUser.name.trim()}
+                        </h1>
+                        <p className="text-muted-foreground text-sm sm:text-base">@{profileUser.username || username}</p>
+                      </>
+                    ) : (
+                      <>
+                        <h1 className="text-2xl sm:text-3xl font-bold truncate">
+                          {profileUser.username || username}
+                        </h1>
+                        <p className="text-muted-foreground text-sm sm:text-base">@{profileUser.username || username}</p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-4 sm:mt-0 sm:pb-4">
+                    <Button 
+                      className="flex-1 sm:flex-none" 
+                      size="sm"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Profile
+                    </Button>
+                    <Button variant="outline" size="icon" className="flex-shrink-0">
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Personal Details Section */}
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>Personal Information</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditDialogOpen(true)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                          <p className="text-base font-medium">
+                            {profileUser.name && profileUser.name.trim() ? profileUser.name.trim() : "Not set"}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Username</Label>
+                          <p className="text-base font-medium">@{profileUser.username || username}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                          <p className="text-base font-medium">
+                            {profileUser.email || "Not set"}
+                          </p>
+                        </div>
+                        {profileUser.createdat && (
+                          <div className="space-y-1">
+                            <Label className="text-sm font-medium text-muted-foreground">Member Since</Label>
+                            <p className="text-base font-medium">
+                              {format(new Date(profileUser.createdat), 'MMMM d, yyyy')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>About</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditDialogOpen(true)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Bio</Label>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {profileUser.bio && profileUser.bio.trim() ? profileUser.bio.trim() : "No bio available. Click Edit to add one."}
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-3 pt-4 border-t">
+                        {profileUser.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <span className="text-sm">{profileUser.location}</span>
+                          </div>
+                        )}
+                        {profileUser.website && (
+                          <div className="flex items-center gap-2">
+                            <LinkIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <a 
+                              href={`https://${profileUser.website}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-primary hover:underline text-sm"
+                            >
+                              {profileUser.website}
+                            </a>
+                          </div>
+                        )}
+                        {!profileUser.location && !profileUser.website && (
+                          <p className="text-sm text-muted-foreground">
+                            Add your location and website in the Edit Profile dialog.
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {userVideos.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Your Videos</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <VideoGrid videos={userVideos} />
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+
+        {/* Edit Profile Dialog */}
+        {isOwnProfile && profileUser && (
+          <EditProfileDialog
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            currentName={profileUser.name || profileUser.username || ""}
+            currentUsername={profileUser.username || username}
+            currentBio={profileUser.bio || ""}
+            currentLocation={profileUser.location || ""}
+            currentWebsite={profileUser.website || ""}
+            onProfileUpdated={fetchUserData}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Show standard profile view for creators/admins or when viewing other users
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
@@ -250,18 +450,17 @@ export default function ProfilePage() {
         <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
         <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
           {/* Cover Image / Banner */}
-          <div 
-            className="h-48 md:h-64 w-full relative overflow-hidden"
-            style={{
-              background: profileUser.coverUrl 
-                ? undefined
-                : getGradientFromName((profileUser.name && profileUser.name.trim()) || profileUser.username || username || "User"),
-            }}
-          >
-            {profileUser.coverUrl && (
+          <div className="h-48 md:h-64 w-full relative overflow-hidden">
+            {profileUser.coverUrl ? (
               <img 
                 src={profileUser.coverUrl} 
                 alt="Cover" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img 
+                src="/abstract-orange-pattern.png" 
+                alt="Profile header" 
                 className="w-full h-full object-cover"
               />
             )}
@@ -273,7 +472,9 @@ export default function ProfilePage() {
               <div className="relative -mt-20 mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
                 <div className="relative">
                   <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-background shadow-lg">
-                    <AvatarImage src={profileUser.avatarUrl || profileUser.avatarurl || profileUser.profilepicture || ""} />
+                    <AvatarImage 
+                      src={getProfilePictureUrl(profileUser)} 
+                    />
                     <AvatarFallback 
                       className="text-3xl sm:text-4xl font-bold text-white"
                       style={{
@@ -429,6 +630,10 @@ export default function ProfilePage() {
           onOpenChange={setIsEditDialogOpen}
           currentName={profileUser.name || profileUser.username || ""}
           currentUsername={profileUser.username || username}
+          currentBio={profileUser.bio || ""}
+          currentLocation={profileUser.location || ""}
+          currentWebsite={profileUser.website || ""}
+          onProfileUpdated={fetchUserData}
         />
       )}
     </div>

@@ -1,9 +1,9 @@
 "use client"
 
 import { VideoCard } from "./video-card"
+import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
-import { Loader2 } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useCallback } from "react"
 
 interface Video {
   videoId?: string
@@ -33,15 +33,32 @@ interface VideoGridProps {
 
 export function VideoGrid({ videos, loading, hasMore, onLoadMore }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
+  const lastLoadTime = useRef<number>(0)
+  const LOAD_THROTTLE_MS = 500 // Minimum time between loads
+
+  // Throttled load more function
+  const throttledLoadMore = useCallback(() => {
+    const now = Date.now()
+    if (now - lastLoadTime.current < LOAD_THROTTLE_MS) {
+      return
+    }
+    lastLoadTime.current = now
+    if (hasMore && !loading && onLoadMore) {
+      onLoadMore()
+    }
+  }, [hasMore, loading, onLoadMore])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && onLoadMore) {
-          onLoadMore()
+        if (entries[0].isIntersecting) {
+          throttledLoadMore()
         }
       },
-      { threshold: 0.1 },
+      { 
+        threshold: 0.1,
+        rootMargin: '200px' // Start loading before reaching the bottom
+      },
     )
 
     const currentTarget = observerTarget.current
@@ -54,42 +71,77 @@ export function VideoGrid({ videos, loading, hasMore, onLoadMore }: VideoGridPro
         observer.unobserve(currentTarget)
       }
     }
-  }, [hasMore, loading, onLoadMore])
+  }, [throttledLoadMore])
 
   // Ensure videos is always an array to prevent null reference errors
   const safeVideos = videos || []
+  const isInitialLoad = loading && safeVideos.length === 0
+  const isLoadingMore = loading && safeVideos.length > 0
 
   return (
     <div className="w-full">
-      {safeVideos.length > 0 && (
+      {/* Show shimmer skeletons on initial load */}
+      {isInitialLoad && (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {safeVideos.map((video, index) => (
-            <VideoCard 
-              key={video.videoId || video.video_id} 
-              video={video} 
-              priority={index < 4} // First 4 videos load eagerly for better LCP
-            />
+          {Array.from({ length: 8 }).map((_, index) => (
+            <VideoCardSkeleton key={`skeleton-${index}`} />
           ))}
         </div>
       )}
 
-      {loading && safeVideos.length > 0 && (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )}
-
-      {loading && safeVideos.length === 0 && (
-        <div className="flex justify-center items-center py-20">
-          <div className="text-center space-y-3">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-            <p className="text-sm text-muted-foreground">Loading videos...</p>
+      {/* Show videos when available */}
+      {safeVideos.length > 0 && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            {safeVideos.map((video, index) => (
+              <div
+                key={video.videoId || video.video_id}
+                className="opacity-0 animate-fade-in"
+                style={{ 
+                  animationDelay: `${Math.min(index * 30, 300)}ms`,
+                  animationFillMode: 'forwards'
+                }}
+              >
+                <VideoCard 
+                  video={video} 
+                  priority={index < 4} // First 4 videos load eagerly for better LCP
+                />
+              </div>
+            ))}
+            
+            {/* Show shimmer skeletons when loading more (pagination) */}
+            {isLoadingMore && Array.from({ length: 4 }).map((_, index) => (
+              <VideoCardSkeleton key={`loading-skeleton-${index}`} />
+            ))}
           </div>
-        </div>
+
+          {/* Loading indicator for pagination */}
+          {isLoadingMore && (
+            <div className="flex items-center justify-center py-6 mt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span>Loading more videos...</span>
+              </div>
+            </div>
+          )}
+
+          {/* End of results indicator */}
+          {!hasMore && safeVideos.length > 0 && !loading && (
+            <div className="flex items-center justify-center py-8 mt-4">
+              <div className="text-sm text-muted-foreground">
+                <span>You've reached the end</span>
+              </div>
+            </div>
+          )}
+
+          {/* Intersection observer target for infinite scroll */}
+          {hasMore && (
+            <div ref={observerTarget} className="h-20" />
+          )}
+        </>
       )}
 
-      <div ref={observerTarget} className="h-4" />
-
+      {/* Empty state */}
       {!loading && safeVideos.length === 0 && (
         <EmptyVideoState />
       )}

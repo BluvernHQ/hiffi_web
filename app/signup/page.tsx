@@ -115,6 +115,18 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          <div className="flex justify-end mb-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/")}
+              disabled={isLoading || checkingUsername}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Skip
+            </Button>
+          </div>
           <div className="flex justify-center mb-4">
             <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-2xl">H</span>

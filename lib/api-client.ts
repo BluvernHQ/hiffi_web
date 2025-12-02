@@ -62,8 +62,14 @@ class ApiClient {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText)
-        console.error(`[API] ${method} ${url} - FAILED (${response.status}) in ${duration}ms`)
-        console.error(`[API] Error response:`, errorText.substring(0, 200))
+        
+        // 401 (Unauthorized) errors are expected for unauthenticated users, log as warning instead of error
+        if (response.status === 401) {
+          console.warn(`[API] ${method} ${url} - UNAUTHORIZED (401) in ${duration}ms (expected for unauthenticated requests)`)
+        } else {
+          console.error(`[API] ${method} ${url} - FAILED (${response.status}) in ${duration}ms`)
+          console.error(`[API] Error response:`, errorText.substring(0, 200))
+        }
         
         const error: ApiError = {
           message: `API Error: ${response.statusText}`,
@@ -90,8 +96,13 @@ class ApiClient {
       }
 
       return data
-    } catch (error) {
+    } catch (error: any) {
       const duration = Date.now() - startTime
+      // Don't log 401 errors as errors (they're expected for unauthenticated requests)
+      if (error?.status === 401) {
+        // Already logged as warning above, just rethrow
+        throw error
+      }
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       throw error
     }
@@ -117,11 +128,11 @@ class ApiClient {
     return this.request("/users/self", {}, true)
   }
 
-  async getUserByUsername(username: string): Promise<any> {
+  async getUserByUsername(username: string): Promise<{ success: boolean; user: any }> {
     return this.request(`/users/${username}`, {}, true)
   }
 
-  async updateUser(username: string, data: { name?: string; username?: string }): Promise<any> {
+  async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string }): Promise<any> {
     return this.request(
       `/users/${username}`,
       {
@@ -431,6 +442,51 @@ class ApiClient {
         throw new Error(`Upload failed: ${error}`)
       }
     }
+  }
+
+  // Admin endpoints
+  async getAllUsers(page: number = 1, limit: number = 100): Promise<{ users: any[]; total: number }> {
+    return this.request(
+      `/admin/users`,
+      {
+        method: "POST",
+        body: JSON.stringify({ page, limit }),
+      },
+      true,
+    )
+  }
+
+  async getAllVideos(page: number = 1, limit: number = 100): Promise<{ videos: any[]; total: number }> {
+    return this.request(
+      `/admin/videos`,
+      {
+        method: "POST",
+        body: JSON.stringify({ page, limit }),
+      },
+      true,
+    )
+  }
+
+  async getAllComments(page: number = 1, limit: number = 100): Promise<{ comments: any[]; total: number }> {
+    return this.request(
+      `/admin/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify({ page, limit }),
+      },
+      true,
+    )
+  }
+
+  async getAllReplies(page: number = 1, limit: number = 100): Promise<{ replies: any[]; total: number }> {
+    return this.request(
+      `/admin/replies`,
+      {
+        method: "POST",
+        body: JSON.stringify({ page, limit }),
+      },
+      true,
+    )
   }
 }
 
