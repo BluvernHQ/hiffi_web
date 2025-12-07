@@ -58,6 +58,10 @@ function LoginForm() {
     }
   }
 
+  const handleSkip = () => {
+    router.push("/")
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-md">
@@ -67,8 +71,7 @@ function LoginForm() {
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => router.push("/")}
-              disabled={isLoading}
+              onClick={handleSkip}
               className="text-muted-foreground hover:text-foreground"
             >
               Skip

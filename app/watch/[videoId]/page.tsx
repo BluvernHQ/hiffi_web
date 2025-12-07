@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useParams } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
 import { VideoPlayer } from "@/components/video/video-player"
@@ -71,6 +71,7 @@ const RELATED_VIDEOS = [
 
 export default function WatchPage() {
   const params = useParams()
+  const router = useRouter()
   const { user, userData } = useAuth()
   const { toast } = useToast()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -89,48 +90,54 @@ export default function WatchPage() {
     downvoted: false,
   })
 
-  const currentVideoIdRef = useRef<string | null>(null)
-  const isFetchingRef = useRef(false)
-
   useEffect(() => {
     async function fetchVideoData() {
       if (!params.videoId) return
 
-      const videoId = params.videoId as string
-
-      // Prevent duplicate calls for the same videoId
-      if (isFetchingRef.current && currentVideoIdRef.current === videoId) {
-        console.log("[hiffi] Already fetching video data for:", videoId, "- skipping duplicate call")
-        return
-      }
-
-      // Mark as fetching and set current videoId
-      isFetchingRef.current = true
-      currentVideoIdRef.current = videoId
-
       try {
         setIsLoading(true)
-        console.log("[hiffi] Fetching video data for:", videoId)
+        console.log("[hiffi] Fetching video data for:", params.videoId)
 
-        const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
-        
-        // Check if videoId changed during fetch (component unmounted or videoId changed)
-        if (currentVideoIdRef.current !== videoId) {
-          console.log("[hiffi] VideoId changed during fetch, ignoring response")
-          return
+        // Search through multiple pages to find the requested video
+        let foundVideo = null
+        let allVideos: any[] = []
+        const maxPagesToSearch = 10
+        const videosPerPage = 50
+
+        for (let page = 1; page <= maxPagesToSearch; page++) {
+          const videosResponse = await apiClient.getVideoList({ page, limit: videosPerPage })
+          const videosArray = videosResponse.videos || []
+          
+          if (videosArray.length === 0) {
+            // No more videos available
+            break
+          }
+
+          // Add to all videos for related videos
+          allVideos = [...allVideos, ...videosArray]
+
+          // Check if the requested video is in this page
+          foundVideo = videosArray.find((v: any) => (v.video_id || v.videoId) === params.videoId)
+          
+          if (foundVideo) {
+            console.log("[hiffi] Found video from list on page", page, ":", foundVideo)
+            break
+          }
+
+          // If we got fewer videos than requested, we've reached the end
+          if (videosArray.length < videosPerPage) {
+            break
+          }
         }
 
-        const videosArray = videosResponse.videos || []
-        setRelatedVideos(videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId))
-
-        const videoFromList = videosArray.find((v: any) => (v.video_id || v.videoId) === videoId)
-
-        if (videoFromList) {
-          console.log("[hiffi] Found video from list:", videoFromList)
-          setVideo(videoFromList)
+        if (foundVideo) {
+          setVideo(foundVideo)
+          
+          // Set related videos (exclude the current video)
+          setRelatedVideos(allVideos.filter((v: any) => (v.video_id || v.videoId) !== params.videoId))
           
           // Sync vote state with video data
-          const voteStatus = videoFromList.uservotestatus || videoFromList.user_vote_status
+          const voteStatus = foundVideo.uservotestatus || foundVideo.user_vote_status
           setUpvoteState({
             upvoted: voteStatus === "upvoted",
             downvoted: voteStatus === "downvoted",
@@ -139,27 +146,18 @@ export default function WatchPage() {
           setIsDisliked(voteStatus === "downvoted")
           
           // Fetch video creator data to get follower count
-          const videoCreatorUsername = videoFromList.userUsername || videoFromList.user_username
+          const videoCreatorUsername = foundVideo.userUsername || foundVideo.user_username
           if (videoCreatorUsername) {
             try {
               const creatorResponse = await apiClient.getUserByUsername(videoCreatorUsername)
-              
-              // Check if videoId changed during fetch
-              if (currentVideoIdRef.current !== videoId) {
-                return
-              }
-
               console.log("[hiffi] Creator data from API:", creatorResponse);
               // Handle API response format: { success: true, user: {...} }
               const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
               console.log("[hiffi] Creator profile:", creatorProfile);
               console.log("[hiffi] Creator followers:", creatorProfile?.followers);
               setVideoCreator(creatorProfile)
-            } catch (creatorError: any) {
-              // Only log error if videoId hasn't changed and not 401 (unauthorized is expected for non-authenticated users)
-              if (currentVideoIdRef.current === videoId && creatorError?.status !== 401) {
-                console.error("[hiffi] Failed to fetch creator data:", creatorError)
-              }
+            } catch (creatorError) {
+              console.error("[hiffi] Failed to fetch creator data:", creatorError)
               // Continue without creator data
             }
             
@@ -171,64 +169,35 @@ export default function WatchPage() {
                   userData.username,
                   videoCreatorUsername
                 )
-                
-                // Check if videoId changed during fetch
-                if (currentVideoIdRef.current !== videoId) {
-                  return
-                }
-
                 setIsFollowing(isFollowingStatus)
               } catch (followError) {
-                if (currentVideoIdRef.current === videoId) {
-                  console.error("[hiffi] Failed to check following status:", followError)
-                }
-                setIsFollowing(videoFromList.isfollowing || false)
+                console.error("[hiffi] Failed to check following status:", followError)
+                setIsFollowing(foundVideo.isfollowing || false)
               } finally {
-                if (currentVideoIdRef.current === videoId) {
-                  setIsCheckingFollow(false)
-                }
+                setIsCheckingFollow(false)
               }
             } else {
               setIsFollowing(false)
             }
           }
         } else {
-          console.log("[hiffi] Video not found in list, showing first video as fallback")
-          if (videosResponse.videos.length > 0) {
-            setVideo(videosResponse.videos[0])
-          } else {
-            throw new Error("No videos found")
+          console.error("[hiffi] Video not found after searching", maxPagesToSearch, "pages")
+          setUrlError("Video not found")
+          // Set related videos from what we found
+          if (allVideos.length > 0) {
+            setRelatedVideos(allVideos)
           }
         }
-      } catch (error: any) {
-        // Don't log errors if videoId changed
-        if (currentVideoIdRef.current === videoId) {
-          console.error("[hiffi] Failed to fetch video data:", error)
-          setUrlError("Failed to load video")
-        }
+      } catch (error) {
+        console.error("[hiffi] Failed to fetch video data:", error)
+        setUrlError("Failed to load video")
       } finally {
-        // Only update loading state if this is still the current videoId
-        if (currentVideoIdRef.current === videoId) {
-          setIsLoading(false)
-        }
-        // Reset fetching flag only if this is still the current videoId
-        if (currentVideoIdRef.current === videoId) {
-          isFetchingRef.current = false
-        }
+        setIsLoading(false)
       }
     }
 
     fetchVideoData()
-
-    // Cleanup function to reset fetching flag if component unmounts or videoId changes
-    return () => {
-      // Only reset if this is still the current videoId (component unmounting)
-      if (currentVideoIdRef.current === params.videoId) {
-        isFetchingRef.current = false
-        currentVideoIdRef.current = null
-      }
-    }
-  }, [params.videoId, userData?.username])
+  }, [params.videoId, userData])
 
   const handleLike = async () => {
     if (!user) {
@@ -467,8 +436,21 @@ export default function WatchPage() {
           <Sidebar className="hidden lg:block w-64 shrink-0" />
           <main className="flex-1 p-4 lg:p-6 overflow-y-auto flex items-center justify-center">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p>{urlError ? urlError : "Loading video..."}</p>
+              {urlError ? (
+                <>
+                  <div className="text-4xl mb-4">😕</div>
+                  <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
+                  <p className="text-muted-foreground mb-6">{urlError}</p>
+                  <Button onClick={() => router.push("/")} variant="default">
+                    Go to Home
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p>Loading video...</p>
+                </>
+              )}
             </div>
           </main>
         </div>

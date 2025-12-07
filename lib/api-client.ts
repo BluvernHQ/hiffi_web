@@ -62,14 +62,8 @@ class ApiClient {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText)
-        
-        // 401 (Unauthorized) errors are expected for unauthenticated users, log as warning instead of error
-        if (response.status === 401) {
-          console.warn(`[API] ${method} ${url} - UNAUTHORIZED (401) in ${duration}ms (expected for unauthenticated requests)`)
-        } else {
-          console.error(`[API] ${method} ${url} - FAILED (${response.status}) in ${duration}ms`)
-          console.error(`[API] Error response:`, errorText.substring(0, 200))
-        }
+        console.error(`[API] ${method} ${url} - FAILED (${response.status}) in ${duration}ms`)
+        console.error(`[API] Error response:`, errorText.substring(0, 200))
         
         const error: ApiError = {
           message: `API Error: ${response.statusText}`,
@@ -96,13 +90,8 @@ class ApiClient {
       }
 
       return data
-    } catch (error: any) {
+    } catch (error) {
       const duration = Date.now() - startTime
-      // Don't log 401 errors as errors (they're expected for unauthenticated requests)
-      if (error?.status === 401) {
-        // Already logged as warning above, just rethrow
-        throw error
-      }
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       throw error
     }

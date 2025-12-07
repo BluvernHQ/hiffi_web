@@ -6,10 +6,6 @@ import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 
-// Module-level cache to share fetch promises across all component instances
-// This prevents duplicate API calls even when React StrictMode creates multiple instances
-const videoUrlFetchCache = new Map<string, Promise<{ video_url: string }>>()
-
 interface VideoPlayerProps {
   videoUrl: string
   poster?: string
@@ -31,7 +27,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   const [signedVideoUrl, setSignedVideoUrl] = useState<string>("")
   const [isLoadingUrl, setIsLoadingUrl] = useState(true)
   const [urlError, setUrlError] = useState<string>("")
-  const currentVideoUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function fetchSignedUrl() {
@@ -41,75 +36,28 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         return
       }
 
-      // Check module-level cache first - this works across all component instances
-      let fetchPromise = videoUrlFetchCache.get(videoUrl)
-      
-      if (fetchPromise) {
-        console.log("[hiffi] Reusing cached fetch promise for:", videoUrl)
-      } else {
-        // Create a new fetch promise and cache it immediately
-        console.log("[hiffi] Creating new fetch promise for:", videoUrl)
-        fetchPromise = apiClient.getVideoUrl(videoUrl)
-        videoUrlFetchCache.set(videoUrl, fetchPromise)
-        
-        // Clean up the cache entry after the promise resolves (success or failure)
-        fetchPromise
-          .then(() => {
-            // Keep in cache for a short time to handle rapid re-renders
-            setTimeout(() => {
-              videoUrlFetchCache.delete(videoUrl)
-            }, 1000)
-          })
-          .catch(() => {
-            // Remove from cache on error so we can retry
-            videoUrlFetchCache.delete(videoUrl)
-          })
-      }
-
-      // Set current videoUrl and loading state
-      currentVideoUrlRef.current = videoUrl
-      setIsLoadingUrl(true)
-
       try {
-        const response = await fetchPromise
-        
-        // Check if videoUrl changed during fetch
-        if (currentVideoUrlRef.current !== videoUrl) {
-          console.log("[hiffi] VideoUrl changed during fetch, ignoring response")
-          return
-        }
+        setIsLoadingUrl(true)
+        console.log("[hiffi] Fetching signed URL for video path:", videoUrl)
 
+        const response = await apiClient.getVideoUrl(videoUrl)
         console.log("[hiffi] Received signed URL response:", response)
 
         if (!response.video_url) {
           throw new Error("No video_url in response")
         }
-        
+
         setSignedVideoUrl(response.video_url)
         setUrlError("")
       } catch (error) {
-        // Only log error if videoUrl hasn't changed
-        if (currentVideoUrlRef.current === videoUrl) {
-          console.error("[hiffi] Failed to fetch signed video URL:", error)
-          setUrlError("Failed to load video")
-        }
+        console.error("[hiffi] Failed to fetch signed video URL:", error)
+        setUrlError("Failed to load video")
       } finally {
-        // Only update loading state if this is still the current videoUrl
-        if (currentVideoUrlRef.current === videoUrl) {
-          setIsLoadingUrl(false)
-        }
+        setIsLoadingUrl(false)
       }
     }
 
     fetchSignedUrl()
-
-    // Cleanup function
-    return () => {
-      // Clear ref if videoUrl changed or component unmounting
-      if (currentVideoUrlRef.current === videoUrl) {
-        currentVideoUrlRef.current = null
-      }
-    }
   }, [videoUrl])
 
   useEffect(() => {
