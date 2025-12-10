@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL from documentation
-const API_BASE_URL = 'https://hiffi.alterwork.in/api';
+const API_BASE_URL = 'https://beta.hiffi.com/api';
 
 // Create axios instance
 const api = axios.create({

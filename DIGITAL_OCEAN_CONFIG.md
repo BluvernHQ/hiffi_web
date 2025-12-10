@@ -14,7 +14,7 @@ https://blr1.digitaloceanspaces.com/dev.hiffi
 
 ### API Base URL
 ```
-https://hiffi.alterwork.in/api
+https://beta.hiffi.com/api
 ```
 
 ## Storage Paths

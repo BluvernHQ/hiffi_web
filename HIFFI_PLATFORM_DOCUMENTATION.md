@@ -42,7 +42,7 @@
 - **Firebase ID Tokens**: Bearer token authentication for API calls
 
 ### Backend Integration
-- **RESTful API**: Base URL: `https://hiffi.alterwork.in/api`
+- **RESTful API**: Base URL: `https://beta.hiffi.com/api`
 - **HTTP Client**: Custom `ApiClient` with automatic token refresh
 - **DigitalOcean Spaces**: Video and thumbnail storage
 
@@ -227,7 +227,7 @@
 
 ### Base URL
 ```
-https://hiffi.alterwork.in/api
+https://beta.hiffi.com/api
 ```
 
 ### Authentication
@@ -1341,7 +1341,7 @@ lib/
 ## Development Notes
 
 ### Environment Configuration
-- Base API URL: `https://hiffi.alterwork.in/api`
+- Base API URL: `https://beta.hiffi.com/api`
 - Firebase project configuration in `firebase_options.dart`
 - DigitalOcean Spaces credentials in `app_providers.dart`
 - Development certificate validation relaxed
