@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +13,7 @@ import { Loader2, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -85,19 +86,32 @@ export default function AdminLoginPage() {
     setError("")
 
     try {
-      await login(email, password)
+      // Use API client directly for username/password login (not Firebase)
+      // This ensures we use the username/password flow, not Firebase authentication
+      console.log("[Admin] Attempting username/password login for:", username)
+      const response = await apiClient.login({ username, password })
+      
+      if (!response.success || !response.data) {
+        throw new Error("Login failed. Please check your credentials.")
+      }
+
+      console.log("[Admin] Login successful, user:", response.data.user.username)
+
+      // Store credentials for auto-login
+      apiClient.setCredentials(username, password)
       
       // Force refresh user data after login to ensure we have latest role
+      // The useEffect hook will handle the redirect to /admin/dashboard based on role
       console.log("[Admin] Forcing refresh of user data after login")
       await refreshUserData(true)
       
-      // Wait a bit for state to update before checking role
+      // Wait a moment for state to update - the useEffect will handle redirect
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      // The useEffect will handle the redirect based on role
       setIsLoading(false)
     } catch (err: any) {
-      setError(err.message || "Invalid email or password")
+      console.error("[Admin] Login error:", err)
+      setError(err.message || "Invalid username or password")
       setIsLoading(false)
     }
   }
@@ -129,13 +143,13 @@ export default function AdminLoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                <Label htmlFor="username" className="text-sm font-medium">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  placeholder="admin"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
                   className="h-11 transition-all focus:ring-2 focus:ring-primary/20"
                   required
                   disabled={isLoading}

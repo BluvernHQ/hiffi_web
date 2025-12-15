@@ -10,7 +10,7 @@ import { VideoCard } from "@/components/video/video-card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ThumbsUp, ThumbsDown } from "lucide-react"
+import { ThumbsUp, ThumbsDown, MoreVertical, Trash2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
@@ -18,6 +18,14 @@ import { cn, getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/l
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
+import { getSeed } from "@/lib/seed-manager"
+import { DeleteVideoDialog } from "@/components/video/delete-video-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Mock video data
 const MOCK_VIDEO = {
@@ -85,6 +93,7 @@ export default function WatchPage() {
   const [relatedVideos, setRelatedVideos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [urlError, setUrlError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [upvoteState, setUpvoteState] = useState<{ upvoted: boolean; downvoted: boolean }>({
     upvoted: false,
     downvoted: false,
@@ -138,8 +147,9 @@ export default function WatchPage() {
         const maxPagesToSearch = 5
         const videosPerPage = 50
 
+        const seed = getSeed()
         for (let page = 1; page <= maxPagesToSearch; page++) {
-          const videosResponse = await apiClient.getVideoList({ page, limit: videosPerPage })
+          const videosResponse = await apiClient.getVideoList({ page, limit: videosPerPage, seed })
           const videosArray = videosResponse.videos || []
           
           if (videosArray.length === 0) {
@@ -182,8 +192,9 @@ export default function WatchPage() {
           setRelatedVideos(allVideos.filter((v: any) => (v.video_id || v.videoId) !== videoId))
           
           // Fetch video creator data to get follower count
+          // Only fetch if user is logged in (endpoint requires authentication)
           const videoCreatorUsername = foundVideo.userUsername || foundVideo.user_username
-          if (videoCreatorUsername) {
+          if (videoCreatorUsername && user) {
             try {
               const creatorResponse = await apiClient.getUserByUsername(videoCreatorUsername)
               console.log("[hiffi] Creator data from API:", creatorResponse);
@@ -192,9 +203,19 @@ export default function WatchPage() {
               console.log("[hiffi] Creator profile:", creatorProfile);
               console.log("[hiffi] Creator followers:", creatorProfile?.followers);
               setVideoCreator(creatorProfile)
-            } catch (creatorError) {
-              console.error("[hiffi] Failed to fetch creator data:", creatorError)
+            } catch (creatorError: any) {
+              // Only log as warning if it's not a 401 (expected when not authenticated)
+              if (creatorError?.status !== 401) {
+                console.warn("[hiffi] Failed to fetch creator data:", creatorError)
+              }
               // Continue without creator data
+            }
+          } else if (videoCreatorUsername) {
+            // User not logged in - use basic info from video object
+            setVideoCreator({
+              username: videoCreatorUsername,
+              name: videoCreatorUsername,
+            })
             }
             
             // Check if current user is following the video creator
@@ -205,7 +226,6 @@ export default function WatchPage() {
               setIsFollowing(false)
             } else {
               setIsFollowing(false)
-            }
           }
         } else {
           // If we couldn't find video metadata, create a minimal video object from getVideo response
@@ -316,7 +336,8 @@ export default function WatchPage() {
 
       // Refresh video data from API to get accurate counts
       try {
-        const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
+        const seed = getSeed()
+        const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 6, seed })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
           console.log("[hiffi] Updated video data after upvote:", updatedVideo);
@@ -386,7 +407,8 @@ export default function WatchPage() {
 
       // Refresh video data from API to get accurate counts
       try {
-        const videosResponse = await apiClient.getVideoList({ page: 1, limit: 6 })
+        const seed = getSeed()
+        const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 6, seed })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
           console.log("[hiffi] Updated video data after downvote:", updatedVideo);
@@ -445,8 +467,11 @@ export default function WatchPage() {
           // Handle API response format: { success: true, user: {...} }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
-        } catch (refreshError) {
-          console.error("[hiffi] Failed to refresh creator data:", refreshError)
+        } catch (refreshError: any) {
+          // Only log as warning if it's not a 401 (expected when not authenticated)
+          if (refreshError?.status !== 401) {
+            console.warn("[hiffi] Failed to refresh creator data:", refreshError)
+          }
           // Update optimistically if refresh fails
           if (videoCreator) {
             setVideoCreator({
@@ -471,8 +496,11 @@ export default function WatchPage() {
           // Handle API response format: { success: true, user: {...} }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
-        } catch (refreshError) {
-          console.error("[hiffi] Failed to refresh creator data:", refreshError)
+        } catch (refreshError: any) {
+          // Only log as warning if it's not a 401 (expected when not authenticated)
+          if (refreshError?.status !== 401) {
+            console.warn("[hiffi] Failed to refresh creator data:", refreshError)
+          }
           // Update optimistically if refresh fails
           if (videoCreator) {
             setVideoCreator({
@@ -539,6 +567,15 @@ export default function WatchPage() {
   // Use streaming_url if available (from getVideo), otherwise fall back to video_url
   const videoUrl = video.streaming_url || video.video_url || video.videoUrl || ""
   const thumbnailUrl = getThumbnailUrl(video.video_thumbnail || video.videoThumbnail || "")
+  
+  // Check if current user owns this video
+  const isOwner = userData?.username === (video.userUsername || video.user_username)
+  const videoId = video.video_id || video.videoId || ""
+  
+  const handleVideoDeleted = () => {
+    // Redirect to home after deletion
+    router.push("/")
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -645,6 +682,25 @@ export default function WatchPage() {
                         {(video.video_downvotes || video.videoDownvotes || 0).toLocaleString()}
                       </Button>
                     </div>
+                    {isOwner && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="rounded-full">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Video options</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteDialogOpen(true)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Video
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
 
@@ -695,6 +751,14 @@ export default function WatchPage() {
           </div>
         </main>
       </div>
+      
+      <DeleteVideoDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        videoId={videoId}
+        videoTitle={video.videoTitle || video.video_title}
+        onDeleted={handleVideoDeleted}
+      />
     </div>
   )
 }

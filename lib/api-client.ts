@@ -600,7 +600,7 @@ class ApiClient {
   // Video endpoints
   // GET /videos/list - List all videos with deterministic random pagination
   // Note: API actually uses GET with query params, not POST (returns 405 for POST)
-  async getVideoList(data: { page?: number; limit?: number; seed?: string }): Promise<{
+  async getVideoList(data: { offset?: number; limit?: number; seed: string; page?: number }): Promise<{
     success: boolean
     videos: any[]
     page?: number
@@ -609,19 +609,18 @@ class ApiClient {
     count: number
     seed?: string
   }> {
-    // Calculate offset from page if provided
+    // Use offset directly, or calculate from page if provided (for backward compatibility)
     const limit = data.limit || 20
-    const page = data.page || 1
-    const offset = (page - 1) * limit
+    const offset = data.offset !== undefined ? data.offset : (data.page ? (data.page - 1) * limit : 0)
     
-    // Build query parameters
+    // Build query parameters - always include seed and offset
     const params = new URLSearchParams()
-    if (data.page) params.append("page", page.toString())
-    if (limit !== 20) params.append("limit", limit.toString())
-    if (data.seed) params.append("seed", data.seed)
+    params.append("offset", offset.toString())
+    params.append("limit", limit.toString())
+    params.append("seed", data.seed)
     
     const queryString = params.toString()
-    const url = queryString ? `/videos/list?${queryString}` : "/videos/list"
+    const url = `/videos/list?${queryString}`
     
     const response = await this.request<{
       success?: boolean
@@ -666,11 +665,11 @@ class ApiClient {
       return {
         success: true,
         videos: videos,
-        page: responsePage || page,
+        page: responsePage,
         limit: responseLimit || limit,
         offset: responseOffset !== undefined ? responseOffset : offset,
         count: responseCount !== undefined ? responseCount : 0,
-        seed: responseSeed,
+        seed: responseSeed || data.seed,
       }
     }
     
@@ -871,14 +870,14 @@ class ApiClient {
     return { video_url: response.video_url }
   }
 
-  // DELETE /videos/delete/{videoID} - Delete a video
+  // DELETE /videos/{videoID} - Delete a video
   async deleteVideo(videoId: string): Promise<{ success: boolean; message: string }> {
     const response = await this.request<{
       success?: boolean
       status?: string
       message?: string
     }>(
-      `/videos/delete/${videoId}`,
+      `/videos/${videoId}`,
       {
         method: "DELETE",
       },

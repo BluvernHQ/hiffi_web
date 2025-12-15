@@ -34,7 +34,10 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsContainerRef = useRef<HTMLDivElement>(null);
+  const resultItemRefs = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
   const router = useRouter();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -43,8 +46,25 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       inputRef.current?.focus();
       setQuery('');
       setSuggestions([]);
+      setSelectedIndex(-1);
     }
   }, [isOpen]);
+
+  // Reset selected index when suggestions or query change
+  useEffect(() => {
+    setSelectedIndex(-1);
+    resultItemRefs.current = [];
+  }, [suggestions, query]);
+
+  // Auto-scroll selected item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && resultItemRefs.current[selectedIndex]) {
+      resultItemRefs.current[selectedIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [selectedIndex]);
 
   useEffect(() => {
     // Clear previous timer
@@ -115,6 +135,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
   const handleSearch = (searchQuery: string) => {
     if (searchQuery.trim()) {
+      // Navigate to search page - router.push will trigger the search page to update
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
       onClose();
       setQuery('');
@@ -144,10 +165,37 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && query.trim()) {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && resultItemRefs.current[selectedIndex]) {
+                      // Navigate to selected item
+                      const selectedItem = resultItemRefs.current[selectedIndex];
+                      if (selectedItem instanceof HTMLAnchorElement) {
+                        selectedItem.click();
+                        return;
+                      } else if (selectedItem instanceof HTMLButtonElement) {
+                        selectedItem.click();
+                        return;
+                      }
+                    }
+                    // Always navigate to search page if there's a query
+                    if (query.trim()) {
                     handleSearch(query);
+                    }
                   } else if (e.key === 'Escape') {
                     onClose();
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    let totalItems = 0;
+                    if (query.length === 0) {
+                      totalItems = TRENDING_SEARCHES.length;
+                    } else if (suggestions.length > 0) {
+                      totalItems = suggestions.length + 1; // +1 for "View all results" button
+                    }
+                    setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : prev));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
                   }
                 }}
                 className="pl-10 pr-10 h-12 text-lg"
@@ -165,7 +213,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           </div>
 
           {/* Search Results */}
-          <div className="max-h-[60vh] overflow-y-auto">
+          <div ref={resultsContainerRef} className="max-h-[60vh] overflow-y-auto">
             {query.length === 0 ? (
               <div className="space-y-4">
                 <div>
@@ -174,11 +222,17 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     Trending Searches
                   </h3>
                   <div className="space-y-1">
-                    {TRENDING_SEARCHES.map((search) => (
+                    {TRENDING_SEARCHES.map((search, index) => (
                       <button
                         key={search}
                         onClick={() => handleSearch(search)}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors",
+                          selectedIndex === index && "bg-muted"
+                        )}
+                        ref={(el) => {
+                          if (el) resultItemRefs.current[index] = el;
+                        }}
                       >
                         {search}
                       </button>
@@ -210,14 +264,22 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Users</h3>
                               </div>
                               <div className="space-y-1">
-                                {users.map((result) => (
+                                {users.map((result, index) => {
+                                  const itemIndex = suggestions.indexOf(result);
+                                  return (
                                   <Link
                                     key={result.id}
                                     href={`/profile/${result.username}`}
                                     onClick={onClose}
                                     className="block"
+                                    ref={(el) => {
+                                      if (el) resultItemRefs.current[itemIndex] = el;
+                                    }}
                                   >
-                                    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group">
+                                    <div className={cn(
+                                      "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
+                                      selectedIndex === itemIndex && "bg-muted"
+                                    )}>
                                       <Avatar className="h-10 w-10 flex-shrink-0">
                                         <AvatarImage src={result.thumbnail ? getProfilePictureUrl({ profile_picture: result.thumbnail }) : undefined} alt={result.username} />
                                         <AvatarFallback 
@@ -241,7 +303,8 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       <User className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                   </Link>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -254,14 +317,22 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Videos</h3>
                               </div>
                               <div className="space-y-1">
-                                {videos.map((result) => (
+                                {videos.map((result) => {
+                                  const itemIndex = suggestions.indexOf(result);
+                                  return (
                                   <Link
                                     key={result.id}
                                     href={`/watch/${result.id}`}
                                     onClick={onClose}
                                     className="block"
+                                    ref={(el) => {
+                                      if (el) resultItemRefs.current[itemIndex] = el;
+                                    }}
                                   >
-                                    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group">
+                                    <div className={cn(
+                                      "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
+                                      selectedIndex === itemIndex && "bg-muted"
+                                    )}>
                                       <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
                                         <img 
                                           src={result.thumbnail 
@@ -290,7 +361,8 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       </div>
                                     </div>
                                   </Link>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -299,8 +371,14 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     })()}
                     <Button 
                       variant="ghost" 
-                      className="w-full mt-4 border-t pt-4"
+                      className={cn(
+                        "w-full mt-4 border-t pt-4",
+                        selectedIndex === suggestions.length && "bg-muted"
+                      )}
                       onClick={() => handleSearch(query)}
+                      ref={(el) => {
+                        if (el) resultItemRefs.current[suggestions.length] = el;
+                      }}
                     >
                       View all results for "{query}"
                     </Button>

@@ -5,13 +5,22 @@ import type React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import { Play } from "lucide-react"
+import { Play, MoreVertical, Trash2 } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
+import { DeleteVideoDialog } from "./delete-video-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface VideoCardProps {
   video: {
@@ -33,11 +42,13 @@ interface VideoCardProps {
     created_at?: string
   }
   priority?: boolean
+  onDeleted?: () => void
 }
 
-export function VideoCard({ video, priority = false }: VideoCardProps) {
+export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps) {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, userData } = useAuth()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = video.videoThumbnail || video.video_thumbnail || ""
   const title = video.videoTitle || video.video_title || ""
@@ -46,6 +57,9 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
 
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+  
+  // Check if current user owns this video
+  const isOwner = userData?.username === username
 
   // Use video_thumbnail field from API with direct Workers URL
   // Falls back to videoId if thumbnail field is not available
@@ -56,7 +70,12 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
       : `/placeholder.svg?height=360&width=640&query=${encodeURIComponent(title)}`)
 
   const handleCardClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {
+    // Don't navigate if clicking on action buttons or links
+    if (
+      (e.target as HTMLElement).closest('a[href^="/profile"]') ||
+      (e.target as HTMLElement).closest('button') ||
+      (e.target as HTMLElement).closest('[role="menuitem"]')
+    ) {
       return
     }
     router.push(`/watch/${videoId}`)
@@ -116,7 +135,41 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
                 <span className="whitespace-nowrap">{timeAgo}</span>
               </div>
             </div>
+            {isOwner && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Video options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteDialogOpen(true)
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Video
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
+          
+          <DeleteVideoDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            videoId={videoId}
+            videoTitle={title}
+            onDeleted={onDeleted}
+          />
         </CardContent>
       </Card>
     </div>

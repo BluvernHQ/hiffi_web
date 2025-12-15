@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, Share2 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
+import { getSeed } from "@/lib/seed-manager"
 
 interface AnalyticsData {
   totalUsers: number
@@ -29,9 +30,10 @@ export function AnalyticsOverview() {
         setLoading(true)
         
         // Fetch all data to calculate metrics
+        const seed = getSeed()
         const [usersResponse, videosResponse, commentsResponse, repliesResponse] = await Promise.all([
           apiClient.getAllUsers(1, 1000).catch(() => ({ users: [], total: 0 })),
-          apiClient.getVideoList({ page: 1, limit: 1000 }).catch(() => ({ videos: [] })),
+          apiClient.getVideoList({ offset: 0, limit: 1000, seed }).catch(() => ({ videos: [] })),
           apiClient.getAllComments(1, 1000).catch(() => ({ comments: [], total: 0 })),
           apiClient.getAllReplies(1, 1000).catch(() => ({ replies: [], total: 0 })),
         ])

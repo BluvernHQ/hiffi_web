@@ -7,6 +7,7 @@ import { VideoGrid } from "@/components/video/video-grid"
 import { FollowingEmptyState } from "@/components/video/following-empty-state"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
+import { getSeed } from "@/lib/seed-manager"
 
 type FilterType = 'all' | 'trending' | 'following'
 
@@ -16,7 +17,7 @@ export default function HomePage() {
   const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [page, setPage] = useState(1)
+  const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all')
@@ -25,7 +26,7 @@ export default function HomePage() {
   const [isFetching, setIsFetching] = useState(false) // Prevent duplicate requests
   const { user, userData } = useAuth()
 
-  const fetchVideos = async (pageNum: number, isInitialLoad: boolean = false) => {
+  const fetchVideos = async (currentOffset: number, isInitialLoad: boolean = false) => {
     // Prevent duplicate requests
     if (isFetching) {
       console.log("[hiffi] Already fetching, skipping duplicate request")
@@ -41,19 +42,24 @@ export default function HomePage() {
         setLoadingMore(true)
       }
       
-      console.log(`[hiffi] Fetching videos - Page: ${pageNum}, Limit: ${VIDEOS_PER_PAGE}`)
+      // Get seed - this will be the same across all routes for this session
+      const seed = getSeed()
+      
+      console.log(`[hiffi] Fetching videos - Offset: ${currentOffset}, Limit: ${VIDEOS_PER_PAGE}, Seed: ${seed}`)
       
       const response = await apiClient.getVideoList({
-        page: pageNum,
+        offset: currentOffset,
         limit: VIDEOS_PER_PAGE,
+        seed: seed,
       })
 
       // Handle null or undefined videos array
       const videosArray = response.videos || []
       
-      console.log(`[hiffi] Received ${videosArray.length} videos for page ${pageNum}`)
+      console.log(`[hiffi] Received ${videosArray.length} videos at offset ${currentOffset}`)
 
-      if (pageNum === 1) {
+      if (currentOffset === 0) {
+        // Initial load - replace videos
         setVideos(videosArray)
       } else {
         // Append new videos to existing ones
@@ -75,7 +81,7 @@ export default function HomePage() {
       console.error("[hiffi] Failed to fetch videos:", error)
       
       // Retry logic for pagination (but not for initial load)
-      if (pageNum > 1) {
+      if (currentOffset > 0) {
         console.log("[hiffi] Retrying pagination request...")
         // Don't retry immediately, let user try scrolling again
         // Just set hasMore to false to prevent infinite retry loops
@@ -117,12 +123,25 @@ export default function HomePage() {
     }
   }
 
+  // Initial load on mount
+  useEffect(() => {
+    if (currentFilter === 'all') {
+      setOffset(0)
+      setHasMore(true)
+      setVideos([])
+      fetchVideos(0, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Reset and fetch videos when filter changes
   useEffect(() => {
-    setPage(1)
+    setOffset(0)
     setHasMore(true)
     setVideos([])
-    fetchVideos(1, true)
+    if (currentFilter === 'all') {
+    fetchVideos(0, true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFilter])
 
@@ -143,10 +162,12 @@ export default function HomePage() {
     // 3. There are more videos available
     // 4. Filter is 'all' (pagination only works for all videos)
     if (!loading && !loadingMore && !isFetching && hasMore && currentFilter === 'all') {
-      const nextPage = page + 1
-      console.log(`[hiffi] Loading more videos - Moving to page ${nextPage}`)
-      setPage(nextPage)
-      fetchVideos(nextPage, false)
+      // Offset should be the number of items to skip, not page number
+      // Calculate next offset based on current number of videos loaded
+      const nextOffset = videos.length
+      console.log(`[hiffi] Loading more videos - Current videos: ${videos.length}, Next offset: ${nextOffset}`)
+      setOffset(nextOffset)
+      fetchVideos(nextOffset, false)
     } else {
       console.log(`[hiffi] Cannot load more - loading: ${loading}, loadingMore: ${loadingMore}, isFetching: ${isFetching}, hasMore: ${hasMore}, filter: ${currentFilter}`)
     }
@@ -226,6 +247,12 @@ export default function HomePage() {
                   loading={isLoadingVideos} 
                   hasMore={shouldShowLoadMore} 
                   onLoadMore={currentFilter === 'all' ? loadMoreVideos : undefined} 
+                  onVideoDeleted={(videoId) => {
+                    // Remove deleted video from the list
+                    setVideos((prev) => 
+                      prev.filter((v) => (v.videoId || v.video_id) !== videoId)
+                    )
+                  }}
                 />
               )}
             </div>

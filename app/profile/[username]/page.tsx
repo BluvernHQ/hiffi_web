@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { getSeed } from '@/lib/seed-manager';
 import { Edit, Share2, MapPin, LinkIcon, Calendar, UserPlus, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
@@ -26,8 +27,14 @@ export default function ProfilePage() {
   const [profileUser, setProfileUser] = useState<any>(null);
   const [userVideos, setUserVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [isFetching, setIsFetching] = useState(false);
   const [hasTriedFetch, setHasTriedFetch] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const VIDEOS_PER_PAGE = 10;
   
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
@@ -86,30 +93,13 @@ export default function ProfilePage() {
           setIsFollowing(false); // Can't follow yourself
         }
         
-        // Fetch user's videos
-        // If viewing own profile, use listSelfVideos, otherwise filter from all videos
-        let videosArray: any[] = []
-        if (isOwnProfileCheck) {
-          try {
-            const selfVideosResponse = await apiClient.listSelfVideos({ page: 1, limit: 50 })
-            videosArray = selfVideosResponse.videos || []
-          } catch (error) {
-            console.error("[hiffi] Failed to fetch own videos:", error)
-            // Fall back to filtering from all videos
-            const videosResponse = await apiClient.getVideoList({ page: 1, limit: 50 })
-            videosArray = videosResponse.videos || []
-          }
-        } else {
-          // For other users, get all videos and filter client-side
-          const videosResponse = await apiClient.getVideoList({ page: 1, limit: 50 })
-          videosArray = videosResponse.videos || []
-        }
+        // Reset video state
+        setUserVideos([]);
+        setOffset(0);
+        setHasMore(true);
         
-        // Filter videos by this user (if not using listSelfVideos)
-        const filteredVideos = videosArray.filter(
-          (v: any) => (v.user_username || v.userUsername) === username
-        );
-        setUserVideos(filteredVideos);
+        // Fetch initial page of user's videos
+        await fetchUserVideos(0, true, isOwnProfileCheck);
       } catch (error: any) {
         console.error("[hiffi] Failed to fetch user data:", error);
         // Only set to null if it's a real error (not just auth not ready)
@@ -125,6 +115,102 @@ export default function ProfilePage() {
         setIsLoading(false);
       }
   }, [username, toast, authLoading, currentUserData?.username]);
+
+  // Fetch user videos with infinite scroll support
+  const fetchUserVideos = useCallback(async (currentOffset: number, isInitialLoad: boolean, isOwnProfile: boolean) => {
+    if (isFetching) {
+      console.log("[hiffi] Already fetching videos, skipping duplicate request");
+      return;
+    }
+
+    try {
+      setIsFetching(true);
+      
+      if (isInitialLoad) {
+        setIsLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const seed = getSeed();
+      let videosArray: any[] = [];
+
+      if (isOwnProfile) {
+        try {
+          // For own profile, try listSelfVideos first (if it supports pagination)
+          // Otherwise fall back to getVideoList
+          const selfVideosResponse = await apiClient.listSelfVideos({ page: currentOffset + 1, limit: VIDEOS_PER_PAGE });
+          videosArray = selfVideosResponse.videos || [];
+          // If listSelfVideos doesn't support pagination well, we might get all videos
+          // In that case, we need to handle it differently
+          if (currentOffset > 0 && videosArray.length === 0) {
+            setHasMore(false);
+            return;
+          }
+        } catch (error) {
+          console.error("[hiffi] Failed to fetch own videos, falling back to getVideoList:", error);
+          // Fall back to filtering from all videos
+          const videosResponse = await apiClient.getVideoList({ offset: currentOffset, limit: VIDEOS_PER_PAGE, seed });
+          videosArray = videosResponse.videos || [];
+        }
+      } else {
+        // For other users, fetch pages and filter client-side
+        const videosResponse = await apiClient.getVideoList({ offset: currentOffset, limit: VIDEOS_PER_PAGE, seed });
+        videosArray = videosResponse.videos || [];
+      }
+
+      // Filter videos by this user (if not using listSelfVideos or if filtering is needed)
+      const filteredVideos = videosArray.filter(
+        (v: any) => (v.user_username || v.userUsername) === username
+      );
+
+      if (currentOffset === 0) {
+        // Initial load - replace videos
+        setUserVideos(filteredVideos);
+      } else {
+        // Append new videos to existing ones
+        setUserVideos((prev) => {
+          // Prevent duplicates by checking video IDs
+          const existingIds = new Set(prev.map(v => v.videoId || v.video_id));
+          const newVideos = filteredVideos.filter(v => !existingIds.has(v.videoId || v.video_id));
+          return [...prev, ...newVideos];
+        });
+      }
+
+      // If we got fewer videos than requested, there might be no more pages
+      // But for filtered results, we need to check if we got any videos at all
+      if (videosArray.length < VIDEOS_PER_PAGE) {
+        setHasMore(false);
+      } else if (filteredVideos.length === 0 && videosArray.length > 0) {
+        // Got videos but none match this user - might be more pages with this user's videos
+        // Continue loading
+        setHasMore(true);
+      } else {
+        setHasMore(filteredVideos.length > 0);
+      }
+    } catch (error) {
+      console.error("[hiffi] Failed to fetch user videos:", error);
+      if (currentOffset === 0) {
+        setUserVideos([]);
+      }
+      setHasMore(false);
+    } finally {
+      setIsLoading(false);
+      setLoadingMore(false);
+      setIsFetching(false);
+    }
+  }, [username, isFetching]);
+
+  const loadMoreVideos = useCallback(() => {
+    if (!isLoading && !loadingMore && !isFetching && hasMore) {
+      // Offset should be the number of items to skip, not page number
+      // Calculate next offset based on current number of videos loaded
+      const nextOffset = userVideos.length;
+      console.log(`[hiffi] Loading more videos for user ${username} - Current videos: ${userVideos.length}, Next offset: ${nextOffset}`);
+      setOffset(nextOffset);
+      fetchUserVideos(nextOffset, false, isOwnProfile);
+    }
+  }, [isLoading, loadingMore, isFetching, hasMore, userVideos.length, username, isOwnProfile, fetchUserVideos]);
 
   useEffect(() => {
     fetchUserData();
@@ -449,7 +535,18 @@ export default function ProfilePage() {
                         <CardTitle className="text-lg">Your Videos</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <VideoGrid videos={userVideos} />
+                        <VideoGrid 
+                          videos={userVideos} 
+                          loading={isLoading || loadingMore}
+                          hasMore={hasMore}
+                          onLoadMore={loadMoreVideos}
+                          onVideoDeleted={(videoId) => {
+                            // Remove deleted video from the list
+                            setUserVideos((prev) => 
+                              prev.filter((v) => (v.videoId || v.video_id) !== videoId)
+                            )
+                          }}
+                        />
                       </CardContent>
                     </Card>
                   )}
@@ -643,10 +740,28 @@ export default function ProfilePage() {
                   <div>
                     <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Videos</h2>
                     {userVideos.length > 0 ? (
-                      <VideoGrid videos={userVideos} />
+                      <VideoGrid 
+                        videos={userVideos} 
+                        loading={isLoading || loadingMore}
+                        hasMore={hasMore}
+                        onLoadMore={loadMoreVideos}
+                        onVideoDeleted={(videoId) => {
+                          // Remove deleted video from the list
+                          setUserVideos((prev) => 
+                            prev.filter((v) => (v.videoId || v.video_id) !== videoId)
+                          )
+                        }}
+                      />
                     ) : (
                       <div className="text-center py-12 text-muted-foreground">
+                        {isLoading ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span>Loading videos...</span>
+                          </div>
+                        ) : (
                         <p>No videos yet</p>
+                        )}
                       </div>
                     )}
                   </div>
