@@ -61,75 +61,86 @@ export default function AdminDashboardPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/40">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/10 to-background">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading admin dashboard...</p>
+          <div className="relative inline-block mb-4">
+            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
+            <Loader2 className="relative h-10 w-10 animate-spin text-primary mx-auto" />
+          </div>
+          <p className="text-muted-foreground font-medium">Loading admin dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4">
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-sm">
+        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Shield className="h-5 w-5 text-primary-foreground" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/10 rounded-lg blur-sm" />
+              <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm">
+                <Shield className="h-5 w-5 text-primary-foreground" />
+              </div>
             </div>
             <div>
-              <h1 className="text-lg font-bold">Admin Panel</h1>
+              <h1 className="text-lg font-bold tracking-tight">Admin Panel</h1>
               <p className="text-xs text-muted-foreground">
-                {userData?.name || userData?.username || "Admin"}
+                {userData?.name || userData?.username || "Administrator"}
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleLogout}
+            className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Logout</span>
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2">Admin Dashboard</h2>
-          <p className="text-muted-foreground">
+      <main className="container px-4 md:px-6 py-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold tracking-tight mb-2">Dashboard</h2>
+          <p className="text-muted-foreground text-sm">
             Monitor platform analytics, user engagement, watch hours, and manage content
           </p>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Overview
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-11 bg-muted/50 p-1">
+            <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="users">
-              <Users className="mr-2 h-4 w-4" />
-              Users
+            <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Users</span>
             </TabsTrigger>
-            <TabsTrigger value="videos">
-              <Video className="mr-2 h-4 w-4" />
-              Videos
+            <TabsTrigger value="videos" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              <Video className="h-4 w-4" />
+              <span className="hidden sm:inline">Videos</span>
             </TabsTrigger>
-            <TabsTrigger value="comments">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Comments
+            <TabsTrigger value="comments" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Comments</span>
             </TabsTrigger>
-            <TabsTrigger value="replies">
-              <Reply className="mr-2 h-4 w-4" />
-              Replies
+            <TabsTrigger value="replies" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              <Reply className="h-4 w-4" />
+              <span className="hidden sm:inline">Replies</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Platform Analytics</CardTitle>
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Platform Analytics</CardTitle>
                 <CardDescription>
                   Real-time metrics and insights about your platform
                 </CardDescription>
@@ -140,58 +151,66 @@ export default function AdminDashboardPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Users</CardTitle>
+          <TabsContent value="users" className="space-y-6 mt-6">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">All Users</CardTitle>
                 <CardDescription>
                   View and manage all registered users on the platform
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <AdminUsersTable />
+              <CardContent className="p-0">
+                <div className="p-6">
+                  <AdminUsersTable />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="videos" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Videos</CardTitle>
+          <TabsContent value="videos" className="space-y-6 mt-6">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">All Videos</CardTitle>
                 <CardDescription>
                   View and manage all videos uploaded to the platform
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <AdminVideosTable />
+              <CardContent className="p-0">
+                <div className="p-6">
+                  <AdminVideosTable />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="comments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Comments</CardTitle>
+          <TabsContent value="comments" className="space-y-6 mt-6">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">All Comments</CardTitle>
                 <CardDescription>
                   View and manage all comments on videos
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <AdminCommentsTable />
+              <CardContent className="p-0">
+                <div className="p-6">
+                  <AdminCommentsTable />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="replies" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Replies</CardTitle>
+          <TabsContent value="replies" className="space-y-6 mt-6">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">All Replies</CardTitle>
                 <CardDescription>
                   View and manage all replies to comments
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <AdminRepliesTable />
+              <CardContent className="p-0">
+                <div className="p-6">
+                  <AdminRepliesTable />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

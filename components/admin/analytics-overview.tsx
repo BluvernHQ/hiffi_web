@@ -127,53 +127,61 @@ export function AnalyticsOverview() {
     <div className="space-y-6">
       {/* Key Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Users</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(analytics.totalUsers)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalUsers)}</div>
+            <p className="text-xs text-muted-foreground">
               Registered users on platform
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Videos</CardTitle>
-            <Video className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Videos</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Video className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(analytics.totalVideos)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalVideos)}</div>
+            <p className="text-xs text-muted-foreground">
               Videos uploaded
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Views</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Eye className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(analytics.totalViews)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalViews)}</div>
+            <p className="text-xs text-muted-foreground">
               Total video views
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Watch Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Watch Hours</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatHours(analytics.estimatedWatchHours)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatHours(analytics.estimatedWatchHours)}</div>
+            <p className="text-xs text-muted-foreground">
               Estimated watch time
             </p>
           </CardContent>
@@ -182,53 +190,61 @@ export function AnalyticsOverview() {
 
       {/* Engagement Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Comments</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Comments</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <MessageSquare className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(analytics.totalComments)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalComments)}</div>
+            <p className="text-xs text-muted-foreground">
               Comments on videos
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Replies</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Replies</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <MessageSquare className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(analytics.totalReplies)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalReplies)}</div>
+            <p className="text-xs text-muted-foreground">
               Replies to comments
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Upvotes</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Upvotes</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Heart className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(analytics.totalUpvotes)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalUpvotes)}</div>
+            <p className="text-xs text-muted-foreground">
               Positive interactions
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagement Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Engagement Rate</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.engagementRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold tracking-tight mb-1">{analytics.engagementRate.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
               Engagements per 100 views
             </p>
           </CardContent>
@@ -237,41 +253,41 @@ export function AnalyticsOverview() {
 
       {/* Performance Metrics */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Average Performance</CardTitle>
-            <CardDescription>Per video metrics</CardDescription>
+        <Card className="border-2 hover:shadow-lg transition-all duration-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold">Average Performance</CardTitle>
+            <CardDescription className="text-xs">Per video metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <span className="text-sm text-muted-foreground">Avg. Views per Video</span>
-                <span className="text-sm font-medium">{analytics.averageViewsPerVideo.toFixed(1)}</span>
+                <span className="text-base font-semibold">{analytics.averageViewsPerVideo.toFixed(1)}</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <span className="text-sm text-muted-foreground">Avg. Comments per Video</span>
-                <span className="text-sm font-medium">{analytics.averageCommentsPerVideo.toFixed(1)}</span>
+                <span className="text-base font-semibold">{analytics.averageCommentsPerVideo.toFixed(1)}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">User Engagement</CardTitle>
-            <CardDescription>Platform interaction metrics</CardDescription>
+        <Card className="border-2 hover:shadow-lg transition-all duration-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold">User Engagement</CardTitle>
+            <CardDescription className="text-xs">Platform interaction metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <span className="text-sm text-muted-foreground">Total Interactions</span>
-                <span className="text-sm font-medium">
+                <span className="text-base font-semibold">
                   {formatNumber(analytics.totalComments + analytics.totalReplies + analytics.totalUpvotes)}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <span className="text-sm text-muted-foreground">Videos per User</span>
-                <span className="text-sm font-medium">
+                <span className="text-base font-semibold">
                   {analytics.totalUsers > 0 
                     ? (analytics.totalVideos / analytics.totalUsers).toFixed(1)
                     : "0"}
