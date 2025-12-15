@@ -5,7 +5,7 @@ import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings } from "luc
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
-import { getVideoUrl } from "@/lib/storage"
+import { getVideoUrl, fetchVideoWithAuth, getThumbnailUrl, WORKERS_BASE_URL, getWorkersApiKey } from "@/lib/storage"
 
 interface VideoPlayerProps {
   videoUrl: string
@@ -26,8 +26,71 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const playPromiseRef = useRef<Promise<void> | null>(null)
   const [signedVideoUrl, setSignedVideoUrl] = useState<string>("")
+  const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [isLoadingUrl, setIsLoadingUrl] = useState(true)
   const [urlError, setUrlError] = useState<string>("")
+
+  // Fetch poster with auth if needed
+  useEffect(() => {
+    if (!poster) {
+      setSignedPosterUrl("")
+      return
+    }
+
+    const posterUrl = getThumbnailUrl(poster)
+    const isWorkersUrl = posterUrl.startsWith(WORKERS_BASE_URL)
+
+    if (!isWorkersUrl) {
+      setSignedPosterUrl(posterUrl)
+      return
+    }
+
+    let cancelled = false
+
+    async function fetchPoster() {
+      try {
+        const apiKey = getWorkersApiKey()
+        if (!apiKey) {
+          console.error("[hiffi] No API key found for poster, using original URL")
+          setSignedPosterUrl(posterUrl)
+          return
+        }
+        console.log("[hiffi] Fetching poster from Workers with x-api-key header")
+        const response = await fetch(posterUrl, {
+          headers: {
+            'x-api-key': apiKey, // Always pass "SECRET_KEY" (or value from env var)
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch poster: ${response.status}`)
+        }
+
+        if (cancelled) return
+
+        const blob = await response.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        
+        if (!cancelled) {
+          setSignedPosterUrl(blobUrl)
+        } else {
+          URL.revokeObjectURL(blobUrl)
+        }
+      } catch (error) {
+        console.error("[hiffi] Failed to fetch poster:", error)
+        // Fallback to original URL if fetch fails
+        if (!cancelled) {
+          setSignedPosterUrl(posterUrl)
+        }
+      }
+    }
+
+    fetchPoster()
+
+    return () => {
+      cancelled = true
+    }
+  }, [poster])
 
   useEffect(() => {
     async function fetchVideoUrl() {
@@ -48,10 +111,15 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
           console.log("[hiffi] Received video response:", response)
 
           if (response.success && response.video_url) {
-            // Convert Workers URL to proxy route (getVideoUrl handles this)
-            const proxyUrl = getVideoUrl(response.video_url)
-            console.log("[hiffi] Using Workers URL via proxy:", proxyUrl)
-            setSignedVideoUrl(proxyUrl)
+            // Process video URL (getVideoUrl handles Workers URL construction)
+            const processedUrl = getVideoUrl(response.video_url)
+            console.log("[hiffi] Fetching video with auth from:", processedUrl)
+            
+            // Fetch video as blob with x-api-key header
+            const blobUrl = await fetchVideoWithAuth(processedUrl)
+            console.log("[hiffi] Created blob URL for video")
+            
+            setSignedVideoUrl(blobUrl)
             setUrlError("")
           } else {
             throw new Error("No video_url in response")
@@ -66,15 +134,19 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
       }
 
       // For all other cases (full URLs, storage paths), use getVideoUrl to process
-      // This will convert Workers URLs to proxy routes and handle storage paths
+      // Then fetch with auth headers and create blob URL
       try {
         setIsLoadingUrl(true)
         console.log("[hiffi] Processing video URL:", videoUrl)
 
         const processedUrl = getVideoUrl(videoUrl)
+        console.log("[hiffi] Fetching video with auth from:", processedUrl)
         
-        console.log("[hiffi] Using processed URL:", processedUrl)
-        setSignedVideoUrl(processedUrl)
+        // Fetch video as blob with x-api-key header
+        const blobUrl = await fetchVideoWithAuth(processedUrl)
+        console.log("[hiffi] Created blob URL for video")
+        
+        setSignedVideoUrl(blobUrl)
         setUrlError("")
         setIsLoadingUrl(false)
       } catch (error) {
@@ -86,6 +158,18 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
 
     fetchVideoUrl()
   }, [videoUrl])
+
+  // Cleanup blob URLs when component unmounts or URL changes
+  useEffect(() => {
+    return () => {
+      if (signedVideoUrl && signedVideoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(signedVideoUrl)
+      }
+      if (signedPosterUrl && signedPosterUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(signedPosterUrl)
+      }
+    }
+  }, [signedVideoUrl, signedPosterUrl])
 
   useEffect(() => {
     if (!autoPlay || !videoRef.current || !signedVideoUrl) return
@@ -340,7 +424,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
       <video
         ref={videoRef}
         src={signedVideoUrl}
-        poster={poster}
+        poster={signedPosterUrl || poster}
         className="w-full h-full object-contain"
         preload="auto"
         playsInline

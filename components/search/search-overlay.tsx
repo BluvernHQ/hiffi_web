@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
 import { getThumbnailUrl } from '@/lib/storage';
+import { AuthenticatedImage } from '@/components/video/authenticated-image';
 import { useAuth } from '@/lib/auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
@@ -334,14 +335,19 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       selectedIndex === itemIndex && "bg-muted"
                                     )}>
                                       <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
-                                        <img 
-                                          src={result.thumbnail 
-                                            ? getThumbnailUrl(result.thumbnail)
-                                            : "/placeholder.svg"}
+                                        {result.thumbnail ? (
+                                          <AuthenticatedImage
+                                            src={getThumbnailUrl(result.thumbnail)}
                                           alt={result.title}
-                                          className="w-full h-full object-cover"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                                            <Video className="h-4 w-4 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
                                           <Video className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </div>
                                       </div>

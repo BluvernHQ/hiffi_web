@@ -9,6 +9,7 @@ import { SortableHeader, SortDirection } from "./sortable-header"
 import { Loader2, Search, ChevronLeft, ChevronRight, Play, Trash2, Filter } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
+import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -480,16 +481,13 @@ export function AdminVideosTable() {
                             <div className="relative h-16 w-28 rounded overflow-hidden bg-muted group-hover:opacity-80 transition-opacity">
                               {thumbnailUrl ? (
                                 <>
-                                  <img
+                                  <AuthenticatedImage
                                     src={thumbnailUrl}
                                     alt={title}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement
-                                      target.style.display = 'none'
-                                    }}
+                                    fill
+                                    className="object-cover"
                                   />
-                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 pointer-events-none">
                                     <Play className="h-6 w-6 text-white" />
                                   </div>
                                 </>

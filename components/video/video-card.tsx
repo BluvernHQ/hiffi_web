@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -15,6 +14,7 @@ import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { DeleteVideoDialog } from "./delete-video-dialog"
+import { AuthenticatedImage } from "./authenticated-image"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,15 +86,20 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-full">
         <CardContent className="p-0 space-y-3">
           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
-            <Image
-              src={thumbnailUrl || "/placeholder.svg"}
+            {thumbnailUrl ? (
+              <AuthenticatedImage
+                src={thumbnailUrl}
               alt={title}
               fill
               className="object-cover transition-transform duration-200 group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-              loading={priority ? "eager" : "lazy"}
               priority={priority}
             />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <span className="text-muted-foreground text-sm">No thumbnail</span>
+              </div>
+            )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
