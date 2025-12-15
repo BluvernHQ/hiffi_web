@@ -16,17 +16,36 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const { login, user, userData, loading: authLoading } = useAuth()
+  const { login, user, userData, loading: authLoading, refreshUserData } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+
+  // Force refresh userData when component mounts if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user && userData) {
+      console.log("[Admin] User already logged in, refreshing user data to ensure latest role")
+      refreshUserData(true).catch((err) => {
+        console.error("[Admin] Failed to refresh user data:", err)
+      })
+    }
+  }, [authLoading, user, refreshUserData])
 
   // Check if user is admin and redirect to dashboard
   useEffect(() => {
     if (!authLoading && user && userData) {
-      if (userData.role === "admin") {
+      console.log("[Admin] Checking user role:", userData.role)
+      console.log("[Admin] Role type:", typeof userData.role)
+      console.log("[Admin] Role comparison:", userData.role === "admin")
+      console.log("[Admin] Full userData:", JSON.stringify(userData, null, 2))
+      
+      // Check role (case-insensitive and trimmed)
+      const userRole = String(userData.role || "").toLowerCase().trim()
+      if (userRole === "admin") {
+        console.log("[Admin] User is admin, redirecting to dashboard")
         router.push("/admin/dashboard")
       } else {
         // User is logged in but not admin, redirect to home
+        console.log("[Admin] User is not admin, role:", userRole)
         router.push("/")
         toast({
           title: "Access Denied",
@@ -50,8 +69,11 @@ export default function AdminLoginPage() {
   }
 
   // Don't render login form if already logged in as admin (redirect will happen)
-  if (user && userData?.role === "admin") {
-    return null
+  if (user && userData) {
+    const userRole = String(userData.role || "").toLowerCase().trim()
+    if (userRole === "admin") {
+      return null
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +83,16 @@ export default function AdminLoginPage() {
 
     try {
       await login(email, password)
-      // After login, check role in useEffect
+      
+      // Force refresh user data after login to ensure we have latest role
+      console.log("[Admin] Forcing refresh of user data after login")
+      await refreshUserData(true)
+      
+      // Wait a bit for state to update before checking role
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // The useEffect will handle the redirect based on role
+      setIsLoading(false)
     } catch (err: any) {
       setError(err.message || "Invalid email or password")
       setIsLoading(false)

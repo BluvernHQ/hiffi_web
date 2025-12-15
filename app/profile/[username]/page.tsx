@@ -48,7 +48,20 @@ export default function ProfilePage() {
       try {
         setIsLoading(true);
         setHasTriedFetch(true);
-        const response = await apiClient.getUserByUsername(username);
+        
+        // Check if this is the current user's own profile
+        const isOwnProfileCheck = currentUserData?.username === username;
+        
+        // Use /users/self for current user's profile, /users/{username} for others
+        let response;
+        if (isOwnProfileCheck) {
+          console.log("[hiffi] Fetching own profile using /users/self");
+          response = await apiClient.getCurrentUser();
+        } else {
+          console.log("[hiffi] Fetching profile using /users/{username}");
+          response = await apiClient.getUserByUsername(username);
+        }
+        
         console.log("[hiffi] User data from API:", response);
         
         // Handle API response format: { success: true, user: {...} }
@@ -59,25 +72,40 @@ export default function ProfilePage() {
         setProfileUser(profileData);
         
         // Check if current user is following this profile user
+        // Only check if viewing someone else's profile (not own profile)
         if (currentUserData?.username && currentUserData.username !== username) {
           try {
-            const isFollowingStatus = await apiClient.checkFollowingStatus(
-              currentUserData.username,
-              username
-            );
+            // checkFollowingStatus now only takes targetUsername (uses current user's following list)
+            const isFollowingStatus = await apiClient.checkFollowingStatus(username);
             setIsFollowing(isFollowingStatus);
           } catch (followError) {
             console.error("[hiffi] Failed to check following status:", followError);
-          setIsFollowing(profileData?.isfollowing || false);
+            setIsFollowing(profileData?.isfollowing || false);
           }
         } else {
           setIsFollowing(false); // Can't follow yourself
         }
         
         // Fetch user's videos
-        const videosResponse = await apiClient.getVideoList({ page: 1, limit: 50, search: username });
-        // Filter videos by this user
-        const videosArray = videosResponse.videos || []
+        // If viewing own profile, use listSelfVideos, otherwise filter from all videos
+        let videosArray: any[] = []
+        if (isOwnProfileCheck) {
+          try {
+            const selfVideosResponse = await apiClient.listSelfVideos({ page: 1, limit: 50 })
+            videosArray = selfVideosResponse.videos || []
+          } catch (error) {
+            console.error("[hiffi] Failed to fetch own videos:", error)
+            // Fall back to filtering from all videos
+            const videosResponse = await apiClient.getVideoList({ page: 1, limit: 50 })
+            videosArray = videosResponse.videos || []
+          }
+        } else {
+          // For other users, get all videos and filter client-side
+          const videosResponse = await apiClient.getVideoList({ page: 1, limit: 50 })
+          videosArray = videosResponse.videos || []
+        }
+        
+        // Filter videos by this user (if not using listSelfVideos)
         const filteredVideos = videosArray.filter(
           (v: any) => (v.user_username || v.userUsername) === username
         );
@@ -118,7 +146,11 @@ export default function ProfilePage() {
         
         // Refresh recipient user's profile data to get updated follower count
         try {
-          const refreshedResponse = await apiClient.getUserByUsername(username);
+          // Use /users/self for current user's profile, /users/{username} for others
+          const isOwnProfileCheck = currentUserData?.username === username;
+          const refreshedResponse = isOwnProfileCheck 
+            ? await apiClient.getCurrentUser()
+            : await apiClient.getUserByUsername(username);
           console.log("[hiffi] Refreshed user data after unfollow:", refreshedResponse);
           // Handle API response format: { success: true, user: {...} }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
@@ -145,7 +177,11 @@ export default function ProfilePage() {
         
         // Refresh recipient user's profile data to get updated follower count
         try {
-          const refreshedResponse = await apiClient.getUserByUsername(username);
+          // Use /users/self for current user's profile, /users/{username} for others
+          const isOwnProfileCheck = currentUserData?.username === username;
+          const refreshedResponse = isOwnProfileCheck 
+            ? await apiClient.getCurrentUser()
+            : await apiClient.getUserByUsername(username);
           console.log("[hiffi] Refreshed user data after follow:", refreshedResponse);
           // Handle API response format: { success: true, user: {...} }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
@@ -170,10 +206,8 @@ export default function ProfilePage() {
       
       // Verify the follow status after action
       try {
-        const verifiedStatus = await apiClient.checkFollowingStatus(
-          currentUserData.username,
-          username
-        );
+        // checkFollowingStatus now only takes targetUsername (uses current user's following list)
+        const verifiedStatus = await apiClient.checkFollowingStatus(username);
         setIsFollowing(verifiedStatus);
       } catch (verifyError) {
         console.error("[hiffi] Failed to verify following status:", verifyError);

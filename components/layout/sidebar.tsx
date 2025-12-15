@@ -46,12 +46,11 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
     }
   }
 
-  const mainNavItems = [
-    { icon: Home, label: "Home", href: "/" },
-  ]
+  // Removed mainNavItems - "All Videos" filter serves as the home navigation
+  const mainNavItems: Array<{ icon: typeof Home; label: string; href: string }> = []
 
   const filterItems = [
-    { icon: Video, label: "All Videos", value: "all" as const },
+    { icon: Home, label: "Home", value: "all" as const },
     { icon: TrendingUp, label: "Trending", value: "trending" as const },
     { icon: UserCheck, label: "Following", value: "following" as const, requireAuth: true },
   ]
@@ -158,14 +157,17 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
           </div>
 
           <nav className="space-y-1 p-4 lg:pt-6">
-            <div className="space-y-1">
-              {mainNavItems.map((item) => (
-                <NavLink key={item.href} item={item} />
-              ))}
-            </div>
+            {/* Main navigation items */}
+            {mainNavItems.length > 0 && (
+              <div className="space-y-1">
+                {mainNavItems.map((item) => (
+                  <NavLink key={item.href} item={item} />
+                ))}
+              </div>
+            )}
 
             {/* Filter options - always show Explore section */}
-            <div className="pt-4">
+            <div className={mainNavItems.length > 0 ? "pt-4" : ""}>
               <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Explore
               </div>

@@ -5,6 +5,7 @@ import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings } from "luc
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
+import { getVideoUrl } from "@/lib/storage"
 
 interface VideoPlayerProps {
   videoUrl: string
@@ -29,35 +30,61 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   const [urlError, setUrlError] = useState<string>("")
 
   useEffect(() => {
-    async function fetchSignedUrl() {
+    async function fetchVideoUrl() {
       if (!videoUrl) {
         setUrlError("No video URL provided")
         setIsLoadingUrl(false)
         return
       }
 
+      // If videoUrl is a video ID, use GET /videos/{videoID} to get the Workers URL
+      // Video IDs are typically 64-character hex strings
+      if (/^[a-f0-9]{64}$/i.test(videoUrl)) {
+        try {
+          setIsLoadingUrl(true)
+          console.log("[hiffi] Fetching video streaming URL for video ID:", videoUrl)
+
+          const response = await apiClient.getVideo(videoUrl)
+          console.log("[hiffi] Received video response:", response)
+
+          if (response.success && response.video_url) {
+            // Convert Workers URL to proxy route (getVideoUrl handles this)
+            const proxyUrl = getVideoUrl(response.video_url)
+            console.log("[hiffi] Using Workers URL via proxy:", proxyUrl)
+            setSignedVideoUrl(proxyUrl)
+            setUrlError("")
+          } else {
+            throw new Error("No video_url in response")
+          }
+        } catch (error) {
+          console.error("[hiffi] Failed to fetch video streaming URL:", error)
+          setUrlError("Failed to load video")
+        } finally {
+          setIsLoadingUrl(false)
+        }
+        return
+      }
+
+      // For all other cases (full URLs, storage paths), use getVideoUrl to process
+      // This will convert Workers URLs to proxy routes and handle storage paths
       try {
         setIsLoadingUrl(true)
-        console.log("[hiffi] Fetching signed URL for video path:", videoUrl)
+        console.log("[hiffi] Processing video URL:", videoUrl)
 
-        const response = await apiClient.getVideoUrl(videoUrl)
-        console.log("[hiffi] Received signed URL response:", response)
-
-        if (!response.video_url) {
-          throw new Error("No video_url in response")
-        }
-
-        setSignedVideoUrl(response.video_url)
+        const processedUrl = getVideoUrl(videoUrl)
+        
+        console.log("[hiffi] Using processed URL:", processedUrl)
+        setSignedVideoUrl(processedUrl)
         setUrlError("")
+        setIsLoadingUrl(false)
       } catch (error) {
-        console.error("[hiffi] Failed to fetch signed video URL:", error)
+        console.error("[hiffi] Failed to process video URL:", error)
         setUrlError("Failed to load video")
-      } finally {
         setIsLoadingUrl(false)
       }
     }
 
-    fetchSignedUrl()
+    fetchVideoUrl()
   }, [videoUrl])
 
   useEffect(() => {

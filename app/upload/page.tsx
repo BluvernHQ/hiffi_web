@@ -38,6 +38,20 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
+  // Check if user is a creator - MUST be before any conditional returns
+  useEffect(() => {
+    if (!authLoading && user && userData) {
+      const isCreator = userData.role === "creator" || userData.is_creator === true
+      if (!isCreator) {
+        toast({
+          title: "Creator Status Required",
+          description: "You need to become a creator to upload videos.",
+        })
+        router.push("/creator/apply")
+      }
+    }
+  }, [user, userData, authLoading, router, toast])
+
   // Show login prompt if not logged in instead of redirecting
   // Allow users to browse and choose to login when ready
 
@@ -173,16 +187,33 @@ export default function UploadPage() {
 
       // Step 1: Create upload bridge
       const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      console.log('[Upload] Creating upload bridge...', { title, description, tags: tagsArray });
       const bridgeResponse = await apiClient.uploadVideo({
         video_title: title,
         video_description: description,
         video_tags: tagsArray, // API expects array of strings
       });
 
+      // Validate bridge response
+      if (!bridgeResponse.bridge_id || bridgeResponse.bridge_id.trim() === "") {
+        throw new Error("Failed to get bridge ID from upload response. Please try again.");
+      }
+      if (!bridgeResponse.gateway_url || bridgeResponse.gateway_url.trim() === "") {
+        throw new Error("Failed to get upload URL from upload response. Please try again.");
+      }
+
+      console.log('[Upload] Bridge created successfully:', {
+        bridge_id: bridgeResponse.bridge_id,
+        has_gateway_url: !!bridgeResponse.gateway_url,
+        has_thumbnail_url: !!bridgeResponse.gateway_url_thumbnail,
+      });
+
       setProgress(25);
 
       // Step 2: Upload video file to gateway_url
+      console.log('[Upload] Uploading video file...');
       await apiClient.uploadFile(bridgeResponse.gateway_url, file);
+      console.log('[Upload] Video file uploaded successfully');
       setProgress(60);
 
       // Step 3: Upload thumbnail if provided to gateway_url_thumbnail
@@ -208,7 +239,9 @@ export default function UploadPage() {
       }
 
       // Step 4: Acknowledge upload with bridge_id
+      console.log('[Upload] Acknowledging upload with bridge_id:', bridgeResponse.bridge_id);
       await apiClient.acknowledgeUpload(bridgeResponse.bridge_id);
+      console.log('[Upload] Upload acknowledged successfully');
       setProgress(100);
 
       setUploadStep('success');
@@ -247,20 +280,6 @@ export default function UploadPage() {
       </div>
     );
   }
-
-  // Check if user is a creator
-  useEffect(() => {
-    if (!authLoading && user && userData) {
-      const isCreator = userData.role === "creator" || userData.is_creator === true
-      if (!isCreator) {
-        toast({
-          title: "Creator Status Required",
-          description: "You need to become a creator to upload videos.",
-        })
-        router.push("/creator/apply")
-      }
-    }
-  }, [user, userData, authLoading, router, toast])
 
   // Show login prompt if not authenticated
   if (!user) {

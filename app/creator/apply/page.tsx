@@ -61,11 +61,12 @@ export default function BecomeCreatorPage() {
       console.log("[creator] Updating user role to 'creator'")
       console.log("[creator] Sending request: PUT /users/self with body: { role: 'creator' }")
       
-      const updateResponse = await apiClient.updateSelf({ role: "creator" })
+      const updateResponse = await apiClient.updateSelf({ role: "creator" }) // Note: role update may not be officially supported per API docs
       console.log("[creator] Update API response (full):", JSON.stringify(updateResponse, null, 2))
       
-      // Check if the response contains the updated role (handle both response formats)
-      const responseRole = updateResponse?.role || updateResponse?.user?.role
+      // Check if the response contains the updated user data
+      const updatedUser = updateResponse?.user
+      const responseRole = updatedUser?.role
       console.log("[creator] Role in update response:", responseRole)
       
       // If response shows role was updated, use it immediately

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
 import { VideoGrid } from "@/components/video/video-grid"
+import { FollowingEmptyState } from "@/components/video/following-empty-state"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 
@@ -97,12 +98,17 @@ export default function HomePage() {
 
     try {
       setLoadingFollowing(true)
-      const response = await apiClient.getFollowingList(userData.username, 1, 100)
-      const followingArray = response.following || []
-      const followingSet = new Set(
-        followingArray.map((follow: any) => follow.followed_to)
-      )
-      setFollowedUsers(followingSet)
+      // Get current user's following list (private endpoint - no username parameter)
+      const response = await apiClient.getFollowingList(100, 0)
+      if (response.success && response.following) {
+        const followingArray = response.following
+        const followingSet = new Set(
+          followingArray.map((follow: any) => follow.followed_to)
+        )
+        setFollowedUsers(followingSet)
+      } else {
+        setFollowedUsers(new Set())
+      }
     } catch (error) {
       console.error("[hiffi] Failed to fetch following list:", error)
       setFollowedUsers(new Set())
@@ -208,12 +214,20 @@ export default function HomePage() {
                 </div>
               )}
 
-              <VideoGrid 
-                videos={displayVideos} 
-                loading={isLoadingVideos} 
-                hasMore={shouldShowLoadMore} 
-                onLoadMore={currentFilter === 'all' ? loadMoreVideos : undefined} 
-              />
+              {/* Show custom empty state for Following filter */}
+              {currentFilter === 'following' && !isLoadingVideos && displayVideos.length === 0 ? (
+                <FollowingEmptyState 
+                  hasFollowedUsers={followedUsers.size > 0}
+                  onDiscoverClick={() => setCurrentFilter('all')}
+                />
+              ) : (
+                <VideoGrid 
+                  videos={displayVideos} 
+                  loading={isLoadingVideos} 
+                  hasMore={shouldShowLoadMore} 
+                  onLoadMore={currentFilter === 'all' ? loadMoreVideos : undefined} 
+                />
+              )}
             </div>
           </div>
         </main>

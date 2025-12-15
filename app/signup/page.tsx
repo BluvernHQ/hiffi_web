@@ -44,8 +44,8 @@ export default function SignupPage() {
     const timer = setTimeout(async () => {
       try {
         const result = await apiClient.checkUsernameAvailability(username)
-        if (result.success && result.data) {
-          setUsernameAvailable(result.data.available)
+        if (result.success) {
+          setUsernameAvailable(result.available)
         } else {
           setUsernameAvailable(false)
         }

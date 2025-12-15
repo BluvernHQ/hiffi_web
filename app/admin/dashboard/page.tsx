@@ -28,7 +28,13 @@ export default function AdminDashboardPage() {
         return
       }
       
-      if (userData.role !== "admin") {
+      // Check role (case-insensitive and trimmed)
+      const userRole = String(userData.role || "").toLowerCase().trim()
+      console.log("[Admin Dashboard] Checking user role:", userRole)
+      console.log("[Admin Dashboard] Full userData:", JSON.stringify(userData, null, 2))
+      
+      if (userRole !== "admin") {
+        console.log("[Admin Dashboard] User is not admin, role:", userRole)
         router.push("/")
         toast({
           title: "Access Denied",
@@ -37,6 +43,8 @@ export default function AdminDashboardPage() {
         })
         return
       }
+      
+      console.log("[Admin Dashboard] User is admin, loading dashboard")
       
       setIsLoading(false)
     }

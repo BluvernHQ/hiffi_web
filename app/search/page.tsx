@@ -29,19 +29,57 @@ function SearchPageContent() {
 
     try {
       setLoading(true);
-      // Use vector search for better semantic search results
-      const response = await apiClient.vectorSearch(searchQuery.trim());
-
-      // Vector search returns all results at once
-      const videos = response.videos || [];
-      setAllVideos(videos);
+      const searchLower = searchQuery.trim().toLowerCase();
+      
+      // Fetch multiple pages to get enough results for searching
+      // Since vector search was removed, we do client-side filtering
+      const allFetchedVideos: any[] = [];
+      let currentPage = 1;
+      const maxPages = 5; // Fetch up to 5 pages (100 videos) for search
+      
+      while (currentPage <= maxPages) {
+        const response = await apiClient.getVideoList({
+          page: currentPage,
+          limit: 20,
+        });
+        
+        if (!response.success || !response.videos || response.videos.length === 0) {
+          break;
+        }
+        
+        allFetchedVideos.push(...response.videos);
+        
+        // If we got fewer videos than requested, we've reached the end
+        if (response.videos.length < 20) {
+          break;
+        }
+        
+        currentPage++;
+      }
+      
+      // Filter videos by title, description, tags, or username
+      const filteredVideos = allFetchedVideos.filter((video: any) => {
+        const title = (video.video_title || '').toLowerCase();
+        const description = (video.video_description || '').toLowerCase();
+        const tags = (video.video_tags || []).join(' ').toLowerCase();
+        const username = (video.user_username || '').toLowerCase();
+        
+        return (
+          title.includes(searchLower) ||
+          description.includes(searchLower) ||
+          tags.includes(searchLower) ||
+          username.includes(searchLower)
+        );
+      });
+      
+      setAllVideos(filteredVideos);
       
       // Show first page of results
       const limit = 20;
-      const firstPageVideos = videos.slice(0, limit);
+      const firstPageVideos = filteredVideos.slice(0, limit);
       setResults(firstPageVideos);
       setPage(1);
-      setHasMore(videos.length > limit);
+      setHasMore(filteredVideos.length > limit);
     } catch (error: any) {
       console.error('[hiffi] Failed to fetch search results:', error);
       toast({

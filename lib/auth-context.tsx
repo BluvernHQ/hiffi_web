@@ -70,6 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.success && response.user) {
         console.log("[hiffi] User data fetched successfully:", response.user.username)
+        console.log("[hiffi] User role:", response.user.role)
+        console.log("[hiffi] Is creator:", response.user.role === "creator")
         setUserData(response.user)
         setUser(response.user)
 
@@ -141,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("[hiffi] Login successful, user:", response.data.user.username)
       
-      // Set user data from response
+      // Set initial user data from login response
       setUser(response.data.user)
       setUserData(response.data.user)
       
@@ -149,6 +151,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
+      }
+      
+      // Refresh user data from /users/self to get latest creator status and all user details
+      console.log("[hiffi] Refreshing user data from /users/self to get latest details")
+      try {
+        const refreshedUserData = await refreshUserData(true) // Force refresh to get latest data
+        if (refreshedUserData) {
+          console.log("[hiffi] User data refreshed, role:", refreshedUserData.role)
+          console.log("[hiffi] Is creator:", refreshedUserData.role === "creator")
+        }
+      } catch (refreshError) {
+        console.warn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
+        // Continue with login response data if refresh fails
       }
       
       console.log("[hiffi] User data set after login")

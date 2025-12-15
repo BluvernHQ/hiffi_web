@@ -131,6 +131,9 @@ class ApiClient {
       const token = this.getAuthToken()
       if (token) {
         headers["Authorization"] = `Bearer ${token}`
+        console.log(`[API] Adding Authorization header with token: ${token.substring(0, 20)}...`)
+      } else {
+        console.warn(`[API] No auth token available for authenticated request to ${endpoint}`)
       }
     }
 
@@ -367,12 +370,48 @@ class ApiClient {
   // User endpoints
   async checkUsernameAvailability(username: string): Promise<{
     success: boolean
-    data: {
+    available: boolean
+    username: string
+    status?: string
+    data?: {
       available: boolean
       username: string
     }
   }> {
-    return this.request(`/users/availability/${username}`, {}, false)
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      available?: boolean
+      username?: string
+      data?: {
+        available: boolean
+        username: string
+      }
+    }>(`/users/availability/${username}`, {}, false)
+    
+    // Normalize response structure
+    // API may return: { status: "success", available: true, username: "..." }
+    // or: { success: true, data: { available: true, username: "..." } }
+    if (response.status === "success" || response.success) {
+      if (response.data) {
+        return {
+          success: true,
+          available: response.data.available,
+          username: response.data.username,
+        }
+      }
+      return {
+        success: response.status === "success" || response.success || false,
+        available: response.available || false,
+        username: response.username || username,
+      }
+    }
+    
+    return {
+      success: false,
+      available: false,
+      username: username,
+    }
   }
 
   async createUser(data: { username: string; name: string }): Promise<any> {
@@ -388,13 +427,27 @@ class ApiClient {
 
   async getCurrentUser(): Promise<{ success: boolean; user?: any; data?: { user: any } }> {
     const response = await this.request<{ success: boolean; user?: any; data?: { user: any } }>("/users/self", {}, true)
+    
+    // Log response for debugging
+    console.log("[API] getCurrentUser response:", response)
+    
     // Normalize response to always have user at top level
+    // API returns: { success: true, data: { user: {...} } }
+    // We normalize to: { success: true, user: {...} }
     if (response.success && response.data?.user && !response.user) {
+      console.log("[API] Normalizing response structure")
       return {
         success: response.success,
         user: response.data.user,
       }
     }
+    
+    // If response already has user at top level, return as is
+    if (response.success && response.user) {
+      return response
+    }
+    
+    // If no user found, return response as is (will be handled by caller)
     return response
   }
 
@@ -402,8 +455,15 @@ class ApiClient {
     return this.request(`/users/${username}`, {}, true)
   }
 
-  async updateSelf(data: { role?: string; name?: string; bio?: string; location?: string; website?: string }): Promise<any> {
-    return this.request(
+  // Update user profile - officially supports: name, profile_picture
+  // Note: Some backends may accept additional fields like role, but this is not documented
+  async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user: any }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      user?: any
+      data?: { user: any }
+    }>(
       "/users/self",
       {
         method: "PUT",
@@ -411,9 +471,34 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { status: "success", user: {...} }
+    // or: { success: true, data: { user: {...} } }
+    if ((response.status === "success" || response.success) && response.data?.user && !response.user) {
+      return {
+        success: true,
+        user: response.data.user,
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        user: response.user,
+      }
+    }
+    
+    return {
+      success: false,
+      user: null,
+    }
   }
 
+  // Note: updateUser is not in the official API docs - users can only update themselves via updateSelf
+  // Keeping this for potential admin use, but it may not be supported by the backend
   async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string }): Promise<any> {
+    console.warn("[API] updateUser is not in the official API docs. Use updateSelf instead.")
     return this.request(
       `/users/${username}`,
       {
@@ -424,59 +509,184 @@ class ApiClient {
     )
   }
 
-  async deleteUser(username: string): Promise<void> {
-    return this.request(
+  async deleteUser(username: string): Promise<{ success: boolean; message?: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+    }>(
       `/users/${username}`,
       {
         method: "DELETE",
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { status: "success", message: "User deleted successfully" }
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        message: response.message || "User deleted successfully",
+      }
+    }
+    
+    return {
+      success: false,
+      message: response.message,
+    }
+  }
+
+  // List Users endpoint - GET /users/list
+  async listUsers(params: {
+    limit?: number
+    offset?: number
+    seed?: string
+  }): Promise<{
+    success: boolean
+    users: any[]
+    limit: number
+    offset: number
+    count: number
+    seed?: string
+  }> {
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    if (params.limit !== undefined) {
+      queryParams.append("limit", params.limit.toString())
+    }
+    if (params.offset !== undefined) {
+      queryParams.append("offset", params.offset.toString())
+    }
+    if (params.seed) {
+      queryParams.append("seed", params.seed)
+    }
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/users/list${queryString ? `?${queryString}` : ""}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      users?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      seed?: string
+    }>(endpoint, {}, true)
+    
+    // Normalize response structure
+    // API returns: { status: "success", users: [...], limit: 20, offset: 0, count: 2, seed: "..." }
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        users: response.users || [],
+        limit: response.limit || 20,
+        offset: response.offset || 0,
+        count: response.count || 0,
+        seed: response.seed,
+      }
+    }
+    
+    return {
+      success: false,
+      users: [],
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+      count: 0,
+    }
   }
 
   // Video endpoints
-  async getVideoList(data: { page?: number; limit: number; offset?: number; seed?: string; search?: string }): Promise<{ videos: any[] }> {
-    const token = this.getAuthToken()
+  // GET /videos/list - List all videos with deterministic random pagination
+  // Note: API actually uses GET with query params, not POST (returns 405 for POST)
+  async getVideoList(data: { page?: number; limit?: number; seed?: string }): Promise<{
+    success: boolean
+    videos: any[]
+    page?: number
+    limit: number
+    offset: number
+    count: number
+    seed?: string
+  }> {
+    // Calculate offset from page if provided
+    const limit = data.limit || 20
+    const page = data.page || 1
+    const offset = (page - 1) * limit
     
     // Build query parameters
     const params = new URLSearchParams()
-    params.append("limit", data.limit.toString())
-    
-    // Use offset if provided, otherwise calculate from page
-    if (data.offset !== undefined) {
-      params.append("offset", data.offset.toString())
-    } else if (data.page !== undefined) {
-      const offset = (data.page - 1) * data.limit
-      params.append("offset", offset.toString())
-    } else {
-      // Default to offset 0 if neither page nor offset is provided
-      params.append("offset", "0")
-    }
-    
-    // Add seed (username) if provided
-    if (data.seed) {
-      params.append("seed", data.seed)
-    }
-    
-    // Add search if provided (keeping for backward compatibility)
-    if (data.search) {
-      params.append("search", data.search)
-    }
+    if (data.page) params.append("page", page.toString())
+    if (limit !== 20) params.append("limit", limit.toString())
+    if (data.seed) params.append("seed", data.seed)
     
     const queryString = params.toString()
-    const endpoint = `/videos/list${queryString ? `?${queryString}` : ""}`
+    const url = queryString ? `/videos/list?${queryString}` : "/videos/list"
     
-    return this.request(
-      endpoint,
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: any[]
+        page?: number
+        limit?: number
+        offset?: number
+        count?: number
+        seed?: string
+      }
+      videos?: any[]
+      page?: number
+      limit?: number
+      offset?: number
+      count?: number
+      seed?: string
+    }>(
+      url,
       {
         method: "GET",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
-      false,
+      false, // Authentication not required per docs
     )
+    
+    // Normalize response structure
+    // API may return:
+    // - { status: "success", videos: [...], page: 1, limit: 20, offset: 0, count: 10, seed: "..." }
+    // - { success: true, data: { videos: [...], page: 1, limit: 20, offset: 0, count: 10, seed: "..." } }
+    const isSuccess = response.status === "success" || response.success
+    
+    if (isSuccess) {
+      // Extract fields from either response.data or directly from response
+      const videos = response.data?.videos || response.videos || []
+      const responsePage = response.data?.page || response.page
+      const responseLimit = response.data?.limit || response.limit
+      const responseOffset = response.data?.offset || response.offset
+      const responseCount = response.data?.count || response.count
+      const responseSeed = response.data?.seed || response.seed
+      
+      return {
+        success: true,
+        videos: videos,
+        page: responsePage || page,
+        limit: responseLimit || limit,
+        offset: responseOffset !== undefined ? responseOffset : offset,
+        count: responseCount !== undefined ? responseCount : 0,
+        seed: responseSeed,
+      }
+    }
+    
+    return {
+      success: false,
+      videos: [],
+      limit: limit,
+      offset: offset,
+      count: 0,
+    }
   }
 
+  // DEPRECATED: Vector search endpoint was removed from API (see VIDEOS_API.md changelog)
+  // Keeping for backward compatibility, but this endpoint may not be available
   async vectorSearch(searchQuery: string): Promise<{ status: string; videos: any[] }> {
+    console.warn("[API] vectorSearch is deprecated - endpoint was removed from API")
     const token = this.getAuthToken()
     const encodedQuery = encodeURIComponent(searchQuery.trim())
     return this.request(
@@ -490,14 +700,27 @@ class ApiClient {
     )
   }
 
+  // POST /videos/upload - Initiate video upload
   async uploadVideo(data: { video_title: string; video_description: string; video_tags: string[] }): Promise<{
+    success: boolean
     bridge_id: string
     gateway_url: string
     gateway_url_thumbnail: string
     message?: string
-    status?: string
   }> {
-    return this.request(
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        bridge_id?: string
+        gateway_url?: string
+        gateway_url_thumbnail?: string
+      }
+      bridge_id?: string
+      gateway_url?: string
+      gateway_url_thumbnail?: string
+      message?: string
+    }>(
       "/videos/upload",
       {
         method: "POST",
@@ -505,10 +728,59 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API may return: 
+    // - { status: "success", message: "bridge created", bridge_id: "...", gateway_url: "...", gateway_url_thumbnail: "..." }
+    // - { success: true, data: { bridge_id: "...", gateway_url: "...", gateway_url_thumbnail: "..." } }
+    const isSuccess = response.status === "success" || response.success
+    
+    if (isSuccess) {
+      // Extract fields from either response.data or directly from response
+      const bridgeId = response.data?.bridge_id || response.bridge_id
+      const gatewayUrl = response.data?.gateway_url || response.gateway_url
+      const gatewayUrlThumbnail = response.data?.gateway_url_thumbnail || response.gateway_url_thumbnail
+      
+      // Validate required fields are present
+      if (!bridgeId || bridgeId.trim() === "") {
+        throw new Error("Upload bridge created but bridge_id is missing from response. Please try again.")
+      }
+      if (!gatewayUrl || gatewayUrl.trim() === "") {
+        throw new Error("Upload bridge created but gateway_url is missing from response. Please try again.")
+      }
+
+      console.log("[API] Upload bridge created successfully:", {
+        bridge_id: bridgeId,
+        has_gateway_url: !!gatewayUrl,
+        has_thumbnail_url: !!gatewayUrlThumbnail,
+      })
+
+      return {
+        success: true,
+        bridge_id: bridgeId,
+        gateway_url: gatewayUrl,
+        gateway_url_thumbnail: gatewayUrlThumbnail || "",
+        message: response.message,
+      }
+    }
+    
+    throw new Error(response.message || "Failed to initiate video upload")
   }
 
-  async acknowledgeUpload(bridgeId: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // POST /videos/upload/ack/{videoID} - Acknowledge video upload
+  async acknowledgeUpload(bridgeId: string): Promise<{ success: boolean; message: string }> {
+    // Validate bridgeId is provided and not empty
+    if (!bridgeId || bridgeId.trim() === "") {
+      throw new Error("Bridge ID is required to acknowledge upload. Please try uploading again.")
+    }
+
+    console.log("[API] Acknowledging upload with bridge_id:", bridgeId)
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+    }>(
       `/videos/upload/ack/${bridgeId}`,
       {
         method: "POST",
@@ -516,24 +788,212 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { status: "success", message: "video uploaded" }
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        message: response.message || "Video uploaded successfully",
+      }
+    }
+    
+    return {
+      success: false,
+      message: response.message || "Failed to acknowledge upload",
+    }
   }
 
-  async getVideoUrl(videoPath: string): Promise<{ video_url: string }> {
-    const token = this.getAuthToken()
-    // The videoPath should be like "videos/abc123/video.mp4"
-    // API endpoint is GET /{videoPath}
-    return this.request(
-      `/${videoPath}`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
-      false,
+  // GET /videos/{videoID} - Get video information and streaming URL
+  async getVideo(videoId: string): Promise<{
+    success: boolean
+    video_url: string
+    upvoted?: boolean
+    downvoted?: boolean
+    put_view_error?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        video_url?: string
+        upvoted?: boolean
+        downvoted?: boolean
+        put_view_error?: string
+      }
+      video_url?: string
+      upvoted?: boolean
+      downvoted?: boolean
+      put_view_error?: string
+    }>(
+      `/videos/${videoId}`,
+      {},
+      false, // Authentication optional per docs
     )
+    
+    // Normalize response structure
+    // API may return:
+    // - { status: "success", video_url: "...", upvoted: false, downvoted: false }
+    // - { success: true, data: { video_url: "...", upvoted: false, downvoted: false } }
+    const isSuccess = response.status === "success" || response.success
+    
+    if (isSuccess) {
+      // Extract fields from either response.data or directly from response
+      const videoUrl = response.data?.video_url || response.video_url || ""
+      const upvoted = response.data?.upvoted ?? response.upvoted ?? false
+      const downvoted = response.data?.downvoted ?? response.downvoted ?? false
+      const putViewError = response.data?.put_view_error || response.put_view_error
+      
+      return {
+        success: true,
+        video_url: videoUrl,
+        upvoted: upvoted,
+        downvoted: downvoted,
+        put_view_error: putViewError,
+      }
+    }
+    
+    return {
+      success: false,
+      video_url: "",
+      upvoted: false,
+      downvoted: false,
+    }
   }
 
-  // Social endpoints
-  async upvoteVideo(videoId: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // Legacy method - kept for backward compatibility
+  // Use getVideo() instead for new code
+  async getVideoUrl(videoPath: string): Promise<{ video_url: string }> {
+    console.warn("[API] getVideoUrl is deprecated. Use getVideo(videoId) instead.")
+    // Try to extract video ID from path if it's a full path
+    const videoId = videoPath.replace(/^videos\//, "").replace(/\/.*$/, "")
+    const response = await this.getVideo(videoId)
+    return { video_url: response.video_url }
+  }
+
+  // DELETE /videos/delete/{videoID} - Delete a video
+  async deleteVideo(videoId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+    }>(
+      `/videos/delete/${videoId}`,
+      {
+        method: "DELETE",
+      },
+      true,
+    )
+    
+    // Normalize response structure
+    // API returns: { status: "success", message: "video deleted" }
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        message: response.message || "Video deleted successfully",
+      }
+    }
+    
+    return {
+      success: false,
+      message: response.message || "Failed to delete video",
+    }
+  }
+
+  // GET /videos/list/self - List videos uploaded by authenticated user
+  // Note: API actually uses GET with query params, not POST
+  async listSelfVideos(data: { page?: number; limit?: number; offset?: number; seed?: string }): Promise<{
+    success: boolean
+    videos: any[]
+    page?: number
+    limit: number
+    offset: number
+    count: number
+    seed?: string
+  }> {
+    // Calculate offset from page if provided, otherwise use provided offset
+    const limit = data.limit || 20
+    const page = data.page || 1
+    const offset = data.offset !== undefined ? data.offset : (page - 1) * limit
+    
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (limit !== 20) params.append("limit", limit.toString())
+    if (offset !== 0) params.append("offset", offset.toString())
+    if (data.seed) params.append("seed", data.seed)
+    
+    const queryString = params.toString()
+    const url = queryString ? `/videos/list/self?${queryString}` : "/videos/list/self"
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: any[]
+        page?: number
+        limit?: number
+        offset?: number
+        count?: number
+        seed?: string
+      }
+      videos?: any[]
+      page?: number
+      limit?: number
+      offset?: number
+      count?: number
+      seed?: string
+    }>(
+      url,
+      {
+        method: "GET",
+      },
+      true, // Authentication required per docs
+    )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { videos: [...], limit: 2, offset: 0, count: 1, seed: "jake" } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    
+    if (isSuccess) {
+      // Extract fields from either response.data or directly from response
+      const videos = response.data?.videos || response.videos || []
+      const responsePage = response.data?.page || response.page
+      const responseLimit = response.data?.limit ?? response.limit ?? limit
+      const responseOffset = response.data?.offset ?? response.offset ?? offset
+      const responseCount = response.data?.count ?? response.count ?? 0
+      const responseSeed = response.data?.seed || response.seed
+      
+      return {
+        success: true,
+        videos: videos,
+        page: responsePage || page,
+        limit: responseLimit,
+        offset: responseOffset,
+        count: responseCount,
+        seed: responseSeed,
+      }
+    }
+    
+    return {
+      success: false,
+      videos: [],
+      limit: limit,
+      offset: offset,
+      count: 0,
+    }
+  }
+
+  // Social endpoints - Video Social
+  // POST /social/videos/upvote/{videoID} - Upvote a video
+  async upvoteVideo(videoId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
       `/social/videos/upvote/${videoId}`,
       {
         method: "POST",
@@ -541,10 +1001,28 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { message: "Video upvoted" } }
+    const isSuccess = Boolean(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
   }
 
-  async downvoteVideo(videoId: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // POST /social/videos/downvote/{videoID} - Downvote a video
+  async downvoteVideo(videoId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
       `/social/videos/downvote/${videoId}`,
       {
         method: "POST",
@@ -552,10 +1030,28 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { message: "Video downvoted" } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
   }
 
-  async postComment(videoId: string, comment: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // POST /social/videos/comment/{videoID} - Comment on a video
+  async postComment(videoId: string, comment: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
       `/social/videos/comment/${videoId}`,
       {
         method: "POST",
@@ -563,21 +1059,95 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { message: "Video commented" } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
   }
 
-  async getComments(videoId: string, page: number, limit: number): Promise<{ comments: any[] }> {
-    return this.request(
-      `/social/videos/comments/${videoId}`,
+  // GET /social/videos/comments/{videoID} - List comments for a video
+  async getComments(videoId: string, page: number = 1, limit: number = 20): Promise<{
+    success: boolean
+    comments: any[]
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const offset = (page - 1) * limit
+    
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (limit !== 20) params.append("limit", limit.toString())
+    if (offset !== 0) params.append("offset", offset.toString())
+    
+    const queryString = params.toString()
+    const url = queryString ? `/social/videos/comments/${videoId}?${queryString}` : `/social/videos/comments/${videoId}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        comments?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+      }
+      comments?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+    }>(
+      url,
       {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
+        method: "GET",
       },
-      true,
+      false, // Authentication not required per docs (but recommended)
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { comments: [...], limit: 20, offset: 0, count: 150 } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    
+    if (isSuccess) {
+      const comments = response.data?.comments || response.comments || []
+      const responseLimit = response.data?.limit ?? response.limit ?? limit
+      const responseOffset = response.data?.offset ?? response.offset ?? offset
+      const responseCount = response.data?.count ?? response.count ?? 0
+      
+      return {
+        success: true,
+        comments: comments,
+        limit: responseLimit,
+        offset: responseOffset,
+        count: responseCount,
+      }
+    }
+    
+    return {
+      success: false,
+      comments: [],
+      limit: limit,
+      offset: offset,
+      count: 0,
+    }
   }
 
-  async postReply(commentId: string, reply: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // POST /social/videos/reply/{commentID} - Reply to a comment
+  async postReply(commentId: string, reply: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
       `/social/videos/reply/${commentId}`,
       {
         method: "POST",
@@ -585,21 +1155,96 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { message: "Reply added" } } or "Reply updated"
+    const isSuccess = !!(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
   }
 
-  async getReplies(commentId: string, page: number, limit: number): Promise<{ replies: any[] }> {
-    return this.request(
-      `/social/videos/replies/${commentId}`,
+  // GET /social/videos/replies/{commentID} - List replies for a comment
+  async getReplies(commentId: string, page: number = 1, limit: number = 20): Promise<{
+    success: boolean
+    replies: any[]
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const offset = (page - 1) * limit
+    
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (limit !== 20) params.append("limit", limit.toString())
+    if (offset !== 0) params.append("offset", offset.toString())
+    
+    const queryString = params.toString()
+    const url = queryString ? `/social/videos/replies/${commentId}?${queryString}` : `/social/videos/replies/${commentId}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        replies?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+      }
+      replies?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+    }>(
+      url,
       {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
+        method: "GET",
       },
-      true,
+      false, // Authentication not required per docs (but recommended)
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { replies: [...], limit: 20, offset: 0, count: 25 } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    
+    if (isSuccess) {
+      const replies = response.data?.replies || response.replies || []
+      const responseLimit = response.data?.limit ?? response.limit ?? limit
+      const responseOffset = response.data?.offset ?? response.offset ?? offset
+      const responseCount = response.data?.count ?? response.count ?? 0
+      
+      return {
+        success: true,
+        replies: replies,
+        limit: responseLimit,
+        offset: responseOffset,
+        count: responseCount,
+      }
+    }
+    
+    return {
+      success: false,
+      replies: [],
+      limit: limit,
+      offset: offset,
+      count: 0,
+    }
   }
 
-  async followUser(username: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // Social endpoints - User Social
+  // POST /social/users/follow/{username} - Follow a user
+  async followUser(username: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
       `/social/users/follow/${username}`,
       {
         method: "POST",
@@ -607,10 +1252,28 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { message: "Followed successfully" } }
+    const isSuccess = Boolean(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
   }
 
-  async unfollowUser(username: string): Promise<{ status: string; message: string }> {
-    return this.request(
+  // POST /social/users/unfollow/{username} - Unfollow a user
+  async unfollowUser(username: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
       `/social/users/unfollow/${username}`,
       {
         method: "POST",
@@ -618,29 +1281,195 @@ class ApiClient {
       },
       true,
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { message: "Unfollowed successfully" } }
+    const isSuccess = Boolean(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
   }
 
-  async getFollowingList(username: string, page: number = 1, limit: number = 100): Promise<{
+  // GET /social/users/following - List users that the current authenticated user is following
+  // PRIVATE: Only returns the current user's following list
+  async getFollowingList(limit: number = 20, offset: number = 0, seed?: string): Promise<{
+    success: boolean
     following: Array<{
       followed_by: string
       followed_to: string
       followed_at: string
-    }>
-    status: string
+    }> | null
+    limit: number
+    offset: number
+    count: number
+    seed?: string
   }> {
-    return this.request(
-      `/social/users/following/${username}`,
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (limit !== 20) params.append("limit", limit.toString())
+    if (offset !== 0) params.append("offset", offset.toString())
+    if (seed) params.append("seed", seed)
+    
+    const queryString = params.toString()
+    const url = queryString ? `/social/users/following?${queryString}` : "/social/users/following"
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        following?: Array<{
+          followed_by: string
+          followed_to: string
+          followed_at: string
+        }> | null
+        limit?: number
+        offset?: number
+        count?: number
+        seed?: string
+      }
+      following?: Array<{
+        followed_by: string
+        followed_to: string
+        followed_at: string
+      }> | null
+      limit?: number
+      offset?: number
+      count?: number
+      seed?: string
+    }>(
+      url,
       {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
+        method: "GET",
       },
-      true,
+      true, // Authentication required
     )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { following: [...], limit: 20, offset: 0, count: 0, seed: "..." } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    
+    if (isSuccess) {
+      const following = response.data?.following ?? response.following ?? null
+      const responseLimit = response.data?.limit ?? response.limit ?? limit
+      const responseOffset = response.data?.offset ?? response.offset ?? offset
+      const responseCount = response.data?.count ?? response.count ?? 0
+      const responseSeed = response.data?.seed || response.seed
+      
+      return {
+        success: true,
+        following: following,
+        limit: responseLimit,
+        offset: responseOffset,
+        count: responseCount,
+        seed: responseSeed,
+      }
+    }
+    
+    return {
+      success: false,
+      following: null,
+      limit: limit,
+      offset: offset,
+      count: 0,
+    }
   }
 
-  async checkFollowingStatus(currentUsername: string, targetUsername: string): Promise<boolean> {
+  // GET /social/users/followers - List users who follow the current authenticated user
+  // PRIVATE: Only returns the current user's followers list
+  async getFollowersList(limit: number = 20, offset: number = 0, seed?: string): Promise<{
+    success: boolean
+    followers: Array<{
+      followed_by: string
+      followed_to: string
+      followed_at: string
+    }> | null
+    limit: number
+    offset: number
+    count: number
+    seed?: string
+  }> {
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (limit !== 20) params.append("limit", limit.toString())
+    if (offset !== 0) params.append("offset", offset.toString())
+    if (seed) params.append("seed", seed)
+    
+    const queryString = params.toString()
+    const url = queryString ? `/social/users/followers?${queryString}` : "/social/users/followers"
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        followers?: Array<{
+          followed_by: string
+          followed_to: string
+          followed_at: string
+        }> | null
+        limit?: number
+        offset?: number
+        count?: number
+        seed?: string
+      }
+      followers?: Array<{
+        followed_by: string
+        followed_to: string
+        followed_at: string
+      }> | null
+      limit?: number
+      offset?: number
+      count?: number
+      seed?: string
+    }>(
+      url,
+      {
+        method: "GET",
+      },
+      true, // Authentication required
+    )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { followers: [...], limit: 20, offset: 0, count: 0, seed: "..." } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    
+    if (isSuccess) {
+      const followers = response.data?.followers ?? response.followers ?? null
+      const responseLimit = response.data?.limit ?? response.limit ?? limit
+      const responseOffset = response.data?.offset ?? response.offset ?? offset
+      const responseCount = response.data?.count ?? response.count ?? 0
+      const responseSeed = response.data?.seed || response.seed
+      
+      return {
+        success: true,
+        followers: followers,
+        limit: responseLimit,
+        offset: responseOffset,
+        count: responseCount,
+        seed: responseSeed,
+      }
+    }
+    
+    return {
+      success: false,
+      followers: null,
+      limit: limit,
+      offset: offset,
+      count: 0,
+    }
+  }
+
+  // Check if current user is following a specific user
+  // Uses the private following list endpoint
+  async checkFollowingStatus(targetUsername: string): Promise<boolean> {
     try {
-      const response = await this.getFollowingList(currentUsername, 1, 100);
+      // Get current user's following list (private endpoint)
+      const response = await this.getFollowingList(100, 0);
+      if (!response.success || !response.following) {
+        return false;
+      }
       return response.following.some(
         (follow) => follow.followed_to === targetUsername
       );

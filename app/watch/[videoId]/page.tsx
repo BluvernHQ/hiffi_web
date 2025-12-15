@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
@@ -89,19 +89,53 @@ export default function WatchPage() {
     upvoted: false,
     downvoted: false,
   })
+  const hasFetchedVideoRef = useRef<string | null>(null)
+  const isFetchingRef = useRef<boolean>(false)
 
   useEffect(() => {
     async function fetchVideoData() {
       if (!params.videoId) return
 
+      const videoId = Array.isArray(params.videoId) ? params.videoId[0] : params.videoId
+
+      // Prevent duplicate calls - check synchronously before any async operations
+      if (hasFetchedVideoRef.current === videoId || isFetchingRef.current) {
+        console.log("[hiffi] Video already fetched or currently fetching, skipping duplicate call")
+        return
+      }
+
+      // Mark that we're fetching this video - set synchronously
+      isFetchingRef.current = true
+      hasFetchedVideoRef.current = videoId
+
       try {
         setIsLoading(true)
-        console.log("[hiffi] Fetching video data for:", params.videoId)
+        console.log("[hiffi] Fetching video data for:", videoId)
 
-        // Search through multiple pages to find the requested video
+        // Call GET /videos/{videoID} directly - this is called ONCE ONLY
+        let videoResponse
+        try {
+          videoResponse = await apiClient.getVideo(videoId)
+          console.log("[hiffi] Video streaming URL from API:", videoResponse)
+          
+          if (!videoResponse.success || !videoResponse.video_url) {
+            throw new Error("Failed to get video data")
+          }
+        } catch (videoError) {
+          console.error("[hiffi] Failed to get video:", videoError)
+          // Reset refs on error so we can retry
+          hasFetchedVideoRef.current = null
+          isFetchingRef.current = false
+          setUrlError("Video not found")
+          setIsLoading(false)
+          return
+        }
+
+        // Get basic video info from video list for metadata (title, description, etc.)
+        // We'll search a few pages to find the video metadata
         let foundVideo = null
         let allVideos: any[] = []
-        const maxPagesToSearch = 10
+        const maxPagesToSearch = 5
         const videosPerPage = 50
 
         for (let page = 1; page <= maxPagesToSearch; page++) {
@@ -109,7 +143,6 @@ export default function WatchPage() {
           const videosArray = videosResponse.videos || []
           
           if (videosArray.length === 0) {
-            // No more videos available
             break
           }
 
@@ -117,10 +150,10 @@ export default function WatchPage() {
           allVideos = [...allVideos, ...videosArray]
 
           // Check if the requested video is in this page
-          foundVideo = videosArray.find((v: any) => (v.video_id || v.videoId) === params.videoId)
+          foundVideo = videosArray.find((v: any) => (v.video_id || v.videoId) === videoId)
           
           if (foundVideo) {
-            console.log("[hiffi] Found video from list on page", page, ":", foundVideo)
+            console.log("[hiffi] Found video metadata from list on page", page)
             break
           }
 
@@ -131,19 +164,22 @@ export default function WatchPage() {
         }
 
         if (foundVideo) {
+          // Update video with streaming URL from getVideo response
+          foundVideo.video_url = videoResponse.video_url
+          foundVideo.streaming_url = videoResponse.video_url
+          
+          // Update vote state from getVideo API response
+          setUpvoteState({
+            upvoted: videoResponse.upvoted || false,
+            downvoted: videoResponse.downvoted || false,
+          })
+          setIsLiked(videoResponse.upvoted || false)
+          setIsDisliked(videoResponse.downvoted || false)
+          
           setVideo(foundVideo)
           
           // Set related videos (exclude the current video)
-          setRelatedVideos(allVideos.filter((v: any) => (v.video_id || v.videoId) !== params.videoId))
-          
-          // Sync vote state with video data
-          const voteStatus = foundVideo.uservotestatus || foundVideo.user_vote_status
-          setUpvoteState({
-            upvoted: voteStatus === "upvoted",
-            downvoted: voteStatus === "downvoted",
-          })
-          setIsLiked(voteStatus === "upvoted")
-          setIsDisliked(voteStatus === "downvoted")
+          setRelatedVideos(allVideos.filter((v: any) => (v.video_id || v.videoId) !== videoId))
           
           // Fetch video creator data to get follower count
           const videoCreatorUsername = foundVideo.userUsername || foundVideo.user_username
@@ -162,42 +198,86 @@ export default function WatchPage() {
             }
             
             // Check if current user is following the video creator
+            // This will be handled in a separate useEffect to avoid re-fetching video data
+            // Just set initial state here
             if (userData?.username && userData.username !== videoCreatorUsername) {
-              setIsCheckingFollow(true)
-              try {
-                const isFollowingStatus = await apiClient.checkFollowingStatus(
-                  userData.username,
-                  videoCreatorUsername
-                )
-                setIsFollowing(isFollowingStatus)
-              } catch (followError) {
-                console.error("[hiffi] Failed to check following status:", followError)
-                setIsFollowing(foundVideo.isfollowing || false)
-              } finally {
-                setIsCheckingFollow(false)
-              }
+              // Will be checked in separate useEffect
+              setIsFollowing(false)
             } else {
               setIsFollowing(false)
             }
           }
         } else {
-          console.error("[hiffi] Video not found after searching", maxPagesToSearch, "pages")
-          setUrlError("Video not found")
-          // Set related videos from what we found
-          if (allVideos.length > 0) {
-            setRelatedVideos(allVideos)
+          // If we couldn't find video metadata, create a minimal video object from getVideo response
+          // This shouldn't happen often, but handle gracefully
+          console.warn("[hiffi] Video metadata not found in list, using minimal data")
+          const minimalVideo = {
+            video_id: videoId,
+            video_url: videoResponse.video_url,
+            streaming_url: videoResponse.video_url,
+            video_title: "Video",
+            video_description: "",
+            video_views: 0,
+            video_upvotes: 0,
+            video_downvotes: 0,
+            video_comments: 0,
           }
+          setVideo(minimalVideo)
+          setRelatedVideos(allVideos.slice(0, 6))
         }
       } catch (error) {
         console.error("[hiffi] Failed to fetch video data:", error)
+        // Reset refs on error
+        hasFetchedVideoRef.current = null
+        isFetchingRef.current = false
         setUrlError("Failed to load video")
       } finally {
         setIsLoading(false)
+        isFetchingRef.current = false
       }
     }
 
     fetchVideoData()
-  }, [params.videoId, userData])
+    
+    // Reset refs when videoId changes
+    return () => {
+      if (params.videoId) {
+        const videoId = Array.isArray(params.videoId) ? params.videoId[0] : params.videoId
+        // Reset refs when navigating to a different video
+        if (hasFetchedVideoRef.current !== videoId) {
+          hasFetchedVideoRef.current = null
+          isFetchingRef.current = false
+        }
+      }
+    }
+  }, [params.videoId]) // Removed userData from dependencies - we'll handle it separately
+
+  // Separate effect to check follow status when userData or video changes
+  useEffect(() => {
+    if (!video || !userData) return
+    
+    const videoCreatorUsername = video.userUsername || video.user_username
+    if (!videoCreatorUsername || userData.username === videoCreatorUsername) {
+      setIsFollowing(false)
+      return
+    }
+
+    async function checkFollowStatus() {
+      setIsCheckingFollow(true)
+      try {
+                // checkFollowingStatus now only takes targetUsername (uses current user's following list)
+                const isFollowingStatus = await apiClient.checkFollowingStatus(videoCreatorUsername)
+        setIsFollowing(isFollowingStatus)
+      } catch (followError) {
+        console.error("[hiffi] Failed to check following status:", followError)
+        setIsFollowing(false)
+      } finally {
+        setIsCheckingFollow(false)
+      }
+    }
+
+    checkFollowStatus()
+  }, [video, userData])
 
   const handleLike = async () => {
     if (!user) {
@@ -410,10 +490,8 @@ export default function WatchPage() {
       
       // Verify follow status
       try {
-        const verifiedStatus = await apiClient.checkFollowingStatus(
-          userData.username,
-          username
-        )
+        // checkFollowingStatus now only takes targetUsername (uses current user's following list)
+        const verifiedStatus = await apiClient.checkFollowingStatus(username)
         setIsFollowing(verifiedStatus)
       } catch (verifyError) {
         console.error("[hiffi] Failed to verify following status:", verifyError)
@@ -433,7 +511,7 @@ export default function WatchPage() {
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <div className="flex flex-1">
-          <Sidebar className="hidden lg:block w-64 shrink-0" />
+            <Sidebar className="hidden lg:block w-64 shrink-0" />
           <main className="flex-1 p-4 lg:p-6 overflow-y-auto flex items-center justify-center">
             <div className="text-center">
               {urlError ? (
@@ -458,7 +536,8 @@ export default function WatchPage() {
     )
   }
 
-  const videoUrl = video.video_url || video.videoUrl || ""
+  // Use streaming_url if available (from getVideo), otherwise fall back to video_url
+  const videoUrl = video.streaming_url || video.video_url || video.videoUrl || ""
   const thumbnailUrl = getThumbnailUrl(video.video_thumbnail || video.videoThumbnail || "")
 
   return (

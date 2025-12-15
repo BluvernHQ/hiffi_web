@@ -49,3 +49,10 @@ export function getProfilePictureUrl(user: any): string {
     ""
   );
 }
+
+// Check if user is a creator
+// Handles both 'role' field and legacy 'is_creator' field
+export function isCreator(user: any): boolean {
+  if (!user) return false;
+  return user.role === "creator" || user.is_creator === true;
+}

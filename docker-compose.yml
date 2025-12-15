@@ -6,3 +6,8 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
+      - WORKERS_API_KEY=${WORKERS_API_KEY:-}
+      - NEXT_PUBLIC_WORKERS_API_KEY=${NEXT_PUBLIC_WORKERS_API_KEY:-${WORKERS_API_KEY:-}}
+    env_file:
+      - .env.local
+      - .env

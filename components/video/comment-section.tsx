@@ -51,8 +51,16 @@ export function CommentSection({ videoId }: { videoId: string }) {
     try {
       setIsLoading(true)
       const response = await apiClient.getComments(videoId, 1, 20)
-      setComments(response.comments || [])
-      setHasMore(response.comments?.length === 20)
+      if (response.success) {
+        setComments(response.comments || [])
+        // Check if there are more comments based on count and current offset
+        const totalLoaded = response.offset + response.comments.length
+        setHasMore(totalLoaded < response.count)
+        setPage(1)
+      } else {
+        setComments([])
+        setHasMore(false)
+      }
     } catch (error) {
       console.error("[hiffi] Failed to fetch comments:", error)
       toast({
@@ -60,6 +68,8 @@ export function CommentSection({ videoId }: { videoId: string }) {
         description: "Failed to load comments",
         variant: "destructive",
       })
+      setComments([])
+      setHasMore(false)
     } finally {
       setIsLoading(false)
     }
@@ -97,11 +107,20 @@ export function CommentSection({ videoId }: { videoId: string }) {
     try {
       const nextPage = page + 1
       const response = await apiClient.getComments(videoId, nextPage, 20)
-      setComments([...comments, ...(response.comments || [])])
-      setPage(nextPage)
-      setHasMore(response.comments?.length === 20)
+      if (response.success) {
+        setComments([...comments, ...(response.comments || [])])
+        setPage(nextPage)
+        // Check if there are more comments based on count and current offset
+        const totalLoaded = response.offset + response.comments.length
+        setHasMore(totalLoaded < response.count)
+      }
     } catch (error) {
       console.error("[hiffi] Failed to load more comments:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load more comments",
+        variant: "destructive",
+      })
     }
   }
 
@@ -199,8 +218,12 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
     try {
       setIsLoadingReplies(true)
       const response = await apiClient.getReplies(comment.comment_id, 1, 50)
-      setReplies(response.replies || [])
-      setShowReplies(true)
+      if (response.success) {
+        setReplies(response.replies || [])
+        setShowReplies(true)
+      } else {
+        setReplies([])
+      }
     } catch (error) {
       console.error("[hiffi] Failed to fetch replies:", error)
       toast({
@@ -208,6 +231,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
         description: "Failed to load replies",
         variant: "destructive",
       })
+      setReplies([])
     } finally {
       setIsLoadingReplies(false)
     }

@@ -73,9 +73,9 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
                   <>
                     {userData.role === "creator" ? (
                       <Button variant="ghost" size="icon" asChild className="hidden md:flex">
-                        <Link href="/upload">
+                        <Link href="/creator/apply">
                           <Upload className="h-5 w-5" />
-                          <span className="sr-only">Upload</span>
+                          <span className="sr-only">Hiffi Studio</span>
                         </Link>
                       </Button>
                     ) : (

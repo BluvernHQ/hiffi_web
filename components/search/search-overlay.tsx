@@ -55,12 +55,37 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       // Debounce API call
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          // Use vector search for better semantic search results
-          const response = await apiClient.vectorSearch(query.trim());
+          const searchLower = query.trim().toLowerCase();
           
-          // Convert API response to SearchResult format and limit to 5 suggestions
-          const videosArray = response.videos || []
-          const videoSuggestions: SearchResult[] = videosArray.slice(0, 5).map((video: any) => ({
+          // Fetch first page of videos for search suggestions
+          // Since vector search was removed, we do client-side filtering
+          const response = await apiClient.getVideoList({
+            page: 1,
+            limit: 50, // Fetch more for better suggestions
+          });
+          
+          if (!response.success || !response.videos) {
+            setSuggestions([]);
+            return;
+          }
+          
+          // Filter videos by title, description, tags, or username
+          const filteredVideos = response.videos.filter((video: any) => {
+            const title = (video.video_title || '').toLowerCase();
+            const description = (video.video_description || '').toLowerCase();
+            const tags = (video.video_tags || []).join(' ').toLowerCase();
+            const username = (video.user_username || '').toLowerCase();
+            
+            return (
+              title.includes(searchLower) ||
+              description.includes(searchLower) ||
+              tags.includes(searchLower) ||
+              username.includes(searchLower)
+            );
+          });
+          
+          // Convert to SearchResult format and limit to 5 suggestions
+          const videoSuggestions: SearchResult[] = filteredVideos.slice(0, 5).map((video: any) => ({
             id: video.video_id || video.videoId || '',
             title: video.video_title || video.videoTitle || '',
             type: 'video' as const,
