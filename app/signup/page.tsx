@@ -17,7 +17,6 @@ import { Loader2, Check, X } from "lucide-react"
 export default function SignupPage() {
   const [name, setName] = useState("")
   const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -45,9 +44,14 @@ export default function SignupPage() {
     const timer = setTimeout(async () => {
       try {
         const result = await apiClient.checkUsernameAvailability(username)
-        setUsernameAvailable(result.available)
+        if (result.success && result.data) {
+          setUsernameAvailable(result.data.available)
+        } else {
+          setUsernameAvailable(false)
+        }
       } catch (error) {
         console.error("[hiffi] Username check failed:", error)
+        setUsernameAvailable(false)
       } finally {
         setCheckingUsername(false)
       }
@@ -85,25 +89,27 @@ export default function SignupPage() {
     }
 
     try {
-      await signup(email, password, username, name)
+      await signup(username, password, name)
     } catch (err: any) {
       const errorMessage = err.message || "Something went wrong. Please try again."
-      const errorCode = err.code || ""
+      const errorStatus = err.status || 0
       
-      // Handle email-already-in-use error as toast notification
+      // Handle username-already-in-use error (409 Conflict or message contains username/taken/exists)
       if (
-        errorCode === "auth/email-already-in-use" ||
-        errorMessage.toLowerCase().includes("email-already-in-use") ||
-        errorMessage.toLowerCase().includes("email already in use")
+        errorStatus === 409 ||
+        (errorMessage.toLowerCase().includes("username") &&
+          (errorMessage.toLowerCase().includes("already") || 
+           errorMessage.toLowerCase().includes("taken") || 
+           errorMessage.toLowerCase().includes("exists")))
       ) {
         toast({
-          title: "Email already in use",
-          description: "This email is already registered. Please sign in or use a different email.",
+          title: "Username already in use",
+          description: "This username is already taken. Please choose a different username.",
           variant: "destructive",
         })
         setError("") // Clear error state - toast handles the message
       } else {
-        // Other errors still show in form
+        // Other errors show in form
         setError(errorMessage)
       }
     } finally {
@@ -180,17 +186,6 @@ export default function SignupPage() {
                   </p>
                 )}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

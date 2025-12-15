@@ -1,24 +1,122 @@
-import { auth } from "./firebase"
-
 const API_BASE_URL = "https://beta.hiffi.com/api"
+const TOKEN_KEY = "hiffi_auth_token"
+const USERNAME_COOKIE = "hiffi_username"
+const PASSWORD_COOKIE = "hiffi_password"
 
 export interface ApiError {
   message: string
   status: number
 }
 
-class ApiClient {
-  private async getAuthToken(): Promise<string | null> {
-    const user = auth.currentUser
-    if (!user) return null
+// Cookie utilities
+function setCookie(name: string, value: string, days: number = 30): void {
+  if (typeof document === "undefined") return
+  const expires = new Date()
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Strict`
+}
 
-    try {
-      const token = await user.getIdToken(true)
-      return token
-    } catch (error) {
-      console.error("[hiffi] Failed to get auth token:", error)
-      return null
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null
+  const nameEQ = name + "="
+  const ca = document.cookie.split(";")
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i]
+    while (c.charAt(0) === " ") c = c.substring(1, c.length)
+    if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length))
+  }
+  return null
+}
+
+function deleteCookie(name: string): void {
+  if (typeof document === "undefined") return
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
+}
+
+class ApiClient {
+  private isRefreshing = false
+  private refreshPromise: Promise<string | null> | null = null
+
+  // Store and retrieve JWT token
+  setAuthToken(token: string): void {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(TOKEN_KEY, token)
     }
+  }
+
+  getAuthToken(): string | null {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(TOKEN_KEY)
+    }
+    return null
+  }
+
+  clearAuthToken(): void {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(TOKEN_KEY)
+    }
+  }
+
+  // Store credentials in cookies
+  setCredentials(username: string, password: string): void {
+    setCookie(USERNAME_COOKIE, username)
+    setCookie(PASSWORD_COOKIE, password)
+  }
+
+  // Get credentials from cookies
+  getCredentials(): { username: string | null; password: string | null } {
+    return {
+      username: getCookie(USERNAME_COOKIE),
+      password: getCookie(PASSWORD_COOKIE),
+    }
+  }
+
+  // Clear credentials from cookies
+  clearCredentials(): void {
+    deleteCookie(USERNAME_COOKIE)
+    deleteCookie(PASSWORD_COOKIE)
+  }
+
+  // Auto-login using stored credentials
+  private async autoLogin(): Promise<string | null> {
+    // Prevent multiple simultaneous login attempts
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise
+    }
+
+    this.isRefreshing = true
+    this.refreshPromise = (async () => {
+      try {
+        const credentials = this.getCredentials()
+        if (!credentials.username || !credentials.password) {
+          console.log("[API] No stored credentials for auto-login")
+          return null
+        }
+
+        console.log("[API] Attempting auto-login with stored credentials")
+        const response = await this.login({
+          username: credentials.username,
+          password: credentials.password,
+        })
+
+        if (response.success && response.data.token) {
+          console.log("[API] Auto-login successful")
+          return response.data.token
+        }
+
+        return null
+      } catch (error) {
+        console.error("[API] Auto-login failed:", error)
+        // Clear invalid credentials
+        this.clearCredentials()
+        return null
+      } finally {
+        this.isRefreshing = false
+        this.refreshPromise = null
+      }
+    })()
+
+    return this.refreshPromise
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth = false): Promise<T> {
@@ -30,7 +128,7 @@ class ApiClient {
     }
 
     if (requiresAuth) {
-      const token = await this.getAuthToken()
+      const token = this.getAuthToken()
       if (token) {
         headers["Authorization"] = `Bearer ${token}`
       }
@@ -61,13 +159,99 @@ class ApiClient {
       const duration = Date.now() - startTime
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => response.statusText)
-        console.error(`[API] ${method} ${url} - FAILED (${response.status}) in ${duration}ms`)
+        let finalResponse = response
+        let retried = false
+        
+        // Handle 401 Unauthorized - try auto-login if we have stored credentials
+        if (response.status === 401 && requiresAuth && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
+          console.log("[API] Got 401, attempting auto-login with stored credentials")
+          const newToken = await this.autoLogin()
+          
+          if (newToken) {
+            // Retry the original request with the new token
+            console.log("[API] Retrying request with new token")
+            headers["Authorization"] = `Bearer ${newToken}`
+            
+            const retryResponse = await fetch(url, {
+              ...options,
+              headers,
+            })
+            
+            if (retryResponse.ok) {
+              // Success after retry, continue with normal flow
+              const retryDuration = Date.now() - startTime
+              console.log(`[API] ${method} ${url} - SUCCESS (${retryResponse.status}) after retry in ${retryDuration}ms`)
+              
+              // Handle empty responses
+              if (retryResponse.status === 204 || retryResponse.headers.get("content-length") === "0") {
+                return {} as T
+              }
+              
+              const retryData = await retryResponse.json()
+              // Log response data
+              const responsePreview = JSON.stringify(retryData).substring(0, 500)
+              if (responsePreview.length < JSON.stringify(retryData).length) {
+                console.log(`[API] Response:`, responsePreview + "...")
+              } else {
+                console.log(`[API] Response:`, retryData)
+              }
+              
+              return retryData
+            } else {
+              // Retry also failed, use retry response for error handling
+              finalResponse = retryResponse
+              retried = true
+            }
+          }
+        }
+
+        const errorText = await finalResponse.text().catch(() => finalResponse.statusText)
+        const finalDuration = Date.now() - startTime
+        console.error(`[API] ${method} ${url} - FAILED (${finalResponse.status})${retried ? ' after retry' : ''} in ${finalDuration}ms`)
         console.error(`[API] Error response:`, errorText.substring(0, 200))
         
+        // Try to parse error response as JSON to get user-friendly message
+        let errorMessage = `API Error: ${response.statusText}`
+        try {
+          const errorData = JSON.parse(errorText)
+          // Check for common error response formats
+          if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.error) {
+            errorMessage = errorData.error
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData
+          }
+        } catch {
+          // If parsing fails, use the raw text if available
+          if (errorText && errorText.trim().length > 0) {
+            errorMessage = errorText
+          }
+        }
+        
+        // Provide user-friendly messages for common HTTP status codes
+        if (response.status === 401) {
+          // Check if this is an auth endpoint
+          if (endpoint.includes('/auth/login') || endpoint.includes('/auth/register')) {
+            errorMessage = "Invalid username or password. Please check your credentials and try again."
+          } else {
+            errorMessage = "You are not authorized to perform this action. Please log in."
+          }
+        } else if (response.status === 400) {
+          errorMessage = errorMessage || "Invalid request. Please check your input and try again."
+        } else if (response.status === 404) {
+          errorMessage = errorMessage || "The requested resource was not found."
+        } else if (response.status === 409) {
+          errorMessage = errorMessage || "This resource already exists. Please try a different value."
+        } else if (response.status === 500) {
+          errorMessage = "Server error. Please try again later."
+        }
+        
         const error: ApiError = {
-          message: `API Error: ${response.statusText}`,
-          status: response.status,
+          message: errorMessage,
+          status: finalResponse.status,
         }
         throw error
       }
@@ -97,8 +281,97 @@ class ApiClient {
     }
   }
 
+  // Auth endpoints
+  async register(data: { username: string; name: string; password: string }): Promise<{
+    success: boolean
+    data: {
+      id: number
+      token: string
+      uid: string
+      user: {
+        name: string
+        uid: string
+        username: string
+      }
+    }
+  }> {
+    const response = await this.request<{
+      success: boolean
+      data: {
+        id: number
+        token: string
+        uid: string
+        user: {
+          name: string
+          uid: string
+          username: string
+        }
+      }
+    }>(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      false,
+    )
+    
+    // Store the token
+    if (response.success && response.data.token) {
+      this.setAuthToken(response.data.token)
+    }
+    
+    return response
+  }
+
+  async login(data: { username: string; password: string }): Promise<{
+    success: boolean
+    data: {
+      token: string
+      user: {
+        name: string
+        uid: string
+        username: string
+      }
+    }
+  }> {
+    const response = await this.request<{
+      success: boolean
+      data: {
+        token: string
+        user: {
+          name: string
+          uid: string
+          username: string
+        }
+      }
+    }>(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      false,
+    )
+    
+    // Store the token
+    if (response.success && response.data.token) {
+      this.setAuthToken(response.data.token)
+      // Store credentials in cookies for auto-login
+      this.setCredentials(data.username, data.password)
+    }
+    
+    return response
+  }
+
   // User endpoints
-  async checkUsernameAvailability(username: string): Promise<{ available: boolean }> {
+  async checkUsernameAvailability(username: string): Promise<{
+    success: boolean
+    data: {
+      available: boolean
+      username: string
+    }
+  }> {
     return this.request(`/users/availability/${username}`, {}, false)
   }
 
@@ -113,12 +386,31 @@ class ApiClient {
     )
   }
 
-  async getCurrentUser(): Promise<{ success: boolean; user: any }> {
-    return this.request("/users/self", {}, true)
+  async getCurrentUser(): Promise<{ success: boolean; user?: any; data?: { user: any } }> {
+    const response = await this.request<{ success: boolean; user?: any; data?: { user: any } }>("/users/self", {}, true)
+    // Normalize response to always have user at top level
+    if (response.success && response.data?.user && !response.user) {
+      return {
+        success: response.success,
+        user: response.data.user,
+      }
+    }
+    return response
   }
 
   async getUserByUsername(username: string): Promise<{ success: boolean; user: any }> {
     return this.request(`/users/${username}`, {}, true)
+  }
+
+  async updateSelf(data: { role?: string; name?: string; bio?: string; location?: string; website?: string }): Promise<any> {
+    return this.request(
+      "/users/self",
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
   }
 
   async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string }): Promise<any> {
@@ -143,13 +435,41 @@ class ApiClient {
   }
 
   // Video endpoints
-  async getVideoList(data: { page: number; limit: number; search?: string }): Promise<{ videos: any[] }> {
-    const token = await this.getAuthToken()
+  async getVideoList(data: { page?: number; limit: number; offset?: number; seed?: string; search?: string }): Promise<{ videos: any[] }> {
+    const token = this.getAuthToken()
+    
+    // Build query parameters
+    const params = new URLSearchParams()
+    params.append("limit", data.limit.toString())
+    
+    // Use offset if provided, otherwise calculate from page
+    if (data.offset !== undefined) {
+      params.append("offset", data.offset.toString())
+    } else if (data.page !== undefined) {
+      const offset = (data.page - 1) * data.limit
+      params.append("offset", offset.toString())
+    } else {
+      // Default to offset 0 if neither page nor offset is provided
+      params.append("offset", "0")
+    }
+    
+    // Add seed (username) if provided
+    if (data.seed) {
+      params.append("seed", data.seed)
+    }
+    
+    // Add search if provided (keeping for backward compatibility)
+    if (data.search) {
+      params.append("search", data.search)
+    }
+    
+    const queryString = params.toString()
+    const endpoint = `/videos/list${queryString ? `?${queryString}` : ""}`
+    
     return this.request(
-      "/videos/list",
+      endpoint,
       {
-        method: "POST",
-        body: JSON.stringify(data),
+        method: "GET",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
       false,
@@ -157,7 +477,7 @@ class ApiClient {
   }
 
   async vectorSearch(searchQuery: string): Promise<{ status: string; videos: any[] }> {
-    const token = await this.getAuthToken()
+    const token = this.getAuthToken()
     const encodedQuery = encodeURIComponent(searchQuery.trim())
     return this.request(
       `/videos/vector/search/${encodedQuery}`,
@@ -199,7 +519,7 @@ class ApiClient {
   }
 
   async getVideoUrl(videoPath: string): Promise<{ video_url: string }> {
-    const token = await this.getAuthToken()
+    const token = this.getAuthToken()
     // The videoPath should be like "videos/abc123/video.mp4"
     // API endpoint is GET /{videoPath}
     return this.request(

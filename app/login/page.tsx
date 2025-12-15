@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2 } from "lucide-react"
 
 function LoginForm() {
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -50,9 +50,9 @@ function LoginForm() {
     setError("")
 
     try {
-      await login(email, password)
+      await login(username, password)
     } catch (err: any) {
-      setError(err.message || "Invalid email or password")
+      setError(err.message || "Invalid username or password")
     } finally {
       setIsLoading(false)
     }
@@ -83,18 +83,18 @@ function LoginForm() {
             </div>
           </div>
           <CardTitle className="text-2xl text-center font-bold">Welcome back</CardTitle>
-          <CardDescription className="text-center">Enter your email to sign in to your account</CardDescription>
+          <CardDescription className="text-center">Enter your username to sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="johndoe"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
                 required
               />
             </div>

@@ -14,9 +14,8 @@ const api = axios.create({
 // Add interceptor to inject token
 api.interceptors.request.use(
   (config) => {
-    // In a real app, we would get the token from Firebase Auth
-    // const token = await auth.currentUser?.getIdToken();
-    const token = typeof window !== 'undefined' ? localStorage.getItem('hiffi_token') : null;
+    // Get the JWT token from localStorage (set by auth endpoints)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('hiffi_auth_token') : null;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

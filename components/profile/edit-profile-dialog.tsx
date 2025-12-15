@@ -69,7 +69,11 @@ export function EditProfileDialog({
     const timer = setTimeout(async () => {
       try {
         const result = await apiClient.checkUsernameAvailability(username)
-        setUsernameAvailable(result.available)
+        if (result.success && result.data) {
+          setUsernameAvailable(result.data.available)
+        } else {
+          setUsernameAvailable(false)
+        }
       } catch (error) {
         console.error("[hiffi] Username check failed:", error)
         setUsernameAvailable(null)
