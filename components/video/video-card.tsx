@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatDistanceToNow } from "date-fns"
 import { Play } from "lucide-react"
-import { getThumbnailUrl } from "@/lib/storage"
+import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 
@@ -47,8 +47,13 @@ export function VideoCard({ video, priority = false }: VideoCardProps) {
 
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
 
-  const thumbnailUrl =
-    getThumbnailUrl(thumbnail) || `/placeholder.svg?height=360&width=640&query=${encodeURIComponent(title)}`
+  // Use video_thumbnail field from API with direct Workers URL
+  // Falls back to videoId if thumbnail field is not available
+  const thumbnailUrl = thumbnail
+    ? getThumbnailUrl(thumbnail)
+    : (videoId 
+      ? `${WORKERS_BASE_URL}/${videoId}`
+      : `/placeholder.svg?height=360&width=640&query=${encodeURIComponent(title)}`)
 
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {

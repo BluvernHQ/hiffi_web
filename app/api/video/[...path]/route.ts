@@ -31,17 +31,23 @@ export async function GET(
     const headers: HeadersInit = {}
     if (API_KEY) {
       headers['x-api-key'] = API_KEY
+      console.log('[API] Adding x-api-key header to Workers request')
+    } else {
+      console.warn('[API] No API key available - request may fail')
     }
 
     // Add range header if present (for video seeking)
     if (range) {
       headers['range'] = range
+      console.log('[API] Forwarding range header:', range)
     }
 
     // Fetch from Workers with the required header
     const response = await fetch(workersUrl, {
       headers,
     })
+    
+    console.log('[API] Workers response status:', response.status, 'has body:', !!response.body)
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText)
@@ -65,12 +71,10 @@ export async function GET(
     // Get the content type from the response
     const contentType = response.headers.get('content-type') || 'video/mp4'
     
-    // Get the video data
-    const videoData = await response.arrayBuffer()
-
     // Get content range if present (for partial content responses)
     const contentRange = response.headers.get('content-range')
     const contentLength = response.headers.get('content-length')
+    const acceptRanges = response.headers.get('accept-ranges')
 
     // Build response headers
     const responseHeaders: HeadersInit = {
@@ -84,12 +88,16 @@ export async function GET(
     if (contentLength) {
       responseHeaders['Content-Length'] = contentLength
     }
+    if (acceptRanges) {
+      responseHeaders['Accept-Ranges'] = acceptRanges
+    }
 
     // Return appropriate status code for range requests
     const status = range && response.status === 206 ? 206 : 200
 
-    // Return the video with appropriate headers
-    return new NextResponse(videoData, {
+    // Stream the video response instead of loading into memory
+    // This prevents timeouts for large videos
+    return new NextResponse(response.body, {
       status,
       headers: responseHeaders,
     })

@@ -45,7 +45,7 @@ export default function SignupPage() {
       try {
         const result = await apiClient.checkUsernameAvailability(username)
         if (result.success) {
-          setUsernameAvailable(result.available)
+        setUsernameAvailable(result.available)
         } else {
           setUsernameAvailable(false)
         }

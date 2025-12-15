@@ -95,11 +95,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error?.status === 401 || error?.status === 404) {
         console.warn("[hiffi] Unauthorized or user not found, clearing auth")
         apiClient.clearAuthToken()
-        setUser(null)
-        setUserData(null)
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(USER_DATA_KEY)
-          localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+          setUser(null)
+          setUserData(null)
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(USER_DATA_KEY)
+            localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
         }
       } else {
         setUser(null)
@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("[hiffi] Login successful, user:", response.data.user.username)
-      
+
       // Set initial user data from login response
       setUser(response.data.user)
       setUserData(response.data.user)
@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set user data from response
       setUser(response.data.user)
       setUserData(response.data.user)
-      
+
       // Cache the user data
       if (typeof window !== "undefined") {
         localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
@@ -209,8 +209,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Clear any partial state
       apiClient.clearAuthToken()
-      setUser(null)
-      setUserData(null)
+          setUser(null)
+          setUserData(null)
       
       const errorMessage = error.message || "Failed to sign up. Please try again."
       throw new Error(errorMessage)
@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       apiClient.clearAuthToken()
       // Clear stored credentials
       apiClient.clearCredentials()
-      
+
       setUser(null)
       setUserData(null)
 

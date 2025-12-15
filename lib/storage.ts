@@ -1,10 +1,9 @@
-const WORKERS_BASE_URL = "https://black-paper-83cf.hiffi.workers.dev"
+export const WORKERS_BASE_URL = "https://black-paper-83cf.hiffi.workers.dev"
 
 /**
- * Constructs the full thumbnail URL from the storage path using Workers URL via proxy
- * Uses Next.js API route to add required x-api-key header
- * @param thumbnailPath - Path like "thumbnails/videos/abc123.jpg"
- * @returns Full URL to the thumbnail via API proxy
+ * Constructs the full thumbnail URL from the storage path using direct Workers URL
+ * @param thumbnailPath - Path from API (e.g., "video_thumbnail" value from list videos API)
+ * @returns Full URL to the thumbnail: https://black-paper-83cf.hiffi.workers.dev/{thumbnailPath}
  */
 export function getThumbnailUrl(thumbnailPath: string): string {
   if (!thumbnailPath) return ""
@@ -14,9 +13,9 @@ export function getThumbnailUrl(thumbnailPath: string): string {
     return thumbnailPath
   }
 
-  // Use Next.js API route proxy to add required x-api-key header
-  // Format: /api/thumbnail/thumbnails/videos/abc123.jpg
-  return `/api/thumbnail/${thumbnailPath}`
+  // Construct direct Workers URL: https://black-paper-83cf.hiffi.workers.dev/{video_thumbnail}
+  // The thumbnailPath comes directly from the API's video_thumbnail field
+  return `${WORKERS_BASE_URL}/${thumbnailPath}`
 }
 
 /**

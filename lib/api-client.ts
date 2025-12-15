@@ -595,8 +595,8 @@ class ApiClient {
       offset: params.offset || 0,
       count: 0,
     }
-  }
-
+    }
+    
   // Video endpoints
   // GET /videos/list - List all videos with deterministic random pagination
   // Note: API actually uses GET with query params, not POST (returns 405 for POST)
@@ -710,7 +710,7 @@ class ApiClient {
   }> {
     const response = await this.request<{
       success?: boolean
-      status?: string
+    status?: string
       data?: {
         bridge_id?: string
         gateway_url?: string
@@ -1582,49 +1582,712 @@ class ApiClient {
     }
   }
 
-  // Admin endpoints
+  // Admin endpoints - List Users
+  // GET /admin/users - List all users with optional filtering
+  async adminListUsers(params: {
+    limit?: number
+    offset?: number
+    username?: string
+    name?: string
+    role?: string
+    uid?: string
+    followers_min?: number
+    followers_max?: number
+    following_min?: number
+    following_max?: number
+    total_videos_min?: number
+    total_videos_max?: number
+    created_after?: string
+    created_before?: string
+    updated_after?: string
+    updated_before?: string
+  }): Promise<{
+    status: string
+    users: any[]
+    limit: number
+    offset: number
+    count: number
+    filters?: any
+  }> {
+    const queryParams = new URLSearchParams()
+    
+    // Pagination
+    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
+    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
+    
+    // Text filters
+    if (params.username) queryParams.append("username", params.username)
+    if (params.name) queryParams.append("name", params.name)
+    if (params.role) queryParams.append("role", params.role)
+    if (params.uid) queryParams.append("uid", params.uid)
+    
+    // Numeric range filters
+    if (params.followers_min !== undefined) queryParams.append("followers_min", params.followers_min.toString())
+    if (params.followers_max !== undefined) queryParams.append("followers_max", params.followers_max.toString())
+    if (params.following_min !== undefined) queryParams.append("following_min", params.following_min.toString())
+    if (params.following_max !== undefined) queryParams.append("following_max", params.following_max.toString())
+    if (params.total_videos_min !== undefined) queryParams.append("total_videos_min", params.total_videos_min.toString())
+    if (params.total_videos_max !== undefined) queryParams.append("total_videos_max", params.total_videos_max.toString())
+    
+    // Date range filters
+    if (params.created_after) queryParams.append("created_after", params.created_after)
+    if (params.created_before) queryParams.append("created_before", params.created_before)
+    if (params.updated_after) queryParams.append("updated_after", params.updated_after)
+    if (params.updated_before) queryParams.append("updated_before", params.updated_before)
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/admin/users${queryString ? `?${queryString}` : ""}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        users?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+        filters?: any
+      }
+      users?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      filters?: any
+    }>(endpoint, { method: "GET" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        users: response.data.users || [],
+        limit: response.data.limit || params.limit || 20,
+        offset: response.data.offset || params.offset || 0,
+        count: response.data.count || 0,
+        filters: response.data.filters || {},
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        users: response.users || [],
+        limit: response.limit || params.limit || 20,
+        offset: response.offset || params.offset || 0,
+        count: response.count || 0,
+        filters: response.filters || {},
+      }
+    }
+    
+    return {
+      status: "error",
+      users: [],
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+      count: 0,
+      filters: {},
+    }
+  }
+
+  // Admin endpoints - List Videos
+  // GET /admin/videos - List all videos with optional filtering
+  async adminListVideos(params: {
+    limit?: number
+    offset?: number
+    video_id?: string
+    video_title?: string
+    video_description?: string
+    user_username?: string
+    user_uid?: string
+    video_tag?: string
+    video_views_min?: number
+    video_views_max?: number
+    video_upvotes_min?: number
+    video_upvotes_max?: number
+    video_downvotes_min?: number
+    video_downvotes_max?: number
+    video_comments_min?: number
+    video_comments_max?: number
+    created_after?: string
+    created_before?: string
+    updated_after?: string
+    updated_before?: string
+  }): Promise<{
+    status: string
+    videos: any[]
+    limit: number
+    offset: number
+    count: number
+    filters?: any
+  }> {
+    const queryParams = new URLSearchParams()
+    
+    // Pagination
+    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
+    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
+    
+    // Text filters
+    if (params.video_id) queryParams.append("video_id", params.video_id)
+    if (params.video_title) queryParams.append("video_title", params.video_title)
+    if (params.video_description) queryParams.append("video_description", params.video_description)
+    if (params.user_username) queryParams.append("user_username", params.user_username)
+    if (params.user_uid) queryParams.append("user_uid", params.user_uid)
+    if (params.video_tag) queryParams.append("video_tag", params.video_tag)
+    
+    // Numeric range filters
+    if (params.video_views_min !== undefined) queryParams.append("video_views_min", params.video_views_min.toString())
+    if (params.video_views_max !== undefined) queryParams.append("video_views_max", params.video_views_max.toString())
+    if (params.video_upvotes_min !== undefined) queryParams.append("video_upvotes_min", params.video_upvotes_min.toString())
+    if (params.video_upvotes_max !== undefined) queryParams.append("video_upvotes_max", params.video_upvotes_max.toString())
+    if (params.video_downvotes_min !== undefined) queryParams.append("video_downvotes_min", params.video_downvotes_min.toString())
+    if (params.video_downvotes_max !== undefined) queryParams.append("video_downvotes_max", params.video_downvotes_max.toString())
+    if (params.video_comments_min !== undefined) queryParams.append("video_comments_min", params.video_comments_min.toString())
+    if (params.video_comments_max !== undefined) queryParams.append("video_comments_max", params.video_comments_max.toString())
+    
+    // Date range filters
+    if (params.created_after) queryParams.append("created_after", params.created_after)
+    if (params.created_before) queryParams.append("created_before", params.created_before)
+    if (params.updated_after) queryParams.append("updated_after", params.updated_after)
+    if (params.updated_before) queryParams.append("updated_before", params.updated_before)
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/admin/videos${queryString ? `?${queryString}` : ""}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+        filters?: any
+      }
+      videos?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      filters?: any
+    }>(endpoint, { method: "GET" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        videos: response.data.videos || [],
+        limit: response.data.limit || params.limit || 20,
+        offset: response.data.offset || params.offset || 0,
+        count: response.data.count || 0,
+        filters: response.data.filters || {},
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        videos: response.videos || [],
+        limit: response.limit || params.limit || 20,
+        offset: response.offset || params.offset || 0,
+        count: response.count || 0,
+        filters: response.filters || {},
+      }
+    }
+    
+    return {
+      status: "error",
+      videos: [],
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+      count: 0,
+      filters: {},
+    }
+  }
+
+  // Admin endpoints - List Comments
+  // GET /admin/comments - List all comments with optional filtering
+  async adminListComments(params: {
+    limit?: number
+    offset?: number
+    filter?: string
+  }): Promise<{
+    status: string
+    comments: any[]
+    limit: number
+    offset: number
+    count: number
+    filter?: string
+  }> {
+    const queryParams = new URLSearchParams()
+    
+    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
+    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
+    if (params.filter) queryParams.append("filter", params.filter)
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/admin/comments${queryString ? `?${queryString}` : ""}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        comments?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+        filter?: string
+      }
+      comments?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      filter?: string
+    }>(endpoint, { method: "GET" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        comments: response.data.comments || [],
+        limit: response.data.limit || params.limit || 20,
+        offset: response.data.offset || params.offset || 0,
+        count: response.data.count || 0,
+        filter: response.data.filter || params.filter,
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        comments: response.comments || [],
+        limit: response.limit || params.limit || 20,
+        offset: response.offset || params.offset || 0,
+        count: response.count || 0,
+        filter: response.filter || params.filter,
+      }
+    }
+    
+    return {
+      status: "error",
+      comments: [],
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+      count: 0,
+      filter: params.filter,
+    }
+  }
+
+  // Admin endpoints - List Replies
+  // GET /admin/replies - List all replies with optional filtering
+  async adminListReplies(params: {
+    limit?: number
+    offset?: number
+    filter?: string
+  }): Promise<{
+    status: string
+    replies: any[]
+    limit: number
+    offset: number
+    count: number
+    filter?: string
+  }> {
+    const queryParams = new URLSearchParams()
+    
+    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
+    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
+    if (params.filter) queryParams.append("filter", params.filter)
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/admin/replies${queryString ? `?${queryString}` : ""}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        replies?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+        filter?: string
+      }
+      replies?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      filter?: string
+    }>(endpoint, { method: "GET" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        replies: response.data.replies || [],
+        limit: response.data.limit || params.limit || 20,
+        offset: response.data.offset || params.offset || 0,
+        count: response.data.count || 0,
+        filter: response.data.filter || params.filter,
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        replies: response.replies || [],
+        limit: response.limit || params.limit || 20,
+        offset: response.offset || params.offset || 0,
+        count: response.count || 0,
+        filter: response.filter || params.filter,
+      }
+    }
+    
+    return {
+      status: "error",
+      replies: [],
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+      count: 0,
+      filter: params.filter,
+    }
+  }
+
+  // Admin endpoints - List Followers
+  // GET /admin/followers - List all follower relationships with optional filtering
+  async adminListFollowers(params: {
+    limit?: number
+    offset?: number
+    followed_by_username?: string
+    followed_to_username?: string
+    followed_by?: string
+    followed_to?: string
+    followed_after?: string
+    followed_before?: string
+  }): Promise<{
+    status: string
+    followers: any[]
+    limit: number
+    offset: number
+    count: number
+    filters?: any
+  }> {
+    const queryParams = new URLSearchParams()
+    
+    // Pagination
+    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
+    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
+    
+    // Text filters
+    if (params.followed_by_username) queryParams.append("followed_by_username", params.followed_by_username)
+    if (params.followed_to_username) queryParams.append("followed_to_username", params.followed_to_username)
+    if (params.followed_by) queryParams.append("followed_by", params.followed_by)
+    if (params.followed_to) queryParams.append("followed_to", params.followed_to)
+    
+    // Date range filters
+    if (params.followed_after) queryParams.append("followed_after", params.followed_after)
+    if (params.followed_before) queryParams.append("followed_before", params.followed_before)
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/admin/followers${queryString ? `?${queryString}` : ""}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        followers?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+        filters?: any
+      }
+      followers?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      filters?: any
+    }>(endpoint, { method: "GET" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        followers: response.data.followers || [],
+        limit: response.data.limit || params.limit || 20,
+        offset: response.data.offset || params.offset || 0,
+        count: response.data.count || 0,
+        filters: response.data.filters || {},
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        followers: response.followers || [],
+        limit: response.limit || params.limit || 20,
+        offset: response.offset || params.offset || 0,
+        count: response.count || 0,
+        filters: response.filters || {},
+      }
+    }
+    
+    return {
+      status: "error",
+      followers: [],
+      limit: params.limit || 20,
+      offset: params.offset || 0,
+      count: 0,
+      filters: {},
+    }
+  }
+
+  // Admin endpoints - Delete User
+  // DELETE /admin/users/{uid} - Delete a user account by UID
+  async deleteUserByUid(uid: string): Promise<{
+    status: string
+    message: string
+  }> {
+    if (!uid || uid.trim() === "") {
+      throw new Error("User UID is required")
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: {
+        message?: string
+      }
+    }>(`/admin/users/${encodeURIComponent(uid)}`, { method: "DELETE" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        message: response.data.message || response.message || "User deleted successfully",
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        message: response.message || "User deleted successfully",
+      }
+    }
+    
+    return {
+      status: "error",
+      message: response.message || "Failed to delete user",
+    }
+  }
+
+  // Admin endpoints - Delete Video
+  // DELETE /admin/videos/{videoID} - Delete a video by videoID
+  async deleteVideoByVideoId(videoId: string): Promise<{
+    status: string
+    message: string
+  }> {
+    if (!videoId || videoId.trim() === "") {
+      throw new Error("Video ID is required")
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: {
+        message?: string
+      }
+    }>(`/admin/videos/${encodeURIComponent(videoId)}`, { method: "DELETE" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        message: response.data.message || response.message || "Video deleted successfully",
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        message: response.message || "Video deleted successfully",
+      }
+    }
+    
+    return {
+      status: "error",
+      message: response.message || "Failed to delete video",
+    }
+  }
+
+  // Admin endpoints - Delete Comment
+  // DELETE /admin/comments/{commentID} - Delete a comment by commentID
+  async deleteCommentByCommentId(commentId: string): Promise<{
+    status: string
+    message: string
+  }> {
+    if (!commentId || commentId.trim() === "") {
+      throw new Error("Comment ID is required")
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: {
+        message?: string
+      }
+    }>(`/admin/comments/${encodeURIComponent(commentId)}`, { method: "DELETE" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        message: response.data.message || response.message || "Comment deleted successfully",
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        message: response.message || "Comment deleted successfully",
+      }
+    }
+    
+    return {
+      status: "error",
+      message: response.message || "Failed to delete comment",
+    }
+  }
+
+  // Admin endpoints - Delete Reply
+  // DELETE /admin/replies/{replyID} - Delete a reply by replyID
+  async deleteReplyByReplyId(replyId: string): Promise<{
+    status: string
+    message: string
+  }> {
+    if (!replyId || replyId.trim() === "") {
+      throw new Error("Reply ID is required")
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: {
+        message?: string
+      }
+    }>(`/admin/replies/${encodeURIComponent(replyId)}`, { method: "DELETE" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        status: "success",
+        message: response.data.message || response.message || "Reply deleted successfully",
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        status: response.status || "success",
+        message: response.message || "Reply deleted successfully",
+      }
+    }
+    
+    return {
+      status: "error",
+      message: response.message || "Failed to delete reply",
+    }
+  }
+
+  // Legacy admin methods - kept for backward compatibility
+  // These are deprecated and will be removed in a future version
   async getAllUsers(page: number = 1, limit: number = 100): Promise<{ users: any[]; total: number }> {
-    return this.request(
-      `/admin/users`,
-      {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
-      },
-      true,
-    )
+    console.warn("[API] getAllUsers is deprecated. Use adminListUsers instead.")
+    const offset = (page - 1) * limit
+    const response = await this.adminListUsers({ limit, offset })
+    return {
+      users: response.users || [],
+      total: response.count || 0,
+    }
   }
 
   async getAllVideos(page: number = 1, limit: number = 100): Promise<{ videos: any[]; total: number }> {
-    return this.request(
-      `/admin/videos`,
-      {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
-      },
-      true,
-    )
+    console.warn("[API] getAllVideos is deprecated. Use adminListVideos instead.")
+    const offset = (page - 1) * limit
+    const response = await this.adminListVideos({ limit, offset })
+    return {
+      videos: response.videos || [],
+      total: response.count || 0,
+    }
   }
 
   async getAllComments(page: number = 1, limit: number = 100): Promise<{ comments: any[]; total: number }> {
-    return this.request(
-      `/admin/comments`,
-      {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
-      },
-      true,
-    )
+    console.warn("[API] getAllComments is deprecated. Use adminListComments instead.")
+    const offset = (page - 1) * limit
+    const response = await this.adminListComments({ limit, offset })
+    return {
+      comments: response.comments || [],
+      total: response.count || 0,
+    }
   }
 
   async getAllReplies(page: number = 1, limit: number = 100): Promise<{ replies: any[]; total: number }> {
-    return this.request(
-      `/admin/replies`,
-      {
-        method: "POST",
-        body: JSON.stringify({ page, limit }),
-      },
-      true,
-    )
+    console.warn("[API] getAllReplies is deprecated. Use adminListReplies instead.")
+    const offset = (page - 1) * limit
+    const response = await this.adminListReplies({ limit, offset })
+    return {
+      replies: response.replies || [],
+      total: response.count || 0,
+    }
+  }
+
+  async searchUsers(query: string, limit: number = 10): Promise<{ success: boolean; users: any[]; count: number }> {
+    const response = await this.request<{
+      success: boolean
+      data?: {
+        users: any[]
+        count: number
+        limit: number
+        query: string
+      }
+    }>(`/search/users/${encodeURIComponent(query)}`, {}, false)
+    
+    if (response.success && response.data) {
+      return {
+        success: true,
+        users: response.data.users || [],
+        count: response.data.count || 0,
+      }
+    }
+    
+    return {
+      success: false,
+      users: [],
+      count: 0,
+    }
+  }
+
+  async searchVideos(query: string, limit: number = 10): Promise<{ success: boolean; videos: any[]; count: number }> {
+    const response = await this.request<{
+      success: boolean
+      data?: {
+        videos: any[]
+        count: number
+        limit: number
+        query: string
+      }
+    }>(`/search/videos/${encodeURIComponent(query)}`, {}, false)
+    
+    if (response.success && response.data) {
+      return {
+        success: true,
+        videos: response.data.videos || [],
+        count: response.data.count || 0,
+      }
+    }
+    
+    return {
+      success: false,
+      videos: [],
+      count: 0,
+    }
   }
 }
 

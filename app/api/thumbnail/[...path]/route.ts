@@ -28,6 +28,9 @@ export async function GET(
     const headers: HeadersInit = {}
     if (API_KEY) {
       headers['x-api-key'] = API_KEY
+      console.log('[API] Adding x-api-key header to Workers request for thumbnail')
+    } else {
+      console.warn('[API] No API key available for thumbnail request - request may fail')
     }
 
     // Fetch from Workers with the required header
@@ -57,11 +60,9 @@ export async function GET(
     // Get the content type from the response
     const contentType = response.headers.get('content-type') || 'image/jpeg'
     
-    // Get the image data
-    const imageData = await response.arrayBuffer()
-
-    // Return the image with appropriate headers
-    return new NextResponse(imageData, {
+    // Stream the image response instead of loading into memory
+    // This improves performance and prevents delays
+    return new NextResponse(response.body, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',

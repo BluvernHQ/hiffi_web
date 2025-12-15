@@ -52,7 +52,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
       setIsLoading(true)
       const response = await apiClient.getComments(videoId, 1, 20)
       if (response.success) {
-        setComments(response.comments || [])
+      setComments(response.comments || [])
         // Check if there are more comments based on count and current offset
         const totalLoaded = response.offset + response.comments.length
         setHasMore(totalLoaded < response.count)
@@ -108,8 +108,8 @@ export function CommentSection({ videoId }: { videoId: string }) {
       const nextPage = page + 1
       const response = await apiClient.getComments(videoId, nextPage, 20)
       if (response.success) {
-        setComments([...comments, ...(response.comments || [])])
-        setPage(nextPage)
+      setComments([...comments, ...(response.comments || [])])
+      setPage(nextPage)
         // Check if there are more comments based on count and current offset
         const totalLoaded = response.offset + response.comments.length
         setHasMore(totalLoaded < response.count)
@@ -219,8 +219,8 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
       setIsLoadingReplies(true)
       const response = await apiClient.getReplies(comment.comment_id, 1, 50)
       if (response.success) {
-        setReplies(response.replies || [])
-        setShowReplies(true)
+      setReplies(response.replies || [])
+      setShowReplies(true)
       } else {
         setReplies([])
       }

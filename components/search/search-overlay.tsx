@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, X, TrendingUp, Loader2, User, Video } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
 import { getThumbnailUrl } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
 
 interface SearchResult {
   id: string;
@@ -55,46 +57,43 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       // Debounce API call
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          const searchLower = query.trim().toLowerCase();
+          const searchQuery = query.trim();
           
-          // Fetch first page of videos for search suggestions
-          // Since vector search was removed, we do client-side filtering
-          const response = await apiClient.getVideoList({
-            page: 1,
-            limit: 50, // Fetch more for better suggestions
-          });
+          // Fetch both users and videos in parallel
+          const [usersResponse, videosResponse] = await Promise.all([
+            apiClient.searchUsers(searchQuery, 5).catch(() => ({ success: false, users: [], count: 0 })),
+            apiClient.searchVideos(searchQuery, 5).catch(() => ({ success: false, videos: [], count: 0 })),
+          ]);
           
-          if (!response.success || !response.videos) {
-            setSuggestions([]);
-            return;
+          const allSuggestions: SearchResult[] = [];
+          
+          // Add user suggestions
+          if (usersResponse.success && usersResponse.users) {
+            const userSuggestions: SearchResult[] = usersResponse.users.map((user: any) => ({
+              id: user.uid || user.username || '',
+              title: user.username || '',
+              type: 'user' as const,
+              username: user.username || '',
+              thumbnail: user.profile_picture || '',
+            }));
+            allSuggestions.push(...userSuggestions);
           }
           
-          // Filter videos by title, description, tags, or username
-          const filteredVideos = response.videos.filter((video: any) => {
-            const title = (video.video_title || '').toLowerCase();
-            const description = (video.video_description || '').toLowerCase();
-            const tags = (video.video_tags || []).join(' ').toLowerCase();
-            const username = (video.user_username || '').toLowerCase();
-            
-            return (
-              title.includes(searchLower) ||
-              description.includes(searchLower) ||
-              tags.includes(searchLower) ||
-              username.includes(searchLower)
-            );
-          });
+          // Add video suggestions
+          if (videosResponse.success && videosResponse.videos) {
+            const videoSuggestions: SearchResult[] = videosResponse.videos.map((video: any) => ({
+              id: video.video_id || video.videoId || '',
+              title: video.video_title || video.videoTitle || '',
+              type: 'video' as const,
+              thumbnail: video.video_thumbnail || video.videoThumbnail || '',
+              username: video.user_username || video.userUsername || '',
+              views: video.video_views || video.videoViews || 0,
+            }));
+            allSuggestions.push(...videoSuggestions);
+          }
           
-          // Convert to SearchResult format and limit to 5 suggestions
-          const videoSuggestions: SearchResult[] = filteredVideos.slice(0, 5).map((video: any) => ({
-            id: video.video_id || video.videoId || '',
-            title: video.video_title || video.videoTitle || '',
-            type: 'video' as const,
-            thumbnail: video.video_thumbnail || video.videoThumbnail || '',
-            username: video.user_username || video.userUsername || '',
-            views: video.video_views || video.videoViews || 0,
-          }));
-          
-          setSuggestions(videoSuggestions);
+          // Limit to 8 total suggestions (mix of users and videos)
+          setSuggestions(allSuggestions.slice(0, 8));
         } catch (error) {
           console.error('[hiffi] Failed to fetch search suggestions:', error);
           setSuggestions([]);
@@ -141,7 +140,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder="Search videos..."
+                placeholder="Search videos and users..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -196,59 +195,111 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   </div>
                 ) : suggestions.length > 0 ? (
                   <>
-                    {suggestions.map((result) => {
-                      const isProfileLink = result.type === 'user';
-                      const shouldBeClickable = user || !isProfileLink;
+                    {/* Group suggestions by type */}
+                    {(() => {
+                      const users = suggestions.filter(s => s.type === 'user');
+                      const videos = suggestions.filter(s => s.type === 'video');
                       
-                      const content = (
-                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
-                          <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                            <img 
-                              src={result.thumbnail ? getThumbnailUrl(result.thumbnail) : "/placeholder.svg"} 
-                              alt={result.title}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">
-                              {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) => 
-                                part.toLowerCase() === query.toLowerCase() ? (
-                                  <mark key={i} className="bg-primary/20 text-primary">{part}</mark>
-                                ) : (
-                                  <span key={i}>{part}</span>
-                                )
-                              )}
-                            </p>
-                            {result.type === 'video' && (
-                              <p className="text-sm text-muted-foreground">
-                                {result.username} • {result.views?.toLocaleString()} views
-                              </p>
-                            )}
-                          </div>
+                      return (
+                        <div className="space-y-4">
+                          {/* Users Section */}
+                          {users.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2 px-1">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Users</h3>
+                              </div>
+                              <div className="space-y-1">
+                                {users.map((result) => (
+                                  <Link
+                                    key={result.id}
+                                    href={`/profile/${result.username}`}
+                                    onClick={onClose}
+                                    className="block"
+                                  >
+                                    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group">
+                                      <Avatar className="h-10 w-10 flex-shrink-0">
+                                        <AvatarImage src={result.thumbnail ? getProfilePictureUrl({ profile_picture: result.thumbnail }) : undefined} alt={result.username} />
+                                        <AvatarFallback 
+                                          className="text-white font-semibold"
+                                          style={{ backgroundColor: getColorFromName(result.username || 'U') }}
+                                        >
+                                          {getAvatarLetter({ username: result.username }, 'U')}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium truncate">
+                                          @{result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) => 
+                                            part.toLowerCase() === query.toLowerCase() ? (
+                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                            ) : (
+                                              <span key={i}>{part}</span>
+                                            )
+                                          )}
+                                        </p>
+                                      </div>
+                                      <User className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Videos Section */}
+                          {videos.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2 px-1">
+                                <Video className="h-4 w-4 text-muted-foreground" />
+                                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Videos</h3>
+                              </div>
+                              <div className="space-y-1">
+                                {videos.map((result) => (
+                                  <Link
+                                    key={result.id}
+                                    href={`/watch/${result.id}`}
+                                    onClick={onClose}
+                                    className="block"
+                                  >
+                                    <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group">
+                                      <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
+                                        <img 
+                                          src={result.thumbnail 
+                                            ? getThumbnailUrl(result.thumbnail)
+                                            : "/placeholder.svg"}
+                                          alt={result.title}
+                                          className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                          <Video className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium truncate mb-1">
+                                          {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) => 
+                                            part.toLowerCase() === query.toLowerCase() ? (
+                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                            ) : (
+                                              <span key={i}>{part}</span>
+                                            )
+                                          )}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground truncate">
+                                          @{result.username} • {result.views?.toLocaleString()} views
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
-
-                      if (shouldBeClickable) {
-                        return (
-                          <Link
-                            key={result.id}
-                            href={result.type === 'video' ? `/watch/${result.id}` : `/profile/${result.username}`}
-                            onClick={onClose}
-                          >
-                            {content}
-                          </Link>
-                        );
-                      } else {
-                        return (
-                          <div key={result.id}>
-                            {content}
-                          </div>
-                        );
-                      }
-                    })}
+                    })()}
                     <Button 
                       variant="ghost" 
-                      className="w-full mt-2"
+                      className="w-full mt-4 border-t pt-4"
                       onClick={() => handleSearch(query)}
                     >
                       View all results for "{query}"

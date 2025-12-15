@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Shield, Users, Video, MessageSquare, Reply, LogOut, BarChart3 } from "lucide-react"
+import { Loader2, Shield, LogOut, Menu } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { AdminUsersTable } from "@/components/admin/users-table"
@@ -14,12 +13,26 @@ import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
+import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { cn } from "@/lib/utils"
+import Link from "next/link"
 
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const { user, userData, loading: authLoading, logout } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  
+  const section = searchParams.get("section") || "overview"
+
+  // Redirect to overview if no section is specified
+  useEffect(() => {
+    if (!searchParams.get("section")) {
+      router.replace("/admin/dashboard?section=overview")
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     if (!authLoading) {
@@ -28,13 +41,9 @@ export default function AdminDashboardPage() {
         return
       }
       
-      // Check role (case-insensitive and trimmed)
       const userRole = String(userData.role || "").toLowerCase().trim()
-      console.log("[Admin Dashboard] Checking user role:", userRole)
-      console.log("[Admin Dashboard] Full userData:", JSON.stringify(userData, null, 2))
       
       if (userRole !== "admin") {
-        console.log("[Admin Dashboard] User is not admin, role:", userRole)
         router.push("/")
         toast({
           title: "Access Denied",
@@ -43,8 +52,6 @@ export default function AdminDashboardPage() {
         })
         return
       }
-      
-      console.log("[Admin Dashboard] User is admin, loading dashboard")
       
       setIsLoading(false)
     }
@@ -74,70 +81,70 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-sm">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/10 rounded-lg blur-sm" />
-              <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm">
-                <Shield className="h-5 w-5 text-primary-foreground" />
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-6 px-3 sm:px-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="lg:hidden h-9 w-9" 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Link href="/admin/dashboard?section=overview" className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                <Shield className="h-4 w-4 text-primary-foreground" />
               </div>
+              <span className="hidden sm:inline font-bold text-lg md:text-xl">Admin Panel</span>
+            </Link>
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">Admin Panel</h1>
-              <p className="text-xs text-muted-foreground">
+
+          <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4 px-3 sm:px-4">
+            <div className="hidden md:block text-sm text-muted-foreground truncate max-w-[200px]">
                 {userData?.name || userData?.username || "Administrator"}
-              </p>
-            </div>
           </div>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleLogout}
-            className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
+              className="gap-1.5 sm:gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors h-9"
           >
-            <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Logout</span>
           </Button>
+          </div>
         </div>
       </header>
 
+      {/* Main Layout */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar */}
+        <AdminSidebar 
+          isMobileOpen={isSidebarOpen}
+          onMobileClose={() => setIsSidebarOpen(false)}
+        />
+
       {/* Main Content */}
-      <main className="container px-4 md:px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold tracking-tight mb-2">Dashboard</h2>
-          <p className="text-muted-foreground text-sm">
+        <main className={cn(
+          "flex-1 overflow-y-auto bg-background w-full min-w-0",
+          "h-[calc(100vh-4rem)]",
+          // Prevent horizontal scroll on mobile
+          "overflow-x-hidden"
+        )}>
+          <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+            <div className="max-w-full mx-auto">
+              {section === "overview" && (
+                <div className="space-y-4 sm:space-y-6">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
             Monitor platform analytics, user engagement, watch hours, and manage content
           </p>
         </div>
-
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-11 bg-muted/50 p-1">
-            <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="videos" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-              <Video className="h-4 w-4" />
-              <span className="hidden sm:inline">Videos</span>
-            </TabsTrigger>
-            <TabsTrigger value="comments" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Comments</span>
-            </TabsTrigger>
-            <TabsTrigger value="replies" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-              <Reply className="h-4 w-4" />
-              <span className="hidden sm:inline">Replies</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6 mt-6">
             <Card className="border-2 shadow-lg">
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl">Platform Analytics</CardTitle>
@@ -149,74 +156,72 @@ export default function AdminDashboardPage() {
                 <AnalyticsOverview />
               </CardContent>
             </Card>
-          </TabsContent>
+                </div>
+              )}
 
-          <TabsContent value="users" className="space-y-6 mt-6">
-            <Card className="border-2 shadow-lg">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">All Users</CardTitle>
-                <CardDescription>
+              {section === "users" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                   View and manage all registered users on the platform
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="p-6">
+                    </p>
+                  </div>
                   <AdminUsersTable />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
 
-          <TabsContent value="videos" className="space-y-6 mt-6">
-            <Card className="border-2 shadow-lg">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">All Videos</CardTitle>
-                <CardDescription>
+              {section === "videos" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Videos</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                   View and manage all videos uploaded to the platform
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="p-6">
+                    </p>
+                  </div>
                   <AdminVideosTable />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
 
-          <TabsContent value="comments" className="space-y-6 mt-6">
-            <Card className="border-2 shadow-lg">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">All Comments</CardTitle>
-                <CardDescription>
+              {section === "comments" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Comments</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                   View and manage all comments on videos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="p-6">
+                    </p>
+                  </div>
                   <AdminCommentsTable />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
 
-          <TabsContent value="replies" className="space-y-6 mt-6">
-            <Card className="border-2 shadow-lg">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">All Replies</CardTitle>
-                <CardDescription>
+              {section === "replies" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Replies</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                   View and manage all replies to comments
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="p-6">
+                    </p>
+                  </div>
                   <AdminRepliesTable />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              )}
+            </div>
+          </div>
       </main>
+      </div>
     </div>
   )
 }
 
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <AdminDashboardContent />
+    </Suspense>
+  )
+}
