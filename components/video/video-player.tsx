@@ -5,7 +5,7 @@ import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings } from "luc
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
-import { getVideoUrl, fetchVideoWithAuth, getThumbnailUrl, WORKERS_BASE_URL, getWorkersApiKey } from "@/lib/storage"
+import { getVideoUrl, getThumbnailUrl, WORKERS_BASE_URL, getWorkersApiKey } from "@/lib/storage"
 
 interface VideoPlayerProps {
   videoUrl: string
@@ -113,13 +113,13 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
           if (response.success && response.video_url) {
             // Process video URL (getVideoUrl handles Workers URL construction)
             const processedUrl = getVideoUrl(response.video_url)
-            console.log("[hiffi] Fetching video with auth from:", processedUrl)
+            console.log("[hiffi] Using streaming proxy for video:", processedUrl)
             
-            // Fetch video as blob with x-api-key header
-            const blobUrl = await fetchVideoWithAuth(processedUrl)
-            console.log("[hiffi] Created blob URL for video")
+            // Use streaming proxy instead of downloading entire blob
+            // This allows the browser to stream the video progressively
+            const proxyUrl = `/api/video/stream?url=${encodeURIComponent(processedUrl)}`
             
-            setSignedVideoUrl(blobUrl)
+            setSignedVideoUrl(proxyUrl)
             setUrlError("")
           } else {
             throw new Error("No video_url in response")
@@ -134,19 +134,18 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
       }
 
       // For all other cases (full URLs, storage paths), use getVideoUrl to process
-      // Then fetch with auth headers and create blob URL
+      // Then use streaming proxy instead of downloading entire blob
       try {
         setIsLoadingUrl(true)
         console.log("[hiffi] Processing video URL:", videoUrl)
 
         const processedUrl = getVideoUrl(videoUrl)
-        console.log("[hiffi] Fetching video with auth from:", processedUrl)
+        console.log("[hiffi] Using streaming proxy for video:", processedUrl)
         
-        // Fetch video as blob with x-api-key header
-        const blobUrl = await fetchVideoWithAuth(processedUrl)
-        console.log("[hiffi] Created blob URL for video")
+        // Use streaming proxy instead of downloading entire blob
+        const proxyUrl = `/api/video/stream?url=${encodeURIComponent(processedUrl)}`
         
-        setSignedVideoUrl(blobUrl)
+        setSignedVideoUrl(proxyUrl)
         setUrlError("")
         setIsLoadingUrl(false)
       } catch (error) {
@@ -159,17 +158,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
     fetchVideoUrl()
   }, [videoUrl])
 
-  // Cleanup blob URLs when component unmounts or URL changes
+  // Cleanup blob URLs when component unmounts or URL changes (only for poster)
   useEffect(() => {
     return () => {
-      if (signedVideoUrl && signedVideoUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(signedVideoUrl)
-      }
       if (signedPosterUrl && signedPosterUrl.startsWith('blob:')) {
         URL.revokeObjectURL(signedPosterUrl)
       }
     }
-  }, [signedVideoUrl, signedPosterUrl])
+  }, [signedPosterUrl])
 
   useEffect(() => {
     if (!autoPlay || !videoRef.current || !signedVideoUrl) return
@@ -426,7 +422,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         src={signedVideoUrl}
         poster={signedPosterUrl || poster}
         className="w-full h-full object-contain"
-        preload="auto"
+        preload="metadata"
         playsInline
         muted={isMuted}
         onClick={togglePlay}

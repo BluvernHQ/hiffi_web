@@ -85,6 +85,7 @@ export default function WatchPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
   const [isCheckingFollow, setIsCheckingFollow] = useState(false)
+  const [isFollowingAction, setIsFollowingAction] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [isDisliked, setIsDisliked] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
@@ -455,10 +456,27 @@ export default function WatchPage() {
     const username = video.userUsername || video.user_username
     if (!username || userData.username === username) return
 
+    // Prevent double-clicks
+    if (isFollowingAction) return
+
+    // Store previous state for rollback
+    const previousFollowingState = isFollowing
+    const previousFollowersCount = videoCreator?.followers || videoCreator?.user?.followers || 0
+
     try {
-      if (isFollowing) {
-        await apiClient.unfollowUser(username)
-        setIsFollowing(false)
+      setIsFollowingAction(true)
+      
+      // Optimistic update
+      const newFollowingState = !isFollowing
+      setIsFollowing(newFollowingState)
+
+      if (previousFollowingState) {
+        // Unfollowing
+        const response = await apiClient.unfollowUser(username)
+        
+        if (!response.success) {
+          throw new Error("Failed to unfollow user")
+        }
         
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
@@ -476,7 +494,7 @@ export default function WatchPage() {
           if (videoCreator) {
             setVideoCreator({
               ...videoCreator,
-              followers: Math.max((videoCreator.followers || videoCreator.user?.followers || 0) - 1, 0),
+              followers: Math.max(previousFollowersCount - 1, 0),
             })
           }
         }
@@ -486,8 +504,12 @@ export default function WatchPage() {
           description: "Unfollowed user",
         })
       } else {
-        await apiClient.followUser(username)
-        setIsFollowing(true)
+        // Following
+        const response = await apiClient.followUser(username)
+        
+        if (!response.success) {
+          throw new Error("Failed to follow user")
+        }
         
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
@@ -505,7 +527,7 @@ export default function WatchPage() {
           if (videoCreator) {
             setVideoCreator({
               ...videoCreator,
-              followers: (videoCreator.followers || videoCreator.user?.followers || 0) + 1,
+              followers: previousFollowersCount + 1,
             })
           }
         }
@@ -516,21 +538,34 @@ export default function WatchPage() {
         })
       }
       
-      // Verify follow status
+      // Verify follow status to ensure consistency
       try {
         // checkFollowingStatus now only takes targetUsername (uses current user's following list)
         const verifiedStatus = await apiClient.checkFollowingStatus(username)
         setIsFollowing(verifiedStatus)
       } catch (verifyError) {
         console.error("[hiffi] Failed to verify following status:", verifyError)
+        // Don't revert on verification failure - the API call succeeded
       }
     } catch (error) {
       console.error("[hiffi] Failed to follow/unfollow user:", error)
+      
+      // Revert optimistic update on error
+      setIsFollowing(previousFollowingState)
+      if (videoCreator) {
+        setVideoCreator({
+          ...videoCreator,
+          followers: previousFollowersCount,
+        })
+      }
+      
       toast({
         title: "Error",
-        description: `Failed to ${isFollowing ? "unfollow" : "follow"} user`,
+        description: `Failed to ${previousFollowingState ? "unfollow" : "follow"} user`,
         variant: "destructive",
       })
+    } finally {
+      setIsFollowingAction(false)
     }
   }
 
@@ -653,9 +688,9 @@ export default function WatchPage() {
                         size="sm"
                         className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
                         onClick={handleFollow}
-                        disabled={isCheckingFollow}
+                        disabled={isCheckingFollow || isFollowingAction}
                       >
-                        {isCheckingFollow ? "Checking..." : isFollowing ? "Following" : "Follow"}
+                        {isCheckingFollow ? "Checking..." : isFollowingAction ? (isFollowing ? "Unfollowing..." : "Following...") : isFollowing ? "Following" : "Follow"}
                       </Button>
                     )}
                   </div>

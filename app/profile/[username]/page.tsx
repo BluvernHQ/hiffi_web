@@ -24,6 +24,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowingAction, setIsFollowingAction] = useState(false);
   const [profileUser, setProfileUser] = useState<any>(null);
   const [userVideos, setUserVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -225,10 +226,27 @@ export default function ProfilePage() {
       return;
     }
 
+    // Prevent double-clicks
+    if (isFollowingAction) return;
+
+    // Store previous state for rollback
+    const previousFollowingState = isFollowing;
+    const previousFollowersCount = profileUser?.followers || profileUser?.user?.followers || 0;
+
     try {
-      if (isFollowing) {
-        await apiClient.unfollowUser(username);
-        setIsFollowing(false);
+      setIsFollowingAction(true);
+      
+      // Optimistic update
+      const newFollowingState = !isFollowing;
+      setIsFollowing(newFollowingState);
+
+      if (previousFollowingState) {
+        // Unfollowing
+        const response = await apiClient.unfollowUser(username);
+        
+        if (!response.success) {
+          throw new Error("Failed to unfollow user");
+        }
         
         // Refresh recipient user's profile data to get updated follower count
         try {
@@ -247,7 +265,7 @@ export default function ProfilePage() {
           if (profileUser) {
             setProfileUser({ 
               ...profileUser, 
-              followers: Math.max((profileUser.followers || profileUser.user?.followers || 0) - 1, 0), 
+              followers: Math.max(previousFollowersCount - 1, 0), 
               isfollowing: false 
             });
           }
@@ -258,8 +276,12 @@ export default function ProfilePage() {
           description: "Unfollowed user",
         });
       } else {
-        await apiClient.followUser(username);
-        setIsFollowing(true);
+        // Following
+        const response = await apiClient.followUser(username);
+        
+        if (!response.success) {
+          throw new Error("Failed to follow user");
+        }
         
         // Refresh recipient user's profile data to get updated follower count
         try {
@@ -278,7 +300,7 @@ export default function ProfilePage() {
           if (profileUser) {
             setProfileUser({ 
               ...profileUser, 
-              followers: (profileUser.followers || profileUser.user?.followers || 0) + 1, 
+              followers: previousFollowersCount + 1, 
               isfollowing: true 
             });
           }
@@ -290,21 +312,35 @@ export default function ProfilePage() {
         });
       }
       
-      // Verify the follow status after action
+      // Verify the follow status after action to ensure consistency
       try {
         // checkFollowingStatus now only takes targetUsername (uses current user's following list)
         const verifiedStatus = await apiClient.checkFollowingStatus(username);
         setIsFollowing(verifiedStatus);
       } catch (verifyError) {
         console.error("[hiffi] Failed to verify following status:", verifyError);
+        // Don't revert on verification failure - the API call succeeded
       }
     } catch (error) {
       console.error("[hiffi] Failed to follow/unfollow user:", error);
+      
+      // Revert optimistic update on error
+      setIsFollowing(previousFollowingState);
+      if (profileUser) {
+        setProfileUser({ 
+          ...profileUser, 
+          followers: previousFollowersCount,
+          isfollowing: previousFollowingState
+        });
+      }
+      
       toast({
         title: "Error",
-        description: `Failed to ${isFollowing ? "unfollow" : "follow"} user`,
+        description: `Failed to ${previousFollowingState ? "unfollow" : "follow"} user`,
         variant: "destructive",
       });
+    } finally {
+      setIsFollowingAction(false);
     }
   };
 
@@ -661,8 +697,14 @@ export default function ProfilePage() {
                       size="sm"
                       variant={isFollowing ? "secondary" : "default"}
                       onClick={handleFollow}
+                      disabled={isFollowingAction}
                     >
-                      {isFollowing ? (
+                      {isFollowingAction ? (
+                        <>
+                          <UserPlus className="mr-2 h-4 w-4 animate-pulse" />
+                          {isFollowing ? "Unfollowing..." : "Following..."}
+                        </>
+                      ) : isFollowing ? (
                         <>
                           <UserCheck className="mr-2 h-4 w-4" />
                           Following

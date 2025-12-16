@@ -130,7 +130,20 @@ export function AuthenticatedImage({
     }
   }, [src, onError])
 
-  if (error || !blobUrl) {
+  // Show loading state while fetching
+  if (isLoading) {
+    return (
+      <div
+        className={className}
+        style={fill ? undefined : { width, height }}
+      >
+        <div className="w-full h-full bg-muted animate-pulse" />
+      </div>
+    )
+  }
+
+  // Only show error if loading completed and there's an actual error
+  if (error || (!blobUrl && !isLoading)) {
     return (
       <div
         className={className}
@@ -143,7 +156,8 @@ export function AuthenticatedImage({
     )
   }
 
-  if (isLoading) {
+  // Type guard: blobUrl must be non-null at this point
+  if (!blobUrl) {
     return (
       <div
         className={className}
