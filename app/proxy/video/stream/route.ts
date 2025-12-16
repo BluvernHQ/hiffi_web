@@ -4,6 +4,8 @@ import { getWorkersApiKey } from '@/lib/storage'
 /**
  * Video streaming proxy that supports Range requests for proper video playback
  * This allows the browser to stream videos instead of downloading the entire file
+ * 
+ * Path: /proxy/video/stream (not /api/video/stream to avoid conflict with backend API)
  */
 export async function GET(request: NextRequest) {
   try {

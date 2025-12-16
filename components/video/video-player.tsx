@@ -117,7 +117,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
             
             // Use streaming proxy instead of downloading entire blob
             // This allows the browser to stream the video progressively
-            const proxyUrl = `/api/video/stream?url=${encodeURIComponent(processedUrl)}`
+            // Using /proxy/video/stream instead of /api/video/stream to avoid conflict with backend API
+            const proxyUrl = `/proxy/video/stream?url=${encodeURIComponent(processedUrl)}`
             
             setSignedVideoUrl(proxyUrl)
             setUrlError("")
@@ -143,7 +144,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         console.log("[hiffi] Using streaming proxy for video:", processedUrl)
         
         // Use streaming proxy instead of downloading entire blob
-        const proxyUrl = `/api/video/stream?url=${encodeURIComponent(processedUrl)}`
+        // Using /proxy/video/stream instead of /api/video/stream to avoid conflict with backend API
+        const proxyUrl = `/proxy/video/stream?url=${encodeURIComponent(processedUrl)}`
         
         setSignedVideoUrl(proxyUrl)
         setUrlError("")
