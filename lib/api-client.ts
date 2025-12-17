@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://beta.hiffi.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://beta.hiffi.com/api"
 const TOKEN_KEY = "hiffi_auth_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
@@ -280,6 +280,17 @@ class ApiClient {
     } catch (error) {
       const duration = Date.now() - startTime
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
+      
+      // Provide more helpful error messages for common fetch failures
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        const networkError: ApiError = {
+          message: `Unable to connect to the API server at ${API_BASE_URL}. Please check your internet connection or try again later.`,
+          status: 0,
+        }
+        console.error(`[API] Network error - API server may be unreachable: ${API_BASE_URL}`)
+        throw networkError
+      }
+      
       throw error
     }
   }

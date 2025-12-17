@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Base URL from documentation
-const API_BASE_URL = 'https://beta.hiffi.com/api';
+// Base URL from documentation (configurable via environment variable)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://beta.hiffi.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -9,6 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout to prevent hanging requests
 });
 
 // Add interceptor to inject token
