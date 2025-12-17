@@ -59,16 +59,56 @@ export async function GET(request: NextRequest) {
       'x-api-key': apiKey,
     }
 
-    // If client requested a range, forward it to Workers
+    // Smart progressive chunk sizing for optimal startup
     if (rangeHeader) {
-      headers['Range'] = rangeHeader
+      // Parse the range request
+      const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1])
+        const end = rangeMatch[2] ? parseInt(rangeMatch[2]) : undefined
+        
+        if (!end) {
+          // Progressive chunk sizing based on position
+          let chunkSize: number
+          
+          if (start === 0) {
+            // First chunk: Small for instant playback (512KB)
+            chunkSize = 512 * 1024
+            console.log(`[hiffi] Initial chunk: bytes=${start}-${start + chunkSize} (512KB) - fast start`)
+          } else if (start < 4 * 1024 * 1024) {
+            // Next 4MB: Medium chunks (1MB) - build buffer quickly
+            chunkSize = 1 * 1024 * 1024
+            console.log(`[hiffi] Early buffer: bytes=${start}-${start + chunkSize} (1MB)`)
+          } else {
+            // After 4MB: Large chunks (2MB) - sustained buffering
+            chunkSize = 2 * 1024 * 1024
+            console.log(`[hiffi] Progressive load: bytes=${start}-${start + chunkSize} (2MB)`)
+          }
+          
+          headers['Range'] = `bytes=${start}-${start + chunkSize}`
+        } else {
+          // Explicit range - honor it
+          headers['Range'] = rangeHeader
+          console.log(`[hiffi] Explicit range: ${rangeHeader}`)
+        }
+      } else {
+        headers['Range'] = rangeHeader
+      }
+    } else {
+      // No range header - return first 512KB for instant start
+      const INSTANT_START_SIZE = 512 * 1024 // 512KB
+      headers['Range'] = `bytes=0-${INSTANT_START_SIZE}`
+      console.log(`[hiffi] Instant start: requesting first 512KB`)
     }
 
     // Fetch video from Workers with Range support
+    // Use keep-alive connection pooling for better performance
     const response = await fetch(videoUrl, {
       headers,
       // Don't follow redirects automatically - let Workers handle it
       redirect: 'follow',
+      // Use keep-alive for connection reuse
+      keepalive: true,
     })
 
     if (!response.ok) {
@@ -97,11 +137,23 @@ export async function GET(request: NextRequest) {
     // Get content range (if partial content)
     const contentRange = response.headers.get('content-range')
 
+    // Log successful chunk delivery
+    if (contentLength) {
+      const sizeKB = parseInt(contentLength) / 1024
+      const sizeMB = sizeKB / 1024
+      if (sizeMB >= 1) {
+        console.log(`[hiffi] Serving ${sizeMB.toFixed(2)}MB chunk (status: ${response.status})`)
+      } else {
+        console.log(`[hiffi] Serving ${sizeKB.toFixed(0)}KB chunk (status: ${response.status})`)
+      }
+    }
+
     // Prepare response headers
     const responseHeaders: HeadersInit = {
       'Content-Type': contentType,
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+      'Connection': 'keep-alive', // Enable connection pooling
       // CORS headers for video playback
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',

@@ -11,9 +11,10 @@ interface VideoPlayerProps {
   videoUrl: string
   poster?: string
   autoPlay?: boolean
+  suggestedVideos?: any[]
 }
 
-export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideos }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(1)
@@ -29,6 +30,13 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [isLoadingUrl, setIsLoadingUrl] = useState(true)
   const [urlError, setUrlError] = useState<string>("")
+  const [isBuffering, setIsBuffering] = useState(false)
+  const [bufferPercentage, setBufferPercentage] = useState(0)
+  const [networkSpeed, setNetworkSpeed] = useState<'slow' | 'medium' | 'fast'>('medium')
+  const [hasEnded, setHasEnded] = useState(false)
+  const lastRequestTimeRef = useRef<number>(0)
+  const requestSizesRef = useRef<number[]>([])
+  const bufferCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch poster with auth if needed
   useEffect(() => {
@@ -169,6 +177,43 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
     }
   }, [signedPosterUrl])
 
+  // Trigger aggressive buffering on video load
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !signedVideoUrl) return
+
+    let mounted = true
+
+    const triggerInitialBuffer = () => {
+      if (!mounted) return
+      
+      // Give browser a moment to start buffering
+      setTimeout(() => {
+        if (!mounted || !video) return
+        
+        // Check if buffer is building up
+        if (video.buffered.length > 0) {
+          const buffered = video.buffered.end(0)
+          console.log(`[hiffi] Initial buffer loaded: ${buffered.toFixed(1)}s`)
+          
+          // If less than 5s buffered, browser might be too conservative
+          if (buffered < 5 && !video.paused) {
+            console.log('[hiffi] Encouraging more aggressive buffering')
+            // Trigger metadata load to encourage buffering
+            video.load()
+          }
+        }
+      }, 2000)
+    }
+
+    video.addEventListener('loadeddata', triggerInitialBuffer, { once: true })
+
+    return () => {
+      mounted = false
+      video.removeEventListener('loadeddata', triggerInitialBuffer)
+    }
+  }, [signedVideoUrl])
+
   useEffect(() => {
     if (!autoPlay || !videoRef.current || !signedVideoUrl) return
 
@@ -271,11 +316,99 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
     video.muted = isMuted
   }, [isMuted, signedVideoUrl])
 
+  // Intelligent buffer monitoring and adaptive buffering
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !signedVideoUrl) return
+
+    const BUFFER_AHEAD_TARGET = 20 // Target 20 seconds ahead
+    const BUFFER_LOW_THRESHOLD = 5 // Warn if less than 5s buffered ahead
+    const CHECK_INTERVAL = 1000 // Check every second
+
+    const monitorBuffer = () => {
+      if (video.buffered.length === 0) {
+        setBufferPercentage(0)
+        return
+      }
+
+      const currentTime = video.currentTime
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1)
+      const duration = video.duration
+
+      // Calculate buffer ahead (how many seconds buffered beyond current position)
+      const bufferAhead = bufferedEnd - currentTime
+      
+      // Calculate total buffer percentage
+      const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0
+      setBufferPercentage(bufferPercent)
+
+      // Log buffer status for debugging
+      if (bufferAhead < BUFFER_LOW_THRESHOLD) {
+        console.warn(`[hiffi] Low buffer warning: only ${bufferAhead.toFixed(1)}s buffered ahead`)
+      }
+
+      // Detect network speed based on buffering rate
+      const bufferRate = bufferAhead / (currentTime || 1)
+      if (bufferRate > 2) {
+        setNetworkSpeed('fast')
+      } else if (bufferRate > 0.5) {
+        setNetworkSpeed('medium')
+      } else {
+        setNetworkSpeed('slow')
+      }
+
+      // If buffer is low and video is playing, trigger buffering state (but not if ended)
+      if (bufferAhead < 2 && !video.paused && !video.ended) {
+        console.warn('[hiffi] Buffer critically low, may cause stuttering')
+        setIsBuffering(true)
+      } else if (bufferAhead > BUFFER_LOW_THRESHOLD) {
+        // Don't clear buffering if video has ended
+        if (!video.ended) {
+          setIsBuffering(false)
+        }
+      }
+    }
+
+    // Monitor buffer continuously while video is loaded
+    bufferCheckIntervalRef.current = setInterval(monitorBuffer, CHECK_INTERVAL)
+
+    // Initial check
+    monitorBuffer()
+
+    return () => {
+      if (bufferCheckIntervalRef.current) {
+        clearInterval(bufferCheckIntervalRef.current)
+      }
+    }
+  }, [signedVideoUrl])
+
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    const handlePlay = () => setIsPlaying(true)
+    let preloadUpgraded = false
+
+    const handlePlay = () => {
+      setIsPlaying(true)
+      
+      // Upgrade preload to "auto" after first play for aggressive buffering
+      if (!preloadUpgraded && video.preload !== 'auto') {
+        setTimeout(() => {
+          video.preload = 'auto'
+          preloadUpgraded = true
+          console.log('[hiffi] Upgraded preload to "auto" for progressive buffering')
+        }, 2000) // Wait 2s after play starts to avoid initial rush
+      }
+      
+      // Monitor buffer health
+      if (video.buffered.length > 0) {
+        const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
+        if (bufferAhead < 10) {
+          console.log('[hiffi] Play started with low buffer, will buffer progressively')
+        }
+      }
+    }
+    
     const handlePause = () => setIsPlaying(false)
 
     video.addEventListener("play", handlePlay)
@@ -289,6 +422,12 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
 
   const togglePlay = () => {
     if (!videoRef.current) return
+
+    // Reset ended state if user plays again
+    if (hasEnded) {
+      setHasEnded(false)
+      videoRef.current.currentTime = 0
+    }
 
     if (isPlaying) {
       videoRef.current.pause()
@@ -358,10 +497,28 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
 
   const handleSeek = (value: number[]) => {
     const newTime = value[0]
-    setCurrentTime(newTime)
-    if (videoRef.current) {
-      videoRef.current.currentTime = newTime
+    const video = videoRef.current
+    
+    if (!video) return
+
+    // Check if seek position is already buffered
+    let isBuffered = false
+    for (let i = 0; i < video.buffered.length; i++) {
+      if (newTime >= video.buffered.start(i) && newTime <= video.buffered.end(i)) {
+        isBuffered = true
+        break
+      }
     }
+
+    if (isBuffered) {
+      console.log(`[hiffi] Seeking to buffered position: ${newTime.toFixed(1)}s (instant)`)
+    } else {
+      console.log(`[hiffi] Seeking to unbuffered position: ${newTime.toFixed(1)}s (will load)`)
+      setIsBuffering(true)
+    }
+
+    setCurrentTime(newTime)
+    video.currentTime = newTime
   }
 
   const toggleFullscreen = () => {
@@ -423,14 +580,38 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         ref={videoRef}
         src={signedVideoUrl}
         poster={signedPosterUrl || poster}
-        className="w-full h-full object-contain"
+        className={cn(
+          "w-full h-full object-contain transition-opacity duration-1000",
+          hasEnded && "opacity-0"
+        )}
         preload="metadata"
         playsInline
         muted={isMuted}
+        crossOrigin="anonymous"
+        // Hints to browser for better buffering
+        // @ts-ignore - not in standard types but works in most browsers
+        x-webkit-airplay="allow"
+        // @ts-ignore
+        controlsList="nodownload"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={() => setIsPlaying(false)}
+        onLoadedMetadata={(e) => {
+          handleLoadedMetadata()
+          const video = e.currentTarget
+          // Log video capabilities for debugging
+          console.log('[hiffi] Video metadata loaded:', {
+            duration: video.duration,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            networkState: video.networkState,
+          })
+        }}
+        onEnded={() => {
+          console.log('[hiffi] Video ended')
+          setIsPlaying(false)
+          setHasEnded(true)
+          setIsBuffering(false) // Don't show buffering at end
+        }}
         onError={(e) => {
           const video = e.currentTarget
           const error = video.error
@@ -449,10 +630,96 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         }}
         onCanPlay={() => {
           console.log('[hiffi] Video can play')
+          setIsBuffering(false)
+        }}
+        onWaiting={() => {
+          const video = videoRef.current
+          if (video && !video.ended) {
+            const bufferAhead = video.buffered.length > 0 
+              ? video.buffered.end(video.buffered.length - 1) - video.currentTime 
+              : 0
+            console.warn(`[hiffi] Video waiting (buffering) - only ${bufferAhead.toFixed(1)}s ahead`)
+            setIsBuffering(true)
+          }
+        }}
+        onPlaying={() => {
+          const video = videoRef.current
+          if (video && video.buffered.length > 0) {
+            const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
+            console.log(`[hiffi] Video playing - ${bufferAhead.toFixed(1)}s buffered ahead`)
+          }
+          setHasEnded(false) // Clear ended state when playing
+          setIsBuffering(false)
+        }}
+        onSeeking={() => {
+          const video = videoRef.current
+          const seekTime = video?.currentTime || 0
+          console.log(`[hiffi] Seeking to ${seekTime.toFixed(1)}s...`)
+          setIsBuffering(true)
+        }}
+        onSeeked={() => {
+          const video = videoRef.current
+          if (video && video.buffered.length > 0) {
+            const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
+            console.log(`[hiffi] Seeked complete - ${bufferAhead.toFixed(1)}s buffered at new position`)
+          }
+          setIsBuffering(false)
+        }}
+        onStalled={() => {
+          const video = videoRef.current
+          if (video && !video.ended) {
+            console.error('[hiffi] Video stalled - network issue or insufficient buffering')
+            setIsBuffering(true)
+          }
+        }}
+        onSuspend={() => {
+          console.log('[hiffi] Video load suspended by browser')
+        }}
+        onProgress={(e) => {
+          const video = e.currentTarget
+          if (video.buffered.length > 0) {
+            const bufferedEnd = video.buffered.end(video.buffered.length - 1)
+            const duration = video.duration
+            const currentTime = video.currentTime
+            
+            if (duration > 0) {
+              const bufferedPercent = (bufferedEnd / duration) * 100
+              const bufferAhead = bufferedEnd - currentTime
+              
+              // Only log significant buffer updates (every 25%)
+              const roundedPercent = Math.floor(bufferedPercent / 25) * 25
+              if (roundedPercent > 0 && roundedPercent !== Math.floor((bufferedPercent - 1) / 25) * 25) {
+                console.log(`[hiffi] Buffer: ${bufferedPercent.toFixed(0)}% (${bufferAhead.toFixed(1)}s ahead, speed: ${networkSpeed})`)
+              }
+
+              // Detect network speed based on buffer progress rate
+              const now = Date.now()
+              if (lastRequestTimeRef.current > 0) {
+                const timeDelta = now - lastRequestTimeRef.current
+                if (timeDelta > 0 && timeDelta < 5000) {
+                  // Estimate download speed based on buffer growth
+                  const avgSpeed = bufferAhead > 10 ? 'fast' : bufferAhead > 5 ? 'medium' : 'slow'
+                  setNetworkSpeed(avgSpeed)
+                }
+              }
+              lastRequestTimeRef.current = now
+            }
+          }
         }}
       />
 
-      {!isPlaying && (
+      {/* Fade to black overlay when video ends */}
+      {hasEnded && (
+        <div className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer"
+          onClick={togglePlay}
+        >
+          <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
+            <Play className="h-8 w-8 text-white ml-1" fill="currentColor" />
+          </div>
+        </div>
+      )}
+
+      {!isPlaying && !isBuffering && !hasEnded && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlay}
@@ -463,19 +730,37 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         </div>
       )}
 
+      {isBuffering && !hasEnded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        </div>
+      )}
+
       <div
         className={cn(
           "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-4 transition-opacity duration-300",
           showControls ? "opacity-100" : "opacity-0",
         )}
       >
-        <div className="mb-4 group/slider">
+        {/* Combined progress bar with buffer indicator */}
+        <div className="mb-4 group/slider relative">
+          {/* Background track */}
+          <div className="absolute inset-0 h-1 bg-white/20 rounded-full pointer-events-none" 
+            style={{ top: '50%', transform: 'translateY(-50%)' }}>
+            {/* Buffer progress (lighter color) */}
+            <div 
+              className="h-full bg-white/30 rounded-full transition-all duration-300"
+              style={{ width: `${bufferPercentage}%` }}
+            />
+          </div>
+          
+          {/* Playback slider (darker color on top) */}
           <Slider
             value={[currentTime]}
             max={duration}
             step={0.1}
             onValueChange={handleSeek}
-            className="cursor-pointer"
+            className="cursor-pointer relative z-10"
           />
         </div>
 
@@ -504,8 +789,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
               </div>
             </div>
 
-            <div className="text-sm font-medium">
-              {formatTime(currentTime)} / {formatTime(duration)}
+            <div className="text-sm font-medium flex items-center gap-2">
+              <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+              {isBuffering && (
+                <span className="text-xs text-orange-400">Buffering...</span>
+              )}
             </div>
           </div>
 

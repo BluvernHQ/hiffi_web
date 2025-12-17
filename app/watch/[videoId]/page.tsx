@@ -148,6 +148,7 @@ export default function WatchPage() {
         const maxPagesToSearch = 5
         const videosPerPage = 50
 
+        // Use main seed for finding the current video
         const seed = getSeed()
         for (let page = 1; page <= maxPagesToSearch; page++) {
           const videosResponse = await apiClient.getVideoList({ page, limit: videosPerPage, seed })
@@ -157,14 +158,18 @@ export default function WatchPage() {
             break
           }
 
-          // Add to all videos for related videos
+          // Check if the requested video is in this page
+          const found = videosArray.find((v: any) => (v.video_id || v.videoId) === videoId)
+          if (found) {
+            foundVideo = found
+            console.log("[hiffi] Found video metadata from list on page", page)
+          }
+
+          // Add to all videos
           allVideos = [...allVideos, ...videosArray]
 
-          // Check if the requested video is in this page
-          foundVideo = videosArray.find((v: any) => (v.video_id || v.videoId) === videoId)
-          
-          if (foundVideo) {
-            console.log("[hiffi] Found video metadata from list on page", page)
+          if (foundVideo && allVideos.length >= 100) {
+            // Found video and have enough for suggestions
             break
           }
 
@@ -173,6 +178,28 @@ export default function WatchPage() {
             break
           }
         }
+
+        // Fetch additional videos with a random seed for better variety in suggestions
+        if (allVideos.length < 50) {
+          const randomSeed = Math.random().toString(36).substring(2, 15)
+          const additionalVideos = await apiClient.getVideoList({ offset: 0, limit: 50, seed: randomSeed })
+          allVideos = [...allVideos, ...(additionalVideos.videos || [])]
+        }
+
+        // Shuffle suggested videos for variety
+        const shuffleArray = (array: any[]) => {
+          const shuffled = [...array]
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+          }
+          return shuffled
+        }
+        
+        // Remove duplicates and current video, then shuffle
+        const uniqueVideos = Array.from(new Map(allVideos.map(v => [v.video_id || v.videoId, v])).values())
+        const filteredVideos = uniqueVideos.filter((v: any) => (v.video_id || v.videoId) !== videoId)
+        const shuffledSuggestions = shuffleArray(filteredVideos)
 
         if (foundVideo) {
           // Update video with streaming URL from getVideo response
@@ -198,8 +225,8 @@ export default function WatchPage() {
           
           setVideo(foundVideo)
           
-          // Set related videos (exclude the current video)
-          setRelatedVideos(allVideos.filter((v: any) => (v.video_id || v.videoId) !== videoId))
+          // Set shuffled related videos
+          setRelatedVideos(shuffledSuggestions)
           
           // Fetch video creator data to get follower count
           // Only fetch if user is logged in (endpoint requires authentication)
@@ -261,7 +288,7 @@ export default function WatchPage() {
           setIsFollowing(followingStatus)
           
           setVideo(minimalVideo)
-          setRelatedVideos(allVideos.slice(0, 6))
+          setRelatedVideos(shuffledSuggestions || allVideos.slice(0, 12))
         }
       } catch (error) {
         console.error("[hiffi] Failed to fetch video data:", error)
@@ -623,7 +650,12 @@ export default function WatchPage() {
           <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-4">
-              <VideoPlayer videoUrl={videoUrl} poster={thumbnailUrl} autoPlay />
+              <VideoPlayer 
+                videoUrl={videoUrl} 
+                poster={thumbnailUrl} 
+                autoPlay 
+                suggestedVideos={relatedVideos.slice(0, 8)}
+              />
 
               <div className="space-y-4">
                 <h1 className="text-xl md:text-2xl font-bold">{video.videoTitle || video.video_title}</h1>
