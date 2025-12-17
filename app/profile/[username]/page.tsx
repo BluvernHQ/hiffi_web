@@ -72,24 +72,21 @@ export default function ProfilePage() {
         
         console.log("[hiffi] User data from API:", response);
         
-        // Handle API response format: { success: true, user: {...} }
+        // Handle API response format: { success: true, user: {...}, following?: boolean }
         const profileData = (response?.success && response?.user) ? response.user : (response?.user || response);
         console.log("[hiffi] Profile data:", profileData);
         console.log("[hiffi] Followers:", profileData?.followers);
         console.log("[hiffi] Following:", profileData?.following);
         setProfileUser(profileData);
         
-        // Check if current user is following this profile user
-        // Only check if viewing someone else's profile (not own profile)
+        // Set following status from API response
+        // The API now returns following status directly in the response
+        // Only applicable if viewing someone else's profile (not own profile)
         if (currentUserData?.username && currentUserData.username !== username) {
-          try {
-            // checkFollowingStatus now only takes targetUsername (uses current user's following list)
-            const isFollowingStatus = await apiClient.checkFollowingStatus(username);
-            setIsFollowing(isFollowingStatus);
-          } catch (followError) {
-            console.error("[hiffi] Failed to check following status:", followError);
-            setIsFollowing(profileData?.isfollowing || false);
-          }
+          // Use the following field from the API response (NEW)
+          const followingStatus = response?.following ?? false;
+          console.log("[hiffi] Following status from API:", followingStatus);
+          setIsFollowing(followingStatus);
         } else {
           setIsFollowing(false); // Can't follow yourself
         }
@@ -256,9 +253,13 @@ export default function ProfilePage() {
             ? await apiClient.getCurrentUser()
             : await apiClient.getUserByUsername(username);
           console.log("[hiffi] Refreshed user data after unfollow:", refreshedResponse);
-          // Handle API response format: { success: true, user: {...} }
+          // Handle API response format: { success: true, user: {...}, following?: boolean }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
+          // Update following status from API response
+          if (!isOwnProfileCheck && refreshedResponse?.following !== undefined) {
+            setIsFollowing(refreshedResponse.following);
+          }
         } catch (refreshError) {
           console.error("[hiffi] Failed to refresh user data:", refreshError);
           // Update optimistically if refresh fails
@@ -291,9 +292,13 @@ export default function ProfilePage() {
             ? await apiClient.getCurrentUser()
             : await apiClient.getUserByUsername(username);
           console.log("[hiffi] Refreshed user data after follow:", refreshedResponse);
-          // Handle API response format: { success: true, user: {...} }
+          // Handle API response format: { success: true, user: {...}, following?: boolean }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
+          // Update following status from API response
+          if (!isOwnProfileCheck && refreshedResponse?.following !== undefined) {
+            setIsFollowing(refreshedResponse.following);
+          }
         } catch (refreshError) {
           console.error("[hiffi] Failed to refresh user data:", refreshError);
           // Update optimistically if refresh fails
@@ -312,15 +317,9 @@ export default function ProfilePage() {
         });
       }
       
-      // Verify the follow status after action to ensure consistency
-      try {
-        // checkFollowingStatus now only takes targetUsername (uses current user's following list)
-        const verifiedStatus = await apiClient.checkFollowingStatus(username);
-        setIsFollowing(verifiedStatus);
-      } catch (verifyError) {
-        console.error("[hiffi] Failed to verify following status:", verifyError);
-        // Don't revert on verification failure - the API call succeeded
-      }
+      // State is already optimistically updated above
+      // No need to verify since the follow/unfollow API calls are reliable
+      // The state will be synced on next page load via getUserByUsername/getCurrentUser API
     } catch (error) {
       console.error("[hiffi] Failed to follow/unfollow user:", error);
       

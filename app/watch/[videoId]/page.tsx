@@ -187,6 +187,15 @@ export default function WatchPage() {
           setIsLiked(videoResponse.upvoted || false)
           setIsDisliked(videoResponse.downvoted || false)
           
+          // Update follow state from getVideo API response
+          // Set UNCONDITIONALLY from API response (just like upvote/downvote)
+          const followingStatus = videoResponse.following || false
+          console.log(`[hiffi] Setting follow state from getVideo API: following=${followingStatus}`)
+          setIsFollowing(followingStatus)
+          
+          // Get video creator username for fetching creator data
+          const videoCreatorUsername = foundVideo.userUsername || foundVideo.user_username
+          
           setVideo(foundVideo)
           
           // Set related videos (exclude the current video)
@@ -194,16 +203,20 @@ export default function WatchPage() {
           
           // Fetch video creator data to get follower count
           // Only fetch if user is logged in (endpoint requires authentication)
-          const videoCreatorUsername = foundVideo.userUsername || foundVideo.user_username
           if (videoCreatorUsername && user) {
             try {
               const creatorResponse = await apiClient.getUserByUsername(videoCreatorUsername)
               console.log("[hiffi] Creator data from API:", creatorResponse);
-              // Handle API response format: { success: true, user: {...} }
+              // Handle API response format: { success: true, user: {...}, following?: boolean }
               const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
               console.log("[hiffi] Creator profile:", creatorProfile);
               console.log("[hiffi] Creator followers:", creatorProfile?.followers);
               setVideoCreator(creatorProfile)
+              // Update following status from API response if available
+              if (creatorResponse?.following !== undefined) {
+                console.log("[hiffi] Setting follow state from getUserByUsername:", creatorResponse.following);
+                setIsFollowing(creatorResponse.following);
+              }
             } catch (creatorError: any) {
               // Only log as warning if it's not a 401 (expected when not authenticated)
               if (creatorError?.status !== 401) {
@@ -217,16 +230,6 @@ export default function WatchPage() {
               username: videoCreatorUsername,
               name: videoCreatorUsername,
             })
-            }
-            
-            // Check if current user is following the video creator
-            // This will be handled in a separate useEffect to avoid re-fetching video data
-            // Just set initial state here
-            if (userData?.username && userData.username !== videoCreatorUsername) {
-              // Will be checked in separate useEffect
-              setIsFollowing(false)
-            } else {
-              setIsFollowing(false)
           }
         } else {
           // If we couldn't find video metadata, create a minimal video object from getVideo response
@@ -243,6 +246,20 @@ export default function WatchPage() {
             video_downvotes: 0,
             video_comments: 0,
           }
+          
+          // Update vote and follow state from getVideo API response
+          setUpvoteState({
+            upvoted: videoResponse.upvoted || false,
+            downvoted: videoResponse.downvoted || false,
+          })
+          setIsLiked(videoResponse.upvoted || false)
+          setIsDisliked(videoResponse.downvoted || false)
+          
+          // Update follow state from getVideo API response (minimal video case)
+          const followingStatus = videoResponse.following || false
+          console.log(`[hiffi] Setting follow state from getVideo API (minimal): following=${followingStatus}`)
+          setIsFollowing(followingStatus)
+          
           setVideo(minimalVideo)
           setRelatedVideos(allVideos.slice(0, 6))
         }
@@ -273,32 +290,9 @@ export default function WatchPage() {
     }
   }, [params.videoId]) // Removed userData from dependencies - we'll handle it separately
 
-  // Separate effect to check follow status when userData or video changes
-  useEffect(() => {
-    if (!video || !userData) return
-    
-    const videoCreatorUsername = video.userUsername || video.user_username
-    if (!videoCreatorUsername || userData.username === videoCreatorUsername) {
-      setIsFollowing(false)
-      return
-    }
-
-    async function checkFollowStatus() {
-      setIsCheckingFollow(true)
-      try {
-                // checkFollowingStatus now only takes targetUsername (uses current user's following list)
-                const isFollowingStatus = await apiClient.checkFollowingStatus(videoCreatorUsername)
-        setIsFollowing(isFollowingStatus)
-      } catch (followError) {
-        console.error("[hiffi] Failed to check following status:", followError)
-        setIsFollowing(false)
-      } finally {
-        setIsCheckingFollow(false)
-      }
-    }
-
-    checkFollowStatus()
-  }, [video, userData])
+  // NOTE: Follow status is now primarily fetched from the getVideo API response
+  // which includes the 'following' boolean field. This eliminates the need for 
+  // a separate API call to check following status on page load.
 
   const handleLike = async () => {
     if (!user) {
@@ -344,13 +338,16 @@ export default function WatchPage() {
           console.log("[hiffi] Updated video data after upvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
-          const voteStatus = updatedVideo.uservotestatus || updatedVideo.user_vote_status
-          setIsLiked(voteStatus === "upvoted")
-          setIsDisliked(voteStatus === "downvoted")
-          setUpvoteState({
-            upvoted: voteStatus === "upvoted",
-            downvoted: voteStatus === "downvoted",
-          })
+          // Note: /videos/list endpoint may not include upvoted/downvoted status
+          // So we keep the optimistic state unless the API provides it
+          if (updatedVideo.upvoted !== undefined || updatedVideo.downvoted !== undefined) {
+            setIsLiked(updatedVideo.upvoted || false)
+            setIsDisliked(updatedVideo.downvoted || false)
+            setUpvoteState({
+              upvoted: updatedVideo.upvoted || false,
+              downvoted: updatedVideo.downvoted || false,
+            })
+          }
         }
       } catch (refreshError) {
         console.error("[hiffi] Failed to refresh video data:", refreshError)
@@ -415,13 +412,16 @@ export default function WatchPage() {
           console.log("[hiffi] Updated video data after downvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
-          const voteStatus = updatedVideo.uservotestatus || updatedVideo.user_vote_status
-          setIsLiked(voteStatus === "upvoted")
-          setIsDisliked(voteStatus === "downvoted")
-          setUpvoteState({
-            upvoted: voteStatus === "upvoted",
-            downvoted: voteStatus === "downvoted",
-          })
+          // Note: /videos/list endpoint may not include upvoted/downvoted status
+          // So we keep the optimistic state unless the API provides it
+          if (updatedVideo.upvoted !== undefined || updatedVideo.downvoted !== undefined) {
+            setIsLiked(updatedVideo.upvoted || false)
+            setIsDisliked(updatedVideo.downvoted || false)
+            setUpvoteState({
+              upvoted: updatedVideo.upvoted || false,
+              downvoted: updatedVideo.downvoted || false,
+            })
+          }
         }
       } catch (refreshError) {
         console.error("[hiffi] Failed to refresh video data:", refreshError)
@@ -482,9 +482,13 @@ export default function WatchPage() {
         try {
           const creatorResponse = await apiClient.getUserByUsername(username)
           console.log("[hiffi] Refreshed creator data after unfollow:", creatorResponse);
-          // Handle API response format: { success: true, user: {...} }
+          // Handle API response format: { success: true, user: {...}, following?: boolean }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
+          // Update following status from API response
+          if (creatorResponse?.following !== undefined) {
+            setIsFollowing(creatorResponse.following);
+          }
         } catch (refreshError: any) {
           // Only log as warning if it's not a 401 (expected when not authenticated)
           if (refreshError?.status !== 401) {
@@ -515,9 +519,13 @@ export default function WatchPage() {
         try {
           const creatorResponse = await apiClient.getUserByUsername(username)
           console.log("[hiffi] Refreshed creator data after follow:", creatorResponse);
-          // Handle API response format: { success: true, user: {...} }
+          // Handle API response format: { success: true, user: {...}, following?: boolean }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
+          // Update following status from API response
+          if (creatorResponse?.following !== undefined) {
+            setIsFollowing(creatorResponse.following);
+          }
         } catch (refreshError: any) {
           // Only log as warning if it's not a 401 (expected when not authenticated)
           if (refreshError?.status !== 401) {
@@ -538,15 +546,9 @@ export default function WatchPage() {
         })
       }
       
-      // Verify follow status to ensure consistency
-      try {
-        // checkFollowingStatus now only takes targetUsername (uses current user's following list)
-        const verifiedStatus = await apiClient.checkFollowingStatus(username)
-        setIsFollowing(verifiedStatus)
-      } catch (verifyError) {
-        console.error("[hiffi] Failed to verify following status:", verifyError)
-        // Don't revert on verification failure - the API call succeeded
-      }
+      // State is already optimistically updated above
+      // No need to verify since the follow/unfollow API calls are reliable
+      // If needed, the state will be synced on next page refresh via getVideo API
     } catch (error) {
       console.error("[hiffi] Failed to follow/unfollow user:", error)
       

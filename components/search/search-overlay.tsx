@@ -102,14 +102,28 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           
           // Add video suggestions
           if (videosResponse.success && videosResponse.videos) {
-            const videoSuggestions: SearchResult[] = videosResponse.videos.map((video: any) => ({
-              id: video.video_id || video.videoId || '',
-              title: video.video_title || video.videoTitle || '',
-              type: 'video' as const,
-              thumbnail: video.video_thumbnail || video.videoThumbnail || '',
-              username: video.user_username || video.userUsername || '',
-              views: video.video_views || video.videoViews || 0,
-            }));
+            const videoSuggestions: SearchResult[] = videosResponse.videos.map((video: any) => {
+              const videoId = video.video_id || video.videoId || '';
+              const thumbnailPath = video.video_thumbnail || video.videoThumbnail || '';
+              
+              // If no thumbnail field, construct from video_id
+              const thumbnail = thumbnailPath || (videoId ? `thumbnails/videos/${videoId}.jpg` : '');
+              
+              console.log('[SearchOverlay] Video:', {
+                videoId,
+                thumbnailPath,
+                finalThumbnail: thumbnail
+              });
+              
+              return {
+                id: videoId,
+                title: video.video_title || video.videoTitle || '',
+                type: 'video' as const,
+                thumbnail: thumbnail,
+                username: video.user_username || video.userUsername || '',
+                views: video.video_views || video.videoViews || 0,
+              };
+            });
             allSuggestions.push(...videoSuggestions);
           }
           
@@ -362,7 +376,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                           )}
                                         </p>
                                         <p className="text-sm text-muted-foreground truncate">
-                                          @{result.username} • {result.views?.toLocaleString()} views
+                                          @{result.username}
                                         </p>
                                       </div>
                                     </div>

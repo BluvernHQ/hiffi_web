@@ -8,6 +8,35 @@ export interface ApiError {
   status: number
 }
 
+// Video Types
+export interface Video {
+  video_id: string
+  video_url: string
+  video_thumbnail: string
+  video_title: string
+  video_description: string
+  video_tags: string[]
+  video_views: number
+  video_upvotes: number
+  video_downvotes: number
+  video_comments: number
+  user_uid: string
+  user_username: string
+  created_at: string
+  updated_at: string
+  following?: boolean // Added from /videos/list response
+  upvoted?: boolean // Added from /videos/{videoId} response
+  downvoted?: boolean // Added from /videos/{videoId} response
+  streaming_url?: string // Streaming URL (same as video_url, for compatibility)
+  userUsername?: string // Alias for user_username (for compatibility)
+}
+
+// API response wrapper for video list items
+export interface VideoListItem {
+  video: Video
+  following: boolean
+}
+
 // Cookie utilities
 function setCookie(name: string, value: string, days: number = 30): void {
   if (typeof document === "undefined") return
@@ -436,7 +465,7 @@ class ApiClient {
     )
   }
 
-  async getCurrentUser(): Promise<{ success: boolean; user?: any; data?: { user: any } }> {
+  async getCurrentUser(): Promise<{ success: boolean; user?: any; following?: boolean; data?: { user: any } }> {
     const response = await this.request<{ success: boolean; user?: any; data?: { user: any } }>("/users/self", {}, true)
     
     // Log response for debugging
@@ -450,20 +479,63 @@ class ApiClient {
       return {
         success: response.success,
         user: response.data.user,
+        following: undefined, // Not applicable for own profile
       }
     }
     
     // If response already has user at top level, return as is
     if (response.success && response.user) {
-      return response
+      return {
+        ...response,
+        following: undefined, // Not applicable for own profile
+      }
     }
     
     // If no user found, return response as is (will be handled by caller)
     return response
   }
 
-  async getUserByUsername(username: string): Promise<{ success: boolean; user: any }> {
-    return this.request(`/users/${username}`, {}, true)
+  async getUserByUsername(username: string): Promise<{ 
+    success: boolean
+    user: any
+    following?: boolean 
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        user: any
+        following?: boolean
+      }
+      user?: any
+      following?: boolean
+    }>(`/users/${username}`, {}, true)
+    
+    // Normalize response structure
+    // New API format: { success: true, data: { user: {...}, following: false } }
+    // Old format: { success: true, user: {...} }
+    if (response.success || response.status === "success") {
+      // Extract from data object if present
+      if (response.data) {
+        return {
+          success: true,
+          user: response.data.user,
+          following: response.data.following,
+        }
+      }
+      // Otherwise use top-level fields
+      return {
+        success: true,
+        user: response.user,
+        following: response.following,
+      }
+    }
+    
+    return {
+      success: false,
+      user: null,
+      following: false,
+    }
   }
 
   // Update user profile - officially supports: name, profile_picture
@@ -611,9 +683,10 @@ class ApiClient {
   // Video endpoints
   // GET /videos/list - List all videos with deterministic random pagination
   // Note: API actually uses GET with query params, not POST (returns 405 for POST)
+  // Response structure: { success: true, data: { videos: [{ video: {...}, following: boolean }], ... } }
   async getVideoList(data: { offset?: number; limit?: number; seed: string; page?: number }): Promise<{
     success: boolean
-    videos: any[]
+    videos: Video[]
     page?: number
     limit: number
     offset: number
@@ -637,14 +710,14 @@ class ApiClient {
       success?: boolean
       status?: string
       data?: {
-        videos?: any[]
+        videos?: VideoListItem[]
         page?: number
         limit?: number
         offset?: number
         count?: number
         seed?: string
       }
-      videos?: any[]
+      videos?: VideoListItem[]
       page?: number
       limit?: number
       offset?: number
@@ -659,19 +732,33 @@ class ApiClient {
     )
     
     // Normalize response structure
-    // API may return:
-    // - { status: "success", videos: [...], page: 1, limit: 20, offset: 0, count: 10, seed: "..." }
-    // - { success: true, data: { videos: [...], page: 1, limit: 20, offset: 0, count: 10, seed: "..." } }
+    // API returns: { success: true, data: { videos: [{ video: {...}, following: boolean }], limit: 2, offset: 0, count: 2, seed: "..." } }
+    // Legacy format: { status: "success", videos: [...], page: 1, limit: 20, offset: 0, count: 10, seed: "..." }
     const isSuccess = response.status === "success" || response.success
     
     if (isSuccess) {
       // Extract fields from either response.data or directly from response
-      const videos = response.data?.videos || response.videos || []
+      const rawVideos = response.data?.videos || response.videos || []
       const responsePage = response.data?.page || response.page
       const responseLimit = response.data?.limit || response.limit
       const responseOffset = response.data?.offset || response.offset
       const responseCount = response.data?.count || response.count
       const responseSeed = response.data?.seed || response.seed
+      
+      // Transform videos array to flatten structure and include following status
+      // New API format: [{ video: {...}, following: boolean }]
+      // Transform to: [{ ...video, following: boolean }]
+      const videos = rawVideos.map((item: any) => {
+        // If item has 'video' property, it's the new format
+        if (item.video) {
+          return {
+            ...item.video,
+            following: item.following || false,
+          }
+        }
+        // Otherwise, it's already in the old format (backward compatibility)
+        return item
+      })
       
       return {
         success: true,
@@ -820,6 +907,7 @@ class ApiClient {
     video_url: string
     upvoted?: boolean
     downvoted?: boolean
+    following?: boolean
     put_view_error?: string
   }> {
     const response = await this.request<{
@@ -829,22 +917,24 @@ class ApiClient {
         video_url?: string
         upvoted?: boolean
         downvoted?: boolean
+        following?: boolean
         put_view_error?: string
       }
       video_url?: string
       upvoted?: boolean
       downvoted?: boolean
+      following?: boolean
       put_view_error?: string
     }>(
       `/videos/${videoId}`,
       {},
-      false, // Authentication optional per docs
+      true, // Authentication required to get user-specific states (following, upvoted, downvoted)
     )
     
     // Normalize response structure
     // API may return:
-    // - { status: "success", video_url: "...", upvoted: false, downvoted: false }
-    // - { success: true, data: { video_url: "...", upvoted: false, downvoted: false } }
+    // - { status: "success", video_url: "...", upvoted: false, downvoted: false, following: false }
+    // - { success: true, data: { video_url: "...", upvoted: false, downvoted: false, following: false } }
     const isSuccess = response.status === "success" || response.success
     
     if (isSuccess) {
@@ -852,6 +942,7 @@ class ApiClient {
       const videoUrl = response.data?.video_url || response.video_url || ""
       const upvoted = response.data?.upvoted ?? response.upvoted ?? false
       const downvoted = response.data?.downvoted ?? response.downvoted ?? false
+      const following = response.data?.following ?? response.following ?? false
       const putViewError = response.data?.put_view_error || response.put_view_error
       
       return {
@@ -859,6 +950,7 @@ class ApiClient {
         video_url: videoUrl,
         upvoted: upvoted,
         downvoted: downvoted,
+        following: following,
         put_view_error: putViewError,
       }
     }
@@ -868,6 +960,7 @@ class ApiClient {
       video_url: "",
       upvoted: false,
       downvoted: false,
+      following: false,
     }
   }
 
@@ -912,9 +1005,10 @@ class ApiClient {
 
   // GET /videos/list/self - List videos uploaded by authenticated user
   // Note: API actually uses GET with query params, not POST
+  // Response structure: { success: true, data: { videos: [{ video: {...}, following: boolean }], ... } }
   async listSelfVideos(data: { page?: number; limit?: number; offset?: number; seed?: string }): Promise<{
     success: boolean
-    videos: any[]
+    videos: Video[]
     page?: number
     limit: number
     offset: number
@@ -939,14 +1033,14 @@ class ApiClient {
       success?: boolean
       status?: string
       data?: {
-        videos?: any[]
+        videos?: VideoListItem[]
         page?: number
         limit?: number
         offset?: number
         count?: number
         seed?: string
       }
-      videos?: any[]
+      videos?: VideoListItem[]
       page?: number
       limit?: number
       offset?: number
@@ -961,17 +1055,32 @@ class ApiClient {
     )
     
     // Normalize response structure
-    // API returns: { success: true, data: { videos: [...], limit: 2, offset: 0, count: 1, seed: "jake" } }
+    // API returns: { success: true, data: { videos: [{ video: {...}, following: boolean }], limit: 2, offset: 0, count: 1, seed: "jake" } }
     const isSuccess = !!(response.status === "success" || response.success)
     
     if (isSuccess) {
       // Extract fields from either response.data or directly from response
-      const videos = response.data?.videos || response.videos || []
+      const rawVideos = response.data?.videos || response.videos || []
       const responsePage = response.data?.page || response.page
       const responseLimit = response.data?.limit ?? response.limit ?? limit
       const responseOffset = response.data?.offset ?? response.offset ?? offset
       const responseCount = response.data?.count ?? response.count ?? 0
       const responseSeed = response.data?.seed || response.seed
+      
+      // Transform videos array to flatten structure and include following status
+      // New API format: [{ video: {...}, following: boolean }]
+      // Transform to: [{ ...video, following: boolean }]
+      const videos = rawVideos.map((item: any) => {
+        // If item has 'video' property, it's the new format
+        if (item.video) {
+          return {
+            ...item.video,
+            following: item.following || false,
+          }
+        }
+        // Otherwise, it's already in the old format (backward compatibility)
+        return item
+      })
       
       return {
         success: true,
@@ -2286,6 +2395,16 @@ class ApiClient {
     }>(`/search/videos/${encodeURIComponent(query)}`, {}, false)
     
     if (response.success && response.data) {
+      console.log("[API] searchVideos response:", {
+        count: response.data.count,
+        videos: response.data.videos?.length,
+        firstVideo: response.data.videos?.[0] ? {
+          video_id: response.data.videos[0].video_id,
+          video_thumbnail: response.data.videos[0].video_thumbnail,
+          video_title: response.data.videos[0].video_title,
+        } : null
+      })
+      
       return {
         success: true,
         videos: response.data.videos || [],

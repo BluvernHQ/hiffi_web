@@ -66,8 +66,14 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   const thumbnailUrl = thumbnail
     ? getThumbnailUrl(thumbnail)
     : (videoId 
-      ? `${WORKERS_BASE_URL}/${videoId}`
+      ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
       : `/placeholder.svg?height=360&width=640&query=${encodeURIComponent(title)}`)
+  
+  // Debug logging
+  if (!thumbnail && videoId) {
+    console.log("[VideoCard] No thumbnail field, using fallback for videoId:", videoId)
+    console.log("[VideoCard] Fallback URL:", thumbnailUrl)
+  }
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking on action buttons or links

@@ -48,80 +48,48 @@ function SearchPageContent() {
 
     try {
       if (isInitialLoad) {
-      setLoading(true);
+        setLoading(true);
         setVideoResults([]);
         setVideoOffset(0);
       }
       
-      // Fetch users (only on initial load)
+      // Fetch both users and videos from search API (only on initial load)
       if (isInitialLoad) {
+        // Search users
         const usersResponse = await apiClient.searchUsers(searchQuery, 50).catch(() => ({ success: false, users: [], count: 0 }));
-      if (usersResponse.success) {
-        setUserResults(usersResponse.users || []);
-        setUserCount(usersResponse.count || 0);
-      } else {
-        setUserResults([]);
-        setUserCount(0);
-      }
-      }
-      
-      // For videos, use video list API with seed and filter client-side for infinite scroll
-      const seed = getSeed();
-      const currentOffset = isInitialLoad ? 0 : videoOffset;
-      
-      const videosResponse = await apiClient.getVideoList({
-        offset: currentOffset,
-        limit: VIDEOS_PER_PAGE,
-        seed: seed,
-      }).catch(() => ({ success: false, videos: [] }));
-      
-      if (videosResponse.success && videosResponse.videos) {
-        // Filter videos by search query (case-insensitive)
-        const queryLower = searchQuery.toLowerCase();
-        const filteredVideos = videosResponse.videos.filter((video: any) => {
-          const title = (video.video_title || video.videoTitle || '').toLowerCase();
-          const description = (video.video_description || video.videoDescription || '').toLowerCase();
-          return title.includes(queryLower) || description.includes(queryLower);
-        });
-        
-        if (isInitialLoad) {
-          setVideoResults(filteredVideos);
-          // Use actual filtered count instead of API count to avoid mismatches
-          // The count will be updated as we load more pages
-          setVideoCount(filteredVideos.length);
+        if (usersResponse.success) {
+          setUserResults(usersResponse.users || []);
+          setUserCount(usersResponse.count || 0);
         } else {
-          setVideoResults((prev) => {
-            // Prevent duplicates
-            const existingIds = new Set(prev.map(v => v.videoId || v.video_id));
-            const newVideos = filteredVideos.filter(v => !existingIds.has(v.videoId || v.video_id));
-            return [...prev, ...newVideos];
-          });
+          setUserResults([]);
+          setUserCount(0);
         }
         
-        // If we got fewer videos than requested, there might be no more pages
-        // Also check if we got any filtered results - if not, might need to keep searching
-        setHasMoreVideos(videosResponse.videos.length === VIDEOS_PER_PAGE && filteredVideos.length >= 0);
-        
-        // Video count is now based on actual results length, updated automatically
-      } else {
-        if (isInitialLoad) {
-        setVideoResults([]);
-        setVideoCount(0);
+        // Search videos - use the proper search endpoint
+        const videosResponse = await apiClient.searchVideos(searchQuery, 100).catch(() => ({ success: false, videos: [], count: 0 }));
+        if (videosResponse.success) {
+          setVideoResults(videosResponse.videos || []);
+          setVideoCount(videosResponse.count || 0);
+          // No pagination for search results - show all results from search API
+          setHasMoreVideos(false);
+        } else {
+          setVideoResults([]);
+          setVideoCount(0);
+          setHasMoreVideos(false);
         }
-        setHasMoreVideos(false);
       }
     } catch (error: any) {
       console.error('[hiffi] Failed to fetch search results:', error);
       if (isInitialLoad) {
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to load search results. Please try again.",
-        variant: "destructive",
-      });
-      setVideoResults([]);
-      setUserResults([]);
-      setVideoCount(0);
-      setUserCount(0);
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to load search results. Please try again.",
+          variant: "destructive",
+        });
+        setVideoResults([]);
+        setUserResults([]);
+        setVideoCount(0);
+        setUserCount(0);
       }
       setHasMoreVideos(false);
     } finally {
@@ -132,17 +100,9 @@ function SearchPageContent() {
   };
 
   const loadMoreVideos = useCallback(() => {
-    if (!loading && !loadingMoreVideos && !isFetchingVideos && hasMoreVideos && query.trim()) {
-      // Offset should be the number of items to skip, not page number
-      // Increment by VIDEOS_PER_PAGE to get the next batch
-      const nextOffset = videoOffset + VIDEOS_PER_PAGE;
-      console.log(`[hiffi] Loading more videos for search "${query}" - Current offset: ${videoOffset}, Next offset: ${nextOffset}`);
-      setVideoOffset(nextOffset);
-      setIsFetchingVideos(true);
-      setLoadingMoreVideos(true);
-      fetchSearchResults(query, false);
-    }
-  }, [loading, loadingMoreVideos, isFetchingVideos, hasMoreVideos, videoOffset, query]);
+    // Search results show all results at once - no pagination needed
+    return;
+  }, []);
 
   // Fetch results when query parameter changes
   useEffect(() => {
@@ -260,9 +220,8 @@ function SearchPageContent() {
                             </div>
                             <VideoGrid
                               videos={videoResults}
-                              loading={loading || loadingMoreVideos}
-                              hasMore={hasMoreVideos}
-                              onLoadMore={loadMoreVideos}
+                              loading={loading}
+                              hasMore={false}
                               onVideoDeleted={(videoId) => {
                                 // Remove deleted video from the list
                                 setVideoResults((prev) => 
@@ -278,7 +237,7 @@ function SearchPageContent() {
                         {videoResults.length > 0 ? (
                           <VideoGrid
                             videos={videoResults}
-                            loading={false}
+                            loading={loading}
                             hasMore={false}
                             onVideoDeleted={(videoId) => {
                               // Remove deleted video from the list
@@ -287,7 +246,7 @@ function SearchPageContent() {
                               )
                             }}
                           />
-                        ) : (
+                        ) : !loading && (
                           <div className="text-center py-12">
                             <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold mb-2">No videos found</h3>
