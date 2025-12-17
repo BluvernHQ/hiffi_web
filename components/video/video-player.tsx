@@ -431,6 +431,25 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false }: VideoPlayerP
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
+        onError={(e) => {
+          const video = e.currentTarget
+          const error = video.error
+          if (error) {
+            console.error('[hiffi] Video playback error:', {
+              code: error.code,
+              message: error.message,
+              networkState: video.networkState,
+              readyState: video.readyState,
+            })
+            setUrlError(`Video playback error: ${error.message || 'Unknown error'}`)
+          }
+        }}
+        onLoadStart={() => {
+          console.log('[hiffi] Video load started')
+        }}
+        onCanPlay={() => {
+          console.log('[hiffi] Video can play')
+        }}
       />
 
       {!isPlaying && (

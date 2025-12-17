@@ -7,6 +7,20 @@ import { getWorkersApiKey } from '@/lib/storage'
  * 
  * Path: /proxy/video/stream (not /api/video/stream to avoid conflict with backend API)
  */
+
+// Handle CORS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Content-Range, Content-Type',
+      'Access-Control-Max-Age': '86400', // 24 hours
+    },
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -88,6 +102,11 @@ export async function GET(request: NextRequest) {
       'Content-Type': contentType,
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+      // CORS headers for video playback
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Content-Range, Content-Type',
+      'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
     }
 
     // If we got a partial content response, forward the range headers
