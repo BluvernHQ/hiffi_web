@@ -1,16 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 /**
- * GATracker component for tracking page views in Next.js App Router
- * 
- * The GoogleAnalytics component from @next/third-parties automatically tracks
- * initial page loads, but doesn't track client-side route changes in SPAs.
- * This component listens for route changes and manually triggers page view tracking.
+ * Inner GATracker component that uses useSearchParams
+ * Must be wrapped in Suspense boundary
  */
-export function GATracker({ gaId }: { gaId: string }) {
+function GATrackerInner({ gaId }: { gaId: string }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -25,4 +22,19 @@ export function GATracker({ gaId }: { gaId: string }) {
   }, [pathname, searchParams, gaId])
 
   return null
+}
+
+/**
+ * GATracker component for tracking page views in Next.js App Router
+ * 
+ * The GoogleAnalytics component from @next/third-parties automatically tracks
+ * initial page loads, but doesn't track client-side route changes in SPAs.
+ * This component listens for route changes and manually triggers page view tracking.
+ */
+export function GATracker({ gaId }: { gaId: string }) {
+  return (
+    <Suspense fallback={null}>
+      <GATrackerInner gaId={gaId} />
+    </Suspense>
+  )
 }
