@@ -32,8 +32,9 @@ export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true)
   if (!user) return "";
   
   // Check profile_picture first (API field name)
-  if (user.profile_picture && user.profile_picture.trim()) {
-    const profilePicturePath = user.profile_picture.trim();
+  // Also check 'image' field as it might be used in some API responses
+  const profilePicturePath = (user.profile_picture || user.image || "").toString().trim();
+  if (profilePicturePath) {
     
     // If it's already a full URL (starts with http:// or https://), add cache busting if needed
     if (profilePicturePath.startsWith("http://") || profilePicturePath.startsWith("https://")) {

@@ -633,6 +633,32 @@ class ApiClient {
     }
   }
 
+  // Update user profile picture - uses PUT /users/{username} with { "image": path }
+  async updateUserProfile(username: string, data: { image?: string; name?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      user?: any
+      data?: { user: any }
+    }>(
+      `/users/self`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
+    
+    // Normalize response structure
+    const isSuccess = response.status === "success" || response.success !== false
+    const userData = response.user || response.data?.user || response.data || response
+    
+    return {
+      success: isSuccess,
+      user: userData,
+    }
+  }
+
   // Note: updateUser is not in the official API docs - users can only update themselves via updateSelf
   // Keeping this for potential admin use, but it may not be supported by the backend
   async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string }): Promise<any> {

@@ -127,7 +127,8 @@ export function ProfilePictureDialog({
       const uploadedImagePath = uploadUrlResponse.path
 
       // Step 3: Update profile with new picture
-      await apiClient.updateSelf({ profile_picture: uploadedImagePath })
+      // API expects: PUT /users/{username} with body { "image": path }
+      await apiClient.updateUserProfile(currentUsername, { image: uploadedImagePath })
       setUploadProgress(100)
 
       // Store the uploaded path so we can track when profile updates
@@ -147,12 +148,17 @@ export function ProfilePictureDialog({
       handleClose(false)
 
       // Refresh data in background after dialog closes to prevent flickering
-      Promise.all([
-        refreshUserData(true),
-        onProfileUpdated?.()
-      ]).catch(error => {
-        console.error("[hiffi] Error refreshing profile data:", error)
-      })
+      // Use a small delay to ensure the backend has processed the update
+      setTimeout(async () => {
+        try {
+          // Call onProfileUpdated first to trigger version increment
+          await onProfileUpdated?.()
+          // Then refresh user data to get updated profile
+          await refreshUserData(true)
+        } catch (error) {
+          console.error("[hiffi] Error refreshing profile data:", error)
+        }
+      }, 300) // Small delay to allow backend to process
     } catch (error: any) {
       console.error("[hiffi] Failed to upload profile photo:", error)
       toast({
@@ -172,18 +178,12 @@ export function ProfilePictureDialog({
   
   // If we have a preview (newly selected image), always use it - this ensures the new image is shown
   // Only fall back to currentProfilePicture if no preview is available
-  // Use stable cache busting to prevent unnecessary re-renders
-  const [cacheBuster] = useState(() => Date.now())
+  // Use dynamic cache busting based on currentProfilePicture to ensure updates are reflected
   const displayPreview = imagePreview || (currentProfilePictureUrl 
-    ? (() => {
-        const baseUrl = getProfilePictureUrl({ 
-          profile_picture: currentProfilePictureUrl, 
-          updated_at: new Date().toISOString() 
-        }, true)
-        // Add cache busting parameter (stable per dialog instance)
-        const separator = baseUrl.includes("?") ? "&" : "?"
-        return `${baseUrl}${separator}_cb=${cacheBuster}`
-      })()
+    ? getProfilePictureUrl({ 
+        profile_picture: currentProfilePictureUrl,
+        updated_at: new Date().toISOString() // Use current time for dialog preview to ensure fresh image
+      }, true)
     : null)
 
   return (

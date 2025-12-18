@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
 import { VideoGrid } from '@/components/video/video-grid';
@@ -20,6 +21,7 @@ import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialo
 
 export default function ProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const { userData: currentUserData, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -36,6 +38,8 @@ export default function ProfilePage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isProfilePictureDialogOpen, setIsProfilePictureDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [profilePictureVersion, setProfilePictureVersion] = useState(0);
+  const [isUnauthenticated, setIsUnauthenticated] = useState(false);
   
   const VIDEOS_PER_PAGE = 10;
   
@@ -54,6 +58,9 @@ export default function ProfilePage() {
       if (authLoading) {
         return;
       }
+      
+      // Check if user is authenticated - if not, we'll show login prompt
+      const isAuthenticated = !!apiClient.getAuthToken();
 
       try {
         setIsLoading(true);
@@ -76,13 +83,35 @@ export default function ProfilePage() {
         console.log("[hiffi] User data from API:", response);
         
         // Handle API response format: { success: true, user: {...}, following?: boolean }
-        const profileData = (response?.success && response?.user) ? response.user : (response?.user || response);
+        // or: { success: true, data: { user: {...} } }
+        const responseAny = response as any;
+        const profileData = (response?.success && response?.user) 
+          ? response.user 
+          : (responseAny?.data?.user || response?.user || (responseAny?.data && typeof responseAny.data === 'object' && !responseAny.data.user ? responseAny.data : null) || response);
         console.log("[hiffi] Profile data:", profileData);
+        console.log("[hiffi] Profile picture field:", profileData?.profile_picture);
+        console.log("[hiffi] All profile data keys:", Object.keys(profileData || {}));
         console.log("[hiffi] Followers:", profileData?.followers);
         console.log("[hiffi] Following:", profileData?.following);
         
         // Update profile user state
+        // Check if profile_picture changed before updating state
+        // Also check 'image' field as it might be used in API responses
+        const previousProfilePicture = profileUser?.profile_picture || profileUser?.image;
+        const newProfilePicture = profileData?.profile_picture || profileData?.image;
+        
+        // Normalize: if API returns 'image', also set it as 'profile_picture' for consistency
+        if (profileData?.image && !profileData?.profile_picture) {
+          profileData.profile_picture = profileData.image;
+        }
+        
         setProfileUser(profileData);
+        
+        // Increment profile picture version if profile_picture path changed
+        // This forces AvatarImage to re-render with new cache buster
+        if (newProfilePicture && newProfilePicture !== previousProfilePicture) {
+          setProfilePictureVersion(prev => prev + 1);
+        }
         
         // Set following status from API response
         // The API now returns following status directly in the response
@@ -105,14 +134,35 @@ export default function ProfilePage() {
         await fetchUserVideos(0, true, isOwnProfileCheck);
       } catch (error: any) {
         console.error("[hiffi] Failed to fetch user data:", error);
-        // Only set to null if it's a real error (not just auth not ready)
-        if (error?.status !== 401 || authLoading) {
+        // Check if it's an authentication error (401)
+        // ApiError has status property: { message: string, status: number }
+        const errorStatus = error?.status;
+        const authToken = apiClient.getAuthToken();
+        const isAuthError = errorStatus === 401 && !authToken;
+        
+        console.log("[hiffi] Error handling:", {
+          errorStatus,
+          hasAuthToken: !!authToken,
+          isAuthError,
+          authLoading,
+          errorMessage: error?.message,
+        });
+        
+        if (isAuthError) {
+          // User is not authenticated and got 401 - show login prompt
+          setIsUnauthenticated(true);
           setProfileUser(null);
-          toast({
-            title: "Error",
-            description: error?.status === 404 ? "User not found" : "Failed to load user profile",
-            variant: "destructive",
-          });
+        } else {
+          setIsUnauthenticated(false);
+          // Only show error toast if it's not an auth error or if auth is still loading
+          if (errorStatus !== 401 || authLoading) {
+            setProfileUser(null);
+            toast({
+              title: "Error",
+              description: errorStatus === 404 ? "User not found" : "Failed to load user profile",
+              variant: "destructive",
+            });
+          }
         }
       } finally {
         setIsLoading(false);
@@ -438,8 +488,32 @@ export default function ProfilePage() {
         <div className="flex flex-1 overflow-hidden">
           <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
           <main className="flex-1 overflow-y-auto flex items-center justify-center w-full min-w-0">
-            <div className="text-center">
-              <p>User not found</p>
+            <div className="text-center space-y-4 px-4 max-w-md">
+              {isUnauthenticated ? (
+                <>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold">Please Sign In</h2>
+                    <p className="text-muted-foreground">
+                      You need to be signed in to view user profiles.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 justify-center pt-2">
+                    <Button asChild>
+                      <Link href="/login">Sign In</Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link href="/signup">Sign Up</Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-lg font-semibold">User not found</p>
+                  <p className="text-muted-foreground text-sm">
+                    The user profile you're looking for doesn't exist or has been removed.
+                  </p>
+                </div>
+              )}
             </div>
           </main>
         </div>
@@ -483,13 +557,24 @@ export default function ProfilePage() {
                 <div className="relative -mt-12 sm:-mt-16 md:-mt-20 mb-4 sm:mb-6 md:mb-8 flex flex-col sm:flex-row items-start sm:items-end gap-3 sm:gap-4 md:gap-6">
                   <div className="relative">
                     <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 lg:h-32 lg:w-32 border-2 sm:border-3 md:border-4 border-background shadow-lg">
-                      <AvatarImage 
-                        src={profileUser?.profile_picture ? (() => {
-                          const baseUrl = getProfilePictureUrl(profileUser)
-                          const separator = baseUrl.includes("?") ? "&" : "?"
-                          return `${baseUrl}${separator}_cb=${Date.now()}`
-                        })() : getProfilePictureUrl(profileUser)} 
-                        key={`avatar-main-${profileUser?.profile_picture || 'none'}-${profileUser?.updated_at || Date.now()}-${Date.now()}`}
+                      <AvatarImage
+                        src={(() => {
+                          if (!profileUser) return undefined;
+                          const profilePicUrl = getProfilePictureUrl(profileUser, true);
+                          console.log("[hiffi] AvatarImage src for profile:", {
+                            profile_picture: profileUser.profile_picture,
+                            generatedUrl: profilePicUrl,
+                            version: profilePictureVersion
+                          });
+                          // Add aggressive cache busting with version number when version > 0
+                          // This ensures new uploads get fresh cache, but existing images don't reload constantly
+                          if (profilePicUrl && profilePictureVersion > 0) {
+                            const separator = profilePicUrl.includes("?") ? "&" : "?";
+                            return `${profilePicUrl}${separator}v=${profilePictureVersion}`;
+                          }
+                          return profilePicUrl || undefined;
+                        })()}
+                        key={`avatar-main-${profileUser?.profile_picture || 'none'}-${profilePictureVersion}-${profileUser?.updated_at || 'no-update'}`}
                         alt={`${profileUser?.name || profileUser?.username || username}'s profile picture`}
                       />
                       <AvatarFallback 
@@ -670,8 +755,11 @@ export default function ProfilePage() {
               currentEmail={profileUser.email || currentUserData?.email || ""}
               currentBio={profileUser.bio || ""}
               onProfileUpdated={async () => {
-              // Use a small delay to prevent rapid state updates
-              await new Promise(resolve => setTimeout(resolve, 100))
+              // Immediately increment profile picture version to force re-render
+              // This ensures the new image displays even before backend refresh
+              setProfilePictureVersion(prev => prev + 1)
+              // Use a longer delay to ensure backend has processed the update and updated_at is refreshed
+              await new Promise(resolve => setTimeout(resolve, 500))
               await fetchUserData(true)
             }}
             />
@@ -682,8 +770,11 @@ export default function ProfilePage() {
               currentName={profileUser.name || profileUser.username || ""}
               currentUsername={profileUser.username || username}
               onProfileUpdated={async () => {
-              // Use a small delay to prevent rapid state updates
-              await new Promise(resolve => setTimeout(resolve, 100))
+              // Immediately increment profile picture version to force re-render
+              // This ensures the new image displays even before backend refresh
+              setProfilePictureVersion(prev => prev + 1)
+              // Use a longer delay to ensure backend has processed the update and updated_at is refreshed
+              await new Promise(resolve => setTimeout(resolve, 500))
               await fetchUserData(true)
             }}
             />
@@ -723,13 +814,18 @@ export default function ProfilePage() {
               <div className="relative -mt-12 sm:-mt-16 md:-mt-20 mb-4 sm:mb-6 md:mb-8 flex flex-col sm:flex-row items-start sm:items-end gap-3 sm:gap-4 md:gap-6">
                 <div className="relative">
                   <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 lg:h-32 lg:w-32 border-2 sm:border-3 md:border-4 border-background shadow-lg">
-                    <AvatarImage 
+                    <AvatarImage
                       src={profileUser?.profile_picture ? (() => {
-                        const baseUrl = getProfilePictureUrl(profileUser)
-                        const separator = baseUrl.includes("?") ? "&" : "?"
-                        return `${baseUrl}${separator}_cb=${Date.now()}`
-                      })() : getProfilePictureUrl(profileUser)} 
-                      key={`avatar-creator-${profileUser?.profile_picture || 'none'}-${profileUser?.updated_at || Date.now()}-${Date.now()}`}
+                        const baseUrl = getProfilePictureUrl(profileUser, true);
+                        // Add aggressive cache busting with version number when version > 0
+                        // This ensures new uploads get fresh cache, but existing images don't reload constantly
+                        if (profilePictureVersion > 0) {
+                          const separator = baseUrl.includes("?") ? "&" : "?";
+                          return `${baseUrl}${separator}v=${profilePictureVersion}`;
+                        }
+                        return baseUrl;
+                      })() : getProfilePictureUrl(profileUser, false)}
+                      key={`avatar-creator-${profileUser?.profile_picture || 'none'}-${profilePictureVersion}-${profileUser?.updated_at || 'no-update'}`}
                       alt={`${profileUser?.name || profileUser?.username || username}'s profile picture`}
                     />
                     <AvatarFallback 
