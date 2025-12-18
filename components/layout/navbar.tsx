@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,15 +21,16 @@ import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/u
 
 interface NavbarProps {
   onMenuClick?: () => void
-  currentFilter?: 'all' | 'trending' | 'following'
+  currentFilter?: 'all' | 'following'
 }
 
 export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const pathname = usePathname()
   
   // Hide upload button on following page
-  const showUploadButton = currentFilter !== 'following'
+  const showUploadButton = pathname !== '/following'
 
   return (
     <>

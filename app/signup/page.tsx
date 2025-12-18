@@ -206,7 +206,7 @@ export default function SignupPage() {
           <CardDescription className="text-center">Enter your information to get started</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -215,6 +215,7 @@ export default function SignupPage() {
                   placeholder="John Doe"
                   value={name}
                   onChange={handleNameChange}
+                  autoComplete="off"
                   required
                   className={nameError ? "border-destructive" : ""}
                 />
@@ -233,6 +234,7 @@ export default function SignupPage() {
                     placeholder="johndoe"
                     value={username}
                     onChange={handleUsernameChange}
+                    autoComplete="off"
                     required
                     className={`pr-10 ${usernameError ? "border-destructive" : ""}`}
                     minLength={3}
@@ -277,6 +279,7 @@ export default function SignupPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                   minLength={6}
                   className="pr-10"

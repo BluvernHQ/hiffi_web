@@ -739,6 +739,76 @@ class ApiClient {
   // GET /videos/list - List all videos with deterministic random pagination
   // Note: API actually uses GET with query params, not POST (returns 405 for POST)
   // Response structure: { success: true, data: { videos: [{ video: {...}, following: boolean }], ... } }
+  async getFollowingVideos(data: { offset?: number; limit?: number }): Promise<{
+    success: boolean
+    videos: Video[]
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const limit = data.limit || 10
+    const offset = data.offset !== undefined ? data.offset : 0
+    
+    // Build query parameters
+    const params = new URLSearchParams()
+    params.append("offset", offset.toString())
+    params.append("limit", limit.toString())
+    
+    const queryString = params.toString()
+    const url = `/videos/list/following?${queryString}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: Array<{ video: any; following: boolean }>
+        limit?: number
+        offset?: number
+        count?: number
+      }
+    }>(url, {
+      method: "GET",
+    }, true) // Requires authentication
+    
+    // Handle response structure: { success: true, data: { videos: [{ video: {...}, following: boolean }], count, limit, offset } }
+    const responseData = response.data
+    const videosArray = (responseData?.videos || []) as Array<{ video: any; following: boolean }>
+    
+    // Extract video objects from the wrapped structure and flatten
+    // Transform from: [{ video: {...}, following: boolean }] to: [{ ...video, following: boolean }]
+    // Also preserve any user profile picture data
+    const videos: Video[] = videosArray.map((item: any) => {
+      // If item has 'video' property, it's the wrapped format
+      if (item.video) {
+        const videoData: any = {
+          ...item.video,
+          following: item.following || false,
+        }
+        // Preserve user profile picture if it exists in the response
+        if (item.user?.profile_picture) {
+          videoData.user_profile_picture = item.user.profile_picture
+        }
+        if (item.video.user?.profile_picture) {
+          videoData.user_profile_picture = item.video.user.profile_picture
+        }
+        if (item.video.profile_picture) {
+          videoData.user_profile_picture = item.video.profile_picture
+        }
+        return videoData
+      }
+      // Otherwise, it's already in the flat format (backward compatibility)
+      return item
+    })
+    
+    return {
+      success: response.success !== false,
+      videos,
+      limit: responseData?.limit || limit,
+      offset: responseData?.offset || offset,
+      count: responseData?.count || videos.length,
+    }
+  }
+
   async getVideoList(data: { offset?: number; limit?: number; seed: string; page?: number }): Promise<{
     success: boolean
     videos: Video[]
@@ -803,13 +873,25 @@ class ApiClient {
       // Transform videos array to flatten structure and include following status
       // New API format: [{ video: {...}, following: boolean }]
       // Transform to: [{ ...video, following: boolean }]
+      // Also preserve any user profile picture data
       const videos = rawVideos.map((item: any) => {
         // If item has 'video' property, it's the new format
         if (item.video) {
-          return {
+          const videoData: any = {
             ...item.video,
             following: item.following || false,
           }
+          // Preserve user profile picture if it exists in the response
+          if (item.user?.profile_picture) {
+            videoData.user_profile_picture = item.user.profile_picture
+          }
+          if (item.video.user?.profile_picture) {
+            videoData.user_profile_picture = item.video.user.profile_picture
+          }
+          if (item.video.profile_picture) {
+            videoData.user_profile_picture = item.video.profile_picture
+          }
+          return videoData
         }
         // Otherwise, it's already in the old format (backward compatibility)
         return item
@@ -1117,13 +1199,25 @@ class ApiClient {
       // Transform videos array to flatten structure and include following status
       // API format: [{ video: {...}, following: boolean }]
       // Transform to: [{ ...video, following: boolean }]
+      // Also preserve any user profile picture data
       const videos = rawVideos.map((item: any) => {
         // If item has 'video' property, it's the new format
         if (item.video) {
-          return {
+          const videoData: any = {
             ...item.video,
             following: item.following || false,
           }
+          // Preserve user profile picture if it exists in the response
+          if (item.user?.profile_picture) {
+            videoData.user_profile_picture = item.user.profile_picture
+          }
+          if (item.video.user?.profile_picture) {
+            videoData.user_profile_picture = item.video.user.profile_picture
+          }
+          if (item.video.profile_picture) {
+            videoData.user_profile_picture = item.video.profile_picture
+          }
+          return videoData
         }
         // Otherwise, it's already in the old format (backward compatibility)
         return item
@@ -1564,7 +1658,9 @@ class ApiClient {
     success: boolean
     following: Array<{
       followed_by: string
+      followed_by_username?: string
       followed_to: string
+      followed_to_username?: string
       followed_at: string
     }> | null
     limit: number
@@ -1587,7 +1683,9 @@ class ApiClient {
       data?: {
         following?: Array<{
           followed_by: string
+          followed_by_username?: string
           followed_to: string
+          followed_to_username?: string
           followed_at: string
         }> | null
         limit?: number
@@ -1597,7 +1695,9 @@ class ApiClient {
       }
       following?: Array<{
         followed_by: string
+        followed_by_username?: string
         followed_to: string
+        followed_to_username?: string
         followed_at: string
       }> | null
       limit?: number

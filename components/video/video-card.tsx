@@ -127,7 +127,19 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
           </div>
           <div className="flex gap-2 sm:gap-3 px-1">
             <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
-              <AvatarImage src={getProfilePictureUrl(video)} alt={username} />
+              <AvatarImage 
+                src={(() => {
+                  // Try to get profile picture from video object
+                  // Check for user profile picture fields that might be in the API response
+                  const userProfileData = {
+                    profile_picture: (video as any).user_profile_picture || (video as any).profile_picture || (video as any).user?.profile_picture,
+                    username: username,
+                    updated_at: (video as any).user_updated_at || (video as any).updated_at
+                  }
+                  return getProfilePictureUrl(userProfileData)
+                })()} 
+                alt={username} 
+              />
               <AvatarFallback 
                 className="text-white font-semibold text-xs"
                 style={{ backgroundColor: getColorFromName(username || "U") }}

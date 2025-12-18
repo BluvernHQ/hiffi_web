@@ -87,7 +87,7 @@ function LoginForm() {
           <CardDescription className="text-center">Enter your username to sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -96,6 +96,7 @@ function LoginForm() {
                 placeholder="johndoe"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                autoComplete="off"
                 required
               />
             </div>
@@ -109,6 +110,7 @@ function LoginForm() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="off"
                   required
                   className="pr-10"
                 />

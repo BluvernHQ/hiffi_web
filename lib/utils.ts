@@ -50,8 +50,14 @@ export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true)
     let url = `/proxy/profile-picture/${profilePicturePath}`;
     
     // Add cache busting parameter if updated_at is available
-    if (useCacheBusting && user.updated_at) {
-      url += `?t=${new Date(user.updated_at).getTime()}`;
+    if (useCacheBusting) {
+      const separator = url.includes("?") ? "&" : "?";
+      if (user.updated_at) {
+        url += `${separator}t=${new Date(user.updated_at).getTime()}`;
+      } else {
+        // Fallback to current timestamp if updated_at is not available
+        url += `${separator}t=${Date.now()}`;
+      }
     }
     
     return url;

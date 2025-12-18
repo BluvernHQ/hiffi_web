@@ -138,15 +138,15 @@ function SearchPageContent() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden gap-0">
         <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
         <main className="flex-1 overflow-y-auto w-full min-w-0">
-          <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+          <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
-              <div className="mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2">Search Results</h1>
+              <div className="mb-4 sm:mb-6">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Search Results</h1>
                 {query && (videoResults.length > 0 || userResults.length > 0) && (
-                  <p className="text-muted-foreground text-sm sm:text-base">
+                  <p className="text-muted-foreground text-xs sm:text-sm md:text-base">
                     Found <span className="font-semibold text-foreground">{videoResults.length + userResults.length}</span> results for <span className="font-semibold text-foreground">"{query}"</span>
                   </p>
                 )}
@@ -160,14 +160,18 @@ function SearchPageContent() {
                       <p className="text-muted-foreground">Searching for "{query}"...</p>
                     </div>
                   ) : videoResults.length > 0 || userResults.length > 0 ? (
-                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'videos' | 'users')} className="space-y-6">
-                      <TabsList className="grid w-full max-w-md grid-cols-3">
-                        <TabsTrigger value="all" className="gap-2">
-                          All ({videoResults.length + userResults.length})
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'videos' | 'users')} className="space-y-4 sm:space-y-6">
+                      <TabsList className="grid w-full max-w-md grid-cols-3 text-xs sm:text-sm">
+                        <TabsTrigger value="all" className="gap-1 sm:gap-2 px-2 sm:px-4">
+                          <span className="hidden xs:inline">All</span>
+                          <span className="xs:hidden">All</span>
+                          <span className="ml-1">({videoResults.length + userResults.length})</span>
                         </TabsTrigger>
-                        <TabsTrigger value="videos" className="gap-2">
-                          <Video className="h-4 w-4" />
-                          Videos ({videoResults.length})
+                        <TabsTrigger value="videos" className="gap-1 sm:gap-2 px-2 sm:px-4">
+                          <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Videos</span>
+                          <span className="xs:hidden">Vids</span>
+                          <span className="ml-1">({videoResults.length})</span>
                         </TabsTrigger>
                         <TabsTrigger value="users" className="gap-2">
                           <User className="h-4 w-4" />

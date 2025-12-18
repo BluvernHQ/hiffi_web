@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import {
   Home,
-  TrendingUp,
   UserCheck,
   Video,
   // Compass,
@@ -23,8 +22,8 @@ interface SidebarProps {
   className?: string
   isMobileOpen?: boolean
   onMobileClose?: () => void
-  currentFilter?: 'all' | 'trending' | 'following'
-  onFilterChange?: (filter: 'all' | 'trending' | 'following') => void
+  currentFilter?: 'all' | 'following'
+  onFilterChange?: (filter: 'all' | 'following') => void
 }
 
 export function Sidebar({ className, isMobileOpen = false, onMobileClose, currentFilter = 'all', onFilterChange }: SidebarProps) {
@@ -50,9 +49,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
   const mainNavItems: Array<{ icon: typeof Home; label: string; href: string }> = []
 
   const filterItems = [
-    { icon: Home, label: "Home", value: "all" as const },
-    { icon: TrendingUp, label: "Trending", value: "trending" as const },
-    { icon: UserCheck, label: "Following", value: "following" as const, requireAuth: true },
+    { icon: Home, label: "Home", value: "all" as const, href: "/" },
+    { icon: UserCheck, label: "Following", value: "following" as const, href: "/following", requireAuth: true },
   ]
 
   // Commented out as requested
@@ -87,19 +85,19 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
 
   const FilterItem = ({ item }: { item: typeof filterItems[0] }) => {
     const Icon = item.icon
-    const isActive = currentFilter === item.value && isHomePage
     const isDisabled = item.requireAuth && !user
+    const isFollowingPage = pathname === "/following"
+    const isActive = item.href === "/following" ? isFollowingPage : (currentFilter === item.value && isHomePage)
 
     if (isDisabled) return null
 
-    // If on home page and filter callback is provided, use it
-    // Otherwise, navigate to home page - filter will be handled there
+    // Navigate to the proper route
     const handleClick = () => {
-      if (isHomePage && onFilterChange) {
+      if (item.href) {
+        router.push(item.href)
+      } else if (isHomePage && onFilterChange) {
+        // Fallback for home page filters
         onFilterChange(item.value)
-      } else {
-        // Navigate to home page - home page will handle filter state
-        router.push("/")
       }
       closeSidebar()
     }
@@ -132,11 +130,13 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
       <aside
         className={cn(
           // Base styles - desktop: sticky fixed position
-          "w-64 flex-shrink-0 border-r bg-background",
+          "w-64 flex-shrink-0 bg-background",
           // Mobile: fixed overlay (taken out of flow)
           "fixed left-0 top-0 z-40 h-screen shadow-lg transition-transform duration-300 ease-in-out",
           // Desktop: sticky positioning (fixed to viewport, doesn't scroll with page)
+          // top-16 matches navbar height (h-16 = 4rem) to position directly below navbar with no gap
           "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:translate-x-0 lg:overflow-y-auto",
+          // Remove border to eliminate white space gap
           // Hide on mobile when closed, always visible on desktop
           !mobileOpen && "-translate-x-full lg:translate-x-0",
           className
@@ -156,7 +156,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
             </Button>
           </div>
 
-          <nav className="space-y-1 p-4 lg:pt-6">
+          <nav className="space-y-1 p-4 lg:p-4 lg:pt-4">
             {/* Main navigation items */}
             {mainNavItems.length > 0 && (
               <div className="space-y-1">

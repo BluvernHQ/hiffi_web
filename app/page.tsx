@@ -1,30 +1,143 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
 import { VideoGrid } from "@/components/video/video-grid"
-import { FollowingEmptyState } from "@/components/video/following-empty-state"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { getSeed } from "@/lib/seed-manager"
 
-type FilterType = 'all' | 'trending' | 'following'
+type FilterType = 'all'
 
 const VIDEOS_PER_PAGE = 10
+const STORAGE_KEY = 'hiffi_home_state'
+const SCROLL_KEY = 'hiffi_home_scroll'
 
-export default function HomePage() {
+// Validate filter type
+function isValidFilter(filter: string | null): filter is FilterType {
+  return filter === 'all'
+}
+
+// State persistence helpers
+function saveStateToStorage(videos: any[], offset: number, hasMore: boolean, filter: FilterType) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      videos,
+      offset,
+      hasMore,
+      filter,
+      timestamp: Date.now()
+    }))
+  } catch (error) {
+    console.error('[hiffi] Failed to save state to storage:', error)
+  }
+}
+
+function loadStateFromStorage(filter: FilterType): { videos: any[], offset: number, hasMore: boolean } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY)
+    if (!stored) return null
+    
+    const state = JSON.parse(stored)
+    // Only restore if filter matches and state is recent (within 5 minutes)
+    const age = Date.now() - (state.timestamp || 0)
+    if (state.filter === filter && age < 5 * 60 * 1000) {
+      return {
+        videos: state.videos || [],
+        offset: state.offset || 0,
+        hasMore: state.hasMore !== undefined ? state.hasMore : true
+      }
+    }
+  } catch (error) {
+    console.error('[hiffi] Failed to load state from storage:', error)
+  }
+  return null
+}
+
+function saveScrollPosition() {
+  if (typeof window === 'undefined') return
+  try {
+    const scrollY = window.scrollY || document.documentElement.scrollTop
+    sessionStorage.setItem(SCROLL_KEY, scrollY.toString())
+  } catch (error) {
+    console.error('[hiffi] Failed to save scroll position:', error)
+  }
+}
+
+function restoreScrollPosition() {
+  if (typeof window === 'undefined') return
+  try {
+    const savedScroll = sessionStorage.getItem(SCROLL_KEY)
+    if (savedScroll) {
+      const scrollY = parseInt(savedScroll, 10)
+      if (!isNaN(scrollY) && scrollY >= 0) {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: scrollY, behavior: 'auto' })
+          }
+        })
+      }
+    }
+  } catch (error) {
+    console.error('[hiffi] Failed to restore scroll position:', error)
+  }
+}
+
+function HomePageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [currentFilter, setCurrentFilter] = useState<FilterType>('all')
-  const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set())
-  const [loadingFollowing, setLoadingFollowing] = useState(false)
   const [isFetching, setIsFetching] = useState(false) // Prevent duplicate requests
   const { user, userData } = useAuth()
+
+  // Initialize filter from URL or default to 'all'
+  const getFilterFromUrl = (): FilterType => {
+    try {
+      const filterParam = searchParams?.get('filter')
+      return isValidFilter(filterParam) ? filterParam : 'all'
+    } catch (error) {
+      console.error('[hiffi] Error getting filter from URL:', error)
+      return 'all'
+    }
+  }
+
+  // Home page always shows 'all' videos - no filters needed
+  const currentFilter: FilterType = 'all'
+
+  // Save scroll position on scroll
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    const handleScroll = () => {
+      saveScrollPosition()
+    }
+    
+    // Throttle scroll events to avoid excessive storage writes
+    let timeoutId: NodeJS.Timeout | null = null
+    const throttledHandleScroll = () => {
+      if (timeoutId) return
+      timeoutId = setTimeout(() => {
+        handleScroll()
+        timeoutId = null
+      }, 100)
+    }
+    
+    window.addEventListener('scroll', throttledHandleScroll, { passive: true })
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      window.removeEventListener('scroll', throttledHandleScroll)
+    }
+  }, [])
 
   const fetchVideos = async (currentOffset: number, isInitialLoad: boolean = false) => {
     // Prevent duplicate requests
@@ -61,13 +174,25 @@ export default function HomePage() {
       if (currentOffset === 0) {
         // Initial load - replace videos
         setVideos(videosArray)
+        setOffset(0)
+        // Save state after initial load
+        setTimeout(() => {
+          saveStateToStorage(videosArray, videosArray.length, videosArray.length === VIDEOS_PER_PAGE, currentFilter)
+        }, 0)
       } else {
         // Append new videos to existing ones
         setVideos((prev) => {
           // Prevent duplicates by checking video IDs
-          const existingIds = new Set(prev.map(v => v.videoId || v.video_id))
-          const newVideos = videosArray.filter(v => !existingIds.has(v.videoId || v.video_id))
-          return [...prev, ...newVideos]
+          const existingIds = new Set(prev.map(v => (v as any).videoId || (v as any).video_id))
+          const newVideos = videosArray.filter(v => !existingIds.has((v as any).videoId || (v as any).video_id))
+          const updatedVideos = [...prev, ...newVideos]
+          const newOffset = prev.length + newVideos.length
+          setOffset(newOffset)
+          // Save updated state
+          setTimeout(() => {
+            saveStateToStorage(updatedVideos, newOffset, videosArray.length === VIDEOS_PER_PAGE, currentFilter)
+          }, 0)
+          return updatedVideos
         })
       }
 
@@ -90,6 +215,10 @@ export default function HomePage() {
         // Set empty array on error for initial load
         setVideos([])
         setHasMore(false)
+        // Clear saved state on error
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(STORAGE_KEY)
+        }
       }
     } finally {
       setLoading(false)
@@ -98,70 +227,55 @@ export default function HomePage() {
     }
   }
 
-  // Fetch following list when user is logged in and filter is 'following'
-  const fetchFollowingList = async () => {
-    if (!userData?.username) return
 
+  // Initial load on mount - try to restore from storage first
+  useEffect(() => {
     try {
-      setLoadingFollowing(true)
-      // Get current user's following list (private endpoint - no username parameter)
-      const response = await apiClient.getFollowingList(100, 0)
-      if (response.success && response.following) {
-        const followingArray = response.following
-        const followingSet = new Set(
-          followingArray.map((follow: any) => follow.followed_to)
-        )
-        setFollowedUsers(followingSet)
+      const restoredState = loadStateFromStorage('all')
+      
+      if (restoredState) {
+        // Restore state from sessionStorage
+        console.log('[hiffi] Restoring state from storage:', {
+          videos: restoredState.videos.length,
+          offset: restoredState.offset,
+          hasMore: restoredState.hasMore
+        })
+        setVideos(restoredState.videos)
+        setOffset(restoredState.offset)
+        setHasMore(restoredState.hasMore)
+        setLoading(false)
+        
+        // Restore scroll position after a short delay to ensure DOM is ready
+        setTimeout(() => {
+          restoreScrollPosition()
+        }, 100)
       } else {
-        setFollowedUsers(new Set())
+        // No saved state, fetch fresh
+        setOffset(0)
+        setHasMore(true)
+        setVideos([])
+        fetchVideos(0, true)
       }
     } catch (error) {
-      console.error("[hiffi] Failed to fetch following list:", error)
-      setFollowedUsers(new Set())
-    } finally {
-      setLoadingFollowing(false)
-    }
-  }
-
-  // Initial load on mount
-  useEffect(() => {
-    if (currentFilter === 'all') {
+      console.error('[hiffi] Error in initial load:', error)
+      // Fallback to fresh fetch on error
       setOffset(0)
       setHasMore(true)
       setVideos([])
+      setLoading(false)
       fetchVideos(0, true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reset and fetch videos when filter changes
-  useEffect(() => {
-    setOffset(0)
-    setHasMore(true)
-    setVideos([])
-    if (currentFilter === 'all') {
-    fetchVideos(0, true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilter])
 
-  // Fetch following list when filter changes to 'following' and user is logged in
-  useEffect(() => {
-    if (currentFilter === 'following' && userData?.username) {
-      fetchFollowingList()
-    } else {
-      setFollowedUsers(new Set())
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilter, userData?.username])
 
   const loadMoreVideos = () => {
     // Only load more if:
     // 1. Not currently loading (initial or more)
     // 2. Not already fetching
     // 3. There are more videos available
-    // 4. Filter is 'all' (pagination only works for all videos)
-    if (!loading && !loadingMore && !isFetching && hasMore && currentFilter === 'all') {
+    if (!loading && !loadingMore && !isFetching && hasMore) {
       // Offset should be the number of items to skip, not page number
       // Calculate next offset based on current number of videos loaded
       const nextOffset = videos.length
@@ -173,29 +287,9 @@ export default function HomePage() {
     }
   }
 
-  // Get filtered/sorted videos based on current filter
-  const getDisplayVideos = () => {
-    switch (currentFilter) {
-      case 'trending':
-        return [...videos].sort((a, b) => (b.video_views || b.videoViews || 0) - (a.video_views || a.videoViews || 0))
-      case 'following':
-        if (!userData?.username || followedUsers.size === 0) {
-          return []
-        }
-        // Filter videos to only show those from followed users
-        return videos.filter((video) => {
-          const videoUsername = video.user_username || video.userUsername
-          return videoUsername && followedUsers.has(videoUsername)
-        })
-      default:
-        return videos
-    }
-  }
-
-  const displayVideos = getDisplayVideos()
-  const shouldShowLoadMore = currentFilter === 'all' && hasMore
-  // Show loading state: initial load OR loading more OR loading following list
-  const isLoadingVideos = loading || loadingMore || (currentFilter === 'following' && loadingFollowing)
+  const displayVideos = videos
+  const shouldShowLoadMore = hasMore
+  const isLoadingVideos = loading || loadingMore
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -203,62 +297,70 @@ export default function HomePage() {
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
         currentFilter={currentFilter}
       />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden gap-0">
         <Sidebar 
           isMobileOpen={isSidebarOpen} 
           onMobileClose={() => setIsSidebarOpen(false)}
           currentFilter={currentFilter}
-          onFilterChange={setCurrentFilter}
         />
         <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 h-[calc(100vh-4rem)]">
-          <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+          <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div>
                   <div className="flex items-center justify-between mb-1 sm:justify-start">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Discover</h1>
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
                   </div>
-                  {currentFilter !== 'all' && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {currentFilter === 'trending' && 'Most viewed videos'}
-                      {currentFilter === 'following' && 'Videos from users you follow'}
-                    </p>
-                  )}
                 </div>
               </div>
 
               {/* Video count indicator (optional, subtle) */}
               {displayVideos.length > 0 && !loading && (
-                <div className="text-xs text-muted-foreground mb-4 text-center sm:text-left">
+                <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 text-center sm:text-left">
                   Showing {displayVideos.length} {displayVideos.length === 1 ? 'video' : 'videos'}
-                  {currentFilter === 'all' && hasMore && ' • Scroll for more'}
+                  {hasMore && ' • Scroll for more'}
                 </div>
               )}
 
-              {/* Show custom empty state for Following filter */}
-              {currentFilter === 'following' && !isLoadingVideos && displayVideos.length === 0 ? (
-                <FollowingEmptyState 
-                  hasFollowedUsers={followedUsers.size > 0}
-                  onDiscoverClick={() => setCurrentFilter('all')}
-                />
-              ) : (
-                <VideoGrid 
-                  videos={displayVideos} 
-                  loading={isLoadingVideos} 
-                  hasMore={shouldShowLoadMore} 
-                  onLoadMore={currentFilter === 'all' ? loadMoreVideos : undefined} 
-                  onVideoDeleted={(videoId) => {
-                    // Remove deleted video from the list
-                    setVideos((prev) => 
-                      prev.filter((v) => (v.videoId || v.video_id) !== videoId)
-                    )
-                  }}
-                />
-              )}
+              <VideoGrid 
+                videos={displayVideos} 
+                loading={isLoadingVideos} 
+                hasMore={shouldShowLoadMore} 
+                onLoadMore={loadMoreVideos}
+                onVideoDeleted={(videoId) => {
+                  // Remove deleted video from the list
+                  setVideos((prev) => 
+                    prev.filter((v) => ((v as any).videoId || (v as any).video_id) !== videoId)
+                  )
+                }}
+              />
             </div>
           </div>
         </main>
       </div>
     </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col">
+        <Navbar onMenuClick={() => {}} />
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 h-[calc(100vh-4rem)]">
+            <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex items-center justify-center min-h-[60vh]">
+                  <div className="text-muted-foreground">Loading...</div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    }>
+      <HomePageContent />
+    </Suspense>
   )
 }
