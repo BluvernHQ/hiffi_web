@@ -38,7 +38,6 @@ export function AdminVideosTable() {
 
   // Filter state
   const [filters, setFilters] = useState({
-    video_id: "",
     video_title: "",
     video_description: "",
     user_username: "",
@@ -68,7 +67,6 @@ export function AdminVideosTable() {
       const params: any = { limit, offset }
       
       console.log("[admin] Fetching videos:", { page, limit, offset })
-      if (filters.video_id) params.video_id = filters.video_id
       if (filters.video_title) params.video_title = filters.video_title
       if (filters.video_description) params.video_description = filters.video_description
       if (filters.user_username) params.user_username = filters.user_username
@@ -182,7 +180,6 @@ export function AdminVideosTable() {
 
   const clearFilters = () => {
     setFilters({
-      video_id: "",
       video_title: "",
       video_description: "",
       user_username: "",
@@ -266,14 +263,6 @@ export function AdminVideosTable() {
               placeholder="Filter by title..."
               value={filters.video_title}
               onChange={(e) => handleFilterChange("video_title", e.target.value)}
-            />
-          </FilterField>
-          <FilterField label="Video ID" htmlFor="video_id">
-            <Input
-              id="video_id"
-              placeholder="Filter by video ID..."
-              value={filters.video_id}
-              onChange={(e) => handleFilterChange("video_id", e.target.value)}
             />
           </FilterField>
           <FilterField label="Description" htmlFor="video_description">

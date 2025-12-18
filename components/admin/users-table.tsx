@@ -41,7 +41,6 @@ export function AdminUsersTable() {
     username: "",
     name: "",
     role: "",
-    uid: "",
     followers_min: "",
     followers_max: "",
     following_min: "",
@@ -67,7 +66,6 @@ export function AdminUsersTable() {
       if (filters.username) params.username = filters.username
       if (filters.name) params.name = filters.name
       if (filters.role) params.role = filters.role
-      if (filters.uid) params.uid = filters.uid
       if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
       if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
       if (filters.following_min) params.following_min = parseInt(filters.following_min)
@@ -183,7 +181,6 @@ export function AdminUsersTable() {
       username: "",
       name: "",
       role: "",
-      uid: "",
       followers_min: "",
       followers_max: "",
       following_min: "",
@@ -265,14 +262,6 @@ export function AdminUsersTable() {
               placeholder="Filter by name..."
               value={filters.name}
               onChange={(e) => handleFilterChange("name", e.target.value)}
-            />
-          </FilterField>
-          <FilterField label="UID" htmlFor="uid">
-            <Input
-              id="uid"
-              placeholder="Filter by UID..."
-              value={filters.uid}
-              onChange={(e) => handleFilterChange("uid", e.target.value)}
             />
           </FilterField>
           <FilterField label="Role" htmlFor="role">

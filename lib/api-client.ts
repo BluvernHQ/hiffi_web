@@ -538,6 +538,61 @@ class ApiClient {
     }
   }
 
+  // Get profile photo upload URL
+  // POST /users/profile-photo/upload - Get pre-signed URL for uploading profile photo
+  async getProfilePhotoUploadUrl(): Promise<{
+    success: boolean
+    gateway_url: string
+    path: string
+    message?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        gateway_url?: string
+        path?: string
+        message?: string
+      }
+      gateway_url?: string
+      path?: string
+      message?: string
+    }>(
+      "/users/profile-photo/upload",
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+      true,
+    )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { gateway_url: "...", path: "...", message: "..." } }
+    // or: { status: "success", gateway_url: "...", path: "...", message: "..." }
+    const isSuccess = response.status === "success" || response.success
+    
+    if (isSuccess) {
+      const gatewayUrl = response.data?.gateway_url || response.gateway_url || ""
+      const path = response.data?.path || response.path || ""
+      
+      if (!gatewayUrl || gatewayUrl.trim() === "") {
+        throw new Error("Profile photo upload URL is missing from response. Please try again.")
+      }
+      if (!path || path.trim() === "") {
+        throw new Error("Profile photo path is missing from response. Please try again.")
+      }
+      
+      return {
+        success: true,
+        gateway_url: gatewayUrl,
+        path: path,
+        message: response.data?.message || response.message,
+      }
+    }
+    
+    throw new Error(response.message || "Failed to get profile photo upload URL")
+  }
+
   // Update user profile - officially supports: name, profile_picture
   // Note: Some backends may accept additional fields like role, but this is not documented
   async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user: any }> {
@@ -2064,6 +2119,114 @@ class ApiClient {
       offset: params.offset || 0,
       count: 0,
       filter: params.filter,
+    }
+  }
+
+  // Admin endpoints - Get Counters
+  // GET /admin/counters - Get platform statistics counters
+  async adminCounters(noCache = false): Promise<{
+    success: boolean
+    counters: {
+      users: number
+      videos: number
+      comments: number
+      replies: number
+      upvotes: number
+      downvotes: number
+      views?: number
+      watch_hours?: number
+      updated_at: string
+    }
+  }> {
+    let endpoint = "/admin/counters"
+    // Add cache-busting query parameter if requested
+    if (noCache) {
+      endpoint += `?t=${Date.now()}`
+    }
+    
+    const headers: Record<string, string> = {}
+    if (noCache) {
+      headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+      headers["Pragma"] = "no-cache"
+      headers["Expires"] = "0"
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        counters?: {
+          users?: number
+          videos?: number
+          comments?: number
+          replies?: number
+          upvotes?: number
+          downvotes?: number
+          views?: number
+          watch_hours?: number
+          updated_at?: string
+        }
+      }
+      counters?: {
+        users?: number
+        videos?: number
+        comments?: number
+        replies?: number
+        upvotes?: number
+        downvotes?: number
+        views?: number
+        watch_hours?: number
+        updated_at?: string
+      }
+    }>(endpoint, { method: "GET", headers }, true)
+    
+    // Handle both response formats: {"success":true,"data":{counters:{...}}} and {"status":"success",counters:{...}}
+    if (response.success && response.data?.counters) {
+      return {
+        success: true,
+        counters: {
+          users: response.data.counters.users || 0,
+          videos: response.data.counters.videos || 0,
+          comments: response.data.counters.comments || 0,
+          replies: response.data.counters.replies || 0,
+          upvotes: response.data.counters.upvotes || 0,
+          downvotes: response.data.counters.downvotes || 0,
+          views: response.data.counters.views,
+          watch_hours: response.data.counters.watch_hours,
+          updated_at: response.data.counters.updated_at || new Date().toISOString(),
+        },
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      const counters = response.counters || response.data?.counters || {}
+      return {
+        success: true,
+        counters: {
+          users: counters.users || 0,
+          videos: counters.videos || 0,
+          comments: counters.comments || 0,
+          replies: counters.replies || 0,
+          upvotes: counters.upvotes || 0,
+          downvotes: counters.downvotes || 0,
+          views: counters.views,
+          watch_hours: counters.watch_hours,
+          updated_at: counters.updated_at || new Date().toISOString(),
+        },
+      }
+    }
+    
+    return {
+      success: false,
+      counters: {
+        users: 0,
+        videos: 0,
+        comments: 0,
+        replies: 0,
+        upvotes: 0,
+        downvotes: 0,
+        updated_at: new Date().toISOString(),
+      },
     }
   }
 

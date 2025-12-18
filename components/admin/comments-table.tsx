@@ -33,8 +33,48 @@ export function AdminCommentsTable() {
   const [commentToDelete, setCommentToDelete] = useState<any>(null)
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  const [videoNames, setVideoNames] = useState<Record<string, string>>({})
+  const [loadingVideos, setLoadingVideos] = useState(false)
   const { toast } = useToast()
   const limit = 20
+
+  const fetchVideoNames = async (videoIds: string[]) => {
+    if (videoIds.length === 0) return
+    
+    try {
+      setLoadingVideos(true)
+      const videoNameMap: Record<string, string> = {}
+      
+      // Fetch video details for each unique video ID
+      await Promise.all(
+        videoIds.map(async (videoId) => {
+          try {
+            const videoResponse = await apiClient.adminListVideos({ 
+              video_id: videoId, 
+              limit: 1 
+            })
+            
+            if (videoResponse.videos && videoResponse.videos.length > 0) {
+              const video = videoResponse.videos[0]
+              const title = video.video_title || video.videoTitle || "Untitled Video"
+              videoNameMap[videoId] = title
+            } else {
+              videoNameMap[videoId] = "Video Not Found"
+            }
+          } catch (error) {
+            console.error(`[admin] Failed to fetch video ${videoId}:`, error)
+            videoNameMap[videoId] = "Error Loading"
+          }
+        })
+      )
+      
+      setVideoNames((prev) => ({ ...prev, ...videoNameMap }))
+    } catch (error) {
+      console.error("[admin] Failed to fetch video names:", error)
+    } finally {
+      setLoadingVideos(false)
+    }
+  }
 
   const fetchComments = async () => {
     try {
@@ -52,11 +92,11 @@ export function AdminCommentsTable() {
           let bValue: any = b[sortKey]
           
           // Handle nested properties
-          if (sortKey === "replies_count") aValue = a.replies_count || a.repliesCount || 0
-          if (sortKey === "created_at") aValue = (a.created_at || a.createdAt) ? new Date(a.created_at || a.createdAt).getTime() : 0
+          if (sortKey === "total_replies") aValue = a.total_replies || a.totalReplies || 0
+          if (sortKey === "commented_at") aValue = (a.commented_at || a.commentedAt) ? new Date(a.commented_at || a.commentedAt).getTime() : 0
           
-          if (sortKey === "replies_count") bValue = b.replies_count || b.repliesCount || 0
-          if (sortKey === "created_at") bValue = (b.created_at || b.createdAt) ? new Date(b.created_at || b.createdAt).getTime() : 0
+          if (sortKey === "total_replies") bValue = b.total_replies || b.totalReplies || 0
+          if (sortKey === "commented_at") bValue = (b.commented_at || b.commentedAt) ? new Date(b.commented_at || b.commentedAt).getTime() : 0
           
           // Handle number comparison
           const comparison = (aValue || 0) - (bValue || 0)
@@ -66,6 +106,21 @@ export function AdminCommentsTable() {
       
       setComments(commentsData)
       setTotal(response.count || 0)
+      
+      // Extract unique video IDs and fetch their names
+      const uniqueVideoIds = Array.from(
+        new Set(
+          commentsData
+            .map((c) => c.commented_to || c.commentedTo)
+            .filter((id): id is string => !!id)
+        )
+      )
+      
+      // Only fetch videos we don't already have
+      const videosToFetch = uniqueVideoIds.filter((id) => !videoNames[id])
+      if (videosToFetch.length > 0) {
+        await fetchVideoNames(videosToFetch)
+      }
     } catch (error) {
       console.error("[admin] Failed to fetch comments:", error)
       toast({
@@ -146,7 +201,7 @@ export function AdminCommentsTable() {
           <FilterField 
             label="Filter Comments" 
             htmlFor="filter"
-            description="Search by comment_id, comment text, username, or video_id"
+            description="Search by comment text, username, or video name"
           >
             <Input
               id="filter"
@@ -201,14 +256,14 @@ export function AdminCommentsTable() {
                   <th className="h-12 px-4 text-left align-middle font-semibold text-sm">Video</th>
                   <SortableHeader
                     label="Replies"
-                    sortKey="replies_count"
+                    sortKey="total_replies"
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
                   />
                   <SortableHeader
                     label="Created"
-                    sortKey="created_at"
+                    sortKey="commented_at"
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
@@ -231,10 +286,12 @@ export function AdminCommentsTable() {
               ) : (
                 comments.map((comment) => {
                   const commentId = comment.comment_id || comment.commentId
-                  const videoId = comment.video_id || comment.videoId
+                  const videoId = comment.commented_to || comment.commentedTo
                   const username = comment.comment_by_username || comment.comment_by
                   const commentText = comment.comment || "N/A"
-                  const repliesCount = comment.replies_count || comment.repliesCount || 0
+                  const repliesCount = comment.total_replies || comment.totalReplies || 0
+                  const commentedAt = comment.commented_at || comment.commentedAt
+                  const videoName = videoId ? (videoNames[videoId] || (loadingVideos ? "Loading..." : "Loading...")) : null
 
                   return (
                     <tr key={commentId} className="border-b hover:bg-muted/50 transition-colors">
@@ -267,25 +324,25 @@ export function AdminCommentsTable() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="max-w-md">
-                          <p className="line-clamp-2">{commentText}</p>
+                          <p className="line-clamp-2 text-sm">{commentText}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         {videoId ? (
                           <Link
                             href={`/watch/${videoId}`}
-                            className="text-primary hover:underline"
+                            className="text-primary hover:underline font-medium text-sm"
                           >
-                            View Video
+                            {videoName || "Loading..."}
                           </Link>
                         ) : (
-                          "N/A"
+                          <span className="text-muted-foreground">N/A</span>
                         )}
                       </td>
                       <td className="px-4 py-3">{repliesCount}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {comment.created_at || comment.createdAt
-                          ? format(new Date(comment.created_at || comment.createdAt), "MMM d, yyyy")
+                        {commentedAt
+                          ? format(new Date(commentedAt), "MMM d, yyyy 'at' h:mm a")
                           : "N/A"}
                       </td>
                       <td className="px-4 py-3">

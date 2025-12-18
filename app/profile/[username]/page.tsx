@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { getSeed } from '@/lib/seed-manager';
-import { Edit, Share2, MapPin, LinkIcon, Calendar, UserPlus, UserCheck } from 'lucide-react';
+import { Edit, Share2, MapPin, LinkIcon, Calendar, UserPlus, UserCheck, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
@@ -34,6 +34,7 @@ export default function ProfilePage() {
   const [isFetching, setIsFetching] = useState(false);
   const [hasTriedFetch, setHasTriedFetch] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const VIDEOS_PER_PAGE = 10;
   
@@ -213,6 +214,100 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
+
+  const handleCopy = async () => {
+    // Ensure we're in a browser environment
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const profileUrl = `${window.location.origin}/profile/${username}`
+
+    try {
+      await navigator.clipboard.writeText(profileUrl)
+      setCopied(true)
+      toast({
+        title: "Link copied!",
+        description: "Profile link copied to clipboard",
+      })
+      
+      // Reset copied state after 2 seconds
+      setTimeout(() => {
+        setCopied(false)
+      }, 2000)
+    } catch (error) {
+      console.error("[hiffi] Clipboard error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to copy link. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleShare = async () => {
+    // Ensure we're in a browser environment
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const profileUrl = `${window.location.origin}/profile/${username}`
+    const shareData = {
+      title: `${profileUser?.name || profileUser?.username || username}'s Profile`,
+      text: `Check out ${profileUser?.name || profileUser?.username || username}'s profile on Hiffi`,
+      url: profileUrl,
+    }
+
+    try {
+      // Check if Web Share API is available (mobile devices)
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData)
+        toast({
+          title: "Shared!",
+          description: "Profile shared successfully",
+        })
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(profileUrl)
+        setCopied(true)
+        toast({
+          title: "Link copied!",
+          description: "Profile link copied to clipboard",
+        })
+        
+        // Reset copied state after 2 seconds
+        setTimeout(() => {
+          setCopied(false)
+        }, 2000)
+      }
+    } catch (error: any) {
+      // User cancelled share or error occurred
+      if (error.name !== 'AbortError') {
+        console.error("[hiffi] Share error:", error)
+        // Try fallback to clipboard if share failed
+        try {
+          await navigator.clipboard.writeText(profileUrl)
+          setCopied(true)
+          toast({
+            title: "Link copied!",
+            description: "Profile link copied to clipboard",
+          })
+          
+          // Reset copied state after 2 seconds
+          setTimeout(() => {
+            setCopied(false)
+          }, 2000)
+        } catch (clipboardError) {
+          console.error("[hiffi] Clipboard error:", clipboardError)
+          toast({
+            title: "Error",
+            description: "Failed to share profile. Please try again.",
+            variant: "destructive",
+          })
+        }
+      }
+    }
+  }
 
   const handleFollow = async () => {
     if (!currentUserData) {
@@ -461,7 +556,26 @@ export default function ProfilePage() {
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Profile
                     </Button>
-                    <Button variant="outline" size="icon" className="flex-shrink-0">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="flex-shrink-0"
+                      onClick={handleCopy}
+                      aria-label="Copy profile link"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="flex-shrink-0"
+                      onClick={handleShare}
+                      aria-label="Share profile"
+                    >
                       <Share2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -601,6 +715,7 @@ export default function ProfilePage() {
             currentBio={profileUser.bio || ""}
             currentLocation={profileUser.location || ""}
             currentWebsite={profileUser.website || ""}
+            currentProfilePicture={profileUser.profile_picture || ""}
             onProfileUpdated={fetchUserData}
           />
         )}
@@ -716,7 +831,26 @@ export default function ProfilePage() {
                       )}
                     </Button>
                   )}
-                  <Button variant="outline" size="icon" className="flex-shrink-0">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="flex-shrink-0"
+                    onClick={handleCopy}
+                    aria-label="Copy profile link"
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="flex-shrink-0"
+                    onClick={handleShare}
+                    aria-label="Share profile"
+                  >
                     <Share2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -823,6 +957,7 @@ export default function ProfilePage() {
           currentBio={profileUser.bio || ""}
           currentLocation={profileUser.location || ""}
           currentWebsite={profileUser.website || ""}
+          currentProfilePicture={profileUser.profile_picture || ""}
           onProfileUpdated={fetchUserData}
         />
       )}

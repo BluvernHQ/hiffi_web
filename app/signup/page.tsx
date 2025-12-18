@@ -12,19 +12,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Check, X } from "lucide-react"
+import { Loader2, Check, X, Eye, EyeOff } from "lucide-react"
 
 export default function SignupPage() {
   const [name, setName] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [nameError, setNameError] = useState("")
+  const [usernameError, setUsernameError] = useState("")
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const { signup, user, loading: authLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+
+  // Validation regex patterns
+  const nameRegex = /^[a-zA-Z\s]*$/ // Only letters and spaces
+  const usernameRegex = /^[a-z0-9_]*$/ // Lowercase letters, numbers, and underscores only
 
   // Redirect to home if already logged in
   useEffect(() => {
@@ -33,9 +40,34 @@ export default function SignupPage() {
     }
   }, [user, authLoading, router])
 
+  // Validate full name
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    // Only allow letters and spaces
+    if (value === "" || nameRegex.test(value)) {
+      setName(value)
+      setNameError("")
+    } else {
+      setNameError("Full name must contain only letters and spaces")
+    }
+  }
+
+  // Validate username format and check availability
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase()
+    // Only allow lowercase letters, numbers, and underscores
+    if (value === "" || usernameRegex.test(value)) {
+      setUsername(value)
+      setUsernameError("")
+    } else {
+      setUsernameError("Username can only contain lowercase letters, numbers, and underscores")
+    }
+  }
+
   // Check username availability
   useEffect(() => {
-    if (username.length < 3) {
+    // Reset availability if username doesn't meet requirements
+    if (username.length < 3 || username.length > 30 || !usernameRegex.test(username)) {
       setUsernameAvailable(null)
       return
     }
@@ -82,6 +114,35 @@ export default function SignupPage() {
     setIsLoading(true)
     setError("")
 
+    // Validate full name
+    if (!name.trim()) {
+      setNameError("Full name is required")
+      setIsLoading(false)
+      return
+    }
+    if (!nameRegex.test(name.trim())) {
+      setNameError("Full name must contain only letters and spaces")
+      setIsLoading(false)
+      return
+    }
+
+    // Validate username format
+    if (username.length < 3) {
+      setUsernameError("Username must be at least 3 characters")
+      setIsLoading(false)
+      return
+    }
+    if (username.length > 30) {
+      setUsernameError("Username must be no more than 30 characters")
+      setIsLoading(false)
+      return
+    }
+    if (!usernameRegex.test(username)) {
+      setUsernameError("Username can only contain lowercase letters, numbers, and underscores")
+      setIsLoading(false)
+      return
+    }
+
     if (!usernameAvailable) {
       setError("Username is not available")
       setIsLoading(false)
@@ -89,7 +150,7 @@ export default function SignupPage() {
     }
 
     try {
-      await signup(username, password, name)
+      await signup(username, password, name.trim())
     } catch (err: any) {
       const errorMessage = err.message || "Something went wrong. Please try again."
       const errorStatus = err.status || 0
@@ -153,9 +214,16 @@ export default function SignupPage() {
                   id="name"
                   placeholder="John Doe"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={handleNameChange}
                   required
+                  className={nameError ? "border-destructive" : ""}
                 />
+                {nameError && (
+                  <p className="text-xs text-destructive">{nameError}</p>
+                )}
+                {!nameError && name && (
+                  <p className="text-xs text-muted-foreground">Letters and spaces only</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
@@ -164,11 +232,13 @@ export default function SignupPage() {
                     id="username"
                     placeholder="johndoe"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    onChange={handleUsernameChange}
                     required
-                    className="pr-10"
+                    className={`pr-10 ${usernameError ? "border-destructive" : ""}`}
+                    minLength={3}
+                    maxLength={30}
                   />
-                  {username.length >= 3 && (
+                  {username.length >= 3 && username.length <= 30 && usernameRegex.test(username) && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       {checkingUsername ? (
                         <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -180,29 +250,66 @@ export default function SignupPage() {
                     </div>
                   )}
                 </div>
-                {username.length >= 3 && !checkingUsername && (
+                {usernameError && (
+                  <p className="text-xs text-destructive">{usernameError}</p>
+                )}
+                {!usernameError && username.length >= 3 && username.length <= 30 && usernameRegex.test(username) && !checkingUsername && (
                   <p className={`text-xs ${usernameAvailable ? "text-green-500" : "text-destructive"}`}>
                     {usernameAvailable ? "Username is available" : "Username is taken"}
+                  </p>
+                )}
+                {!usernameError && username && username.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {username.length < 3 
+                      ? `${3 - username.length} more characters needed (3-30 chars, lowercase letters, numbers, underscores)` 
+                      : username.length > 30
+                      ? "Username too long (max 30 characters)"
+                      : "Lowercase letters, numbers, and underscores only"}
                   </p>
                 )}
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading || checkingUsername || username.length < 3 || usernameAvailable === false}
+              disabled={
+                isLoading || 
+                checkingUsername || 
+                !!nameError ||
+                !!usernameError ||
+                !name.trim() ||
+                username.length < 3 || 
+                username.length > 30 ||
+                (username.length > 0 && !usernameRegex.test(username)) ||
+                usernameAvailable === false
+              }
             >
               {isLoading ? (
                 <>

@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Check, X } from "lucide-react"
+import { Loader2, Camera, X } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/utils"
 
 interface EditProfileDialogProps {
   open: boolean
@@ -20,6 +22,7 @@ interface EditProfileDialogProps {
   currentBio?: string
   currentLocation?: string
   currentWebsite?: string
+  currentProfilePicture?: string
   onProfileUpdated?: () => void
 }
 
@@ -31,16 +34,19 @@ export function EditProfileDialog({
   currentBio = "",
   currentLocation = "",
   currentWebsite = "",
+  currentProfilePicture = "",
   onProfileUpdated,
 }: EditProfileDialogProps) {
   const [name, setName] = useState(currentName)
-  const [username, setUsername] = useState(currentUsername)
   const [bio, setBio] = useState(currentBio)
   const [location, setLocation] = useState(currentLocation)
   const [website, setWebsite] = useState(currentWebsite)
   const [isLoading, setIsLoading] = useState(false)
-  const [checkingUsername, setCheckingUsername] = useState(false)
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { refreshUserData } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
@@ -49,51 +55,76 @@ export function EditProfileDialog({
   useEffect(() => {
     if (open) {
       setName(currentName)
-      setUsername(currentUsername)
       setBio(currentBio || "")
       setLocation(currentLocation || "")
       setWebsite(currentWebsite || "")
-      setUsernameAvailable(null)
+      setSelectedImage(null)
+      setImagePreview(null)
+      setUploadProgress(0)
     }
-  }, [open, currentName, currentUsername, currentBio, currentLocation, currentWebsite])
+  }, [open, currentName, currentBio, currentLocation, currentWebsite, currentProfilePicture])
 
-  // Check username availability
-  useEffect(() => {
-    // Don't check if username hasn't changed or is empty
-    if (username === currentUsername || username.length < 3) {
-      setUsernameAvailable(null)
+  // Force refresh of profile picture when currentProfilePicture changes
+  // Use a combination of the path and timestamp to ensure fresh image loads
+  const getProfilePictureKey = () => {
+    if (!currentProfilePicture) return 0
+    // Use path + timestamp to create unique key for cache busting
+    return `${currentProfilePicture}-${Date.now()}`
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type - only JPG allowed
+    const validTypes = ['image/jpeg', 'image/jpg']
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      toast({
+        title: "Invalid file type",
+        description: "Only JPG images are allowed for profile photos.",
+        variant: "destructive",
+      })
       return
     }
 
-    setCheckingUsername(true)
-    const timer = setTimeout(async () => {
-      try {
-        const result = await apiClient.checkUsernameAvailability(username)
-        if (result.success && result.data) {
-          setUsernameAvailable(result.data.available)
-        } else {
-          setUsernameAvailable(false)
-        }
-      } catch (error) {
-        console.error("[hiffi] Username check failed:", error)
-        setUsernameAvailable(null)
-      } finally {
-        setCheckingUsername(false)
-      }
-    }, 500)
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Profile photo must be less than 10MB.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    return () => clearTimeout(timer)
-  }, [username, currentUsername])
+    setSelectedImage(file)
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validate that at least one field has changed
     const nameChanged = name.trim() !== currentName.trim()
-    const usernameChanged = username.toLowerCase() !== currentUsername.toLowerCase()
     const bioChanged = bio.trim() !== (currentBio || "").trim()
+    const imageChanged = selectedImage !== null
     
-    if (!nameChanged && !usernameChanged && !bioChanged) {
+    if (!nameChanged && !bioChanged && !imageChanged) {
       toast({
         title: "No changes",
         description: "Please make at least one change before saving.",
@@ -102,62 +133,89 @@ export function EditProfileDialog({
       return
     }
 
-    // Validate username if it changed
-    if (usernameChanged) {
-      if (username.length < 3) {
-        toast({
-          title: "Invalid username",
-          description: "Username must be at least 3 characters long.",
-          variant: "destructive",
-        })
-        return
-      }
-
-      if (!usernameAvailable) {
-        toast({
-          title: "Username unavailable",
-          description: "This username is already taken. Please choose another one.",
-          variant: "destructive",
-        })
-        return
-      }
-    }
-
     setIsLoading(true)
+    let uploadedImagePath: string | undefined = undefined
 
     try {
-      // Prepare update data - only include changed fields
-      const updateData: { name?: string; username?: string; bio?: string } = {}
+      // Upload profile photo if selected
+      if (selectedImage) {
+        setUploadingImage(true)
+        setUploadProgress(0)
+
+        try {
+          // Step 1: Get upload URL
+          const uploadUrlResponse = await apiClient.getProfilePhotoUploadUrl()
+          if (!uploadUrlResponse.success || !uploadUrlResponse.gateway_url || !uploadUrlResponse.path) {
+            throw new Error("Failed to get upload URL")
+          }
+
+          // Step 2: Upload image to gateway URL
+          setUploadProgress(25)
+          await apiClient.uploadFile(uploadUrlResponse.gateway_url, selectedImage, (progress) => {
+            // Progress from 25% to 90% (25% + 65% of upload)
+            setUploadProgress(25 + (progress * 0.65))
+          })
+
+          setUploadProgress(90)
+          uploadedImagePath = uploadUrlResponse.path
+          setUploadProgress(100)
+        } catch (error: any) {
+          console.error("[hiffi] Failed to upload profile photo:", error)
+          toast({
+            title: "Upload failed",
+            description: error.message || "Failed to upload profile photo. Please try again.",
+            variant: "destructive",
+          })
+          setUploadingImage(false)
+          setIsLoading(false)
+          return
+        } finally {
+          setUploadingImage(false)
+          setUploadProgress(0)
+        }
+      }
+
+      // Update user profile using updateSelf (all updates go through /users/self)
+      const updateData: { name?: string; profile_picture?: string; bio?: string } = {}
+      
       if (nameChanged) {
         updateData.name = name.trim()
       }
-      if (usernameChanged) {
-        updateData.username = username.toLowerCase().trim()
-      }
+      
       if (bioChanged) {
         updateData.bio = bio.trim()
       }
-
-      // Update user profile
-      await apiClient.updateUser(currentUsername, updateData)
       
-      // Refresh user data
+      if (uploadedImagePath) {
+        updateData.profile_picture = uploadedImagePath
+      }
+
+      // Update all fields via updateSelf
+      if (Object.keys(updateData).length > 0) {
+        await apiClient.updateSelf(updateData)
+      }
+      
+      // Refresh user data first to get updated profile picture
       await refreshUserData(true)
+      
+      // Small delay to ensure state updates propagate and API responds
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Trigger profile refresh callback to update parent component
+      onProfileUpdated?.()
 
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
       })
 
-      // If username changed, navigate to new profile URL
-      if (usernameChanged) {
-        router.push(`/profile/${username.toLowerCase().trim()}`)
-      } else {
-        // Trigger profile refresh callback
-        onProfileUpdated?.()
-      }
-
-      onOpenChange(false)
+      // Close dialog after a brief delay to allow for state updates
+      setTimeout(() => {
+        onOpenChange(false)
+        // Reset image selection after dialog closes
+        setSelectedImage(null)
+        setImagePreview(null)
+      }, 300)
     } catch (error: any) {
       console.error("[hiffi] Failed to update profile:", error)
       const errorMessage = error.message || "Failed to update profile. Please try again."
@@ -169,14 +227,24 @@ export function EditProfileDialog({
       })
     } finally {
       setIsLoading(false)
+      setUploadingImage(false)
+      setUploadProgress(0)
     }
   }
 
   const hasChanges = 
     name.trim() !== currentName.trim() || 
-    username.toLowerCase() !== currentUsername.toLowerCase() ||
-    bio.trim() !== (currentBio || "").trim()
-  const canSave = hasChanges && (username === currentUsername || usernameAvailable !== false) && !checkingUsername
+    bio.trim() !== (currentBio || "").trim() ||
+    selectedImage !== null
+  const canSave = hasChanges && !uploadingImage
+
+  // Get current profile picture URL for preview with cache busting
+  const currentProfilePictureUrl = currentProfilePicture || ""
+  // Add timestamp for cache busting when dialog opens
+  const cacheBustingUrl = currentProfilePictureUrl 
+    ? `${getProfilePictureUrl({ profile_picture: currentProfilePictureUrl, updated_at: new Date().toISOString() })}&_cb=${Date.now()}`
+    : null
+  const displayPreview = imagePreview || cacheBustingUrl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -188,6 +256,85 @@ export function EditProfileDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          {/* Profile Photo Upload */}
+          <div className="space-y-2">
+            <Label>Profile Photo</Label>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-2 border-border">
+                  <AvatarImage 
+                    src={displayPreview || undefined}
+                    key={`avatar-${getProfilePictureKey()}-${imagePreview ? 'preview' : 'current'}`}
+                  />
+                  <AvatarFallback 
+                    className="text-xl font-bold text-white"
+                    style={{
+                      backgroundColor: getColorFromName(currentName || currentUsername || "U"),
+                    }}
+                  >
+                    {getAvatarLetter({ name: currentName, username: currentUsername }, "U")}
+                  </AvatarFallback>
+                </Avatar>
+                {imagePreview && (
+                  <div className="absolute inset-0 rounded-full border-2 border-primary bg-primary/10" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading || uploadingImage}
+                    className="gap-2"
+                  >
+                    <Camera className="h-4 w-4" />
+                    {selectedImage ? "Change Photo" : "Upload Photo"}
+                  </Button>
+                  {selectedImage && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      disabled={isLoading || uploadingImage}
+                      className="gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  disabled={isLoading || uploadingImage}
+                />
+                <p className="text-xs text-muted-foreground">
+                  JPG only, max 10MB
+                </p>
+                {uploadingImage && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Uploading... {Math.round(uploadProgress)}%
+                    </div>
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
@@ -201,37 +348,16 @@ export function EditProfileDialog({
 
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
-            <div className="relative">
-              <Input
-                id="username"
-                placeholder="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                disabled={isLoading}
-                className="pr-10"
-              />
-              {username !== currentUsername && username.length >= 3 && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {checkingUsername ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  ) : usernameAvailable ? (
-                    <Check className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <X className="w-4 h-4 text-destructive" />
-                  )}
-                </div>
-              )}
-            </div>
-            {username !== currentUsername && username.length >= 3 && !checkingUsername && (
-              <p className={`text-xs ${usernameAvailable ? "text-green-500" : "text-destructive"}`}>
-                {usernameAvailable ? "Username is available" : "Username is taken"}
-              </p>
-            )}
-            {username.length > 0 && username.length < 3 && (
-              <p className="text-xs text-muted-foreground">
-                Username must be at least 3 characters
-              </p>
-            )}
+            <Input
+              id="username"
+              placeholder={currentUsername}
+              value={currentUsername}
+              disabled
+              className="bg-muted cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground">
+              Username cannot be changed
+            </p>
           </div>
 
           <div className="space-y-2">

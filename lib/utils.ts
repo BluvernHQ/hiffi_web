@@ -26,16 +26,39 @@ export function getAvatarLetter(user: any, fallback: string = "U"): string {
 
 // Get profile picture URL with consistent logic
 // Checks profile_picture first, then falls back to other avatar fields
-export function getProfilePictureUrl(user: any): string {
+// If profile_picture is a path (not a full URL), it routes through our proxy
+// Includes cache busting parameter using updated_at timestamp if available
+export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true): string {
   if (!user) return "";
   
   // Check profile_picture first (API field name)
   if (user.profile_picture && user.profile_picture.trim()) {
-    return user.profile_picture;
+    const profilePicturePath = user.profile_picture.trim();
+    
+    // If it's already a full URL (starts with http:// or https://), add cache busting if needed
+    if (profilePicturePath.startsWith("http://") || profilePicturePath.startsWith("https://")) {
+      if (useCacheBusting && user.updated_at) {
+        // Add cache busting parameter using updated_at timestamp
+        const separator = profilePicturePath.includes("?") ? "&" : "?";
+        return `${profilePicturePath}${separator}t=${new Date(user.updated_at).getTime()}`;
+      }
+      return profilePicturePath;
+    }
+    
+    // If it's a path (like "ProfileProto/users/..."), route through proxy with API key
+    // Proxy route: /proxy/profile-picture/[...path]
+    let url = `/proxy/profile-picture/${profilePicturePath}`;
+    
+    // Add cache busting parameter if updated_at is available
+    if (useCacheBusting && user.updated_at) {
+      url += `?t=${new Date(user.updated_at).getTime()}`;
+    }
+    
+    return url;
   }
   
-  // Fall back to other common field names
-  return (
+  // Fall back to other common field names (these are likely already full URLs)
+  const fallbackUrl = (
     user.avatarUrl || 
     user.avatar_url || 
     user.avatarurl || 
@@ -48,6 +71,14 @@ export function getProfilePictureUrl(user: any): string {
     user.reply_by_avatar_url ||
     ""
   );
+  
+  // Add cache busting to fallback URLs if needed
+  if (fallbackUrl && useCacheBusting && user.updated_at) {
+    const separator = fallbackUrl.includes("?") ? "&" : "?";
+    return `${fallbackUrl}${separator}t=${new Date(user.updated_at).getTime()}`;
+  }
+  
+  return fallbackUrl;
 }
 
 // Check if user is a creator

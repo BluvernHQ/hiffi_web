@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, Share2 } from "lucide-react"
+import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, Share2, RefreshCw } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
 import { apiClient } from "@/lib/api-client"
-import { getSeed } from "@/lib/seed-manager"
 
 interface AnalyticsData {
   totalUsers: number
@@ -18,6 +18,7 @@ interface AnalyticsData {
   averageViewsPerVideo: number
   averageCommentsPerVideo: number
   engagementRate: number
+  lastUpdated?: string
 }
 
 export function AnalyticsOverview() {
@@ -29,49 +30,43 @@ export function AnalyticsOverview() {
       try {
         setLoading(true)
         
-        // Fetch all data to calculate metrics
-        const seed = getSeed()
-        const [usersResponse, videosResponse, commentsResponse, repliesResponse] = await Promise.all([
-          apiClient.getAllUsers(1, 1000).catch(() => ({ users: [], total: 0 })),
-          apiClient.getVideoList({ offset: 0, limit: 1000, seed }).catch(() => ({ videos: [] })),
-          apiClient.getAllComments(1, 1000).catch(() => ({ comments: [], total: 0 })),
-          apiClient.getAllReplies(1, 1000).catch(() => ({ replies: [], total: 0 })),
-        ])
+        // Fetch counters from API - get raw values from counters endpoint
+        const countersResponse = await apiClient.adminCounters()
+        
+        if (!countersResponse.success) {
+          throw new Error("Failed to fetch counters")
+        }
+        
+        const counters = countersResponse.counters
+        
+        // Get raw values from counters endpoint only - no fallbacks to ensure consistency
+        const totalUsers = counters.users || 0
+        const totalVideos = counters.videos || 0
+        const totalComments = counters.comments || 0
+        const totalReplies = counters.replies || 0
+        const totalUpvotes = counters.upvotes || 0
+        const totalDownvotes = counters.downvotes || 0
+        
+        // Get views from counters only - if not available, use 0
+        const totalViews = counters.views || 0
+        
+        // Get watch hours from counters only - if not available, calculate from views
+        // Only calculate if we have views from counters
+        let estimatedWatchHours = counters.watch_hours
+        if ((estimatedWatchHours === undefined || estimatedWatchHours === null) && totalViews > 0) {
+          // Estimate: assuming average 3 minutes per view
+          const averageWatchTimeMinutes = 3
+          estimatedWatchHours = (totalViews * averageWatchTimeMinutes) / 60
+        } else if (estimatedWatchHours === undefined || estimatedWatchHours === null) {
+          estimatedWatchHours = 0
+        }
 
-        const users = usersResponse.users || []
-        const videos = videosResponse.videos || []
-        const comments = commentsResponse.comments || []
-        const replies = repliesResponse.replies || []
-
-        // Calculate metrics
-        const totalUsers = users.length || usersResponse.total || 0
-        const totalVideos = videos.length
-        const totalComments = comments.length || commentsResponse.total || 0
-        const totalReplies = replies.length || repliesResponse.total || 0
-
-        // Calculate views, upvotes, downvotes
-        const totalViews = videos.reduce((sum: number, video: any) => {
-          return sum + (video.video_views || video.videoViews || 0)
-        }, 0)
-
-        const totalUpvotes = videos.reduce((sum: number, video: any) => {
-          return sum + (video.video_upvotes || video.videoUpvotes || 0)
-        }, 0)
-
-        const totalDownvotes = videos.reduce((sum: number, video: any) => {
-          return sum + (video.video_downvotes || video.videoDownvotes || 0)
-        }, 0)
-
-        // Estimate watch hours (assuming average 3 minutes per view)
-        // This is a rough estimate - in production, you'd track actual watch time
-        const averageWatchTimeMinutes = 3
-        const estimatedWatchHours = (totalViews * averageWatchTimeMinutes) / 60
-
-        // Calculate averages
+        // Calculate averages from raw counter values
         const averageViewsPerVideo = totalVideos > 0 ? totalViews / totalVideos : 0
         const averageCommentsPerVideo = totalVideos > 0 ? totalComments / totalVideos : 0
 
-        // Calculate engagement rate (comments + replies + upvotes per 100 views)
+        // Calculate engagement rate from raw counter values
+        // (comments + replies + upvotes per 100 views)
         const totalEngagements = totalComments + totalReplies + totalUpvotes
         const engagementRate = totalViews > 0 ? (totalEngagements / totalViews) * 100 : 0
 
@@ -87,6 +82,7 @@ export function AnalyticsOverview() {
           averageViewsPerVideo,
           averageCommentsPerVideo,
           engagementRate,
+          lastUpdated: counters.updated_at,
         })
       } catch (error) {
         console.error("[admin] Failed to fetch analytics:", error)
@@ -127,6 +123,16 @@ export function AnalyticsOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Last Updated Indicator */}
+      {analytics.lastUpdated && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4" />
+          <span>
+            Last updated {formatDistanceToNow(new Date(analytics.lastUpdated), { addSuffix: true })}
+          </span>
+        </div>
+      )}
+      
       {/* Key Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
@@ -182,9 +188,11 @@ export function AnalyticsOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatHours(analytics.estimatedWatchHours)}</div>
+            <div className="text-3xl font-bold tracking-tight mb-1">
+              {formatHours(analytics.estimatedWatchHours)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Estimated watch time
+              Calculated from counters data
             </p>
           </CardContent>
         </Card>
@@ -245,9 +253,9 @@ export function AnalyticsOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{analytics.engagementRate.toFixed(1)}%</div>
+            <div className="text-3xl font-bold tracking-tight mb-1">~{analytics.engagementRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              Engagements per 100 views
+              Approx. engagements per 100 views
             </p>
           </CardContent>
         </Card>
@@ -258,17 +266,17 @@ export function AnalyticsOverview() {
         <Card className="border-2 hover:shadow-lg transition-all duration-200">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold">Average Performance</CardTitle>
-            <CardDescription className="text-xs">Per video metrics</CardDescription>
+            <CardDescription className="text-xs">Per video metrics (approx.)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <span className="text-sm text-muted-foreground">Avg. Views per Video</span>
-                <span className="text-base font-semibold">{analytics.averageViewsPerVideo.toFixed(1)}</span>
+                <span className="text-base font-semibold">~{analytics.averageViewsPerVideo.toFixed(1)}</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <span className="text-sm text-muted-foreground">Avg. Comments per Video</span>
-                <span className="text-base font-semibold">{analytics.averageCommentsPerVideo.toFixed(1)}</span>
+                <span className="text-base font-semibold">~{analytics.averageCommentsPerVideo.toFixed(1)}</span>
               </div>
             </div>
           </CardContent>
@@ -291,7 +299,7 @@ export function AnalyticsOverview() {
                 <span className="text-sm text-muted-foreground">Videos per User</span>
                 <span className="text-base font-semibold">
                   {analytics.totalUsers > 0 
-                    ? (analytics.totalVideos / analytics.totalUsers).toFixed(1)
+                    ? `~${(analytics.totalVideos / analytics.totalUsers).toFixed(1)}`
                     : "0"}
                 </span>
               </div>
