@@ -1058,6 +1058,97 @@ class ApiClient {
     }
   }
 
+  // GET /videos/list/{username} - List videos by a specific user
+  // Response structure: { success: true, data: { videos: [{ video: {...}, following: boolean }], count, limit, offset, username } }
+  async getUserVideos(username: string, params: { limit?: number; offset?: number } = {}): Promise<{
+    success: boolean
+    videos: Video[]
+    limit: number
+    offset: number
+    count: number
+    username: string
+  }> {
+    const limit = params.limit || 20
+    const offset = params.offset || 0
+    
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    if (limit !== 20) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+    
+    const queryString = queryParams.toString()
+    const url = queryString ? `/videos/list/${encodeURIComponent(username)}?${queryString}` : `/videos/list/${encodeURIComponent(username)}`
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: VideoListItem[]
+        limit?: number
+        offset?: number
+        count?: number
+        username?: string
+      }
+      videos?: VideoListItem[]
+      limit?: number
+      offset?: number
+      count?: number
+      username?: string
+    }>(
+      url,
+      {
+        method: "GET",
+      },
+      false, // Authentication not required per docs
+    )
+    
+    // Normalize response structure
+    // API returns: { success: true, data: { videos: [{ video: {...}, following: boolean }], limit: 20, offset: 0, count: 2, username: "sanjeev" } }
+    const isSuccess = !!(response.status === "success" || response.success)
+    
+    if (isSuccess) {
+      // Extract fields from either response.data or directly from response
+      const rawVideos = response.data?.videos || response.videos || []
+      const responseLimit = response.data?.limit ?? response.limit ?? limit
+      const responseOffset = response.data?.offset ?? response.offset ?? offset
+      const responseCount = response.data?.count ?? response.count ?? 0
+      const responseUsername = response.data?.username || response.username || username
+      
+      // Transform videos array to flatten structure and include following status
+      // API format: [{ video: {...}, following: boolean }]
+      // Transform to: [{ ...video, following: boolean }]
+      const videos = rawVideos.map((item: any) => {
+        // If item has 'video' property, it's the new format
+        if (item.video) {
+          return {
+            ...item.video,
+            following: item.following || false,
+          }
+        }
+        // Otherwise, it's already in the old format (backward compatibility)
+        return item
+      })
+      
+      return {
+        success: true,
+        videos: videos,
+        limit: responseLimit,
+        offset: responseOffset,
+        count: responseCount,
+        username: responseUsername,
+      }
+    }
+    
+    return {
+      success: false,
+      videos: [],
+      limit: limit,
+      offset: offset,
+      count: 0,
+      username: username,
+    }
+  }
+
   // GET /videos/list/self - List videos uploaded by authenticated user
   // Note: API actually uses GET with query params, not POST
   // Response structure: { success: true, data: { videos: [{ video: {...}, following: boolean }], ... } }

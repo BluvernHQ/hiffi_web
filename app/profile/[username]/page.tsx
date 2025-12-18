@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
-import { getSeed } from '@/lib/seed-manager';
 import { Edit, Share2, MapPin, LinkIcon, Calendar, UserPlus, UserCheck, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
@@ -131,61 +130,33 @@ export default function ProfilePage() {
         setLoadingMore(true);
       }
 
-      const seed = getSeed();
-      let videosArray: any[] = [];
+      // Use the new endpoint: GET /videos/list/{username}
+      const videosResponse = await apiClient.getUserVideos(username, { 
+        offset: currentOffset, 
+        limit: VIDEOS_PER_PAGE 
+      });
 
-      if (isOwnProfile) {
-        try {
-          // For own profile, try listSelfVideos first (if it supports pagination)
-          // Otherwise fall back to getVideoList
-          const selfVideosResponse = await apiClient.listSelfVideos({ page: currentOffset + 1, limit: VIDEOS_PER_PAGE });
-          videosArray = selfVideosResponse.videos || [];
-          // If listSelfVideos doesn't support pagination well, we might get all videos
-          // In that case, we need to handle it differently
-          if (currentOffset > 0 && videosArray.length === 0) {
-            setHasMore(false);
-            return;
-          }
-        } catch (error) {
-          console.error("[hiffi] Failed to fetch own videos, falling back to getVideoList:", error);
-          // Fall back to filtering from all videos
-          const videosResponse = await apiClient.getVideoList({ offset: currentOffset, limit: VIDEOS_PER_PAGE, seed });
-          videosArray = videosResponse.videos || [];
-        }
-      } else {
-        // For other users, fetch pages and filter client-side
-        const videosResponse = await apiClient.getVideoList({ offset: currentOffset, limit: VIDEOS_PER_PAGE, seed });
-        videosArray = videosResponse.videos || [];
-      }
-
-      // Filter videos by this user (if not using listSelfVideos or if filtering is needed)
-      const filteredVideos = videosArray.filter(
-        (v: any) => (v.user_username || v.userUsername) === username
-      );
+      const videosArray = videosResponse.videos || [];
 
       if (currentOffset === 0) {
         // Initial load - replace videos
-        setUserVideos(filteredVideos);
+        setUserVideos(videosArray);
       } else {
         // Append new videos to existing ones
         setUserVideos((prev) => {
           // Prevent duplicates by checking video IDs
-          const existingIds = new Set(prev.map(v => v.videoId || v.video_id));
-          const newVideos = filteredVideos.filter(v => !existingIds.has(v.videoId || v.video_id));
+          const existingIds = new Set(prev.map(v => (v as any).videoId || v.video_id));
+          const newVideos = videosArray.filter(v => !existingIds.has((v as any).videoId || v.video_id));
           return [...prev, ...newVideos];
         });
       }
 
-      // If we got fewer videos than requested, there might be no more pages
-      // But for filtered results, we need to check if we got any videos at all
-      if (videosArray.length < VIDEOS_PER_PAGE) {
+      // Check if there are more videos to load
+      // If we got fewer videos than requested, or if offset + videos.length >= count, there are no more
+      if (videosArray.length < VIDEOS_PER_PAGE || (currentOffset + videosArray.length >= videosResponse.count)) {
         setHasMore(false);
-      } else if (filteredVideos.length === 0 && videosArray.length > 0) {
-        // Got videos but none match this user - might be more pages with this user's videos
-        // Continue loading
-        setHasMore(true);
       } else {
-        setHasMore(filteredVideos.length > 0);
+        setHasMore(true);
       }
     } catch (error) {
       console.error("[hiffi] Failed to fetch user videos:", error);
@@ -692,7 +663,7 @@ export default function ProfilePage() {
                           onVideoDeleted={(videoId) => {
                             // Remove deleted video from the list
                             setUserVideos((prev) => 
-                              prev.filter((v) => (v.videoId || v.video_id) !== videoId)
+                              prev.filter((v) => ((v as any).videoId || v.video_id) !== videoId)
                             )
                           }}
                         />
