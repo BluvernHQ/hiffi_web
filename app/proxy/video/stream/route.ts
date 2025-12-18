@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
           console.log(`[hiffi] Explicit range: ${rangeHeader}`)
         }
       } else {
-        headers['Range'] = rangeHeader
+      headers['Range'] = rangeHeader
       }
     } else {
       // No range header - return first 512KB for instant start

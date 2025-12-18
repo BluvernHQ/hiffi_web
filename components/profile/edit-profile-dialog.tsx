@@ -92,10 +92,8 @@ export function EditProfileDialog({
     const nameChanged = name.trim() !== currentName.trim()
     const usernameChanged = username.toLowerCase() !== currentUsername.toLowerCase()
     const bioChanged = bio.trim() !== (currentBio || "").trim()
-    const locationChanged = location.trim() !== (currentLocation || "").trim()
-    const websiteChanged = website.trim() !== (currentWebsite || "").trim()
     
-    if (!nameChanged && !usernameChanged && !bioChanged && !locationChanged && !websiteChanged) {
+    if (!nameChanged && !usernameChanged && !bioChanged) {
       toast({
         title: "No changes",
         description: "Please make at least one change before saving.",
@@ -125,26 +123,11 @@ export function EditProfileDialog({
       }
     }
 
-    // Validate website format if provided
-    if (websiteChanged && website.trim()) {
-      const websiteValue = website.trim()
-      // Remove protocol if present, we'll add it when displaying
-      const cleanWebsite = websiteValue.replace(/^https?:\/\//, '')
-      if (cleanWebsite.length === 0) {
-        toast({
-          title: "Invalid website",
-          description: "Please enter a valid website URL.",
-          variant: "destructive",
-        })
-        return
-      }
-    }
-
     setIsLoading(true)
 
     try {
       // Prepare update data - only include changed fields
-      const updateData: { name?: string; username?: string; bio?: string; location?: string; website?: string } = {}
+      const updateData: { name?: string; username?: string; bio?: string } = {}
       if (nameChanged) {
         updateData.name = name.trim()
       }
@@ -153,14 +136,6 @@ export function EditProfileDialog({
       }
       if (bioChanged) {
         updateData.bio = bio.trim()
-      }
-      if (locationChanged) {
-        updateData.location = location.trim()
-      }
-      if (websiteChanged) {
-        // Store website without protocol
-        const cleanWebsite = website.trim().replace(/^https?:\/\//, '')
-        updateData.website = cleanWebsite || undefined
       }
 
       // Update user profile
@@ -200,9 +175,7 @@ export function EditProfileDialog({
   const hasChanges = 
     name.trim() !== currentName.trim() || 
     username.toLowerCase() !== currentUsername.toLowerCase() ||
-    bio.trim() !== (currentBio || "").trim() ||
-    location.trim() !== (currentLocation || "").trim() ||
-    website.trim() !== (currentWebsite || "").trim()
+    bio.trim() !== (currentBio || "").trim()
   const canSave = hasChanges && (username === currentUsername || usernameAvailable !== false) && !checkingUsername
 
   return (
@@ -274,31 +247,6 @@ export function EditProfileDialog({
             />
             <p className="text-xs text-muted-foreground">
               {bio.length}/500 characters
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              placeholder="City, Country"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
-            <Input
-              id="website"
-              placeholder="example.com"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              disabled={isLoading}
-            />
-            <p className="text-xs text-muted-foreground">
-              Enter your website URL (without https://)
             </p>
           </div>
 

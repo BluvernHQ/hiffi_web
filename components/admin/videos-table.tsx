@@ -61,10 +61,13 @@ export function AdminVideosTable() {
   const fetchVideos = async () => {
     try {
       setLoading(true)
-      const offset = (page - 1) * limit
+      // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
+      const offset = Math.max(0, (page - 1) * limit)
       
       // Build filter params
       const params: any = { limit, offset }
+      
+      console.log("[admin] Fetching videos:", { page, limit, offset })
       if (filters.video_id) params.video_id = filters.video_id
       if (filters.video_title) params.video_title = filters.video_title
       if (filters.video_description) params.video_description = filters.video_description
@@ -117,7 +120,39 @@ export function AdminVideosTable() {
       }
       
       setVideos(videosData)
-      setTotal(response.count || 0)
+      
+      // Handle total count - API might return count as page size, not total
+      let totalCount = response.count || 0
+      
+      // Smart total count detection:
+      // 1. If we got a full page (limit items), there might be more pages
+      // 2. If we got fewer than limit, this is the last page
+      // 3. If API count is much larger than current page, trust it
+      if (videosData.length === limit) {
+        // Full page - check if API count is reliable
+        if (totalCount === limit || totalCount === 0 || totalCount === videosData.length) {
+          // API likely returned page count, not total - estimate at least one more page exists
+          totalCount = (page * limit) + 1
+        } else if (totalCount > (page * limit)) {
+          // API returned a total larger than current page - trust it
+          // totalCount stays as-is
+        }
+      } else if (videosData.length < limit) {
+        // Partial page - this is definitely the last page
+        totalCount = (page - 1) * limit + videosData.length
+      }
+      
+      setTotal(totalCount)
+      console.log("[admin] Videos fetched:", {
+        count: videosData.length,
+        total: totalCount,
+        page,
+        limit,
+        offset,
+        totalPages: Math.ceil(totalCount / limit),
+        responseCount: response.count,
+        response: response
+      })
     } catch (error) {
       console.error("[admin] Failed to fetch videos:", error)
       toast({
@@ -411,7 +446,7 @@ export function AdminVideosTable() {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border bg-background shadow-sm flex-1 min-h-0 flex flex-col">
+        <div className="rounded-lg border bg-background shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="overflow-auto flex-1">
             <table className="w-full">
               <thead className="sticky top-0 bg-muted/50 z-10">
@@ -573,37 +608,111 @@ export function AdminVideosTable() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t shrink-0">
-            <div className="text-sm text-muted-foreground">
-              Showing <span className="font-medium text-foreground">{((page - 1) * limit) + 1}</span> to{" "}
-              <span className="font-medium text-foreground">{Math.min(page * limit, total)}</span> of{" "}
-              <span className="font-medium text-foreground">{total}</span> videos
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="gap-1"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t shrink-0">
+          <div className="text-sm text-muted-foreground">
+            {total > 0 ? (
+              <>
+                Showing <span className="font-medium text-foreground">{((page - 1) * limit) + 1}</span> to{" "}
+                <span className="font-medium text-foreground">{Math.min(page * limit, total)}</span> of{" "}
+                <span className="font-medium text-foreground">{total}</span> videos
+                {totalPages > 1 && (
+                  <span className="ml-2">(Page {page} of {totalPages})</span>
+                )}
+              </>
+            ) : (
+              <span>No videos found</span>
+            )}
           </div>
-        )}
+          {totalPages > 1 ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const pages: (number | string)[] = []
+                    const maxVisible = 7
+                    
+                    if (totalPages <= maxVisible) {
+                      // Show all pages if 7 or fewer
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(i)
+                      }
+                    } else {
+                      // Show first page
+                      pages.push(1)
+                      
+                      if (page > 3) {
+                        pages.push("...")
+                      }
+                      
+                      // Show pages around current page
+                      const start = Math.max(2, page - 1)
+                      const end = Math.min(totalPages - 1, page + 1)
+                      
+                      for (let i = start; i <= end; i++) {
+                        pages.push(i)
+                      }
+                      
+                      if (page < totalPages - 2) {
+                        pages.push("...")
+                      }
+                      
+                      // Show last page
+                      pages.push(totalPages)
+                    }
+                    
+                    return pages.map((p, idx) => {
+                      if (p === "...") {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                            ...
+                          </span>
+                        )
+                      }
+                      
+                      const pageNum = p as number
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPage(pageNum)}
+                          className="min-w-[2.5rem]"
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })
+                  })()}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                {total > 0 && total <= limit ? "All videos displayed" : ""}
+              </div>
+            )}
+          </div>
       </div>
 
       {/* Delete Dialog */}

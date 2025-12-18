@@ -45,14 +45,9 @@ export default function AdminLoginPage() {
         console.log("[Admin] User is admin, redirecting to dashboard")
         router.push("/admin/dashboard")
       } else {
-        // User is logged in but not admin, redirect to home
+        // User is logged in but not admin - show login form for admin credentials
         console.log("[Admin] User is not admin, role:", userRole)
-        router.push("/")
-        toast({
-          title: "Access Denied",
-          description: "You do not have admin privileges.",
-          variant: "destructive",
-        })
+        // Don't redirect - let them see the login form to enter admin credentials
       }
     }
   }, [user, userData, authLoading, router, toast])
@@ -73,11 +68,13 @@ export default function AdminLoginPage() {
   }
 
   // Don't render login form if already logged in as admin (redirect will happen)
+  // If user is logged in but not admin, show login form with message
   if (user && userData) {
     const userRole = String(userData.role || "").toLowerCase().trim()
     if (userRole === "admin") {
       return null
     }
+    // User is logged in but not admin - show login form below
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,7 +134,13 @@ export default function AdminLoginPage() {
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl text-center font-semibold">Sign In</CardTitle>
             <CardDescription className="text-center">
-              Enter your credentials to continue
+              {user && userData ? (
+                <span className="text-muted-foreground">
+                  Please log in with admin credentials to access the admin panel
+                </span>
+              ) : (
+                "Enter your credentials to continue"
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -42,7 +42,7 @@ Range: bytes=196608-  → Proxy requests bytes=196608-2293760 (2MB)
 // Before
 preload="metadata"  // Only loads metadata, causes aggressive chunking
 
-// After
+// After  
 preload="auto"      // Intelligently buffers ahead, smoother playback
 ```
 

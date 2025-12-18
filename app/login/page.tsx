@@ -82,7 +82,7 @@ function LoginForm() {
               <span className="text-primary-foreground font-bold text-2xl">H</span>
             </div>
           </div>
-          <CardTitle className="text-2xl text-center font-bold">Welcome back</CardTitle>
+          <CardTitle className="text-2xl text-center font-bold">Login</CardTitle>
           <CardDescription className="text-center">Enter your username to sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>

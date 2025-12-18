@@ -57,10 +57,13 @@ export function AdminUsersTable() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const offset = (page - 1) * limit
+      // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
+      const offset = Math.max(0, (page - 1) * limit)
       
-      // Build filter params
+      // Build filter params - always include limit and offset for pagination
       const params: any = { limit, offset }
+      
+      console.log("[admin] Fetching users:", { page, limit, offset })
       if (filters.username) params.username = filters.username
       if (filters.name) params.name = filters.name
       if (filters.role) params.role = filters.role
@@ -115,7 +118,39 @@ export function AdminUsersTable() {
       }
       
       setUsers(usersData)
-      setTotal(response.count || 0)
+      
+      // Handle total count - API might return count as page size, not total
+      let totalCount = response.count || 0
+      
+      // Smart total count detection:
+      // 1. If we got a full page (limit items), there might be more pages
+      // 2. If we got fewer than limit, this is the last page
+      // 3. If API count is much larger than current page, trust it
+      if (usersData.length === limit) {
+        // Full page - check if API count is reliable
+        if (totalCount === limit || totalCount === 0 || totalCount === usersData.length) {
+          // API likely returned page count, not total - estimate at least one more page exists
+          totalCount = (page * limit) + 1
+        } else if (totalCount > (page * limit)) {
+          // API returned a total larger than current page - trust it
+          // totalCount stays as-is
+        }
+      } else if (usersData.length < limit) {
+        // Partial page - this is definitely the last page
+        totalCount = (page - 1) * limit + usersData.length
+      }
+      
+      setTotal(totalCount)
+      console.log("[admin] Users fetched:", {
+        count: usersData.length,
+        total: totalCount,
+        page,
+        limit,
+        offset,
+        totalPages: Math.ceil(totalCount / limit),
+        responseCount: response.count,
+        response: response
+      })
     } catch (error) {
       console.error("[admin] Failed to fetch users:", error)
       toast({
@@ -524,37 +559,111 @@ export function AdminUsersTable() {
       </div>
 
         {/* Pagination */}
-      {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t shrink-0">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t shrink-0">
           <div className="text-sm text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{((page - 1) * limit) + 1}</span> to{" "}
-            <span className="font-medium text-foreground">{Math.min(page * limit, total)}</span> of{" "}
-            <span className="font-medium text-foreground">{total}</span> users
+            {total > 0 ? (
+              <>
+                Showing <span className="font-medium text-foreground">{((page - 1) * limit) + 1}</span> to{" "}
+                <span className="font-medium text-foreground">{Math.min(page * limit, total)}</span> of{" "}
+                <span className="font-medium text-foreground">{total}</span> users
+                {totalPages > 1 && (
+                  <span className="ml-2">(Page {page} of {totalPages})</span>
+                )}
+              </>
+            ) : (
+              <span>No users found</span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="gap-1"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="gap-1"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          {totalPages > 1 ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const pages: (number | string)[] = []
+                  const maxVisible = 7
+                  
+                  if (totalPages <= maxVisible) {
+                    // Show all pages if 7 or fewer
+                    for (let i = 1; i <= totalPages; i++) {
+                      pages.push(i)
+                    }
+                  } else {
+                    // Show first page
+                    pages.push(1)
+                    
+                    if (page > 3) {
+                      pages.push("...")
+                    }
+                    
+                    // Show pages around current page
+                    const start = Math.max(2, page - 1)
+                    const end = Math.min(totalPages - 1, page + 1)
+                    
+                    for (let i = start; i <= end; i++) {
+                      pages.push(i)
+                    }
+                    
+                    if (page < totalPages - 2) {
+                      pages.push("...")
+                    }
+                    
+                    // Show last page
+                    pages.push(totalPages)
+                  }
+                  
+                  return pages.map((p, idx) => {
+                    if (p === "...") {
+                      return (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
+                      )
+                    }
+                    
+                    const pageNum = p as number
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                        className="min-w-[2.5rem]"
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })
+                })()}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="gap-1"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">
+              {total > 0 && total <= limit ? "All users displayed" : ""}
+            </div>
+          )}
         </div>
-      )}
       </div>
 
       {/* Delete Dialog */}

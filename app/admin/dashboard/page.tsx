@@ -44,12 +44,7 @@ function AdminDashboardContent() {
       const userRole = String(userData.role || "").toLowerCase().trim()
       
       if (userRole !== "admin") {
-        router.push("/")
-        toast({
-          title: "Access Denied",
-          description: "You do not have admin privileges.",
-          variant: "destructive",
-        })
+        router.push("/admin")
         return
       }
       
