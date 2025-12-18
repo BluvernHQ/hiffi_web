@@ -2224,7 +2224,7 @@ class ApiClient {
       replies: number
       upvotes: number
       downvotes: number
-      views?: number
+      views: number
       watch_hours?: number
       updated_at: string
     }
@@ -2282,7 +2282,7 @@ class ApiClient {
           replies: response.data.counters.replies || 0,
           upvotes: response.data.counters.upvotes || 0,
           downvotes: response.data.counters.downvotes || 0,
-          views: response.data.counters.views,
+          views: response.data.counters.views || 0,
           watch_hours: response.data.counters.watch_hours,
           updated_at: response.data.counters.updated_at || new Date().toISOString(),
         },
@@ -2300,7 +2300,7 @@ class ApiClient {
           replies: counters.replies || 0,
           upvotes: counters.upvotes || 0,
           downvotes: counters.downvotes || 0,
-          views: counters.views,
+          views: counters.views || 0,
           watch_hours: counters.watch_hours,
           updated_at: counters.updated_at || new Date().toISOString(),
         },
@@ -2316,6 +2316,7 @@ class ApiClient {
         replies: 0,
         upvotes: 0,
         downvotes: 0,
+        views: 0,
         updated_at: new Date().toISOString(),
       },
     }

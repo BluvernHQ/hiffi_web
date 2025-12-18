@@ -50,7 +50,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   const { user, userData } = useAuth()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
-  const thumbnail = video.videoThumbnail || video.video_thumbnail || ""
+  const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
@@ -63,16 +63,20 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
 
   // Use video_thumbnail field from API with direct Workers URL
   // Falls back to videoId if thumbnail field is not available
-  const thumbnailUrl = thumbnail
+  const thumbnailUrl = thumbnail && thumbnail.length > 0
     ? getThumbnailUrl(thumbnail)
     : (videoId 
       ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
-      : `/placeholder.svg?height=360&width=640&query=${encodeURIComponent(title)}`)
+      : null)
   
   // Debug logging
-  if (!thumbnail && videoId) {
-    console.log("[VideoCard] No thumbnail field, using fallback for videoId:", videoId)
-    console.log("[VideoCard] Fallback URL:", thumbnailUrl)
+  if (process.env.NODE_ENV === 'development') {
+    console.log("[VideoCard] Thumbnail data:", {
+      videoId,
+      thumbnailField: thumbnail,
+      thumbnailUrl,
+      hasThumbnail: !!thumbnail && thumbnail.length > 0,
+    })
   }
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -95,15 +99,20 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
             {thumbnailUrl ? (
               <AuthenticatedImage
                 src={thumbnailUrl}
-              alt={title}
-              fill
-              className="object-cover transition-transform duration-200 group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-              priority={priority}
-            />
+                alt={title || "Video thumbnail"}
+                fill
+                className="object-cover transition-transform duration-200 group-hover:scale-105"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                priority={priority}
+                onError={() => {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error("[VideoCard] Failed to load thumbnail:", thumbnailUrl)
+                  }
+                }}
+              />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center">
-                <span className="text-muted-foreground text-sm">No thumbnail</span>
+                <Play className="h-12 w-12 text-muted-foreground/50" />
               </div>
             )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />

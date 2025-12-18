@@ -15,6 +15,7 @@ interface AnalyticsData {
   totalUpvotes: number
   totalDownvotes: number
   estimatedWatchHours: number
+  isWatchHoursEstimated: boolean
   averageViewsPerVideo: number
   averageCommentsPerVideo: number
   engagementRate: number
@@ -53,10 +54,12 @@ export function AnalyticsOverview() {
         // Get watch hours from counters only - if not available, calculate from views
         // Only calculate if we have views from counters
         let estimatedWatchHours = counters.watch_hours
+        let isWatchHoursEstimated = false
         if ((estimatedWatchHours === undefined || estimatedWatchHours === null) && totalViews > 0) {
           // Estimate: assuming average 3 minutes per view
           const averageWatchTimeMinutes = 3
           estimatedWatchHours = (totalViews * averageWatchTimeMinutes) / 60
+          isWatchHoursEstimated = true
         } else if (estimatedWatchHours === undefined || estimatedWatchHours === null) {
           estimatedWatchHours = 0
         }
@@ -79,6 +82,7 @@ export function AnalyticsOverview() {
           totalUpvotes,
           totalDownvotes,
           estimatedWatchHours,
+          isWatchHoursEstimated,
           averageViewsPerVideo,
           averageCommentsPerVideo,
           engagementRate,
@@ -192,7 +196,9 @@ export function AnalyticsOverview() {
               {formatHours(analytics.estimatedWatchHours)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Calculated from counters data
+              {analytics.isWatchHoursEstimated 
+                ? "Estimated: views × 3 minutes per view"
+                : "Total watch time across all videos"}
             </p>
           </CardContent>
         </Card>
@@ -255,7 +261,7 @@ export function AnalyticsOverview() {
           <CardContent>
             <div className="text-3xl font-bold tracking-tight mb-1">~{analytics.engagementRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              Approx. engagements per 100 views
+              (Comments + Replies + Upvotes) ÷ Views × 100
             </p>
           </CardContent>
         </Card>
@@ -266,17 +272,23 @@ export function AnalyticsOverview() {
         <Card className="border-2 hover:shadow-lg transition-all duration-200">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold">Average Performance</CardTitle>
-            <CardDescription className="text-xs">Per video metrics (approx.)</CardDescription>
+            <CardDescription className="text-xs">Per video metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                <span className="text-sm text-muted-foreground">Avg. Views per Video</span>
-                <span className="text-base font-semibold">~{analytics.averageViewsPerVideo.toFixed(1)}</span>
+              <div className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Avg. Views per Video</span>
+                  <span className="text-base font-semibold">~{analytics.averageViewsPerVideo.toFixed(1)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Total Views ÷ Total Videos</p>
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                <span className="text-sm text-muted-foreground">Avg. Comments per Video</span>
-                <span className="text-base font-semibold">~{analytics.averageCommentsPerVideo.toFixed(1)}</span>
+              <div className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Avg. Comments per Video</span>
+                  <span className="text-base font-semibold">~{analytics.averageCommentsPerVideo.toFixed(1)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Total Comments ÷ Total Videos</p>
               </div>
             </div>
           </CardContent>
@@ -289,19 +301,25 @@ export function AnalyticsOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                <span className="text-sm text-muted-foreground">Total Interactions</span>
-                <span className="text-base font-semibold">
-                  {formatNumber(analytics.totalComments + analytics.totalReplies + analytics.totalUpvotes)}
-                </span>
+              <div className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total Interactions</span>
+                  <span className="text-base font-semibold">
+                    {formatNumber(analytics.totalComments + analytics.totalReplies + analytics.totalUpvotes)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Comments + Replies + Upvotes</p>
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                <span className="text-sm text-muted-foreground">Videos per User</span>
-                <span className="text-base font-semibold">
-                  {analytics.totalUsers > 0 
-                    ? `~${(analytics.totalVideos / analytics.totalUsers).toFixed(1)}`
-                    : "0"}
-                </span>
+              <div className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Videos per User</span>
+                  <span className="text-base font-semibold">
+                    {analytics.totalUsers > 0 
+                      ? `~${(analytics.totalVideos / analytics.totalUsers).toFixed(1)}`
+                      : "0"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Total Videos ÷ Total Users</p>
               </div>
             </div>
           </CardContent>

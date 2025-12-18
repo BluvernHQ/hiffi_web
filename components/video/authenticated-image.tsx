@@ -34,6 +34,7 @@ export function AuthenticatedImage({
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [imageLoadError, setImageLoadError] = useState(false)
   const blobUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -82,6 +83,19 @@ export function AuthenticatedImage({
         if (cancelled) return
 
         const blob = await response.blob()
+        
+        // Validate that we got an image blob
+        if (!blob.type.startsWith('image/')) {
+          console.error("[AuthenticatedImage] Response is not an image:", blob.type, "URL:", src)
+          throw new Error(`Invalid image type: ${blob.type}`)
+        }
+        
+        // Check blob size - if it's too small, it might be an error page
+        if (blob.size < 100) {
+          console.error("[AuthenticatedImage] Blob size too small, might be an error:", blob.size, "URL:", src)
+          throw new Error(`Image blob too small: ${blob.size} bytes`)
+        }
+        
         const url = URL.createObjectURL(blob)
         
         if (cancelled) {
@@ -142,15 +156,22 @@ export function AuthenticatedImage({
     )
   }
 
-  // Only show error if loading completed and there's an actual error
-  if (error || (!blobUrl && !isLoading)) {
+  // Handle image load error from Next.js Image component
+  const handleImageError = () => {
+    console.error("[AuthenticatedImage] Next.js Image failed to load blob URL:", blobUrl)
+    setImageLoadError(true)
+    onError?.()
+  }
+
+  // Show error state if fetch failed or image load failed
+  if (error || imageLoadError || (!blobUrl && !isLoading)) {
     return (
       <div
         className={className}
         style={fill ? undefined : { width, height }}
       >
         <div className="w-full h-full bg-muted flex items-center justify-center">
-          <span className="text-muted-foreground text-sm">Failed to load image</span>
+          <span className="text-muted-foreground text-xs">No thumbnail</span>
         </div>
       </div>
     )
@@ -177,7 +198,8 @@ export function AuthenticatedImage({
         className={className}
         priority={priority}
         sizes={sizes}
-        onError={onError}
+        onError={handleImageError}
+        unoptimized={true}
       />
     )
   }
@@ -191,7 +213,8 @@ export function AuthenticatedImage({
       className={className}
       priority={priority}
       sizes={sizes}
-      onError={onError}
+      onError={handleImageError}
+      unoptimized={true}
     />
   )
 }

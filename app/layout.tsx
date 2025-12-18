@@ -4,6 +4,8 @@ import Script from 'next/script'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from '@/components/ui/toaster'
+import { ClarityTracker } from '@/components/analytics/clarity-tracker'
+import { GATracker } from '@/components/analytics/ga-tracker'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -67,8 +69,14 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <Toaster />
-        {/* Google Analytics */}
-        {gaId && <GoogleAnalytics gaId={gaId} />}
+        {/* Analytics */}
+        {clarityId && <ClarityTracker />}
+        {gaId && (
+          <>
+            <GoogleAnalytics gaId={gaId} />
+            <GATracker gaId={gaId} />
+          </>
+        )}
       </body>
     </html>
   )
