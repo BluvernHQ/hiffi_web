@@ -18,7 +18,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>
   signup: (username: string, password: string, name: string) => Promise<void>
   logout: () => Promise<void>
-  refreshUserData: (forceRefresh?: boolean) => Promise<void>
+  refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -72,8 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("[hiffi] User data fetched successfully:", response.user.username)
         console.log("[hiffi] User role:", response.user.role)
         console.log("[hiffi] Is creator:", response.user.role === "creator")
-        setUserData(response.user)
-        setUser(response.user)
+        console.log("[hiffi] Profile picture:", response.user.profile_picture || response.user.image)
+        // Force state update by creating new object reference to trigger re-renders
+        // This ensures navbar and other components that depend on userData will re-render
+        const newUserData = { ...response.user }
+        setUserData(newUserData)
+        setUser(newUserData)
+        console.log("[hiffi] UserData state updated, should trigger navbar refresh")
 
         // Cache the user data
         if (typeof window !== "undefined") {

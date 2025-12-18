@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
-import { useState } from "react"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
+import { useState, useEffect } from "react"
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from "@/lib/utils"
 
 interface NavbarProps {
   onMenuClick?: () => void
@@ -27,10 +27,105 @@ interface NavbarProps {
 export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | undefined>(undefined)
   const pathname = usePathname()
   
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
+  
+  // Function to fetch and update profile picture
+  const fetchAndUpdateProfilePicture = () => {
+    // Store previous blob URL for cleanup
+    const previousBlobUrl = profilePictureUrl
+    
+    if (!userData) {
+      // Cleanup previous blob URL
+      if (previousBlobUrl && previousBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previousBlobUrl)
+      }
+      setProfilePictureUrl(undefined)
+      return
+    }
+    
+    const profilePicUrl = getProfilePictureUrl(userData, true)
+    if (!profilePicUrl) {
+      // Cleanup previous blob URL
+      if (previousBlobUrl && previousBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previousBlobUrl)
+      }
+      setProfilePictureUrl(undefined)
+      return
+    }
+    
+    console.log("[navbar] Fetching profile picture (userData changed):", {
+      profile_picture: userData.profile_picture,
+      image: userData.image,
+      updated_at: userData.updated_at,
+      url: profilePicUrl
+    })
+    
+    // If it's a Workers URL, fetch with auth and create blob URL (always fresh)
+    if (profilePicUrl.includes('black-paper-83cf.hiffi.workers.dev')) {
+      // Always fetch fresh - add timestamp to force new fetch
+      const freshUrl = profilePicUrl.includes('?') 
+        ? `${profilePicUrl}&_nav=${Date.now()}`
+        : `${profilePicUrl}?_nav=${Date.now()}`
+      
+      fetchProfilePictureWithAuth(freshUrl)
+        .then(blobUrl => {
+          // Clean up previous blob URL before setting new one
+          if (previousBlobUrl && previousBlobUrl !== blobUrl && previousBlobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previousBlobUrl)
+          }
+          setProfilePictureUrl(blobUrl)
+          console.log("[navbar] Profile picture updated (fresh fetch):", blobUrl)
+        })
+        .catch(error => {
+          console.error("[navbar] Failed to fetch profile picture with auth:", error)
+          // Clean up previous blob URL on error
+          if (previousBlobUrl && previousBlobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previousBlobUrl)
+          }
+          // Fallback to direct URL
+          setProfilePictureUrl(profilePicUrl)
+        })
+    } else {
+      // Not a Workers URL, clean up previous blob URL and use directly
+      if (previousBlobUrl && previousBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previousBlobUrl)
+      }
+      setProfilePictureUrl(profilePicUrl)
+    }
+  }
+
+  // Fetch profile picture with authentication when userData changes
+  // Always fetch fresh - no caching
+  // This effect runs whenever userData changes, including when profile picture is updated
+  useEffect(() => {
+    fetchAndUpdateProfilePicture()
+    
+    // Cleanup blob URL on unmount
+    return () => {
+      if (profilePictureUrl && profilePictureUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePictureUrl)
+      }
+    }
+  }, [userData]) // Depend on entire userData object to catch any changes
+
+  // Listen for custom event when profile picture is updated
+  useEffect(() => {
+    const handleProfilePictureUpdate = (event: CustomEvent) => {
+      console.log("[navbar] Received profilePictureUpdated event:", event.detail)
+      // Force immediate refresh of profile picture
+      fetchAndUpdateProfilePicture()
+    }
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener)
+    
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener)
+    }
+  }, [userData]) // Re-bind listener when userData changes
 
   return (
     <>
@@ -95,7 +190,8 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
                         <AvatarImage
-                          src={getProfilePictureUrl(userData)}
+                          src={profilePictureUrl}
+                          key={`navbar-avatar-${userData?.profile_picture || userData?.image || 'none'}-${userData?.updated_at || Date.now()}-${Date.now()}`}
                           alt={userData.name || userData.username || "User"}
                         />
                         <AvatarFallback 

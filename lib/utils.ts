@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { WORKERS_BASE_URL, getWorkersApiKey } from '@/lib/storage'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -29,34 +30,53 @@ export function getAvatarLetter(user: any, fallback: string = "U"): string {
 // If profile_picture is a path (not a full URL), it routes through our proxy
 // Includes cache busting parameter using updated_at timestamp if available
 export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true): string {
-  if (!user) return "";
+  if (!user) {
+    console.log("[utils] getProfilePictureUrl: user is null/undefined");
+    return "";
+  }
   
   // Check profile_picture first (API field name)
   // Also check 'image' field as it might be used in some API responses
   const profilePicturePath = (user.profile_picture || user.image || "").toString().trim();
+  console.log("[utils] getProfilePictureUrl:", {
+    hasUser: !!user,
+    profile_picture: user.profile_picture,
+    image: user.image,
+    profilePicturePath,
+    useCacheBusting
+  });
+  
   if (profilePicturePath) {
     
-    // If it's already a full URL (starts with http:// or https://), add cache busting if needed
+    // If it's already a full URL (starts with http:// or https://), use it directly
+    // This includes full Workers URLs like https://black-paper-83cf.hiffi.workers.dev/...
     if (profilePicturePath.startsWith("http://") || profilePicturePath.startsWith("https://")) {
-      if (useCacheBusting && user.updated_at) {
-        // Add cache busting parameter using updated_at timestamp
+      console.log("[utils] Profile picture is a full URL, using directly:", profilePicturePath);
+      if (useCacheBusting) {
+        // Add cache busting parameter - use updated_at if available, otherwise use current timestamp
         const separator = profilePicturePath.includes("?") ? "&" : "?";
-        return `${profilePicturePath}${separator}t=${new Date(user.updated_at).getTime()}`;
+        const cacheBuster = user.updated_at 
+          ? new Date(user.updated_at).getTime() 
+          : Date.now();
+        return `${profilePicturePath}${separator}t=${cacheBuster}`;
       }
       return profilePicturePath;
     }
     
-    // If it's a path (like "ProfileProto/users/..."), route through proxy with API key
-    // Proxy route: /proxy/profile-picture/[...path]
-    let url = `/proxy/profile-picture/${profilePicturePath}`;
+    // If it's a path (like "ProfileProto/users/..."), construct full Workers URL
+    // We'll fetch it with authentication and create a blob URL
+    console.log("[utils] Profile picture is a path, constructing full Workers URL:", profilePicturePath);
+    let url = `${WORKERS_BASE_URL}/${profilePicturePath}`;
     
     // Add cache busting parameter if updated_at is available
     if (useCacheBusting) {
       const separator = url.includes("?") ? "&" : "?";
       if (user.updated_at) {
+        // Use updated_at timestamp for cache busting
         url += `${separator}t=${new Date(user.updated_at).getTime()}`;
       } else {
         // Fallback to current timestamp if updated_at is not available
+        // This ensures we always get a fresh image even if updated_at is missing
         url += `${separator}t=${Date.now()}`;
       }
     }
@@ -86,6 +106,59 @@ export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true)
   }
   
   return fallbackUrl;
+}
+
+/**
+ * Fetches a profile picture from Workers with authentication and returns a blob URL
+ * This is needed when the Workers endpoint requires x-api-key header
+ * Always fetches fresh - no caching
+ * @param profilePictureUrl - Full Workers URL to the profile picture
+ * @returns Promise<string> - Blob URL that can be used in img src
+ */
+export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Promise<string> {
+  if (!profilePictureUrl) {
+    throw new Error("Profile picture URL is required");
+  }
+  
+  // If it's not a Workers URL, return as is (no auth needed)
+  if (!profilePictureUrl.includes(WORKERS_BASE_URL)) {
+    return profilePictureUrl;
+  }
+  
+  const apiKey = getWorkersApiKey();
+  if (!apiKey) {
+    console.error("[utils] No API key found, profile picture may fail to load");
+    // Return the URL anyway - might work if Workers doesn't require auth
+    return profilePictureUrl;
+  }
+
+  try {
+    // Add cache busting to ensure fresh fetch every time
+    const separator = profilePictureUrl.includes("?") ? "&" : "?";
+    const freshUrl = `${profilePictureUrl}${separator}_fresh=${Date.now()}`;
+    
+    console.log("[utils] Fetching profile picture from Workers with auth (fresh):", freshUrl);
+    const response = await fetch(freshUrl, {
+      headers: {
+        'x-api-key': apiKey,
+      },
+      cache: 'no-store', // Don't cache to ensure fresh images
+    });
+
+    if (!response.ok) {
+      console.error(`[utils] Failed to fetch profile picture: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch profile picture: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    console.log("[utils] Profile picture fetched successfully (fresh), created blob URL");
+    return blobUrl;
+  } catch (error) {
+    console.error("[utils] Error fetching profile picture with auth:", error);
+    // Return the original URL as fallback - might work if Workers allows public access
+    return profilePictureUrl;
+  }
 }
 
 // Check if user is a creator

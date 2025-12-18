@@ -8,7 +8,7 @@ import { Loader2, Camera, X } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { getProfilePictureUrl, getColorFromName, getAvatarLetter, fetchProfilePictureWithAuth } from "@/lib/utils"
 
 interface ProfilePictureDialogProps {
   open: boolean
@@ -34,6 +34,7 @@ export function ProfilePictureDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { refreshUserData } = useAuth()
   const { toast } = useToast()
+  const [currentProfilePictureBlobUrl, setCurrentProfilePictureBlobUrl] = useState<string | null>(null)
 
   // Track the last uploaded image path to keep preview until profile updates
   const [lastUploadedPath, setLastUploadedPath] = useState<string | null>(null)
@@ -44,6 +45,70 @@ export function ProfilePictureDialog({
       setLastUploadedPath(null)
     }
   }, [open])
+  
+  // Fetch fresh profile picture when dialog opens or currentProfilePicture changes
+  useEffect(() => {
+    // Store previous blob URL for cleanup
+    let previousBlobUrl: string | null = null
+    
+    if (!open || !currentProfilePicture) {
+      // Clean up blob URL
+      if (currentProfilePictureBlobUrl) {
+        URL.revokeObjectURL(currentProfilePictureBlobUrl)
+        setCurrentProfilePictureBlobUrl(null)
+      }
+      return
+    }
+    
+    // Store current blob URL before fetching new one
+    previousBlobUrl = currentProfilePictureBlobUrl
+    
+    // Always fetch fresh - don't cache
+    const profilePicUrl = getProfilePictureUrl({ 
+      profile_picture: currentProfilePicture,
+      updated_at: new Date().toISOString()
+    }, true)
+    
+    if (profilePicUrl && profilePicUrl.includes('black-paper-83cf.hiffi.workers.dev')) {
+      // Fetch with auth and create blob URL (always fresh)
+      fetchProfilePictureWithAuth(profilePicUrl)
+        .then(blobUrl => {
+          // Clean up previous blob URL
+          if (previousBlobUrl && previousBlobUrl !== blobUrl) {
+            URL.revokeObjectURL(previousBlobUrl)
+          }
+          setCurrentProfilePictureBlobUrl(blobUrl)
+        })
+        .catch(error => {
+          console.error("[dialog] Failed to fetch profile picture with auth:", error)
+          // Clean up on error
+          if (previousBlobUrl) {
+            URL.revokeObjectURL(previousBlobUrl)
+          }
+          setCurrentProfilePictureBlobUrl(null)
+        })
+    } else {
+      // Not a Workers URL, clear blob URL
+      if (previousBlobUrl) {
+        URL.revokeObjectURL(previousBlobUrl)
+      }
+      setCurrentProfilePictureBlobUrl(null)
+    }
+    
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      // Cleanup will be handled by next effect run or component unmount
+    }
+  }, [open, currentProfilePicture])
+  
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (currentProfilePictureBlobUrl) {
+        URL.revokeObjectURL(currentProfilePictureBlobUrl)
+      }
+    }
+  }, [currentProfilePictureBlobUrl])
 
   // Reset state when dialog closes
   const handleClose = (open: boolean) => {
@@ -53,6 +118,11 @@ export function ProfilePictureDialog({
       setImagePreview(null)
       setUploadProgress(0)
       setLastUploadedPath(null)
+      // Clean up blob URL
+      if (currentProfilePictureBlobUrl) {
+        URL.revokeObjectURL(currentProfilePictureBlobUrl)
+        setCurrentProfilePictureBlobUrl(null)
+      }
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
@@ -147,14 +217,25 @@ export function ProfilePictureDialog({
       setUploadingImage(false)
       handleClose(false)
 
-      // Refresh data in background after dialog closes to prevent flickering
+      // Refresh data immediately to update navbar
       // Use a small delay to ensure the backend has processed the update
       setTimeout(async () => {
         try {
-          // Call onProfileUpdated first to trigger version increment
-          await onProfileUpdated?.()
-          // Then refresh user data to get updated profile
+          // Clear auth context cache to force fresh fetch
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("hiffi_user_data");
+            localStorage.removeItem("hiffi_user_data_timestamp");
+          }
+          // Refresh user data FIRST to update navbar immediately
+          console.log("[ProfilePictureDialog] Refreshing user data to update navbar...")
           await refreshUserData(true)
+          // Dispatch custom event to notify navbar of profile picture update
+          // This ensures navbar updates even if userData object reference doesn't change
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent('profilePictureUpdated'))
+          }
+          // Then call onProfileUpdated to trigger version increment on profile page
+          await onProfileUpdated?.()
         } catch (error) {
           console.error("[hiffi] Error refreshing profile data:", error)
         }
@@ -172,19 +253,9 @@ export function ProfilePictureDialog({
   }
 
   // Get current profile picture URL for preview
-  // Priority: imagePreview (newly selected/uploaded) > currentProfilePicture (existing)
+  // Priority: imagePreview (newly selected/uploaded) > currentProfilePictureBlobUrl (fetched fresh) > currentProfilePicture (fallback)
   // Always prefer imagePreview if it exists (user selected new image)
-  const currentProfilePictureUrl = currentProfilePicture || ""
-  
-  // If we have a preview (newly selected image), always use it - this ensures the new image is shown
-  // Only fall back to currentProfilePicture if no preview is available
-  // Use dynamic cache busting based on currentProfilePicture to ensure updates are reflected
-  const displayPreview = imagePreview || (currentProfilePictureUrl 
-    ? getProfilePictureUrl({ 
-        profile_picture: currentProfilePictureUrl,
-        updated_at: new Date().toISOString() // Use current time for dialog preview to ensure fresh image
-      }, true)
-    : null)
+  const displayPreview = imagePreview || currentProfilePictureBlobUrl || null
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -201,7 +272,7 @@ export function ProfilePictureDialog({
               <Avatar className="h-24 w-24 border-2 border-border">
                 <AvatarImage 
                   src={displayPreview || undefined}
-                  key={`avatar-dialog-${imagePreview ? 'preview' : currentProfilePictureUrl || 'none'}-${selectedImage ? 'selected' : 'current'}`}
+                  key={`avatar-dialog-${imagePreview ? 'preview' : currentProfilePicture || 'none'}-${selectedImage ? 'selected' : 'current'}-${Date.now()}`}
                   alt="Profile picture preview"
                 />
                 <AvatarFallback 

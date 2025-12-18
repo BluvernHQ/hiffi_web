@@ -15,7 +15,7 @@ import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, Share2, Calendar, UserPlus, UserCheck, Copy, Check, Mail } from 'lucide-react';
 import { format } from 'date-fns';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from '@/lib/utils';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialog';
 
@@ -40,12 +40,20 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [profilePictureVersion, setProfilePictureVersion] = useState(0);
   const [isUnauthenticated, setIsUnauthenticated] = useState(false);
+  const [profilePictureBlobUrl, setProfilePictureBlobUrl] = useState<string | null>(null);
   
   const VIDEOS_PER_PAGE = 10;
   
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
   const isRegularUser = profileUser?.role === "user" || profileUser?.role === undefined;
+  
+  // Debug: Log current user data to check if it's interfering
+  console.log("[hiffi] Current user data (auth context):", {
+    username: currentUserData?.username,
+    profile_picture: currentUserData?.profile_picture,
+    image: currentUserData?.image
+  });
 
   const fetchUserData = useCallback(async (forceRefresh: boolean = false) => {
       if (!username) {
@@ -61,6 +69,15 @@ export default function ProfilePage() {
       
       // Check if user is authenticated - if not, we'll show login prompt
       const isAuthenticated = !!apiClient.getAuthToken();
+      
+      // If force refresh, clear any cached data to ensure fresh fetch
+      if (forceRefresh && typeof window !== "undefined") {
+        // Clear auth context cache for current user if viewing own profile
+        if (currentUserData?.username === username) {
+          localStorage.removeItem("hiffi_user_data");
+          localStorage.removeItem("hiffi_user_data_timestamp");
+        }
+      }
 
       try {
         setIsLoading(true);
@@ -80,7 +97,7 @@ export default function ProfilePage() {
           response = await apiClient.getUserByUsername(username);
         }
         
-        console.log("[hiffi] User data from API:", response);
+        console.log("[hiffi] User data from API (raw response):", JSON.stringify(response, null, 2));
         
         // Handle API response format: { success: true, user: {...}, following?: boolean }
         // or: { success: true, data: { user: {...} } }
@@ -88,9 +105,28 @@ export default function ProfilePage() {
         const profileData = (response?.success && response?.user) 
           ? response.user 
           : (responseAny?.data?.user || response?.user || (responseAny?.data && typeof responseAny.data === 'object' && !responseAny.data.user ? responseAny.data : null) || response);
-        console.log("[hiffi] Profile data:", profileData);
+        
+        console.log("[hiffi] Extracted profile data:", JSON.stringify(profileData, null, 2));
         console.log("[hiffi] Profile picture field:", profileData?.profile_picture);
+        console.log("[hiffi] Image field:", profileData?.image);
+        console.log("[hiffi] Profile picture type:", typeof profileData?.profile_picture);
+        console.log("[hiffi] Profile picture is URL:", profileData?.profile_picture?.startsWith?.("http"));
+        console.log("[hiffi] Profile picture value:", profileData?.profile_picture);
+        console.log("[hiffi] Updated at:", profileData?.updated_at);
         console.log("[hiffi] All profile data keys:", Object.keys(profileData || {}));
+        
+        // Check for any other image-related fields
+        const imageFields = Object.keys(profileData || {}).filter(key => 
+          key.toLowerCase().includes('image') || 
+          key.toLowerCase().includes('avatar') || 
+          key.toLowerCase().includes('picture') ||
+          key.toLowerCase().includes('photo')
+        );
+        console.log("[hiffi] All image-related fields:", imageFields);
+        imageFields.forEach(field => {
+          console.log(`[hiffi] ${field}:`, profileData?.[field]);
+        });
+        
         console.log("[hiffi] Followers:", profileData?.followers);
         console.log("[hiffi] Following:", profileData?.following);
         
@@ -102,14 +138,56 @@ export default function ProfilePage() {
         
         // Normalize: if API returns 'image', also set it as 'profile_picture' for consistency
         if (profileData?.image && !profileData?.profile_picture) {
+          console.log("[hiffi] Normalizing: setting profile_picture from image field");
           profileData.profile_picture = profileData.image;
         }
         
+        // Log final profile picture value before setting state
+        console.log("[hiffi] Final profile_picture value before setting state:", profileData?.profile_picture);
+        
         setProfileUser(profileData);
         
-        // Increment profile picture version if profile_picture path changed
+        // Always fetch fresh profile picture - don't cache blob URLs
+        // Store previous blob URL for cleanup
+        const previousBlobUrl = profilePictureBlobUrl;
+        
+        // Fetch profile picture with authentication if it's a Workers URL
+        const profilePicUrl = getProfilePictureUrl(profileData, true);
+        if (profilePicUrl && profilePicUrl.includes('black-paper-83cf.hiffi.workers.dev')) {
+          // Fetch with auth and create blob URL - always fetch fresh (no caching)
+          fetchProfilePictureWithAuth(profilePicUrl)
+            .then(blobUrl => {
+              // Clean up previous blob URL before setting new one
+              if (previousBlobUrl && previousBlobUrl !== blobUrl) {
+                URL.revokeObjectURL(previousBlobUrl);
+              }
+              setProfilePictureBlobUrl(blobUrl);
+              console.log("[hiffi] Profile picture blob URL created (fresh fetch from API):", blobUrl);
+            })
+            .catch(error => {
+              console.error("[hiffi] Failed to fetch profile picture with auth:", error);
+              // Clean up previous blob URL on error
+              if (previousBlobUrl) {
+                URL.revokeObjectURL(previousBlobUrl);
+              }
+              setProfilePictureBlobUrl(null); // Fallback to direct URL
+            });
+        } else {
+          // Not a Workers URL or no profile picture, clean up blob URL
+          if (previousBlobUrl) {
+            URL.revokeObjectURL(previousBlobUrl);
+          }
+          setProfilePictureBlobUrl(null);
+        }
+        
+        // Increment profile picture version if profile_picture path changed OR if force refresh
         // This forces AvatarImage to re-render with new cache buster
-        if (newProfilePicture && newProfilePicture !== previousProfilePicture) {
+        if (forceRefresh || (newProfilePicture && newProfilePicture !== previousProfilePicture)) {
+          console.log("[hiffi] Profile picture changed or force refresh, incrementing version", {
+            previous: previousProfilePicture,
+            new: newProfilePicture,
+            forceRefresh
+          });
           setProfilePictureVersion(prev => prev + 1);
         }
         
@@ -240,6 +318,15 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchUserData(false);
   }, [fetchUserData]);
+  
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (profilePictureBlobUrl) {
+        URL.revokeObjectURL(profilePictureBlobUrl);
+      }
+    };
+  }, [profilePictureBlobUrl]);
 
   const handleCopy = async () => {
     // Ensure we're in a browser environment
@@ -560,11 +647,19 @@ export default function ProfilePage() {
                       <AvatarImage
                         src={(() => {
                           if (!profileUser) return undefined;
+                          
+                          // Use blob URL if available (fetched with auth), otherwise use direct URL
+                          if (profilePictureBlobUrl) {
+                            console.log("[hiffi] AvatarImage using blob URL:", profilePictureBlobUrl);
+                            return profilePictureBlobUrl;
+                          }
+                          
                           const profilePicUrl = getProfilePictureUrl(profileUser, true);
                           console.log("[hiffi] AvatarImage src for profile:", {
                             profile_picture: profileUser.profile_picture,
                             generatedUrl: profilePicUrl,
-                            version: profilePictureVersion
+                            version: profilePictureVersion,
+                            hasBlobUrl: !!profilePictureBlobUrl
                           });
                           // Add aggressive cache busting with version number when version > 0
                           // This ensures new uploads get fresh cache, but existing images don't reload constantly
@@ -574,7 +669,7 @@ export default function ProfilePage() {
                           }
                           return profilePicUrl || undefined;
                         })()}
-                        key={`avatar-main-${profileUser?.profile_picture || 'none'}-${profilePictureVersion}-${profileUser?.updated_at || 'no-update'}`}
+                        key={`avatar-main-${profileUser?.profile_picture || 'none'}-${profilePictureVersion}-${profileUser?.updated_at || 'no-update'}-${profilePictureBlobUrl ? 'blob' : 'direct'}`}
                         alt={`${profileUser?.name || profileUser?.username || username}'s profile picture`}
                       />
                       <AvatarFallback 
@@ -815,17 +910,24 @@ export default function ProfilePage() {
                 <div className="relative">
                   <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 lg:h-32 lg:w-32 border-2 sm:border-3 md:border-4 border-background shadow-lg">
                     <AvatarImage
-                      src={profileUser?.profile_picture ? (() => {
+                      src={(() => {
+                        if (!profileUser) return undefined;
+                        
+                        // Use blob URL if available (fetched with auth), otherwise use direct URL
+                        if (profilePictureBlobUrl) {
+                          return profilePictureBlobUrl;
+                        }
+                        
                         const baseUrl = getProfilePictureUrl(profileUser, true);
                         // Add aggressive cache busting with version number when version > 0
                         // This ensures new uploads get fresh cache, but existing images don't reload constantly
-                        if (profilePictureVersion > 0) {
+                        if (baseUrl && profilePictureVersion > 0) {
                           const separator = baseUrl.includes("?") ? "&" : "?";
                           return `${baseUrl}${separator}v=${profilePictureVersion}`;
                         }
-                        return baseUrl;
-                      })() : getProfilePictureUrl(profileUser, false)}
-                      key={`avatar-creator-${profileUser?.profile_picture || 'none'}-${profilePictureVersion}-${profileUser?.updated_at || 'no-update'}`}
+                        return baseUrl || undefined;
+                      })()}
+                      key={`avatar-creator-${profileUser?.profile_picture || 'none'}-${profilePictureVersion}-${profileUser?.updated_at || 'no-update'}-${profilePictureBlobUrl ? 'blob' : 'direct'}`}
                       alt={`${profileUser?.name || profileUser?.username || username}'s profile picture`}
                     />
                     <AvatarFallback 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getThumbnailUrl } from '@/lib/storage';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from '@/lib/utils';
 import { getSeed } from '@/lib/seed-manager';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,6 +34,8 @@ function SearchPageContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentQuery, setCurrentQuery] = useState<string | null>(null); // Use null to detect initial mount
   const { toast } = useToast();
+  const [userProfilePictures, setUserProfilePictures] = useState<Map<string, string>>(new Map()); // Map of username -> blob URL
+  const previousBlobUrlsRef = useRef<Map<string, string>>(new Map()); // Track previous blob URLs for cleanup
 
   const fetchSearchResults = async (searchQuery: string, isInitialLoad: boolean = true) => {
     if (!searchQuery.trim()) {
@@ -58,11 +60,41 @@ function SearchPageContent() {
         // Search users
         const usersResponse = await apiClient.searchUsers(searchQuery, 50).catch(() => ({ success: false, users: [], count: 0 }));
         if (usersResponse.success) {
-          setUserResults(usersResponse.users || []);
+          const users = usersResponse.users || [];
+          setUserResults(users);
           setUserCount(usersResponse.count || 0);
+          
+          // Fetch profile pictures with authentication for all users
+          // Cleanup previous blob URLs
+          previousBlobUrlsRef.current.forEach((blobUrl) => {
+            if (blobUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(blobUrl);
+            }
+          });
+          
+          const profilePictureMap = new Map<string, string>();
+          await Promise.all(
+            users.map(async (user: any) => {
+              const profilePicPath = user.profile_picture || user.image || '';
+              if (profilePicPath) {
+                const profilePicUrl = getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true);
+                if (profilePicUrl && profilePicUrl.includes('black-paper-83cf.hiffi.workers.dev')) {
+                  try {
+                    const blobUrl = await fetchProfilePictureWithAuth(profilePicUrl);
+                    profilePictureMap.set(user.username || user.uid || '', blobUrl);
+                  } catch (error) {
+                    console.error('[SearchPage] Failed to fetch profile picture for user:', user.username, error);
+                  }
+                }
+              }
+            })
+          );
+          previousBlobUrlsRef.current = new Map(profilePictureMap);
+          setUserProfilePictures(profilePictureMap);
         } else {
           setUserResults([]);
           setUserCount(0);
+          setUserProfilePictures(new Map());
         }
         
         // Search videos - use the proper search endpoint
@@ -115,12 +147,20 @@ function SearchPageContent() {
       setCurrentQuery(queryKey);
       
       // Always reset state when query changes (including clearing on refresh with no query)
+      // Cleanup blob URLs before clearing
+      previousBlobUrlsRef.current.forEach((blobUrl) => {
+        if (blobUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrl);
+        }
+      });
+      previousBlobUrlsRef.current = new Map();
       setVideoResults([]);
       setUserResults([]);
       setVideoCount(0);
       setUserCount(0);
       setVideoOffset(0);
       setHasMoreVideos(false);
+      setUserProfilePictures(new Map());
       
       if (searchQuery.trim()) {
         setLoading(true);
@@ -134,6 +174,17 @@ function SearchPageContent() {
     // Depend on searchParams to detect URL changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      previousBlobUrlsRef.current.forEach((blobUrl) => {
+        if (blobUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrl);
+        }
+      });
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -188,13 +239,21 @@ function SearchPageContent() {
                               <h2 className="text-xl font-bold">Users ({userCount})</h2>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                              {userResults.map((user: any) => (
+                              {userResults.map((user: any) => {
+                                const profilePicPath = user.profile_picture || user.image || '';
+                                const blobUrl = userProfilePictures.get(user.username || user.uid || '');
+                                const avatarSrc = blobUrl || (profilePicPath ? getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true) : undefined);
+                                
+                                return (
                                 <Link key={user.uid || user.username} href={`/profile/${user.username}`}>
                                   <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/20 cursor-pointer h-full">
                                     <CardContent className="p-6">
                                       <div className="flex items-center gap-4">
                                         <Avatar className="h-16 w-16">
-                                          <AvatarImage src={user.profile_picture ? getProfilePictureUrl({ profile_picture: user.profile_picture }) : undefined} />
+                                          <AvatarImage 
+                                            src={avatarSrc}
+                                            key={`search-user-all-${user.username}-${blobUrl ? 'blob' : 'direct'}`}
+                                          />
                                           <AvatarFallback 
                                             className="text-white font-semibold text-lg"
                                             style={{ backgroundColor: getColorFromName(user.username || 'U') }}
@@ -210,7 +269,8 @@ function SearchPageContent() {
                                     </CardContent>
                                   </Card>
                                 </Link>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -262,13 +322,21 @@ function SearchPageContent() {
                       <TabsContent value="users" className="mt-6">
                         {userResults.length > 0 ? (
                           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {userResults.map((user: any) => (
+                            {userResults.map((user: any) => {
+                              const profilePicPath = user.profile_picture || user.image || '';
+                              const blobUrl = userProfilePictures.get(user.username || user.uid || '');
+                              const avatarSrc = blobUrl || (profilePicPath ? getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true) : undefined);
+                              
+                              return (
                               <Link key={user.uid || user.username} href={`/profile/${user.username}`}>
                                 <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/20 cursor-pointer h-full">
                                   <CardContent className="p-6">
                                     <div className="flex items-center gap-4">
                                       <Avatar className="h-16 w-16">
-                                        <AvatarImage src={user.profile_picture ? getProfilePictureUrl({ profile_picture: user.profile_picture }) : undefined} />
+                                        <AvatarImage 
+                                          src={avatarSrc}
+                                          key={`search-user-tab-${user.username}-${blobUrl ? 'blob' : 'direct'}`}
+                                        />
                                         <AvatarFallback 
                                           className="text-white font-semibold text-lg"
                                           style={{ backgroundColor: getColorFromName(user.username || 'U') }}
@@ -280,11 +348,12 @@ function SearchPageContent() {
                                         <h3 className="font-semibold text-lg truncate">@{user.username}</h3>
                                         <p className="text-sm text-muted-foreground">View profile</p>
                                       </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              </Link>
-                            ))}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                </Link>
+                              );
+                            })}
                           </div>
                         ) : (
                           <div className="text-center py-12">

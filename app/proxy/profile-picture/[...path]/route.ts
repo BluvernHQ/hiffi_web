@@ -28,10 +28,13 @@ export async function GET(
 
     // Construct the Workers URL
     const workersUrl = `${WORKERS_BASE_URL}/${profilePicturePath}`
+    
+    console.log(`[hiffi] Profile picture proxy: fetching from Workers: ${workersUrl}`)
 
     // Get the API key for Workers authentication
     const apiKey = getWorkersApiKey()
     if (!apiKey) {
+      console.error('[hiffi] Profile picture proxy: API key not configured')
       return NextResponse.json(
         { error: 'API key not configured' },
         { status: 500 }
@@ -46,9 +49,19 @@ export async function GET(
       },
       cache: 'no-store', // Don't cache profile pictures
     })
+    
+    console.log(`[hiffi] Profile picture proxy: Workers response status: ${response.status} ${response.statusText}`)
 
     if (!response.ok) {
       console.error(`[hiffi] Workers returned error for profile picture: ${response.status} ${response.statusText}`)
+      console.error(`[hiffi] Workers URL that failed: ${workersUrl}`)
+      // Try to get error details
+      try {
+        const errorText = await response.text()
+        console.error(`[hiffi] Workers error response: ${errorText.substring(0, 200)}`)
+      } catch (e) {
+        // Ignore error reading response
+      }
       return NextResponse.json(
         { error: `Failed to fetch profile picture: ${response.statusText}` },
         { status: response.status }
@@ -57,6 +70,7 @@ export async function GET(
 
     // Get the image data as a blob
     const imageBlob = await response.blob()
+    console.log(`[hiffi] Profile picture proxy: Successfully fetched image, size: ${imageBlob.size} bytes`)
     
     // Get content type from Workers response
     const contentType = response.headers.get('content-type') || 'image/jpeg'
