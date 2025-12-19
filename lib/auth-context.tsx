@@ -241,8 +241,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("[hiffi] Logout successful")
-      // Don't redirect - let user stay on current page
-      // User can browse as guest and choose to login/signup when ready
+      
+      // Always redirect to home page after logout
+      router.push("/")
     } catch (error) {
       console.error("[hiffi] Sign out failed:", error)
       throw error
