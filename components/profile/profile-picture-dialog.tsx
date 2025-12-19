@@ -197,8 +197,8 @@ export function ProfilePictureDialog({
       const uploadedImagePath = uploadUrlResponse.path
 
       // Step 3: Update profile with new picture
-      // API expects: PUT /users/{username} with body { "image": path }
-      await apiClient.updateUserProfile(currentUsername, { image: uploadedImagePath })
+      // API expects: PUT /users/self with body { "profile_picture": path }
+      await apiClient.updateSelf({ profile_picture: uploadedImagePath })
       setUploadProgress(100)
 
       // Store the uploaded path so we can track when profile updates

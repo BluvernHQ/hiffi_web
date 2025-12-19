@@ -5,13 +5,12 @@ import type React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { Play, MoreVertical, Trash2 } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
+import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
 import { DeleteVideoDialog } from "./delete-video-dialog"
 import { AuthenticatedImage } from "./authenticated-image"
@@ -126,27 +125,14 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
             </div>
           </div>
           <div className="flex gap-2 sm:gap-3 px-1">
-            <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
-              <AvatarImage 
-                src={(() => {
-                  // Try to get profile picture from video object
-                  // Check for user profile picture fields that might be in the API response
-                  const userProfileData = {
-                    profile_picture: (video as any).user_profile_picture || (video as any).profile_picture || (video as any).user?.profile_picture,
-                    username: username,
-                    updated_at: (video as any).user_updated_at || (video as any).updated_at
-                  }
-                  return getProfilePictureUrl(userProfileData)
-                })()} 
-                alt={username} 
-              />
-              <AvatarFallback 
-                className="text-white font-semibold text-xs"
-                style={{ backgroundColor: getColorFromName(username || "U") }}
-              >
-                {getAvatarLetter({ username }, "U")}
-              </AvatarFallback>
-            </Avatar>
+            <ProfilePicture 
+              user={{
+                username: username,
+                profile_picture: (video as any).user_profile_picture || (video as any).profile_picture || (video as any).user?.profile_picture,
+                updated_at: (video as any).user_updated_at || (video as any).updated_at
+              }}
+              size="sm"
+            />
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-tight">
                 {title || "Untitled Video"}

@@ -271,15 +271,37 @@ export default function ProfilePage() {
 
       const videosArray = videosResponse.videos || [];
 
+      // Enhance videos with profile user's profile picture if available
+      // This ensures the profile picture is shown in video cards on the profile page
+      // Since the API doesn't return profile_picture in video list responses, we add it from profileUser
+      const enhancedVideos = videosArray.map((video: any) => {
+        // Always add profile picture from profileUser if available (API doesn't include it)
+        // Use profileUser first, then fallback to currentUserData if viewing own profile
+        const sourceUser = profileUser || (isOwnProfile ? currentUserData : null);
+        
+        if (sourceUser?.profile_picture) {
+          // Always set user_profile_picture from the profile user data
+          // This ensures profile pictures show even when API doesn't return them
+          video.user_profile_picture = sourceUser.profile_picture;
+          video.user_updated_at = sourceUser.updated_at;
+        } else if (sourceUser?.image) {
+          // Fallback to image field if profile_picture is not available
+          video.user_profile_picture = sourceUser.image;
+          video.user_updated_at = sourceUser.updated_at;
+        }
+        
+        return video;
+      });
+
       if (currentOffset === 0) {
         // Initial load - replace videos
-        setUserVideos(videosArray);
+        setUserVideos(enhancedVideos);
       } else {
         // Append new videos to existing ones
         setUserVideos((prev) => {
           // Prevent duplicates by checking video IDs
           const existingIds = new Set(prev.map(v => (v as any).videoId || v.video_id));
-          const newVideos = videosArray.filter(v => !existingIds.has((v as any).videoId || v.video_id));
+          const newVideos = enhancedVideos.filter(v => !existingIds.has((v as any).videoId || v.video_id));
           return [...prev, ...newVideos];
         });
       }
@@ -302,7 +324,7 @@ export default function ProfilePage() {
       setLoadingMore(false);
       setIsFetching(false);
     }
-  }, [username, isFetching]);
+  }, [username, isFetching, profileUser, currentUserData, isOwnProfile]);
 
   const loadMoreVideos = useCallback(() => {
     if (!isLoading && !loadingMore && !isFetching && hasMore) {
@@ -318,6 +340,28 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchUserData(false);
   }, [fetchUserData]);
+
+  // Update videos with profile user's profile picture when profileUser is loaded
+  // This ensures videos loaded before profileUser is available get the profile picture
+  // Always update to ensure profile picture is set even if API doesn't return it
+  useEffect(() => {
+    const sourceUser = profileUser || (isOwnProfile ? currentUserData : null);
+    const profilePicture = sourceUser?.profile_picture || sourceUser?.image;
+    
+    if (profilePicture && userVideos.length > 0) {
+      setUserVideos((prevVideos) => 
+        prevVideos.map((video: any) => {
+          // Always update profile picture from profile user data
+          // This ensures profile pictures show even when API doesn't return them
+          return {
+            ...video,
+            user_profile_picture: profilePicture,
+            user_updated_at: sourceUser?.updated_at,
+          };
+        })
+      );
+    }
+  }, [profileUser?.profile_picture, profileUser?.image, profileUser?.updated_at, currentUserData?.profile_picture, currentUserData?.image, currentUserData?.updated_at, isOwnProfile, userVideos.length]);
   
   // Cleanup blob URL on unmount
   useEffect(() => {

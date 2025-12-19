@@ -169,22 +169,37 @@ function HomePageContent() {
       // Handle null or undefined videos array
       const videosArray = response.videos || []
       
-      console.log(`[hiffi] Received ${videosArray.length} videos at offset ${currentOffset}`)
+      // Enhance videos with current user's profile picture if video belongs to them
+      // This ensures profile pictures show even when API returns empty string
+      const enhancedVideos = videosArray.map((video: any) => {
+        const videoUsername = video.user_username || video.userUsername
+        const isCurrentUserVideo = userData?.username && videoUsername === userData.username
+        
+        // If video doesn't have profile picture and belongs to current user, add it
+        if (isCurrentUserVideo && !video.user_profile_picture && (userData.profile_picture || userData.image)) {
+          video.user_profile_picture = userData.profile_picture || userData.image
+          video.user_updated_at = userData.updated_at
+        }
+        
+        return video
+      })
+      
+      console.log(`[hiffi] Received ${enhancedVideos.length} videos at offset ${currentOffset}`)
 
       if (currentOffset === 0) {
         // Initial load - replace videos
-        setVideos(videosArray)
+        setVideos(enhancedVideos)
         setOffset(0)
         // Save state after initial load
         setTimeout(() => {
-          saveStateToStorage(videosArray, videosArray.length, videosArray.length === VIDEOS_PER_PAGE, currentFilter)
+          saveStateToStorage(enhancedVideos, enhancedVideos.length, enhancedVideos.length === VIDEOS_PER_PAGE, currentFilter)
         }, 0)
       } else {
         // Append new videos to existing ones
         setVideos((prev) => {
           // Prevent duplicates by checking video IDs
           const existingIds = new Set(prev.map(v => (v as any).videoId || (v as any).video_id))
-          const newVideos = videosArray.filter(v => !existingIds.has((v as any).videoId || (v as any).video_id))
+          const newVideos = enhancedVideos.filter(v => !existingIds.has((v as any).videoId || (v as any).video_id))
           const updatedVideos = [...prev, ...newVideos]
           const newOffset = prev.length + newVideos.length
           setOffset(newOffset)
@@ -197,10 +212,10 @@ function HomePageContent() {
       }
 
       // If we got fewer videos than requested, there are no more pages
-      setHasMore(videosArray.length === VIDEOS_PER_PAGE)
+      setHasMore(enhancedVideos.length === VIDEOS_PER_PAGE)
       
-      if (videosArray.length < VIDEOS_PER_PAGE) {
-        console.log(`[hiffi] Reached end of pagination. Got ${videosArray.length} videos, expected ${VIDEOS_PER_PAGE}`)
+      if (enhancedVideos.length < VIDEOS_PER_PAGE) {
+        console.log(`[hiffi] Reached end of pagination. Got ${enhancedVideos.length} videos, expected ${VIDEOS_PER_PAGE}`)
       }
     } catch (error) {
       console.error("[hiffi] Failed to fetch videos:", error)
@@ -227,6 +242,29 @@ function HomePageContent() {
     }
   }
 
+
+  // Update videos with current user's profile picture when userData is available
+  // This ensures profile pictures show even if videos were loaded before userData
+  useEffect(() => {
+    if (userData?.username && userData?.profile_picture && videos.length > 0) {
+      setVideos((prevVideos) => 
+        prevVideos.map((video: any) => {
+          const videoUsername = video.user_username || video.userUsername
+          const isCurrentUserVideo = videoUsername === userData.username
+          
+          // If video belongs to current user and doesn't have profile picture, add it
+          if (isCurrentUserVideo && !video.user_profile_picture) {
+            return {
+              ...video,
+              user_profile_picture: userData.profile_picture || userData.image,
+              user_updated_at: userData.updated_at,
+            }
+          }
+          return video
+        })
+      )
+    }
+  }, [userData?.username, userData?.profile_picture, userData?.image, userData?.updated_at, videos.length])
 
   // Initial load on mount - try to restore from storage first
   useEffect(() => {

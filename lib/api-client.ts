@@ -801,7 +801,7 @@ class ApiClient {
     const videosArray = (responseData?.videos || []) as Array<{ video: any; following: boolean }>
     
     // Extract video objects from the wrapped structure and flatten
-    // Transform from: [{ video: {...}, following: boolean }] to: [{ ...video, following: boolean }]
+    // Transform from: [{ video: {...}, following: boolean, profile_picture: string }] to: [{ ...video, following: boolean, user_profile_picture: string }]
     // Also preserve any user profile picture data
     const videos: Video[] = videosArray.map((item: any) => {
       // If item has 'video' property, it's the wrapped format
@@ -810,15 +810,21 @@ class ApiClient {
           ...item.video,
           following: item.following || false,
         }
-        // Preserve user profile picture if it exists in the response
-        if (item.user?.profile_picture) {
-          videoData.user_profile_picture = item.user.profile_picture
+        // Preserve user profile picture from the response
+        // API returns profile_picture at the same level as video and following
+        // Only set if profile_picture is a non-empty string
+        if (item.profile_picture && item.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.profile_picture.trim()
         }
-        if (item.video.user?.profile_picture) {
-          videoData.user_profile_picture = item.video.user.profile_picture
+        // Also check other possible locations for backward compatibility
+        if (item.user?.profile_picture && item.user.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.user.profile_picture.trim()
         }
-        if (item.video.profile_picture) {
-          videoData.user_profile_picture = item.video.profile_picture
+        if (item.video.user?.profile_picture && item.video.user.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.video.user.profile_picture.trim()
+        }
+        if (item.video.profile_picture && item.video.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.video.profile_picture.trim()
         }
         return videoData
       }
@@ -897,8 +903,8 @@ class ApiClient {
       const responseSeed = response.data?.seed || response.seed
       
       // Transform videos array to flatten structure and include following status
-      // New API format: [{ video: {...}, following: boolean }]
-      // Transform to: [{ ...video, following: boolean }]
+      // New API format: [{ video: {...}, following: boolean, profile_picture: string }]
+      // Transform to: [{ ...video, following: boolean, user_profile_picture: string }]
       // Also preserve any user profile picture data
       const videos = rawVideos.map((item: any) => {
         // If item has 'video' property, it's the new format
@@ -907,7 +913,12 @@ class ApiClient {
             ...item.video,
             following: item.following || false,
           }
-          // Preserve user profile picture if it exists in the response
+          // Preserve user profile picture from the response
+          // API returns profile_picture at the same level as video and following
+          if (item.profile_picture) {
+            videoData.user_profile_picture = item.profile_picture
+          }
+          // Also check other possible locations for backward compatibility
           if (item.user?.profile_picture) {
             videoData.user_profile_picture = item.user.profile_picture
           }
@@ -1223,8 +1234,8 @@ class ApiClient {
       const responseUsername = response.data?.username || response.username || username
       
       // Transform videos array to flatten structure and include following status
-      // API format: [{ video: {...}, following: boolean }]
-      // Transform to: [{ ...video, following: boolean }]
+      // API format: [{ video: {...}, following: boolean, profile_picture: string }]
+      // Transform to: [{ ...video, following: boolean, user_profile_picture: string }]
       // Also preserve any user profile picture data
       const videos = rawVideos.map((item: any) => {
         // If item has 'video' property, it's the new format
@@ -1233,15 +1244,21 @@ class ApiClient {
             ...item.video,
             following: item.following || false,
           }
-          // Preserve user profile picture if it exists in the response
-          if (item.user?.profile_picture) {
-            videoData.user_profile_picture = item.user.profile_picture
+          // Preserve user profile picture from the response
+          // API returns profile_picture at the same level as video and following
+          // Only set if profile_picture is a non-empty string
+          if (item.profile_picture && item.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.profile_picture.trim()
           }
-          if (item.video.user?.profile_picture) {
-            videoData.user_profile_picture = item.video.user.profile_picture
+          // Also check other possible locations for backward compatibility
+          if (item.user?.profile_picture && item.user.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.user.profile_picture.trim()
           }
-          if (item.video.profile_picture) {
-            videoData.user_profile_picture = item.video.profile_picture
+          if (item.video.user?.profile_picture && item.video.user.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.video.user.profile_picture.trim()
+          }
+          if (item.video.profile_picture && item.video.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.video.profile_picture.trim()
           }
           return videoData
         }
@@ -1334,15 +1351,33 @@ class ApiClient {
       const responseSeed = response.data?.seed || response.seed
       
       // Transform videos array to flatten structure and include following status
-      // New API format: [{ video: {...}, following: boolean }]
-      // Transform to: [{ ...video, following: boolean }]
+      // New API format: [{ video: {...}, following: boolean, profile_picture: string }]
+      // Transform to: [{ ...video, following: boolean, user_profile_picture: string }]
+      // Also preserve any user profile picture data
       const videos = rawVideos.map((item: any) => {
         // If item has 'video' property, it's the new format
         if (item.video) {
-          return {
+          const videoData: any = {
             ...item.video,
             following: item.following || false,
           }
+          // Preserve user profile picture from the response
+          // API returns profile_picture at the same level as video and following
+          // Only set if profile_picture is a non-empty string
+          if (item.profile_picture && item.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.profile_picture.trim()
+          }
+          // Also check other possible locations for backward compatibility
+          if (item.user?.profile_picture && item.user.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.user.profile_picture.trim()
+          }
+          if (item.video.user?.profile_picture && item.video.user.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.video.user.profile_picture.trim()
+          }
+          if (item.video.profile_picture && item.video.profile_picture.trim() !== "") {
+            videoData.user_profile_picture = item.video.profile_picture.trim()
+          }
+          return videoData
         }
         // Otherwise, it's already in the old format (backward compatibility)
         return item

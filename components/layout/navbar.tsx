@@ -19,6 +19,7 @@ import { SearchOverlay } from "@/components/search/search-overlay"
 import { useState, useEffect } from "react"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from "@/lib/utils"
 
+
 interface NavbarProps {
   onMenuClick?: () => void
   currentFilter?: 'all' | 'following'

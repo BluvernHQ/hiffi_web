@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Filter } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
-import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/utils"
+import { ProfilePicture } from "@/components/profile/profile-picture"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -475,16 +474,8 @@ export function AdminUsersTable() {
                   >
                       <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={getProfilePictureUrl(user)} />
-                          <AvatarFallback
-                            className="text-white font-semibold"
-                            style={{ backgroundColor: getColorFromName(user.name || user.username || "U") }}
-                          >
-                            {getAvatarLetter(user, "U")}
-                          </AvatarFallback>
-                        </Avatar>
-                          <div className="font-medium">{user.name || "N/A"}</div>
+                        <ProfilePicture user={user} size="md" />
+                        <div className="font-medium">{user.name || "N/A"}</div>
                       </div>
                     </td>
                       <td className="px-4 py-3">

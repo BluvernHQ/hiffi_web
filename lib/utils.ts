@@ -161,6 +161,47 @@ export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Pr
   }
 }
 
+/**
+ * Converts a profile picture URL to use the proxy route if it's a Workers URL
+ * This allows the browser to display profile pictures that require authentication
+ * @param profilePictureUrl - Profile picture URL (can be Workers URL or path)
+ * @returns Proxy URL if it's a Workers URL, otherwise returns the original URL
+ */
+export function getProfilePictureProxyUrl(profilePictureUrl: string): string {
+  if (!profilePictureUrl) {
+    return "";
+  }
+  
+  // If it's already a proxy URL, return as is
+  if (profilePictureUrl.startsWith("/proxy/profile-picture/")) {
+    return profilePictureUrl;
+  }
+  
+  // If it's a Workers URL, convert to proxy URL
+  if (profilePictureUrl.includes(WORKERS_BASE_URL)) {
+    // Extract the path after the base URL
+    const url = new URL(profilePictureUrl);
+    const path = url.pathname.replace(/^\//, "");
+    
+    // Preserve query parameters (for cache busting)
+    const queryString = url.search;
+    return `/proxy/profile-picture/${path}${queryString}`;
+  }
+  
+  // If it's a path (not a full URL), use it directly with proxy
+  if (!profilePictureUrl.startsWith("http://") && !profilePictureUrl.startsWith("https://")) {
+    // Remove leading slash if present
+    const cleanPath = profilePictureUrl.replace(/^\//, "");
+    // Check if there are query parameters in the path
+    const [pathPart, queryPart] = cleanPath.split("?");
+    const queryString = queryPart ? `?${queryPart}` : "";
+    return `/proxy/profile-picture/${pathPart}${queryString}`;
+  }
+  
+  // For other URLs (not Workers), return as is
+  return profilePictureUrl;
+}
+
 // Check if user is a creator
 // Handles both 'role' field and legacy 'is_creator' field
 export function isCreator(user: any): boolean {
