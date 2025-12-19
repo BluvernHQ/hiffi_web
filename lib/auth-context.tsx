@@ -160,9 +160,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Refresh user data from /users/self to get latest creator status and all user details
       console.log("[hiffi] Refreshing user data from /users/self to get latest details")
+      let finalUserData: any = response.data.user
       try {
         const refreshedUserData = await refreshUserData(true) // Force refresh to get latest data
         if (refreshedUserData) {
+          finalUserData = refreshedUserData
           console.log("[hiffi] User data refreshed, role:", refreshedUserData.role)
           console.log("[hiffi] Is creator:", refreshedUserData.role === "creator")
         }
@@ -172,7 +174,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       console.log("[hiffi] User data set after login")
-      router.push("/")
+      
+      // Check if user is admin and redirect to admin dashboard, otherwise redirect to home
+      const userRole = String(finalUserData?.role || "").toLowerCase().trim()
+      if (userRole === "admin") {
+        console.log("[hiffi] User is admin, redirecting to admin dashboard")
+        router.push("/admin/dashboard")
+      } else {
+        router.push("/")
+      }
     } catch (error: any) {
       console.error("[hiffi] Sign in failed:", error)
       const errorMessage = error.message || "Failed to sign in. Please check your credentials."

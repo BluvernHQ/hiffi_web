@@ -13,6 +13,8 @@ import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
+import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
+import { TableSkeleton } from "@/components/admin/table-skeleton"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -22,58 +24,65 @@ function AdminDashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthVerified, setIsAuthVerified] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   
   const section = searchParams.get("section") || "overview"
 
   // Redirect to overview if no section is specified
   useEffect(() => {
-    if (!searchParams.get("section")) {
+    if (!searchParams.get("section") && !authLoading) {
       router.replace("/admin/dashboard?section=overview")
     }
-  }, [searchParams, router])
+  }, [searchParams, router, authLoading])
 
+  // Verify auth in background - don't block UI rendering
   useEffect(() => {
     if (!authLoading) {
+      // If no user data, wait a moment for state to update (might be a race condition after login)
       if (!user || !userData) {
-        router.push("/admin")
-        return
+        // Give it a moment for state to propagate after redirect
+        const timeoutId = setTimeout(() => {
+          if (!user || !userData) {
+            console.log("[Admin Dashboard] No user data after timeout, redirecting to admin login")
+            router.replace("/admin")
+          } else {
+            // User data appeared, verify role
+            const userRole = String(userData.role || "").toLowerCase().trim()
+            if (userRole !== "admin") {
+              console.log("[Admin Dashboard] User is not admin, redirecting to admin login")
+              router.replace("/admin")
+            } else {
+              setIsAuthVerified(true)
+            }
+          }
+        }, 500) // Reduced timeout since we're showing UI immediately
+        return () => clearTimeout(timeoutId)
+      } else {
+        // User data is available, verify role immediately
+        const userRole = String(userData.role || "").toLowerCase().trim()
+        if (userRole !== "admin") {
+          console.log("[Admin Dashboard] User is not admin, redirecting to admin login")
+          router.replace("/admin")
+        } else {
+          setIsAuthVerified(true)
+        }
       }
-      
-      const userRole = String(userData.role || "").toLowerCase().trim()
-      
-      if (userRole !== "admin") {
-        router.push("/admin")
-        return
-      }
-      
-      setIsLoading(false)
     }
-  }, [user, userData, authLoading, router, toast])
+  }, [user, userData, authLoading, router])
 
   const handleLogout = async () => {
     try {
       await logout()
-      router.push("/admin")
+      router.replace("/admin")
     } catch (error) {
       console.error("Logout failed:", error)
     }
   }
 
-  if (authLoading || isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/10 to-background">
-        <div className="text-center">
-          <div className="relative inline-block mb-4">
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
-            <Loader2 className="relative h-10 w-10 animate-spin text-primary mx-auto" />
-          </div>
-          <p className="text-muted-foreground font-medium">Loading admin dashboard...</p>
-        </div>
-      </div>
-    )
-  }
+  // Show dashboard immediately with shimmer loaders while auth verifies
+  // Only redirect if auth fails after verification
+  const showContent = isAuthVerified || (!authLoading && user && userData)
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -100,13 +109,16 @@ function AdminDashboardContent() {
 
           <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4 px-3 sm:px-4">
             <div className="hidden md:block text-sm text-muted-foreground truncate max-w-[200px]">
-                {userData?.name || userData?.username || "Administrator"}
+                {showContent && userData ? (userData?.name || userData?.username || "Administrator") : (
+                  <div className="h-4 w-24 bg-muted rounded animate-shimmer" />
+                )}
           </div>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleLogout}
               className="gap-1.5 sm:gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors h-9"
+            disabled={!showContent}
           >
               <LogOut className="h-4 w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Logout</span>
@@ -140,17 +152,21 @@ function AdminDashboardContent() {
             Monitor platform analytics, user engagement, watch hours, and manage content
           </p>
         </div>
-            <Card className="border-2 shadow-lg">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Platform Analytics</CardTitle>
-                <CardDescription>
-                  Real-time metrics and insights about your platform
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AnalyticsOverview />
-              </CardContent>
-            </Card>
+            {showContent ? (
+              <Card className="border-2 shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl">Platform Analytics</CardTitle>
+                  <CardDescription>
+                    Real-time metrics and insights about your platform
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AnalyticsOverview />
+                </CardContent>
+              </Card>
+            ) : (
+              <AnalyticsSkeleton />
+            )}
                 </div>
               )}
 
@@ -162,7 +178,7 @@ function AdminDashboardContent() {
                   View and manage all registered users on the platform
                     </p>
                   </div>
-                  <AdminUsersTable />
+                  {showContent ? <AdminUsersTable /> : <TableSkeleton />}
                 </div>
               )}
 
@@ -174,7 +190,7 @@ function AdminDashboardContent() {
                   View and manage all videos uploaded to the platform
                     </p>
                   </div>
-                  <AdminVideosTable />
+                  {showContent ? <AdminVideosTable /> : <TableSkeleton />}
                 </div>
               )}
 
@@ -186,7 +202,7 @@ function AdminDashboardContent() {
                   View and manage all comments on videos
                     </p>
                   </div>
-                  <AdminCommentsTable />
+                  {showContent ? <AdminCommentsTable /> : <TableSkeleton />}
                 </div>
               )}
 
@@ -198,7 +214,7 @@ function AdminDashboardContent() {
                   View and manage all replies to comments
                     </p>
                   </div>
-                  <AdminRepliesTable />
+                  {showContent ? <AdminRepliesTable /> : <TableSkeleton />}
                 </div>
               )}
             </div>

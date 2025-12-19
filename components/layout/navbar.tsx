@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { useState, useEffect } from "react"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from "@/lib/utils"
+import { Logo } from "./logo"
 
 
 interface NavbarProps {
@@ -143,9 +144,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
               <span className="sr-only">Toggle menu</span>
             </Button>
             <Link href="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xl">H</span>
-              </div>
+              <Logo size={32} showText={false} />
               <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
             </Link>
           </div>

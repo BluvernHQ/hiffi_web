@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Check, X, Eye, EyeOff } from "lucide-react"
+import { Logo } from "@/components/layout/logo"
 
 export default function SignupPage() {
   const [name, setName] = useState("")
@@ -198,9 +199,7 @@ export default function SignupPage() {
             </Button>
           </div>
           <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-2xl">H</span>
-            </div>
+            <Logo size={48} />
           </div>
           <CardTitle className="text-2xl text-center font-bold">Create an account</CardTitle>
           <CardDescription className="text-center">Enter your information to get started</CardDescription>

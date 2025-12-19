@@ -100,8 +100,63 @@ export function AnalyticsOverview() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        {/* Key Metrics Grid Skeleton */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="h-4 w-24 bg-muted rounded animate-shimmer" />
+                <div className="h-9 w-9 rounded-lg bg-muted animate-shimmer" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-20 bg-muted rounded animate-shimmer mb-2" />
+                <div className="h-3 w-32 bg-muted rounded animate-shimmer" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Engagement Metrics Skeleton */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="h-4 w-24 bg-muted rounded animate-shimmer" />
+                <div className="h-9 w-9 rounded-lg bg-muted animate-shimmer" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-20 bg-muted rounded animate-shimmer mb-2" />
+                <div className="h-3 w-32 bg-muted rounded animate-shimmer" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Performance Metrics Skeleton */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i} className="border-2">
+              <CardHeader className="pb-4">
+                <div className="h-5 w-32 bg-muted rounded animate-shimmer mb-2" />
+                <div className="h-3 w-24 bg-muted rounded animate-shimmer" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Array.from({ length: 2 }).map((_, j) => (
+                    <div key={j} className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+                      <div className="flex items-center justify-between">
+                        <div className="h-4 w-32 bg-muted rounded animate-shimmer" />
+                        <div className="h-5 w-16 bg-muted rounded animate-shimmer" />
+                      </div>
+                      <div className="h-3 w-40 bg-muted rounded animate-shimmer" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }

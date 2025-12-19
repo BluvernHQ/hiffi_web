@@ -16,6 +16,7 @@ export default function AdminLoginPage() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState("")
   const { login, user, userData, loading: authLoading, refreshUserData } = useAuth()
   const router = useRouter()
@@ -33,7 +34,7 @@ export default function AdminLoginPage() {
 
   // Check if user is admin and redirect to dashboard
   useEffect(() => {
-    if (!authLoading && user && userData) {
+    if (!authLoading && user && userData && !isRedirecting) {
       console.log("[Admin] Checking user role:", userData.role)
       console.log("[Admin] Role type:", typeof userData.role)
       console.log("[Admin] Role comparison:", userData.role === "admin")
@@ -43,6 +44,7 @@ export default function AdminLoginPage() {
       const userRole = String(userData.role || "").toLowerCase().trim()
       if (userRole === "admin") {
         console.log("[Admin] User is admin, redirecting to dashboard")
+        setIsRedirecting(true)
         router.push("/admin/dashboard")
       } else {
         // User is logged in but not admin - show login form for admin credentials
@@ -50,10 +52,10 @@ export default function AdminLoginPage() {
         // Don't redirect - let them see the login form to enter admin credentials
       }
     }
-  }, [user, userData, authLoading, router, toast])
+  }, [user, userData, authLoading, router, toast, isRedirecting])
 
-  // Show loading state while checking auth
-  if (authLoading) {
+  // Show loading state while checking auth or redirecting
+  if (authLoading || isRedirecting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background px-4">
         <div className="text-center">
@@ -61,7 +63,9 @@ export default function AdminLoginPage() {
             <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
             <Loader2 className="relative h-10 w-10 animate-spin text-primary mx-auto" />
           </div>
-          <p className="text-muted-foreground font-medium">Loading...</p>
+          <p className="text-muted-foreground font-medium">
+            {isRedirecting ? "Redirecting to dashboard..." : "Loading..."}
+          </p>
         </div>
       </div>
     )
@@ -72,7 +76,18 @@ export default function AdminLoginPage() {
   if (user && userData) {
     const userRole = String(userData.role || "").toLowerCase().trim()
     if (userRole === "admin") {
-      return null
+      // Show loading state while redirect happens
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background px-4">
+          <div className="text-center">
+            <div className="relative inline-block mb-4">
+              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
+              <Loader2 className="relative h-10 w-10 animate-spin text-primary mx-auto" />
+            </div>
+            <p className="text-muted-foreground font-medium">Redirecting to dashboard...</p>
+          </div>
+        </div>
+      )
     }
     // User is logged in but not admin - show login form below
   }
@@ -83,9 +98,9 @@ export default function AdminLoginPage() {
     setError("")
 
     try {
-      // Use API client directly for username/password login (not Firebase)
-      // This ensures we use the username/password flow, not Firebase authentication
-      console.log("[Admin] Attempting username/password login for:", username)
+      console.log("[Admin] Attempting login for:", username)
+      
+      // Login using API client to check role before updating auth state
       const response = await apiClient.login({ username, password })
       
       if (!response.success || !response.data) {
@@ -97,17 +112,34 @@ export default function AdminLoginPage() {
       // Store credentials for auto-login
       apiClient.setCredentials(username, password)
       
-      // Force refresh user data after login to ensure we have latest role
-      // The useEffect hook will handle the redirect to /admin/dashboard based on role
-      console.log("[Admin] Forcing refresh of user data after login")
-      await refreshUserData(true)
+      // Force refresh user data to get latest role
+      console.log("[Admin] Refreshing user data to verify admin role")
+      const refreshedUserData = await refreshUserData(true)
       
-      // Wait a moment for state to update - the useEffect will handle redirect
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Use refreshed data if available, otherwise use login response data
+      const userDataToCheck = refreshedUserData || response.data.user
+      const userRole = String(userDataToCheck?.role || "").toLowerCase().trim()
       
-      setIsLoading(false)
+      if (userRole === "admin") {
+        console.log("[Admin] User is admin, redirecting to dashboard")
+        setIsRedirecting(true)
+        // Auth state is already updated by refreshUserData, just redirect
+        router.push("/admin/dashboard")
+      } else {
+        // User is not admin - show error and clear auth
+        console.log("[Admin] User is not admin, role:", userRole)
+        apiClient.clearCredentials()
+        apiClient.clearAuthToken()
+        // Clear user state by refreshing (which will detect no token and clear state)
+        await refreshUserData(true)
+        setError("This account does not have admin privileges. Please log in with an admin account.")
+        setIsLoading(false)
+      }
     } catch (err: any) {
       console.error("[Admin] Login error:", err)
+      // Clear any partial state
+      apiClient.clearCredentials()
+      apiClient.clearAuthToken()
       setError(err.message || "Invalid username or password")
       setIsLoading(false)
     }
