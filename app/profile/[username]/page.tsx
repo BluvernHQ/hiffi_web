@@ -288,7 +288,7 @@ export default function ProfilePage() {
           // Fallback to image field if profile_picture is not available
           video.user_profile_picture = sourceUser.image;
           video.user_updated_at = sourceUser.updated_at;
-        }
+          }
         
         return video;
       });
@@ -353,11 +353,11 @@ export default function ProfilePage() {
         prevVideos.map((video: any) => {
           // Always update profile picture from profile user data
           // This ensures profile pictures show even when API doesn't return them
-          return {
-            ...video,
+            return {
+              ...video,
             user_profile_picture: profilePicture,
             user_updated_at: sourceUser?.updated_at,
-          };
+            };
         })
       );
     }
