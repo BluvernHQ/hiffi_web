@@ -28,6 +28,7 @@ export function AdminVideosTable() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [showFilters, setShowFilters] = useState(true)
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
   const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [videoToDelete, setVideoToDelete] = useState<any>(null)
@@ -35,6 +36,21 @@ export function AdminVideosTable() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
   const limit = 20
+
+  // Load collapsed state from localStorage on mount (shared across all admin pages)
+  useEffect(() => {
+    const savedState = localStorage.getItem("admin-filter-collapsed")
+    if (savedState !== null) {
+      setIsFilterCollapsed(savedState === "true")
+    }
+  }, [])
+
+  // Save collapsed state to localStorage (shared across all admin pages)
+  const handleToggleCollapse = () => {
+    const newState = !isFilterCollapsed
+    setIsFilterCollapsed(newState)
+    localStorage.setItem("admin-filter-collapsed", String(newState))
+  }
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -204,6 +220,19 @@ export function AdminVideosTable() {
   const hasActiveFilters = Object.values(filters).some((v) => v !== "")
   const totalPages = Math.ceil(total / limit)
 
+  // Helper function to convert ISO string to datetime-local format (local time)
+  const isoToLocalDateTime = (isoString: string): string => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    // Get local date/time components
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    const hours = String(date.getHours()).padStart(2, "0")
+    const minutes = String(date.getMinutes()).padStart(2, "0")
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   const handleDeleteClick = (video: any) => {
     setVideoToDelete(video)
     setDeleteDialogOpen(true)
@@ -255,6 +284,8 @@ export function AdminVideosTable() {
         onClose={() => setShowFilters(false)}
         onClear={clearFilters}
         activeFilterCount={Object.values(filters).filter((v) => v !== "").length}
+        isCollapsed={isFilterCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       >
         <FilterSection title="Search">
           <FilterField label="Video Title" htmlFor="video_title">
@@ -310,6 +341,14 @@ export function AdminVideosTable() {
               placeholder="Min views..."
               value={filters.video_views_min}
               onChange={(e) => handleFilterChange("video_views_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Views" htmlFor="video_views_max">
@@ -319,6 +358,14 @@ export function AdminVideosTable() {
               placeholder="Max views..."
               value={filters.video_views_max}
               onChange={(e) => handleFilterChange("video_views_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
         </FilterSection>
@@ -331,6 +378,14 @@ export function AdminVideosTable() {
               placeholder="Min upvotes..."
               value={filters.video_upvotes_min}
               onChange={(e) => handleFilterChange("video_upvotes_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Upvotes" htmlFor="video_upvotes_max">
@@ -340,6 +395,14 @@ export function AdminVideosTable() {
               placeholder="Max upvotes..."
               value={filters.video_upvotes_max}
               onChange={(e) => handleFilterChange("video_upvotes_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Min Downvotes" htmlFor="video_downvotes_min">
@@ -349,6 +412,14 @@ export function AdminVideosTable() {
               placeholder="Min downvotes..."
               value={filters.video_downvotes_min}
               onChange={(e) => handleFilterChange("video_downvotes_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Downvotes" htmlFor="video_downvotes_max">
@@ -358,6 +429,14 @@ export function AdminVideosTable() {
               placeholder="Max downvotes..."
               value={filters.video_downvotes_max}
               onChange={(e) => handleFilterChange("video_downvotes_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Min Comments" htmlFor="video_comments_min">
@@ -367,6 +446,14 @@ export function AdminVideosTable() {
               placeholder="Min comments..."
               value={filters.video_comments_min}
               onChange={(e) => handleFilterChange("video_comments_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Comments" htmlFor="video_comments_max">
@@ -376,6 +463,14 @@ export function AdminVideosTable() {
               placeholder="Max comments..."
               value={filters.video_comments_max}
               onChange={(e) => handleFilterChange("video_comments_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
         </FilterSection>
@@ -385,23 +480,47 @@ export function AdminVideosTable() {
             <Input
               id="created_after"
               type="datetime-local"
-              value={filters.created_after ? new Date(filters.created_after).toISOString().slice(0, 16) : ""}
+              value={isoToLocalDateTime(filters.created_after)}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value).toISOString() : ""
                 handleFilterChange("created_after", date)
               }}
+              className={
+                filters.created_after && filters.created_before && 
+                new Date(filters.created_after) > new Date(filters.created_before)
+                  ? "border-destructive"
+                  : ""
+              }
             />
+            {filters.created_after && filters.created_before && 
+             new Date(filters.created_after) > new Date(filters.created_before) && (
+              <p className="text-xs text-destructive mt-1">
+                Created After must be before or equal to Created Before
+              </p>
+            )}
           </FilterField>
           <FilterField label="Created Before" htmlFor="created_before">
             <Input
               id="created_before"
               type="datetime-local"
-              value={filters.created_before ? new Date(filters.created_before).toISOString().slice(0, 16) : ""}
+              value={isoToLocalDateTime(filters.created_before)}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value).toISOString() : ""
                 handleFilterChange("created_before", date)
               }}
+              className={
+                filters.created_after && filters.created_before && 
+                new Date(filters.created_after) > new Date(filters.created_before)
+                  ? "border-destructive"
+                  : ""
+              }
             />
+            {filters.created_after && filters.created_before && 
+             new Date(filters.created_after) > new Date(filters.created_before) && (
+              <p className="text-xs text-destructive mt-1">
+                Created Before must be after or equal to Created After
+              </p>
+            )}
           </FilterField>
         </FilterSection>
       </FilterSidebar>
@@ -440,7 +559,7 @@ export function AdminVideosTable() {
             <table className="w-full">
               <thead className="sticky top-0 bg-muted/50 z-10">
                 <tr className="border-b">
-                  <th className="h-12 px-4 text-left align-middle font-semibold text-sm">Thumbnail</th>
+                  <th className="h-12 px-4 text-left align-middle font-semibold text-sm sticky left-0 z-20 bg-muted/95 backdrop-blur-sm border-r">Thumbnail</th>
                   <SortableHeader
                     label="Title"
                     sortKey="video_title"
@@ -499,7 +618,7 @@ export function AdminVideosTable() {
                       key={videoId} 
                       className="border-b hover:bg-muted/50 transition-colors"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 sticky left-0 z-10 bg-background border-r">
                         {videoId ? (
                           <Link href={`/watch/${videoId}`} className="block group">
                             <div className="relative h-16 w-28 rounded overflow-hidden bg-muted group-hover:opacity-80 transition-opacity">

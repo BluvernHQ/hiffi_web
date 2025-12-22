@@ -27,6 +27,7 @@ export function AdminUsersTable() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [showFilters, setShowFilters] = useState(true)
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<any>(null)
@@ -34,6 +35,21 @@ export function AdminUsersTable() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
   const limit = 20
+
+  // Load collapsed state from localStorage on mount (shared across all admin pages)
+  useEffect(() => {
+    const savedState = localStorage.getItem("admin-filter-collapsed")
+    if (savedState !== null) {
+      setIsFilterCollapsed(savedState === "true")
+    }
+  }, [])
+
+  // Save collapsed state to localStorage (shared across all admin pages)
+  const handleToggleCollapse = () => {
+    const newState = !isFilterCollapsed
+    setIsFilterCollapsed(newState)
+    localStorage.setItem("admin-filter-collapsed", String(newState))
+  }
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -86,6 +102,7 @@ export function AdminUsersTable() {
           let bValue: any = b[sortKey]
           
           // Handle nested properties
+          if (sortKey === "name") aValue = (a.name || "").toLowerCase()
           if (sortKey === "username") aValue = a.username || ""
           if (sortKey === "email") aValue = a.email || ""
           if (sortKey === "role") aValue = a.role || ""
@@ -94,6 +111,7 @@ export function AdminUsersTable() {
           if (sortKey === "total_videos") aValue = a.total_videos || 0
           if (sortKey === "created_at") aValue = a.created_at ? new Date(a.created_at).getTime() : 0
           
+          if (sortKey === "name") bValue = (b.name || "").toLowerCase()
           if (sortKey === "username") bValue = b.username || ""
           if (sortKey === "email") bValue = b.email || ""
           if (sortKey === "role") bValue = b.role || ""
@@ -197,6 +215,19 @@ export function AdminUsersTable() {
   const hasActiveFilters = Object.values(filters).some((v) => v !== "")
   const totalPages = Math.ceil(total / limit)
 
+  // Helper function to convert ISO string to datetime-local format (local time)
+  const isoToLocalDateTime = (isoString: string): string => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    // Get local date/time components
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    const hours = String(date.getHours()).padStart(2, "0")
+    const minutes = String(date.getMinutes()).padStart(2, "0")
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   const handleDeleteClick = (user: any) => {
     setUserToDelete(user)
     setDeleteDialogOpen(true)
@@ -238,13 +269,15 @@ export function AdminUsersTable() {
   }
 
   return (
-    <div className="flex gap-6 min-h-0 overflow-hidden">
-      {/* Filter Sidebar */}
+    <div className="flex gap-4 min-h-0 overflow-hidden">
+      {/* Filter Sidebar - Always visible on desktop, toggleable on mobile */}
       <FilterSidebar
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         onClear={clearFilters}
         activeFilterCount={Object.values(filters).filter((v) => v !== "").length}
+        isCollapsed={isFilterCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       >
         <FilterSection title="Search">
           <FilterField label="Username" htmlFor="username">
@@ -286,6 +319,14 @@ export function AdminUsersTable() {
               placeholder="Min followers..."
               value={filters.followers_min}
               onChange={(e) => handleFilterChange("followers_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Followers" htmlFor="followers_max">
@@ -295,6 +336,14 @@ export function AdminUsersTable() {
               placeholder="Max followers..."
               value={filters.followers_max}
               onChange={(e) => handleFilterChange("followers_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
         </FilterSection>
@@ -307,6 +356,14 @@ export function AdminUsersTable() {
               placeholder="Min following..."
               value={filters.following_min}
               onChange={(e) => handleFilterChange("following_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Following" htmlFor="following_max">
@@ -316,6 +373,14 @@ export function AdminUsersTable() {
               placeholder="Max following..."
               value={filters.following_max}
               onChange={(e) => handleFilterChange("following_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
         </FilterSection>
@@ -328,6 +393,14 @@ export function AdminUsersTable() {
               placeholder="Min videos..."
               value={filters.total_videos_min}
               onChange={(e) => handleFilterChange("total_videos_min", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
           <FilterField label="Max Videos" htmlFor="total_videos_max">
@@ -337,6 +410,14 @@ export function AdminUsersTable() {
               placeholder="Max videos..."
               value={filters.total_videos_max}
               onChange={(e) => handleFilterChange("total_videos_max", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                }
+              }}
+              onWheel={(e) => {
+                e.currentTarget.blur()
+              }}
             />
           </FilterField>
         </FilterSection>
@@ -346,35 +427,59 @@ export function AdminUsersTable() {
             <Input
               id="created_after"
               type="datetime-local"
-              value={filters.created_after ? new Date(filters.created_after).toISOString().slice(0, 16) : ""}
+              value={isoToLocalDateTime(filters.created_after)}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value).toISOString() : ""
                 handleFilterChange("created_after", date)
               }}
+              className={
+                filters.created_after && filters.created_before && 
+                new Date(filters.created_after) > new Date(filters.created_before)
+                  ? "border-destructive"
+                  : ""
+              }
             />
+            {filters.created_after && filters.created_before && 
+             new Date(filters.created_after) > new Date(filters.created_before) && (
+              <p className="text-xs text-destructive mt-1">
+                Created After must be before or equal to Created Before
+              </p>
+            )}
           </FilterField>
           <FilterField label="Created Before" htmlFor="created_before">
             <Input
               id="created_before"
               type="datetime-local"
-              value={filters.created_before ? new Date(filters.created_before).toISOString().slice(0, 16) : ""}
+              value={isoToLocalDateTime(filters.created_before)}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value).toISOString() : ""
                 handleFilterChange("created_before", date)
               }}
+              className={
+                filters.created_after && filters.created_before && 
+                new Date(filters.created_after) > new Date(filters.created_before)
+                  ? "border-destructive"
+                  : ""
+              }
             />
+            {filters.created_after && filters.created_before && 
+             new Date(filters.created_after) > new Date(filters.created_before) && (
+              <p className="text-xs text-destructive mt-1">
+                Created Before must be after or equal to Created After
+              </p>
+            )}
           </FilterField>
         </FilterSection>
       </FilterSidebar>
 
       {/* Main Content */}
       <div className="flex-1 space-y-4 min-w-0 overflow-hidden flex flex-col">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 shrink-0">
+        {/* Search Bar - Desktop */}
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
           <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-              placeholder="Quick search by username..."
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by username..."
               value={filters.username}
               onChange={(e) => handleFilterChange("username", e.target.value)}
               className="pl-9"
@@ -383,7 +488,7 @@ export function AdminUsersTable() {
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden gap-2"
+            className="gap-2"
           >
             <Filter className="h-4 w-4" />
             Filters
@@ -393,7 +498,33 @@ export function AdminUsersTable() {
               </span>
             )}
           </Button>
-      </div>
+        </div>
+
+        {/* Toolbar - Mobile Only */}
+        <div className="flex items-center justify-between gap-4 shrink-0 lg:hidden">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Quick search by username..."
+              value={filters.username}
+              onChange={(e) => handleFilterChange("username", e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs">
+                {Object.values(filters).filter((v) => v !== "").length}
+              </span>
+            )}
+          </Button>
+        </div>
 
         {/* Table */}
         <div className="rounded-lg border bg-background shadow-sm flex-1 min-h-0 flex flex-col">
@@ -401,13 +532,21 @@ export function AdminUsersTable() {
           <table className="w-full">
               <thead className="sticky top-0 bg-muted/50 z-10">
                 <tr className="border-b">
-                  <th className="h-12 px-4 text-left align-middle font-semibold text-sm">User</th>
+                  <SortableHeader
+                    label="User"
+                    sortKey="name"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="sticky left-0 z-20 bg-muted/95 backdrop-blur-sm border-r-2 border-primary/20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] min-w-[150px]"
+                  />
                   <SortableHeader
                     label="Username"
                     sortKey="username"
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[130px]"
                   />
                   <SortableHeader
                     label="Email"
@@ -415,6 +554,7 @@ export function AdminUsersTable() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[170px]"
                   />
                   <SortableHeader
                     label="Role"
@@ -422,6 +562,7 @@ export function AdminUsersTable() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[90px]"
                   />
                   <SortableHeader
                     label="Followers"
@@ -429,6 +570,7 @@ export function AdminUsersTable() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[95px]"
                   />
                   <SortableHeader
                     label="Following"
@@ -436,6 +578,7 @@ export function AdminUsersTable() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[95px]"
                   />
                   <SortableHeader
                     label="Videos"
@@ -443,6 +586,7 @@ export function AdminUsersTable() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[85px]"
                   />
                   <SortableHeader
                     label="Joined"
@@ -450,8 +594,9 @@ export function AdminUsersTable() {
                     currentSort={sortKey}
                     currentDirection={sortDirection}
                     onSort={handleSort}
+                    className="min-w-[115px]"
                   />
-                  <th className="h-12 px-4 text-left align-middle font-semibold text-sm">Actions</th>
+                  <th className="h-12 px-3 text-left align-middle font-semibold text-sm whitespace-nowrap min-w-[130px]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -470,28 +615,28 @@ export function AdminUsersTable() {
                   users.map((user) => (
                   <tr 
                     key={user.uid || user.username} 
-                      className="border-b hover:bg-muted/50 transition-colors"
+                      className="border-b hover:bg-muted/50 transition-colors group"
                   >
-                      <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                      <td className="px-3 py-2 sticky left-0 z-10 bg-background border-r-2 border-primary/20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] min-w-[150px] group-hover:bg-muted/50">
+                      <div className="flex items-center gap-2">
                         <ProfilePicture user={user} size="md" />
-                        <div className="font-medium">{user.name || "N/A"}</div>
+                        <div className="font-medium truncate text-sm">{user.name || "N/A"}</div>
                       </div>
                     </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 whitespace-nowrap min-w-[130px]">
                       <Link
                         href={`/profile/${user.username}`}
-                          className="text-primary hover:underline font-medium"
+                          className="text-primary hover:underline font-medium text-sm"
                       >
                         @{user.username}
                       </Link>
                     </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap min-w-[170px]">
                       {user.email || "N/A"}
                     </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 whitespace-nowrap min-w-[90px]">
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                           user.role === "admin"
                             ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
                             : user.role === "creator"
@@ -502,15 +647,15 @@ export function AdminUsersTable() {
                         {user.role || "user"}
                       </span>
                     </td>
-                      <td className="px-4 py-3 font-medium">{user.followers || 0}</td>
-                      <td className="px-4 py-3 font-medium">{user.following || 0}</td>
-                      <td className="px-4 py-3 font-medium">{user.total_videos || 0}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[95px]">{user.followers || 0}</td>
+                      <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[95px]">{user.following || 0}</td>
+                      <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[85px]">{user.total_videos || 0}</td>
+                      <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap min-w-[115px]">
                       {user.created_at
                         ? format(new Date(user.created_at), "MMM d, yyyy")
                         : "N/A"}
                     </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 whitespace-nowrap min-w-[130px]">
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="sm" asChild>
                         <Link href={`/profile/${user.username}`}>View</Link>

@@ -5,6 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Loader2, Shield, LogOut, Menu } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
@@ -26,6 +34,9 @@ function AdminDashboardContent() {
   const { toast } = useToast()
   const [isAuthVerified, setIsAuthVerified] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   
   const section = searchParams.get("section") || "overview"
 
@@ -71,12 +82,24 @@ function AdminDashboardContent() {
     }
   }, [user, userData, authLoading, router])
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true)
+  }
+
+  const handleLogoutConfirm = async () => {
     try {
+      setIsLoggingOut(true)
       await logout()
       router.replace("/admin")
     } catch (error) {
       console.error("Logout failed:", error)
+      toast({
+        title: "Error",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive",
+      })
+      setIsLoggingOut(false)
+      setLogoutDialogOpen(false)
     }
   }
 
@@ -99,6 +122,15 @@ function AdminDashboardContent() {
             >
               <Menu className="h-5 w-5" />
             </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden lg:flex h-9 w-9" 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             <Link href="/admin/dashboard?section=overview" className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                 <Shield className="h-4 w-4 text-primary-foreground" />
@@ -116,9 +148,9 @@ function AdminDashboardContent() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
               className="gap-1.5 sm:gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors h-9"
-            disabled={!showContent}
+            disabled={!showContent || isLoggingOut}
           >
               <LogOut className="h-4 w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Logout</span>
@@ -133,6 +165,8 @@ function AdminDashboardContent() {
         <AdminSidebar 
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
 
       {/* Main Content */}
@@ -221,6 +255,41 @@ function AdminDashboardContent() {
           </div>
       </main>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to logout from the admin panel? You will need to log in again to access the admin dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setLogoutDialogOpen(false)}
+              disabled={isLoggingOut}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLogoutConfirm}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

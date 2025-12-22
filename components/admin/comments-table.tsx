@@ -28,6 +28,7 @@ export function AdminCommentsTable() {
   const [total, setTotal] = useState(0)
   const [filter, setFilter] = useState("")
   const [showFilters, setShowFilters] = useState(true)
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState<any>(null)
@@ -37,6 +38,21 @@ export function AdminCommentsTable() {
   const [loadingVideos, setLoadingVideos] = useState(false)
   const { toast } = useToast()
   const limit = 20
+
+  // Load collapsed state from localStorage on mount (shared across all admin pages)
+  useEffect(() => {
+    const savedState = localStorage.getItem("admin-filter-collapsed")
+    if (savedState !== null) {
+      setIsFilterCollapsed(savedState === "true")
+    }
+  }, [])
+
+  // Save collapsed state to localStorage (shared across all admin pages)
+  const handleToggleCollapse = () => {
+    const newState = !isFilterCollapsed
+    setIsFilterCollapsed(newState)
+    localStorage.setItem("admin-filter-collapsed", String(newState))
+  }
 
   const fetchVideoNames = async (videoIds: string[]) => {
     if (videoIds.length === 0) return
@@ -196,6 +212,8 @@ export function AdminCommentsTable() {
         onClose={() => setShowFilters(false)}
         onClear={() => { setFilter(""); setPage(1) }}
         activeFilterCount={filter ? 1 : 0}
+        isCollapsed={isFilterCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       >
         <FilterSection title="Search">
           <FilterField 
@@ -251,7 +269,7 @@ export function AdminCommentsTable() {
             <table className="w-full">
               <thead className="sticky top-0 bg-muted/50 z-10">
                 <tr className="border-b">
-                  <th className="h-12 px-4 text-left align-middle font-semibold text-sm">User</th>
+                  <th className="h-12 px-4 text-left align-middle font-semibold text-sm sticky left-0 z-20 bg-muted/95 backdrop-blur-sm border-r">User</th>
                   <th className="h-12 px-4 text-left align-middle font-semibold text-sm">Comment</th>
                   <th className="h-12 px-4 text-left align-middle font-semibold text-sm">Video</th>
                   <SortableHeader
@@ -295,7 +313,7 @@ export function AdminCommentsTable() {
 
                   return (
                     <tr key={commentId} className="border-b hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 sticky left-0 z-10 bg-background border-r">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
                             <AvatarImage src={getProfilePictureUrl(comment)} />

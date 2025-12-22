@@ -41,13 +41,13 @@ export function SortableHeader({
   }
 
   return (
-    <th className={cn("h-12 px-4 text-left align-middle font-semibold text-sm", className)}>
+    <th className={cn("h-12 px-3 text-left align-middle font-semibold text-sm whitespace-nowrap", className)}>
       <Button
         variant="ghost"
         onClick={handleClick}
         className={cn(
           "h-auto p-0 font-semibold hover:bg-transparent",
-          "flex items-center gap-2",
+          "flex items-center gap-1.5",
           isActive && "text-primary"
         )}
       >
