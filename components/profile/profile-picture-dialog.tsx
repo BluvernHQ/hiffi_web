@@ -31,6 +31,7 @@ export function ProfilePictureDialog({
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [hasError, setHasError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { refreshUserData } = useAuth()
   const { toast } = useToast()
@@ -111,13 +112,19 @@ export function ProfilePictureDialog({
   }, [currentProfilePictureBlobUrl])
 
   // Reset state when dialog closes
-  const handleClose = (open: boolean) => {
+  const handleClose = (open: boolean, forceClose = false) => {
+    // Prevent closing if there's an error - unless forceClose is true (for Cancel/X button)
+    if (!open && hasError && !forceClose) {
+      return
+    }
+    
     if (!open) {
       // Reset all state when dialog closes
       setSelectedImage(null)
       setImagePreview(null)
       setUploadProgress(0)
       setLastUploadedPath(null)
+      setHasError(false)
       // Clean up blob URL
       if (currentProfilePictureBlobUrl) {
         URL.revokeObjectURL(currentProfilePictureBlobUrl)
@@ -137,6 +144,7 @@ export function ProfilePictureDialog({
     // Validate file type - only JPG allowed
     const validTypes = ['image/jpeg', 'image/jpg']
     if (!validTypes.includes(file.type.toLowerCase())) {
+      setHasError(true)
       toast({
         title: "Invalid file type",
         description: "Only JPG images are allowed for profile photos.",
@@ -148,6 +156,7 @@ export function ProfilePictureDialog({
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
+      setHasError(true)
       toast({
         title: "File too large",
         description: "Profile photo must be less than 10MB.",
@@ -156,6 +165,8 @@ export function ProfilePictureDialog({
       return
     }
 
+    // Clear error state when valid file is selected
+    setHasError(false)
     setSelectedImage(file)
 
     // Create preview
@@ -169,6 +180,7 @@ export function ProfilePictureDialog({
   const handleRemoveImage = () => {
     setSelectedImage(null)
     setImagePreview(null)
+    setHasError(false) // Clear error when removing image
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -242,6 +254,7 @@ export function ProfilePictureDialog({
       }, 300) // Small delay to allow backend to process
     } catch (error: any) {
       console.error("[hiffi] Failed to upload profile photo:", error)
+      setHasError(true)
       toast({
         title: "Upload failed",
         description: error.message || "Failed to upload profile photo. Please try again.",
@@ -258,8 +271,28 @@ export function ProfilePictureDialog({
   const displayPreview = imagePreview || currentProfilePictureBlobUrl || null
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={(open) => handleClose(open, false)}>
+      <DialogContent 
+        className="sm:max-w-[500px]"
+        onInteractOutside={(e) => {
+          // Prevent closing on outside click when there's an error
+          if (hasError) {
+            e.preventDefault()
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          // Prevent closing on ESC key when there's an error
+          if (hasError) {
+            e.preventDefault()
+          }
+        }}
+        onPointerDownOutside={(e) => {
+          // Prevent closing on outside click when there's an error
+          if (hasError) {
+            e.preventDefault()
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Edit Profile Picture</DialogTitle>
           <DialogDescription>
@@ -347,7 +380,7 @@ export function ProfilePictureDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => handleClose(false)}
+            onClick={() => handleClose(false, true)}
             disabled={uploadingImage}
           >
             Cancel

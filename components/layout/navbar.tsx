@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from "@/lib/utils"
 import { Logo } from "./logo"
@@ -30,6 +31,8 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | undefined>(undefined)
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
   
   // Hide upload button on following page
@@ -128,6 +131,21 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
       window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate as EventListener)
     }
   }, [userData]) // Re-bind listener when userData changes
+
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true)
+  }
+
+  const handleLogoutConfirm = async () => {
+    try {
+      setIsLoggingOut(true)
+      await logout()
+    } catch (error) {
+      console.error("Logout failed:", error)
+      setIsLoggingOut(false)
+      setLogoutDialogOpen(false)
+    }
+  }
 
   return (
     <>
@@ -235,7 +253,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                    <DropdownMenuItem onClick={handleLogoutClick} className="text-destructive focus:text-destructive">
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>
                     </DropdownMenuItem>
@@ -257,6 +275,41 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
       </header>
 
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to logout? You will need to log in again to access your account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setLogoutDialogOpen(false)}
+              disabled={isLoggingOut}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLogoutConfirm}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                "Logout"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

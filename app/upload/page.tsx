@@ -217,6 +217,7 @@ export default function UploadPage() {
       setProgress(60);
 
       // Step 3: Upload thumbnail if provided to gateway_url_thumbnail
+      // Thumbnail is optional - video upload will proceed even without thumbnail
       if (thumbnail && bridgeResponse.gateway_url_thumbnail) {
         try {
           console.log('[Upload] Starting thumbnail upload...')
@@ -234,7 +235,8 @@ export default function UploadPage() {
           setProgress(85);
         }
       } else {
-        console.log('[Upload] No thumbnail provided, skipping thumbnail upload')
+        // No thumbnail provided - this is allowed, system will auto-generate one
+        console.log('[Upload] No thumbnail provided, skipping thumbnail upload. System will auto-generate thumbnail.')
         setProgress(85);
       }
 
@@ -439,20 +441,7 @@ export default function UploadPage() {
                         <div className="flex gap-4 items-start">
                           <div className="relative w-40 aspect-video bg-muted rounded-lg overflow-hidden border flex items-center justify-center">
                             {thumbnailPreview ? (
-                              <>
-                                <Image src={thumbnailPreview || "/placeholder.svg"} alt="Thumbnail preview" fill className="object-cover" />
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  className="absolute top-2 right-2 h-8 w-8"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveThumbnail();
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
+                              <Image src={thumbnailPreview || "/placeholder.svg"} alt="Thumbnail preview" fill className="object-cover" />
                             ) : (
                               <div className="flex flex-col items-center text-muted-foreground">
                                 <ImageIcon className="h-6 w-6 mb-1" />
