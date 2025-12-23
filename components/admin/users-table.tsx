@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Filter } from "lucide-react"
+import { Loader2, Search, ChevronLeft, ChevronRight, Trash2 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { format } from "date-fns"
@@ -51,6 +51,16 @@ export function AdminUsersTable() {
     localStorage.setItem("admin-filter-collapsed", String(newState))
   }
 
+  // Search bar state (separate from sidebar filters)
+  // searchInput is the immediate input value, searchQuery is debounced for actual searching
+  const [searchInput, setSearchInput] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  
+  // Refs to maintain focus on search inputs
+  const desktopSearchInputRef = useRef<HTMLInputElement>(null)
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null)
+  const wasSearchFocusedRef = useRef(false)
+
   // Filter state
   const [filters, setFilters] = useState({
     username: "",
@@ -78,8 +88,19 @@ export function AdminUsersTable() {
       const params: any = { limit, offset }
       
       console.log("[admin] Fetching users:", { page, limit, offset })
-      if (filters.username) params.username = filters.username
-      if (filters.name) params.name = filters.name
+      
+      // Check if search bar is active (has a value)
+      const isSearchBarActive = searchQuery.trim() !== ""
+      
+      if (isSearchBarActive) {
+        // Search bar: Don't send name/username filters to API - fetch all and filter client-side
+        // This ensures we can match both username AND name with OR logic
+        // The API might use AND logic if we send both, so we handle it client-side
+      } else {
+        // Individual filters: send both if they have different values
+        if (filters.username) params.username = filters.username
+        if (filters.name) params.name = filters.name
+      }
       if (filters.role) params.role = filters.role
       if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
       if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
@@ -94,6 +115,17 @@ export function AdminUsersTable() {
 
       const response = await apiClient.adminListUsers(params)
       let usersData = response.users || []
+      
+      // Client-side filtering: If search bar is active, filter results to match either username OR name
+      // This ensures we get results matching either field (OR logic) instead of both (AND logic)
+      if (isSearchBarActive) {
+        const searchTerm = searchQuery.toLowerCase()
+        usersData = usersData.filter((user: any) => {
+          const usernameMatch = (user.username || "").toLowerCase().includes(searchTerm)
+          const nameMatch = (user.name || "").toLowerCase().includes(searchTerm)
+          return usernameMatch || nameMatch
+        })
+      }
       
       // Client-side sorting
       if (sortKey && sortDirection) {
@@ -178,9 +210,43 @@ export function AdminUsersTable() {
     }
   }
 
+  // Debounce search input - wait 500ms after user stops typing before searching
+  // Clear immediately if input is empty
+  useEffect(() => {
+    if (searchInput.trim() === "") {
+      // Clear search immediately when input is empty
+      setSearchQuery("")
+      setPage(1)
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      setSearchQuery(searchInput)
+      setPage(1)
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
   useEffect(() => {
     fetchUsers()
-  }, [page, filters, sortKey, sortDirection])
+  }, [page, filters, searchQuery, sortKey, sortDirection])
+
+  // Maintain focus on search input after re-renders
+  useEffect(() => {
+    if (wasSearchFocusedRef.current) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        const activeInput = desktopSearchInputRef.current || mobileSearchInputRef.current
+        if (activeInput && document.activeElement !== activeInput) {
+          activeInput.focus()
+          // Restore cursor position at the end
+          const cursorPosition = searchInput.length
+          activeInput.setSelectionRange(cursorPosition, cursorPosition)
+        }
+      })
+    }
+  }, [users, searchInput])
 
   const handleSort = (key: string, direction: SortDirection) => {
     setSortKey(direction ? key : null)
@@ -188,12 +254,75 @@ export function AdminUsersTable() {
     setPage(1)
   }
 
+  // Debounce timers for number inputs
+  const numberInputTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(numberInputTimersRef.current).forEach(timer => {
+        if (timer) clearTimeout(timer)
+      })
+    }
+  }, [])
+
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
     setPage(1)
   }
 
+  // Handle number input changes with debouncing to prevent page refresh on arrow clicks
+  const handleNumberFilterChange = (key: string, value: string) => {
+    // Prevent negative values - if value is negative or would become negative, set to empty or 0
+    let sanitizedValue = value
+    if (value !== "" && value !== "-") {
+      const numValue = parseFloat(value)
+      if (!isNaN(numValue) && numValue < 0) {
+        sanitizedValue = "0"
+      }
+    }
+    
+    // Update the filter value immediately for UI responsiveness
+    setFilters((prev) => ({ ...prev, [key]: sanitizedValue }))
+    
+    // Clear existing timer for this field
+    if (numberInputTimersRef.current[key]) {
+      clearTimeout(numberInputTimersRef.current[key])
+    }
+    
+    // Debounce the page reset - wait 500ms after user stops clicking arrows
+    numberInputTimersRef.current[key] = setTimeout(() => {
+      setPage(1)
+      delete numberInputTimersRef.current[key]
+    }, 500)
+  }
+
+  // Handle search bar input - updates input immediately, search is debounced
+  // Uses separate state so it doesn't interfere with sidebar filters
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    wasSearchFocusedRef.current = true
+    // Don't set page here - it will be set by the debounce effect
+  }
+  
+  // Track when search input loses focus
+  const handleSearchBlur = () => {
+    // Only clear the flag if focus is moving to another element, not when component re-renders
+    setTimeout(() => {
+      const activeInput = desktopSearchInputRef.current || mobileSearchInputRef.current
+      if (document.activeElement !== activeInput) {
+        wasSearchFocusedRef.current = false
+      }
+    }, 0)
+  }
+  
+  const handleSearchFocus = () => {
+    wasSearchFocusedRef.current = true
+  }
+
   const clearFilters = () => {
+    setSearchInput("")
+    setSearchQuery("")
     setFilters({
       username: "",
       name: "",
@@ -212,7 +341,7 @@ export function AdminUsersTable() {
     setPage(1)
   }
 
-  const hasActiveFilters = Object.values(filters).some((v) => v !== "")
+  const hasActiveFilters = searchQuery.trim() !== "" || Object.values(filters).some((v) => v !== "")
   const totalPages = Math.ceil(total / limit)
 
   // Helper function to convert ISO string to datetime-local format (local time)
@@ -316,12 +445,14 @@ export function AdminUsersTable() {
             <Input
               id="followers_min"
               type="number"
+              min="0"
               placeholder="Min followers..."
               value={filters.followers_min}
-              onChange={(e) => handleFilterChange("followers_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("followers_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
+                  setPage(1)
                 }
               }}
               onWheel={(e) => {
@@ -333,12 +464,14 @@ export function AdminUsersTable() {
             <Input
               id="followers_max"
               type="number"
+              min="0"
               placeholder="Max followers..."
               value={filters.followers_max}
-              onChange={(e) => handleFilterChange("followers_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("followers_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
+                  setPage(1)
                 }
               }}
               onWheel={(e) => {
@@ -353,12 +486,14 @@ export function AdminUsersTable() {
             <Input
               id="following_min"
               type="number"
+              min="0"
               placeholder="Min following..."
               value={filters.following_min}
-              onChange={(e) => handleFilterChange("following_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("following_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
+                  setPage(1)
                 }
               }}
               onWheel={(e) => {
@@ -370,12 +505,14 @@ export function AdminUsersTable() {
             <Input
               id="following_max"
               type="number"
+              min="0"
               placeholder="Max following..."
               value={filters.following_max}
-              onChange={(e) => handleFilterChange("following_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("following_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
+                  setPage(1)
                 }
               }}
               onWheel={(e) => {
@@ -390,12 +527,14 @@ export function AdminUsersTable() {
             <Input
               id="total_videos_min"
               type="number"
+              min="0"
               placeholder="Min videos..."
               value={filters.total_videos_min}
-              onChange={(e) => handleFilterChange("total_videos_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("total_videos_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
+                  setPage(1)
                 }
               }}
               onWheel={(e) => {
@@ -407,12 +546,14 @@ export function AdminUsersTable() {
             <Input
               id="total_videos_max"
               type="number"
+              min="0"
               placeholder="Max videos..."
               value={filters.total_videos_max}
-              onChange={(e) => handleFilterChange("total_videos_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("total_videos_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
+                  setPage(1)
                 }
               }}
               onWheel={(e) => {
@@ -479,25 +620,15 @@ export function AdminUsersTable() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by username..."
-              value={filters.username}
-              onChange={(e) => handleFilterChange("username", e.target.value)}
+              ref={desktopSearchInputRef}
+              placeholder="Search by name or username..."
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
               className="pl-9"
             />
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-            {hasActiveFilters && (
-              <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs">
-                {Object.values(filters).filter((v) => v !== "").length}
-              </span>
-            )}
-          </Button>
         </div>
 
         {/* Toolbar - Mobile Only */}
@@ -505,25 +636,15 @@ export function AdminUsersTable() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Quick search by username..."
-              value={filters.username}
-              onChange={(e) => handleFilterChange("username", e.target.value)}
+              ref={mobileSearchInputRef}
+              placeholder="Search by name or username..."
+              value={searchInput}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
               className="pl-9"
             />
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-            {hasActiveFilters && (
-              <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs">
-                {Object.values(filters).filter((v) => v !== "").length}
-              </span>
-            )}
-          </Button>
         </div>
 
         {/* Table */}
