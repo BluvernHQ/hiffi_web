@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Search, ChevronLeft, ChevronRight, Trash2 } from "lucide-react"
+import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Ban, CheckCircle } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { format } from "date-fns"
@@ -31,6 +31,7 @@ export function AdminUsersTable() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<any>(null)
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
@@ -60,6 +61,11 @@ export function AdminUsersTable() {
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
   const mobileSearchInputRef = useRef<HTMLInputElement>(null)
   const wasSearchFocusedRef = useRef(false)
+  
+  // Refs to maintain focus on filter inputs
+  const usernameFilterRef = useRef<HTMLInputElement>(null)
+  const nameFilterRef = useRef<HTMLInputElement>(null)
+  const wasFilterFocusedRef = useRef<string | null>(null)
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -84,47 +90,150 @@ export function AdminUsersTable() {
       // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
       const offset = Math.max(0, (page - 1) * limit)
       
-      // Build filter params - always include limit and offset for pagination
-      const params: any = { limit, offset }
-      
-      console.log("[admin] Fetching users:", { page, limit, offset })
-      
       // Check if search bar is active (has a value)
       const isSearchBarActive = searchQuery.trim() !== ""
       
+      let usersData: any[] = []
+      let totalCount = 0
+      
       if (isSearchBarActive) {
-        // Search bar: Don't send name/username filters to API - fetch all and filter client-side
-        // This ensures we can match both username AND name with OR logic
-        // The API might use AND logic if we send both, so we handle it client-side
+        // When searching, make two API calls - one for username, one for name
+        // Fetch all pages for both searches to ensure we get all matching results
+        // Then combine and deduplicate results
+        const searchTerm = searchQuery.trim()
+        
+        // Build base params with other filters (excluding name/username)
+        const baseParams: any = { limit, offset: 0 }
+        
+        if (filters.role) baseParams.role = filters.role
+        if (filters.followers_min) baseParams.followers_min = parseInt(filters.followers_min)
+        if (filters.followers_max) baseParams.followers_max = parseInt(filters.followers_max)
+        if (filters.following_min) baseParams.following_min = parseInt(filters.following_min)
+        if (filters.following_max) baseParams.following_max = parseInt(filters.following_max)
+        if (filters.total_videos_min) baseParams.total_videos_min = parseInt(filters.total_videos_min)
+        if (filters.total_videos_max) baseParams.total_videos_max = parseInt(filters.total_videos_max)
+        if (filters.created_after) baseParams.created_after = filters.created_after
+        if (filters.created_before) baseParams.created_before = filters.created_before
+        if (filters.updated_after) baseParams.updated_after = filters.updated_after
+        if (filters.updated_before) baseParams.updated_before = filters.updated_before
+
+        // Helper function to fetch all pages for a given filter
+        const fetchAllPages = async (params: any): Promise<any[]> => {
+          const allUsers: any[] = []
+          let currentOffset = 0
+          let hasMore = true
+          
+          while (hasMore) {
+            const response = await apiClient.adminListUsers({
+              ...params,
+              offset: currentOffset,
+              limit,
+            })
+            
+            const pageUsers = response.users || []
+            allUsers.push(...pageUsers)
+            
+            // Check if there are more pages
+            if (pageUsers.length < limit) {
+              hasMore = false
+            } else {
+              currentOffset += limit
+              // Safety limit: don't fetch more than 100 pages (2000 users)
+              if (currentOffset >= 100 * limit) {
+                hasMore = false
+              }
+            }
+          }
+          
+          return allUsers
+        }
+
+        // Fetch all pages for both username and name searches in parallel
+        const [usernameUsers, nameUsers] = await Promise.all([
+          fetchAllPages({ ...baseParams, username: searchTerm }),
+          fetchAllPages({ ...baseParams, name: searchTerm }),
+        ])
+        
+        // Create a Map to deduplicate by uid (or username if uid is not available)
+        const usersMap = new Map<string, any>()
+        
+        // Add username matches
+        usernameUsers.forEach((user: any) => {
+          const key = user.uid || user.username
+          if (key) {
+            usersMap.set(key, user)
+          }
+        })
+        
+        // Add name matches (will overwrite if same user, which is fine)
+        nameUsers.forEach((user: any) => {
+          const key = user.uid || user.username
+          if (key) {
+            usersMap.set(key, user)
+          }
+        })
+        
+        // Convert map back to array
+        usersData = Array.from(usersMap.values())
+        
+        // Additional client-side filtering to ensure exact matches (case-insensitive)
+        const searchTermLower = searchTerm.toLowerCase()
+        usersData = usersData.filter((user: any) => {
+          const usernameMatch = (user.username || "").toLowerCase().includes(searchTermLower)
+          const nameMatch = (user.name || "").toLowerCase().includes(searchTermLower)
+          return usernameMatch || nameMatch
+        })
+        
+        // Set total count to the filtered results length
+        totalCount = usersData.length
+        
+        // Apply pagination to the filtered results
+        const startIndex = offset
+        const endIndex = offset + limit
+        usersData = usersData.slice(startIndex, endIndex)
       } else {
+        // Normal filtering (no search bar active)
+        // Build filter params - always include limit and offset for pagination
+        const params: any = { limit, offset }
+        
         // Individual filters: send both if they have different values
         if (filters.username) params.username = filters.username
         if (filters.name) params.name = filters.name
-      }
-      if (filters.role) params.role = filters.role
-      if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
-      if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
-      if (filters.following_min) params.following_min = parseInt(filters.following_min)
-      if (filters.following_max) params.following_max = parseInt(filters.following_max)
-      if (filters.total_videos_min) params.total_videos_min = parseInt(filters.total_videos_min)
-      if (filters.total_videos_max) params.total_videos_max = parseInt(filters.total_videos_max)
-      if (filters.created_after) params.created_after = filters.created_after
-      if (filters.created_before) params.created_before = filters.created_before
-      if (filters.updated_after) params.updated_after = filters.updated_after
-      if (filters.updated_before) params.updated_before = filters.updated_before
+        if (filters.role) params.role = filters.role
+        if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
+        if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
+        if (filters.following_min) params.following_min = parseInt(filters.following_min)
+        if (filters.following_max) params.following_max = parseInt(filters.following_max)
+        if (filters.total_videos_min) params.total_videos_min = parseInt(filters.total_videos_min)
+        if (filters.total_videos_max) params.total_videos_max = parseInt(filters.total_videos_max)
+        if (filters.created_after) params.created_after = filters.created_after
+        if (filters.created_before) params.created_before = filters.created_before
+        if (filters.updated_after) params.updated_after = filters.updated_after
+        if (filters.updated_before) params.updated_before = filters.updated_before
 
-      const response = await apiClient.adminListUsers(params)
-      let usersData = response.users || []
-      
-      // Client-side filtering: If search bar is active, filter results to match either username OR name
-      // This ensures we get results matching either field (OR logic) instead of both (AND logic)
-      if (isSearchBarActive) {
-        const searchTerm = searchQuery.toLowerCase()
-        usersData = usersData.filter((user: any) => {
-          const usernameMatch = (user.username || "").toLowerCase().includes(searchTerm)
-          const nameMatch = (user.name || "").toLowerCase().includes(searchTerm)
-          return usernameMatch || nameMatch
-        })
+        const response = await apiClient.adminListUsers(params)
+        usersData = response.users || []
+        
+        // Handle total count - API might return count as page size, not total
+        totalCount = response.count || 0
+        
+        // Smart total count detection:
+        // 1. If we got a full page (limit items), there might be more pages
+        // 2. If we got fewer than limit, this is the last page
+        // 3. If API count is much larger than current page, trust it
+        if (usersData.length === limit) {
+          // Full page - check if API count is reliable
+          if (totalCount === limit || totalCount === 0 || totalCount === usersData.length) {
+            // API likely returned page count, not total - estimate at least one more page exists
+            totalCount = (page * limit) + 1
+          } else if (totalCount > (page * limit)) {
+            // API returned a total larger than current page - trust it
+            // totalCount stays as-is
+          }
+        } else if (usersData.length < limit) {
+          // Partial page - this is definitely the last page
+          totalCount = (page - 1) * limit + usersData.length
+        }
       }
       
       // Client-side sorting
@@ -165,28 +274,6 @@ export function AdminUsersTable() {
       }
       
       setUsers(usersData)
-      
-      // Handle total count - API might return count as page size, not total
-      let totalCount = response.count || 0
-      
-      // Smart total count detection:
-      // 1. If we got a full page (limit items), there might be more pages
-      // 2. If we got fewer than limit, this is the last page
-      // 3. If API count is much larger than current page, trust it
-      if (usersData.length === limit) {
-        // Full page - check if API count is reliable
-        if (totalCount === limit || totalCount === 0 || totalCount === usersData.length) {
-          // API likely returned page count, not total - estimate at least one more page exists
-          totalCount = (page * limit) + 1
-        } else if (totalCount > (page * limit)) {
-          // API returned a total larger than current page - trust it
-          // totalCount stays as-is
-        }
-      } else if (usersData.length < limit) {
-        // Partial page - this is definitely the last page
-        totalCount = (page - 1) * limit + usersData.length
-      }
-      
       setTotal(totalCount)
       console.log("[admin] Users fetched:", {
         count: usersData.length,
@@ -195,8 +282,8 @@ export function AdminUsersTable() {
         limit,
         offset,
         totalPages: Math.ceil(totalCount / limit),
-        responseCount: response.count,
-        response: response
+        isSearchActive: isSearchBarActive,
+        searchQuery: isSearchBarActive ? searchQuery : undefined,
       })
     } catch (error) {
       console.error("[admin] Failed to fetch users:", error)
@@ -256,6 +343,9 @@ export function AdminUsersTable() {
 
   // Debounce timers for number inputs
   const numberInputTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
+  
+  // Debounce timers for text filter inputs (username, name)
+  const textFilterTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -263,13 +353,57 @@ export function AdminUsersTable() {
       Object.values(numberInputTimersRef.current).forEach(timer => {
         if (timer) clearTimeout(timer)
       })
+      Object.values(textFilterTimersRef.current).forEach(timer => {
+        if (timer) clearTimeout(timer)
+      })
     }
   }, [])
 
   const handleFilterChange = (key: string, value: string) => {
+    // Track which input is focused
+    if (key === "username" && usernameFilterRef.current === document.activeElement) {
+      wasFilterFocusedRef.current = "username"
+    } else if (key === "name" && nameFilterRef.current === document.activeElement) {
+      wasFilterFocusedRef.current = "name"
+    }
+    
+    // Update filter value immediately for UI responsiveness
     setFilters((prev) => ({ ...prev, [key]: value }))
-    setPage(1)
+    
+    // Debounce page reset for text filters to prevent focus loss while typing
+    if (key === "username" || key === "name") {
+      // Clear existing timer for this field
+      if (textFilterTimersRef.current[key]) {
+        clearTimeout(textFilterTimersRef.current[key])
+      }
+      
+      // Debounce the page reset - wait 500ms after user stops typing
+      textFilterTimersRef.current[key] = setTimeout(() => {
+        setPage(1)
+        delete textFilterTimersRef.current[key]
+      }, 500)
+    } else {
+      // For other filters, reset page immediately
+      setPage(1)
+    }
   }
+  
+  // Maintain focus on filter inputs after re-renders
+  useEffect(() => {
+    if (wasFilterFocusedRef.current) {
+      requestAnimationFrame(() => {
+        const activeInput = wasFilterFocusedRef.current === "username" 
+          ? usernameFilterRef.current 
+          : nameFilterRef.current
+        if (activeInput && document.activeElement !== activeInput) {
+          activeInput.focus()
+          // Restore cursor position at the end
+          const cursorPosition = activeInput.value.length
+          activeInput.setSelectionRange(cursorPosition, cursorPosition)
+        }
+      })
+    }
+  }, [filters.username, filters.name])
 
   // Handle number input changes with debouncing to prevent page refresh on arrow clicks
   const handleNumberFilterChange = (key: string, value: string) => {
@@ -389,6 +523,56 @@ export function AdminUsersTable() {
     }
   }
 
+  const handleDisableUser = async (user: any) => {
+    if (!user?.username) return
+
+    try {
+      setTogglingUserId(user.uid || user.username)
+      const response = await apiClient.adminDisableUser(user.username)
+      
+      toast({
+        title: "Success",
+        description: response.data?.message || response.message || "User disabled successfully",
+      })
+      
+      await fetchUsers()
+    } catch (error: any) {
+      console.error("[admin] Failed to disable user:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to disable user",
+        variant: "destructive",
+      })
+    } finally {
+      setTogglingUserId(null)
+    }
+  }
+
+  const handleEnableUser = async (user: any) => {
+    if (!user?.username) return
+
+    try {
+      setTogglingUserId(user.uid || user.username)
+      const response = await apiClient.adminEnableUser(user.username)
+      
+      toast({
+        title: "Success",
+        description: response.data?.message || response.message || "User enabled successfully",
+      })
+      
+      await fetchUsers()
+    } catch (error: any) {
+      console.error("[admin] Failed to enable user:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to enable user",
+        variant: "destructive",
+      })
+    } finally {
+      setTogglingUserId(null)
+    }
+  }
+
   if (loading && users.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -398,7 +582,7 @@ export function AdminUsersTable() {
   }
 
   return (
-    <div className="flex gap-4 min-h-0 overflow-hidden">
+    <div className="flex gap-4 min-h-0 overflow-hidden relative">
       {/* Filter Sidebar - Always visible on desktop, toggleable on mobile */}
       <FilterSidebar
         isOpen={showFilters}
@@ -411,18 +595,42 @@ export function AdminUsersTable() {
         <FilterSection title="Search">
           <FilterField label="Username" htmlFor="username">
             <Input
+              ref={usernameFilterRef}
               id="username"
               placeholder="Filter by username..."
               value={filters.username}
               onChange={(e) => handleFilterChange("username", e.target.value)}
+              onFocus={() => {
+                wasFilterFocusedRef.current = "username"
+              }}
+              onBlur={() => {
+                setTimeout(() => {
+                  if (document.activeElement !== usernameFilterRef.current && 
+                      document.activeElement !== nameFilterRef.current) {
+                    wasFilterFocusedRef.current = null
+                  }
+                }, 0)
+              }}
             />
           </FilterField>
           <FilterField label="Name" htmlFor="name">
             <Input
+              ref={nameFilterRef}
               id="name"
               placeholder="Filter by name..."
               value={filters.name}
               onChange={(e) => handleFilterChange("name", e.target.value)}
+              onFocus={() => {
+                wasFilterFocusedRef.current = "name"
+              }}
+              onBlur={() => {
+                setTimeout(() => {
+                  if (document.activeElement !== usernameFilterRef.current && 
+                      document.activeElement !== nameFilterRef.current) {
+                    wasFilterFocusedRef.current = null
+                  }
+                }, 0)
+              }}
             />
           </FilterField>
           <FilterField label="Role" htmlFor="role">
@@ -736,18 +944,36 @@ export function AdminUsersTable() {
                   users.map((user) => (
                   <tr 
                     key={user.uid || user.username} 
-                      className="border-b hover:bg-muted/50 transition-colors group"
+                      className={`border-b hover:bg-muted/50 transition-colors group ${
+                        user.disabled ? "opacity-60 bg-muted/30" : ""
+                      }`}
                   >
-                      <td className="px-3 py-2 sticky left-0 z-10 bg-background border-r-2 border-primary/20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] min-w-[150px] group-hover:bg-muted/50">
+                      <td className={`px-3 py-2 sticky left-0 z-10 border-r-2 border-primary/20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] min-w-[150px] group-hover:bg-muted/50 ${
+                        user.disabled ? "bg-muted/30" : "bg-background"
+                      }`}>
                       <div className="flex items-center gap-2">
-                        <ProfilePicture user={user} size="md" />
-                        <div className="font-medium truncate text-sm">{user.name || "N/A"}</div>
+                        <div className="relative">
+                          <ProfilePicture user={user} size="md" />
+                          {user.disabled && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-background rounded-full" title="Disabled" />
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <div className="font-medium truncate text-sm">{user.name || "N/A"}</div>
+                          {user.disabled && (
+                            <span className="text-xs text-red-600 dark:text-red-400 font-medium">Disabled</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                       <td className="px-3 py-2 whitespace-nowrap min-w-[130px]">
                       <Link
                         href={`/profile/${user.username}`}
-                          className="text-primary hover:underline font-medium text-sm"
+                          className={`font-medium text-sm ${
+                            user.disabled 
+                              ? "text-muted-foreground line-through opacity-70 hover:no-underline" 
+                              : "text-primary hover:underline"
+                          }`}
                       >
                         @{user.username}
                       </Link>
@@ -756,17 +982,24 @@ export function AdminUsersTable() {
                       {user.email || "N/A"}
                     </td>
                       <td className="px-3 py-2 whitespace-nowrap min-w-[90px]">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          user.role === "admin"
-                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                            : user.role === "creator"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        {user.role || "user"}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            user.role === "admin"
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                              : user.role === "creator"
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                          }`}
+                        >
+                          {user.role || "user"}
+                        </span>
+                        {user.disabled && (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-300 dark:border-red-700">
+                            Disabled
+                          </span>
+                        )}
+                      </div>
                     </td>
                       <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[95px]">{user.followers || 0}</td>
                       <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[95px]">{user.following || 0}</td>
@@ -781,6 +1014,37 @@ export function AdminUsersTable() {
                           <Button variant="ghost" size="sm" asChild>
                         <Link href={`/profile/${user.username}`}>View</Link>
                       </Button>
+                          {user.disabled ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEnableUser(user)}
+                              disabled={togglingUserId === (user.uid || user.username)}
+                              className="hover:bg-green-500/10 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                              title="Enable user"
+                            >
+                              {togglingUserId === (user.uid || user.username) ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDisableUser(user)}
+                              disabled={togglingUserId === (user.uid || user.username)}
+                              className="hover:bg-orange-500/10 text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+                              title="Disable user"
+                            >
+                              {togglingUserId === (user.uid || user.username) ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Ban className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

@@ -2611,6 +2611,96 @@ class ApiClient {
     }
   }
 
+  // Admin endpoints - Disable User
+  // POST /admin/users/{username}/disable - Disable a user account by username
+  async adminDisableUser(username: string): Promise<{
+    success: boolean
+    data?: {
+      message?: string
+    }
+    message?: string
+  }> {
+    if (!username || username.trim() === "") {
+      throw new Error("Username is required")
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(`/admin/users/${encodeURIComponent(username)}/disable`, { method: "POST" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: {
+          message: response.data.message || response.message || "User disabled successfully",
+        },
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        message: response.message || "User disabled successfully",
+      }
+    }
+    
+    return {
+      success: false,
+      message: response.message || "Failed to disable user",
+    }
+  }
+
+  // Admin endpoints - Enable User
+  // POST /admin/users/{username}/enable - Enable a user account by username
+  async adminEnableUser(username: string): Promise<{
+    success: boolean
+    data?: {
+      message?: string
+    }
+    message?: string
+  }> {
+    if (!username || username.trim() === "") {
+      throw new Error("Username is required")
+    }
+    
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(`/admin/users/${encodeURIComponent(username)}/enable`, { method: "POST" }, true)
+    
+    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: {
+          message: response.data.message || response.message || "User enabled successfully",
+        },
+      }
+    }
+    
+    if (response.status === "success" || response.success) {
+      return {
+        success: true,
+        message: response.message || "User enabled successfully",
+      }
+    }
+    
+    return {
+      success: false,
+      message: response.message || "Failed to enable user",
+    }
+  }
+
   // Admin endpoints - Delete Video
   // DELETE /admin/videos/{videoID} - Delete a video by videoID
   async deleteVideoByVideoId(videoId: string): Promise<{

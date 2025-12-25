@@ -43,29 +43,46 @@ export function FilterSidebar({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:sticky top-16 left-0 z-50 h-[calc(100vh-4rem)] border-r bg-background shadow-lg transition-all duration-300 ease-in-out",
+          "fixed md:sticky left-0 z-50 border-r bg-background shadow-lg",
+          // Only transition width and transform, not height or position
+          "transition-[width,transform] duration-300 ease-in-out",
           "flex flex-col shrink-0 overflow-hidden",
-          // Width: collapsed vs expanded
+          // Width: collapsed vs expanded - fixed widths prevent layout shifts
           isCollapsed ? "w-12 md:w-12" : "w-64 md:w-64",
           // Mobile: show/hide based on isOpen, Tablet/Desktop: always visible
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          // Ensure position stability - self-start prevents flex alignment issues
+          "md:self-start",
+          // Fixed top position on desktop to prevent shifts - use important to override any conflicting styles
+          "top-16 md:top-16",
+          // Fixed height to prevent position shifts when content changes
+          "h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)]",
+          // Prevent layout shifts - isolate positioning
+          "isolate",
+          // Ensure the sidebar stays in place - prevent any position recalculation
+          "md:sticky"
         )}
       >
         {/* Header */}
         <div className={cn(
-          "flex items-center border-b shrink-0 transition-all",
-          isCollapsed ? "justify-center h-12 px-0" : "justify-between h-16 px-4"
+          "flex items-center border-b shrink-0",
+          // Only transition padding, not height - height should be fixed
+          "transition-[padding] duration-300",
+          // Fixed heights to prevent layout shifts
+          isCollapsed ? "justify-center h-12 px-0 !h-12" : "justify-between h-16 px-4 !h-16"
         )}>
           {!isCollapsed && (
             <>
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">{title}</h2>
-                {activeFilterCount > 0 && (
-                  <span className="ml-2 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
-                    {activeFilterCount}
-                  </span>
-                )}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Filter className="h-5 w-5 text-primary shrink-0" />
+                <h2 className="text-lg font-semibold truncate">{title}</h2>
+                {/* Reserve space for badge to prevent layout shifts */}
+                <span className={cn(
+                  "ml-2 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary shrink-0 min-w-[24px] text-center transition-opacity",
+                  activeFilterCount > 0 ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}>
+                  {activeFilterCount > 0 ? activeFilterCount : "0"}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {activeFilterCount > 0 && (
@@ -124,8 +141,8 @@ export function FilterSidebar({
 
         {/* Filter Content - Scrollable (hidden when collapsed) */}
         {!isCollapsed && (
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <ScrollArea className="h-full">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ contain: 'layout style' }}>
+            <ScrollArea className="h-full flex-1">
               <div className="p-4 space-y-5 pb-6">{children}</div>
             </ScrollArea>
           </div>
