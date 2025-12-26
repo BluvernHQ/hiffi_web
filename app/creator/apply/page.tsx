@@ -57,11 +57,11 @@ export default function BecomeCreatorPage() {
       setIsUnlocking(true)
       
       // Update user role to creator
-      // Sends: PUT /users/self with body: { "role": "creator" } and Bearer token
+      // Sends: PUT /users/{username} with body: { "role": "creator" } and Bearer token
       console.log("[creator] Updating user role to 'creator'")
-      console.log("[creator] Sending request: PUT /users/self with body: { role: 'creator' }")
+      console.log("[creator] Sending request: PUT /users/{username} with body: { role: 'creator' }")
       
-      const updateResponse = await apiClient.updateSelf({ role: "creator" }) // Note: role update may not be officially supported per API docs
+      const updateResponse = await apiClient.updateUser(userData.username, { role: "creator" }) // Note: role update may not be officially supported per API docs
       console.log("[creator] Update API response (full):", JSON.stringify(updateResponse, null, 2))
       
       // Check if the response contains the updated user data
@@ -84,7 +84,7 @@ export default function BecomeCreatorPage() {
       
       // Wait again and verify the role was actually updated
       await new Promise(resolve => setTimeout(resolve, 500))
-      const verifyResponse = await apiClient.getCurrentUser()
+      const verifyResponse = await apiClient.getUserByUsername(userData.username)
       const verifiedRole = verifyResponse?.success ? verifyResponse?.user?.role : null
       console.log("[creator] Verified role after refresh:", verifiedRole)
       

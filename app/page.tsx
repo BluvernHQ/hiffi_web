@@ -2,8 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Navbar } from "@/components/layout/navbar"
-import { Sidebar } from "@/components/layout/sidebar"
+import { AppLayout } from "@/components/layout/app-layout"
 import { VideoGrid } from "@/components/video/video-grid"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
@@ -96,7 +95,6 @@ function HomePageContent() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isFetching, setIsFetching] = useState(false) // Prevent duplicate requests
   const { user, userData } = useAuth()
 
@@ -330,73 +328,57 @@ function HomePageContent() {
   const isLoadingVideos = loading || loadingMore
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar 
-        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-        currentFilter={currentFilter}
-      />
-      <div className="flex flex-1 overflow-hidden gap-0">
-        <Sidebar 
-          isMobileOpen={isSidebarOpen} 
-          onMobileClose={() => setIsSidebarOpen(false)}
-          currentFilter={currentFilter}
-        />
-        <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 h-[calc(100vh-4rem)]">
-          <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div>
-                  <div className="flex items-center justify-between mb-1 sm:justify-start">
-                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
-                  </div>
-                </div>
+    <AppLayout 
+      currentFilter={currentFilter}
+    >
+      <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div>
+              <div className="flex items-center justify-between mb-1 sm:justify-start">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
               </div>
-
-              {/* Video count indicator (optional, subtle) */}
-              {displayVideos.length > 0 && !loading && (
-                <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 text-center sm:text-left">
-                  Showing {displayVideos.length} {displayVideos.length === 1 ? 'video' : 'videos'}
-                  {hasMore && ' • Scroll for more'}
-                </div>
-              )}
-
-              <VideoGrid 
-                videos={displayVideos} 
-                loading={isLoadingVideos} 
-                hasMore={shouldShowLoadMore} 
-                onLoadMore={loadMoreVideos}
-                onVideoDeleted={(videoId) => {
-                  // Remove deleted video from the list
-                  setVideos((prev) => 
-                    prev.filter((v) => ((v as any).videoId || (v as any).video_id) !== videoId)
-                  )
-                }}
-              />
             </div>
           </div>
-        </main>
+
+          {/* Video count indicator (optional, subtle) */}
+          {displayVideos.length > 0 && !loading && (
+            <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 text-center sm:text-left">
+              Showing {displayVideos.length} {displayVideos.length === 1 ? 'video' : 'videos'}
+              {hasMore && ' • Scroll for more'}
+            </div>
+          )}
+
+          <VideoGrid 
+            videos={displayVideos} 
+            loading={isLoadingVideos} 
+            hasMore={shouldShowLoadMore} 
+            onLoadMore={loadMoreVideos}
+            onVideoDeleted={(videoId) => {
+              // Remove deleted video from the list
+              setVideos((prev) => 
+                prev.filter((v) => ((v as any).videoId || (v as any).video_id) !== videoId)
+              )
+            }}
+          />
+        </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }
 
 export default function HomePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col">
-        <Navbar onMenuClick={() => {}} />
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 h-[calc(100vh-4rem)]">
-            <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
-              <div className="max-w-7xl mx-auto">
-                <div className="flex items-center justify-center min-h-[60vh]">
-                  <div className="text-muted-foreground">Loading...</div>
-                </div>
-              </div>
+      <AppLayout>
+        <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-muted-foreground">Loading...</div>
             </div>
-          </main>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     }>
       <HomePageContent />
     </Suspense>

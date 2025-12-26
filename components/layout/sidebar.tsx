@@ -59,6 +59,10 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
   //   { icon: ThumbsUp, label: "Liked Videos", href: "/liked" },
   // ]
 
+  /**
+   * Determines if a navigation item is active based on the current pathname.
+   * Uses exact match for home, prefix match for other routes.
+   */
   const isActive = (href: string) => {
     if (href === "/") {
       return pathname === "/"
@@ -68,16 +72,22 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
 
   const NavLink = ({ item }: { item: typeof mainNavItems[0] }) => {
     const Icon = item.icon
+    const itemIsActive = isActive(item.href)
+    
     return (
       <Link
         href={item.href}
         className={cn(
-          "flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-          isActive(item.href) && "bg-accent text-accent-foreground"
+          // Standardized spacing and sizing - matches FilterItem exactly
+          "flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+          // Hover state
+          "hover:bg-accent hover:text-accent-foreground",
+          // Active state - consistent visual treatment
+          itemIsActive && "bg-accent text-accent-foreground font-semibold"
         )}
         onClick={closeSidebar}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-5 w-5 flex-shrink-0" />
         <span>{item.label}</span>
       </Link>
     )
@@ -86,8 +96,11 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
   const FilterItem = ({ item }: { item: typeof filterItems[0] }) => {
     const Icon = item.icon
     const isDisabled = item.requireAuth && !user
-    const isFollowingPage = pathname === "/following"
-    const isActive = item.href === "/following" ? isFollowingPage : (currentFilter === item.value && isHomePage)
+    
+    // Simplified active state: use pathname matching for consistency
+    // Home is active when pathname is exactly "/"
+    // Following is active when pathname starts with "/following"
+    const isItemActive = isActive(item.href)
 
     if (isDisabled) return null
 
@@ -106,8 +119,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
       <button
         onClick={handleClick}
         className={cn(
-          "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground text-left",
-          isActive && "bg-accent text-accent-foreground"
+          // Standardized spacing and sizing - never changes
+          "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors text-left",
+          // Hover state
+          "hover:bg-accent hover:text-accent-foreground",
+          // Active state - consistent visual treatment
+          isItemActive && "bg-accent text-accent-foreground font-semibold"
         )}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
@@ -126,37 +143,37 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Consistent dimensions and positioning across all pages */}
       <aside
         className={cn(
-          // Base styles - desktop: sticky fixed position
+          // Fixed width - never changes (256px / w-64)
           "w-64 flex-shrink-0 bg-background",
-          // Mobile: fixed overlay (taken out of flow)
+          // Mobile: fixed overlay
           "fixed left-0 top-0 z-40 h-screen shadow-lg transition-transform duration-300 ease-in-out",
-          // Desktop: sticky positioning (fixed to viewport, doesn't scroll with page)
-          // top-16 matches navbar height (h-16 = 4rem) to position directly below navbar with no gap
+          // Desktop: sticky positioning below navbar
+          // top-16 = 4rem = navbar height, h-[calc(100vh-4rem)] = viewport minus navbar
           "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:translate-x-0 lg:overflow-y-auto",
-          // Remove border to eliminate white space gap
-          // Hide on mobile when closed, always visible on desktop
+          // Mobile visibility
           !mobileOpen && "-translate-x-full lg:translate-x-0",
           className
         )}
       >
         <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto">
-          {/* Mobile Header */}
-          <div className="flex h-16 items-center justify-between border-b px-4 lg:hidden shrink-0">
-            <h2 className="text-lg font-semibold">Menu</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={closeSidebar}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+          <div className="flex-1 overflow-y-auto">
+            {/* Mobile Header */}
+            <div className="flex h-16 items-center justify-between border-b px-4 lg:hidden shrink-0">
+              <h2 className="text-lg font-semibold">Menu</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={closeSidebar}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
 
-          <nav className="space-y-1 p-4 lg:p-4 lg:pt-4">
+            {/* Navigation - Consistent padding across all pages */}
+            <nav className="space-y-1 p-4 lg:p-4 lg:pt-4">
             {/* Main navigation items */}
             {mainNavItems.length > 0 && (
               <div className="space-y-1">

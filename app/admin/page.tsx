@@ -19,7 +19,7 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState("")
-  const { login, user, userData, loading: authLoading, refreshUserData } = useAuth()
+  const { login, logout, user, userData, loading: authLoading, refreshUserData } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -100,48 +100,76 @@ export default function AdminLoginPage() {
 
     try {
       console.log("[Admin] Attempting login for:", username)
+      console.log("[Admin] API Base URL:", process.env.NEXT_PUBLIC_API_URL || "https://beta.hiffi.com/api")
       
-      // Login using API client to check role before updating auth state
-      const response = await apiClient.login({ username, password })
-      
-      if (!response.success || !response.data) {
-        throw new Error("Login failed. Please check your credentials.")
+      // Use the auth context login function to ensure proper state management
+      // This handles token storage, user state, and all auth flow properly
+      // Note: The login function will redirect admin users automatically, but we still
+      // need to verify the role here in case the redirect doesn't happen (e.g., in dev)
+      try {
+        await login(username, password)
+      } catch (loginError: any) {
+        // If login throws an error (e.g., disabled account), handle it
+        if (loginError.message?.includes("disabled")) {
+          // Error already handled with toast in auth-context
+          setIsLoading(false)
+          return
+        }
+        // Re-throw other errors
+        throw loginError
       }
-
-      console.log("[Admin] Login successful, user:", response.data.user.username)
-
-      // Store credentials for auto-login
-      apiClient.setCredentials(username, password)
       
-      // Force refresh user data to get latest role
-      console.log("[Admin] Refreshing user data to verify admin role")
-      const refreshedUserData = await refreshUserData(true)
+      console.log("[Admin] Login successful, waiting for user data to be set")
       
-      // Use refreshed data if available, otherwise use login response data
-      const userDataToCheck = refreshedUserData || response.data.user
-      const userRole = String(userDataToCheck?.role || "").toLowerCase().trim()
+      // Wait a bit longer for auth state to fully update after login
+      // The login function in auth-context already refreshes user data and may redirect
+      await new Promise(resolve => setTimeout(resolve, 300))
       
-      if (userRole === "admin") {
-        console.log("[Admin] User is admin, redirecting to dashboard")
-        setIsRedirecting(true)
-        // Auth state is already updated by refreshUserData, just redirect
-        router.push("/admin/dashboard")
-      } else {
-        // User is not admin - show error and clear auth
-        console.log("[Admin] User is not admin, role:", userRole)
-        apiClient.clearCredentials()
-        apiClient.clearAuthToken()
-        // Clear user state by refreshing (which will detect no token and clear state)
-        await refreshUserData(true)
-        setError("This account does not have admin privileges. Please log in with an admin account.")
-        setIsLoading(false)
+      // Check if we're still on this page (login might have redirected already)
+      // If we're still here, verify admin role and redirect manually
+      if (!isRedirecting) {
+        // Force refresh user data to get latest role (in case of race condition)
+        console.log("[Admin] Refreshing user data to verify admin role")
+        let refreshedUserData = null
+        try {
+          refreshedUserData = await refreshUserData(true)
+        } catch (refreshError) {
+          console.warn("[Admin] Failed to refresh user data, using context userData:", refreshError)
+        }
+        
+        // Check userData from context (should be updated by login)
+        const userDataToCheck = refreshedUserData || userData
+        const userRole = String(userDataToCheck?.role || "").toLowerCase().trim()
+        
+        console.log("[Admin] User role after login:", userRole)
+        console.log("[Admin] Full userData:", JSON.stringify(userDataToCheck, null, 2))
+        
+        if (userRole === "admin") {
+          console.log("[Admin] User is admin, redirecting to dashboard")
+          setIsRedirecting(true)
+          router.push("/admin/dashboard")
+        } else {
+          // User is not admin - show error and clear auth
+          console.log("[Admin] User is not admin, role:", userRole)
+          await logout()
+          setError("This account does not have admin privileges. Please log in with an admin account.")
+          setIsLoading(false)
+        }
       }
     } catch (err: any) {
       console.error("[Admin] Login error:", err)
-      // Clear any partial state
-      apiClient.clearCredentials()
-      apiClient.clearAuthToken()
-      setError(err.message || "Invalid username or password")
+      console.error("[Admin] Error details:", {
+        message: err.message,
+        status: err.status,
+        responseBody: err.responseBody,
+      })
+      // Don't show error message if it's about disabled account (toast already shown)
+      if (err.message?.includes("disabled")) {
+        // Error already handled with toast, just clear the form state
+        setError("")
+      } else {
+        setError(err.message || "Invalid username or password")
+      }
       setIsLoading(false)
     }
   }

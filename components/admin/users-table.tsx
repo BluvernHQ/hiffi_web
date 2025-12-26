@@ -320,20 +320,27 @@ export function AdminUsersTable() {
   }, [page, filters, searchQuery, sortKey, sortDirection])
 
   // Maintain focus on search input after re-renders
+  // This runs whenever users, loading, or searchInput changes to ensure focus is maintained during search
   useEffect(() => {
     if (wasSearchFocusedRef.current) {
-      // Use requestAnimationFrame to ensure DOM is updated
+      // Use double requestAnimationFrame to ensure DOM is fully updated after state changes
       requestAnimationFrame(() => {
-        const activeInput = desktopSearchInputRef.current || mobileSearchInputRef.current
-        if (activeInput && document.activeElement !== activeInput) {
-          activeInput.focus()
-          // Restore cursor position at the end
-          const cursorPosition = searchInput.length
-          activeInput.setSelectionRange(cursorPosition, cursorPosition)
-        }
+        requestAnimationFrame(() => {
+          const activeInput = desktopSearchInputRef.current || mobileSearchInputRef.current
+          if (activeInput) {
+            // Always restore focus if it was previously focused, even if currently focused
+            // This ensures focus is maintained through all re-renders
+            if (document.activeElement !== activeInput) {
+              activeInput.focus()
+            }
+            // Restore cursor position at the end
+            const cursorPosition = searchInput.length
+            activeInput.setSelectionRange(cursorPosition, cursorPosition)
+          }
+        })
       })
     }
-  }, [users, searchInput])
+  }, [users, loading, searchInput, searchQuery])
 
   const handleSort = (key: string, direction: SortDirection) => {
     setSortKey(direction ? key : null)
@@ -582,8 +589,10 @@ export function AdminUsersTable() {
   }
 
   return (
-    <div className="flex gap-4 min-h-0 overflow-hidden relative">
+    <div className="grid grid-cols-[auto_1fr] gap-4 min-h-0 overflow-hidden relative h-full w-full">
       {/* Filter Sidebar - Always visible on desktop, toggleable on mobile */}
+      {/* Fixed width column - never shifts regardless of table content */}
+      {/* Grid column 1: auto width (based on sidebar width) */}
       <FilterSidebar
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
@@ -821,10 +830,11 @@ export function AdminUsersTable() {
         </FilterSection>
       </FilterSidebar>
 
-      {/* Main Content */}
-      <div className="flex-1 space-y-4 min-w-0 overflow-hidden flex flex-col">
+      {/* Main Content - Flexible column that scrolls independently */}
+      {/* Grid column 2: 1fr (takes remaining space) */}
+      <div className="min-w-0 overflow-hidden flex flex-col h-full w-full">
         {/* Search Bar - Desktop */}
-        <div className="hidden lg:flex items-center gap-3 shrink-0">
+        <div className="hidden lg:flex items-center gap-3 shrink-0 mb-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -840,7 +850,7 @@ export function AdminUsersTable() {
         </div>
 
         {/* Toolbar - Mobile Only */}
-        <div className="flex items-center justify-between gap-4 shrink-0 lg:hidden">
+        <div className="flex items-center justify-between gap-4 shrink-0 mb-4 lg:hidden">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

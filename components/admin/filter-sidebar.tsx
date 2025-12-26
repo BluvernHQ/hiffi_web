@@ -34,7 +34,7 @@ export function FilterSidebar({
       {/* Mobile Overlay - Only show on mobile (below md breakpoint) when sidebar is open */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-300 md:pointer-events-none md:opacity-0"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300 md:pointer-events-none md:opacity-0"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -43,24 +43,27 @@ export function FilterSidebar({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:sticky left-0 z-50 border-r bg-background shadow-lg",
+          // Mobile: fixed positioning for overlay behavior
+          "fixed md:relative left-0 z-50 border-r bg-background shadow-lg",
+          // Ensure background is always visible and not transparent
+          "bg-background",
           // Only transition width and transform, not height or position
           "transition-[width,transform] duration-300 ease-in-out",
           "flex flex-col shrink-0 overflow-hidden",
           // Width: collapsed vs expanded - fixed widths prevent layout shifts
+          // These are explicit widths that never change based on content
           isCollapsed ? "w-12 md:w-12" : "w-64 md:w-64",
           // Mobile: show/hide based on isOpen, Tablet/Desktop: always visible
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-          // Ensure position stability - self-start prevents flex alignment issues
-          "md:self-start",
-          // Fixed top position on desktop to prevent shifts - use important to override any conflicting styles
-          "top-16 md:top-16",
+          // Fixed top position on mobile to prevent shifts
+          "top-16 md:top-0",
           // Fixed height to prevent position shifts when content changes
-          "h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)]",
+          // On desktop (md+), use full height of grid container
+          "h-[calc(100vh-4rem)] md:h-full",
           // Prevent layout shifts - isolate positioning
           "isolate",
-          // Ensure the sidebar stays in place - prevent any position recalculation
-          "md:sticky"
+          // Grid item alignment - align to start of grid row
+          "md:row-start-1 md:col-start-1"
         )}
       >
         {/* Header */}
@@ -74,15 +77,27 @@ export function FilterSidebar({
           {!isCollapsed && (
             <>
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Filter className="h-5 w-5 text-primary shrink-0" />
+                {/* Filter icon with badge overlay */}
+                <div className="relative shrink-0">
+                  <Filter className="h-5 w-5 text-primary" />
+                  {/* Badge positioned on top-right of icon */}
+                  {activeFilterCount > 0 && (
+                    <span className={cn(
+                      "absolute -top-1.5 -right-1.5 rounded-full",
+                      "min-w-[18px] h-[18px] flex items-center justify-center",
+                      "px-1 text-[10px] font-bold leading-none",
+                      // High contrast: solid primary background with white text
+                      "bg-primary text-primary-foreground",
+                      // Strong border and shadow for maximum visibility
+                      "border-2 border-background shadow-md",
+                      // Ensure it stands out
+                      "z-10"
+                    )}>
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </div>
                 <h2 className="text-lg font-semibold truncate">{title}</h2>
-                {/* Reserve space for badge to prevent layout shifts */}
-                <span className={cn(
-                  "ml-2 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary shrink-0 min-w-[24px] text-center transition-opacity",
-                  activeFilterCount > 0 ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}>
-                  {activeFilterCount > 0 ? activeFilterCount : "0"}
-                </span>
               </div>
               <div className="flex items-center gap-2">
                 {activeFilterCount > 0 && (
@@ -124,26 +139,37 @@ export function FilterSidebar({
                 variant="ghost"
                 size="icon"
                 onClick={onToggleCollapse}
-                className="h-10 w-10"
+                className="h-10 w-10 relative"
                 aria-label="Expand filters"
                 title="Expand filters"
               >
                 <Filter className="h-5 w-5 text-primary" />
+                {/* Badge positioned on top-right of icon */}
+                {activeFilterCount > 0 && (
+                  <span className={cn(
+                    "absolute top-0 right-0 rounded-full",
+                    "min-w-[18px] h-[18px] flex items-center justify-center",
+                    "px-1 text-[10px] font-bold leading-none",
+                    // High contrast: solid primary background with white text
+                    "bg-primary text-primary-foreground",
+                    // Strong border and shadow for maximum visibility
+                    "border-2 border-background shadow-md",
+                    // Ensure it stands out
+                    "z-10"
+                  )}>
+                    {activeFilterCount}
+                  </span>
+                )}
               </Button>
-              {activeFilterCount > 0 && (
-                <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-xs font-medium text-primary min-w-[20px] text-center">
-                  {activeFilterCount}
-                </span>
-              )}
             </div>
           )}
         </div>
 
         {/* Filter Content - Scrollable (hidden when collapsed) */}
         {!isCollapsed && (
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ contain: 'layout style' }}>
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-background" style={{ contain: 'layout style' }}>
             <ScrollArea className="h-full flex-1">
-              <div className="p-4 space-y-5 pb-6">{children}</div>
+              <div className="p-4 space-y-5 pb-6 bg-background">{children}</div>
             </ScrollArea>
           </div>
         )}

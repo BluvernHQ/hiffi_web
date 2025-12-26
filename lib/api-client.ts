@@ -6,6 +6,7 @@ const PASSWORD_COOKIE = "hiffi_password"
 export interface ApiError {
   message: string
   status: number
+  responseBody?: string
 }
 
 // Video Types
@@ -239,8 +240,26 @@ class ApiClient {
 
         const errorText = await finalResponse.text().catch(() => finalResponse.statusText)
         const finalDuration = Date.now() - startTime
-        console.error(`[API] ${method} ${url} - FAILED (${finalResponse.status})${retried ? ' after retry' : ''} in ${finalDuration}ms`)
-        console.error(`[API] Error response:`, errorText.substring(0, 200))
+        
+        // Check if this is a disabled account response (403 with disabled:true)
+        let isDisabledAccount = false
+        try {
+          const errorData = JSON.parse(errorText)
+          if (errorData.disabled === true && errorData.success === false && finalResponse.status === 403) {
+            isDisabledAccount = true
+          }
+        } catch {
+          // Not JSON, continue with normal error handling
+        }
+        
+        // Only log errors if it's not a disabled account (to reduce console noise)
+        if (!isDisabledAccount) {
+          console.error(`[API] ${method} ${url} - FAILED (${finalResponse.status})${retried ? ' after retry' : ''} in ${finalDuration}ms`)
+          console.error(`[API] Error response:`, errorText.substring(0, 200))
+        } else {
+          // Log at info level for disabled accounts (less noisy)
+          console.log(`[API] ${method} ${url} - Account disabled (403) in ${finalDuration}ms`)
+        }
         
         // Try to parse error response as JSON to get user-friendly message
         let errorMessage = `API Error: ${response.statusText}`
@@ -284,6 +303,7 @@ class ApiClient {
         const error: ApiError = {
           message: errorMessage,
           status: finalResponse.status,
+          responseBody: errorText, // Include response body for error handling
         }
         throw error
       }
@@ -306,8 +326,27 @@ class ApiClient {
       }
 
       return data
-    } catch (error) {
+    } catch (error: any) {
       const duration = Date.now() - startTime
+      
+      // Check if this is a disabled account error (403) - don't log as error
+      const isDisabledAccount = error?.status === 403 && error?.responseBody && (() => {
+        try {
+          const errorData = JSON.parse(error.responseBody)
+          return errorData.disabled === true && errorData.success === false
+        } catch {
+          return false
+        }
+      })()
+      
+      if (isDisabledAccount) {
+        // Log at info level for disabled accounts (less noisy)
+        console.log(`[API] ${method} ${url} - Account disabled (403) in ${duration}ms`)
+        // Re-throw to be handled by caller (getUserByUsername will catch it)
+        throw error
+      }
+      
+      // Log other errors normally
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       
       // Provide more helpful error messages for common fetch failures
@@ -466,75 +505,114 @@ class ApiClient {
   }
 
   async getCurrentUser(): Promise<{ success: boolean; user?: any; following?: boolean; data?: { user: any } }> {
-    const response = await this.request<{ success: boolean; user?: any; data?: { user: any } }>("/users/self", {}, true)
+    // DEPRECATED: This method is deprecated. Use getUserByUsername(username) instead.
+    // This method is kept for backward compatibility but will try to get username from localStorage
+    console.warn("[API] getCurrentUser is deprecated. Use getUserByUsername(username) instead.")
     
-    // Log response for debugging
-    console.log("[API] getCurrentUser response:", response)
-    
-    // Normalize response to always have user at top level
-    // API returns: { success: true, data: { user: {...} } }
-    // We normalize to: { success: true, user: {...} }
-    if (response.success && response.data?.user && !response.user) {
-      console.log("[API] Normalizing response structure")
-      return {
-        success: response.success,
-        user: response.data.user,
-        following: undefined, // Not applicable for own profile
+    // Try to get username from localStorage
+    let username: string | null = null
+    if (typeof window !== "undefined") {
+      try {
+        const userData = localStorage.getItem("hiffi_user_data")
+        if (userData) {
+          const parsed = JSON.parse(userData)
+          username = parsed.username
+        }
+      } catch (e) {
+        console.warn("[API] Failed to get username from localStorage")
       }
     }
     
-    // If response already has user at top level, return as is
-    if (response.success && response.user) {
+    if (!username) {
+      console.error("[API] Cannot use getCurrentUser without username. Use getUserByUsername(username) instead.")
       return {
-        ...response,
-        following: undefined, // Not applicable for own profile
+        success: false,
+        user: undefined,
+        following: undefined,
       }
     }
     
-    // If no user found, return response as is (will be handled by caller)
-    return response
+    // Use getUserByUsername instead of deprecated /users/self
+    return this.getUserByUsername(username)
   }
 
   async getUserByUsername(username: string): Promise<{ 
     success: boolean
     user: any
-    following?: boolean 
+    following?: boolean
+    disabled?: boolean
   }> {
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        user: any
+    try {
+      const response = await this.request<{
+        success?: boolean
+        status?: string
+        disabled?: boolean
+        data?: {
+          user: any
+          following?: boolean
+        }
+        user?: any
         following?: boolean
-      }
-      user?: any
-      following?: boolean
-    }>(`/users/${username}`, {}, true)
-    
-    // Normalize response structure
-    // New API format: { success: true, data: { user: {...}, following: false } }
-    // Old format: { success: true, user: {...} }
-    if (response.success || response.status === "success") {
-      // Extract from data object if present
-      if (response.data) {
+      }>(`/users/${username}`, {}, true)
+      
+      // Check if account is disabled (API returns { disabled: true, success: false })
+      if (response.disabled === true && response.success === false) {
         return {
-          success: true,
-          user: response.data.user,
-          following: response.data.following,
+          success: false,
+          user: null,
+          following: false,
+          disabled: true,
         }
       }
-      // Otherwise use top-level fields
-      return {
-        success: true,
-        user: response.user,
-        following: response.following,
+      
+      // Normalize response structure
+      // New API format: { success: true, data: { user: {...}, following: false } }
+      // Old format: { success: true, user: {...} }
+      if (response.success || response.status === "success") {
+        // Extract from data object if present
+        if (response.data) {
+          return {
+            success: true,
+            user: response.data.user,
+            following: response.data.following,
+            disabled: false,
+          }
+        }
+        // Otherwise use top-level fields
+        return {
+          success: true,
+          user: response.user,
+          following: response.following,
+          disabled: false,
+        }
       }
-    }
-    
-    return {
-      success: false,
-      user: null,
-      following: false,
+      
+      return {
+        success: false,
+        user: null,
+        following: false,
+        disabled: false,
+      }
+    } catch (error: any) {
+      // Handle 403 errors that may indicate a disabled account
+      if (error?.status === 403 && error?.responseBody) {
+        try {
+          const errorData = JSON.parse(error.responseBody)
+          // Check if the error response indicates a disabled account
+          if (errorData.disabled === true && errorData.success === false) {
+            return {
+              success: false,
+              user: null,
+              following: false,
+              disabled: true,
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse the error body, continue to throw the original error
+        }
+      }
+      // Re-throw the error if it's not a disabled account case
+      throw error
     }
   }
 
@@ -595,53 +673,46 @@ class ApiClient {
 
   // Update user profile - officially supports: name, profile_picture
   // Note: Some backends may accept additional fields like role, but this is not documented
+  // DEPRECATED: This method uses /users/self which is deprecated. Use updateUser(username, data) instead.
   async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user: any }> {
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      user?: any
-      data?: { user: any }
-    }>(
-      "/users/self",
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-      true,
-    )
+    console.warn("[API] updateSelf is deprecated. Use updateUser(username, data) instead.")
     
-    // Normalize response structure
-    // API returns: { status: "success", user: {...} }
-    // or: { success: true, data: { user: {...} } }
-    if ((response.status === "success" || response.success) && response.data?.user && !response.user) {
-      return {
-        success: true,
-        user: response.data.user,
+    // Try to get username from localStorage
+    let username: string | null = null
+    if (typeof window !== "undefined") {
+      try {
+        const userData = localStorage.getItem("hiffi_user_data")
+        if (userData) {
+          const parsed = JSON.parse(userData)
+          username = parsed.username
+        }
+      } catch (e) {
+        console.warn("[API] Failed to get username from localStorage")
       }
     }
     
-    if (response.status === "success" || response.success) {
+    if (!username) {
+      console.error("[API] Cannot use updateSelf without username. Use updateUser(username, data) instead.")
       return {
-        success: true,
-        user: response.user,
+        success: false,
+        user: null,
       }
     }
     
-    return {
-      success: false,
-      user: null,
-    }
+    // Use updateUser with username instead of deprecated /users/self
+    return this.updateUser(username, data)
   }
 
   // Update user profile picture - uses PUT /users/{username} with { "image": path }
   async updateUserProfile(username: string, data: { image?: string; name?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
+    // Use /users/{username} instead of deprecated /users/self
     const response = await this.request<{
       success?: boolean
       status?: string
       user?: any
       data?: { user: any }
     }>(
-      `/users/self`,
+      `/users/${encodeURIComponent(username)}`,
       {
         method: "PUT",
         body: JSON.stringify(data),
@@ -661,7 +732,8 @@ class ApiClient {
 
   // Note: updateUser is not in the official API docs - users can only update themselves via updateSelf
   // Keeping this for potential admin use, but it may not be supported by the backend
-  async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string }): Promise<any> {
+  // Also supports profile_picture field for profile picture updates
+  async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; [key: string]: any }): Promise<any> {
     console.warn("[API] updateUser is not in the official API docs. Use updateSelf instead.")
     return this.request(
       `/users/${username}`,
@@ -1076,28 +1148,35 @@ class ApiClient {
   }
 
   // GET /videos/{videoID} - Get video information and streaming URL
+  // Response structure: { success: true, data: { video: {...}, video_url: "...", upvoted: false, downvoted: false, following: false, profile_picture: "" } }
   async getVideo(videoId: string): Promise<{
     success: boolean
     video_url: string
+    video?: any // Full video object with all metadata
     upvoted?: boolean
     downvoted?: boolean
     following?: boolean
+    profile_picture?: string
     put_view_error?: string
   }> {
     const response = await this.request<{
       success?: boolean
       status?: string
       data?: {
+        video?: any
         video_url?: string
         upvoted?: boolean
         downvoted?: boolean
         following?: boolean
+        profile_picture?: string
         put_view_error?: string
       }
+      video?: any
       video_url?: string
       upvoted?: boolean
       downvoted?: boolean
       following?: boolean
+      profile_picture?: string
       put_view_error?: string
     }>(
       `/videos/${videoId}`,
@@ -1106,26 +1185,35 @@ class ApiClient {
     )
     
     // Normalize response structure
-    // API may return:
-    // - { status: "success", video_url: "...", upvoted: false, downvoted: false, following: false }
-    // - { success: true, data: { video_url: "...", upvoted: false, downvoted: false, following: false } }
+    // New API format: { success: true, data: { video: {...}, video_url: "...", upvoted: false, downvoted: false, following: false, profile_picture: "" } }
+    // Legacy format: { status: "success", video_url: "...", upvoted: false, downvoted: false, following: false }
     const isSuccess = response.status === "success" || response.success
     
     if (isSuccess) {
-      // Extract fields from either response.data or directly from response
-      const videoUrl = response.data?.video_url || response.video_url || ""
-      const upvoted = response.data?.upvoted ?? response.upvoted ?? false
-      const downvoted = response.data?.downvoted ?? response.downvoted ?? false
-      const following = response.data?.following ?? response.following ?? false
-      const putViewError = response.data?.put_view_error || response.put_view_error
+      // Extract from data object if present (new format)
+      if (response.data) {
+        return {
+          success: true,
+          video_url: response.data.video_url || "",
+          video: response.data.video,
+          upvoted: response.data.upvoted ?? false,
+          downvoted: response.data.downvoted ?? false,
+          following: response.data.following ?? false,
+          profile_picture: response.data.profile_picture || "",
+          put_view_error: response.data.put_view_error,
+        }
+      }
       
+      // Legacy format - extract from top level
       return {
         success: true,
-        video_url: videoUrl,
-        upvoted: upvoted,
-        downvoted: downvoted,
-        following: following,
-        put_view_error: putViewError,
+        video_url: response.video_url || "",
+        video: response.video,
+        upvoted: response.upvoted ?? false,
+        downvoted: response.downvoted ?? false,
+        following: response.following ?? false,
+        profile_picture: response.profile_picture || "",
+        put_view_error: response.put_view_error,
       }
     }
     

@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Navbar } from "@/components/layout/navbar"
-import { Sidebar } from "@/components/layout/sidebar"
+import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
 import { VideoCard } from "@/components/video/video-card"
@@ -82,7 +81,6 @@ export default function WatchPage() {
   const router = useRouter()
   const { user, userData } = useAuth()
   const { toast } = useToast()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
   const [isCheckingFollow, setIsCheckingFollow] = useState(false)
   const [isFollowingAction, setIsFollowingAction] = useState(false)
@@ -122,90 +120,30 @@ export default function WatchPage() {
         setIsLoading(true)
         console.log("[hiffi] Fetching video data for:", videoId)
 
-        // Call GET /videos/{videoID} directly - this is called ONCE ONLY
+        // Call GET /videos/{videoID} directly - this returns full video object with metadata
         let videoResponse
         try {
           videoResponse = await apiClient.getVideo(videoId)
-          console.log("[hiffi] Video streaming URL from API:", videoResponse)
+          console.log("[hiffi] Video response from API:", videoResponse)
           
           if (!videoResponse.success || !videoResponse.video_url) {
             throw new Error("Failed to get video data")
           }
-        } catch (videoError) {
-          console.error("[hiffi] Failed to get video:", videoError)
-          // Reset refs on error so we can retry
-          hasFetchedVideoRef.current = null
-          isFetchingRef.current = false
-          setUrlError("Video not found")
-          setIsLoading(false)
-          return
-        }
 
-        // Get basic video info from video list for metadata (title, description, etc.)
-        // We'll search a few pages to find the video metadata
-        let foundVideo = null
-        let allVideos: any[] = []
-        const maxPagesToSearch = 5
-        const videosPerPage = 50
-
-        // Use main seed for finding the current video
-        const seed = getSeed()
-        for (let page = 1; page <= maxPagesToSearch; page++) {
-          const videosResponse = await apiClient.getVideoList({ page, limit: videosPerPage, seed })
-          const videosArray = videosResponse.videos || []
-          
-          if (videosArray.length === 0) {
-            break
+          // Use video object directly from API response (no need to search through lists)
+          const videoData = videoResponse.video
+          if (!videoData) {
+            throw new Error("Video data not found in API response")
           }
 
-          // Check if the requested video is in this page
-          const found = videosArray.find((v: any) => (v.video_id || v.videoId) === videoId)
-          if (found) {
-            foundVideo = found
-            console.log("[hiffi] Found video metadata from list on page", page)
+          // Build complete video object with streaming URL and all metadata
+          const completeVideo = {
+            ...videoData,
+            video_url: videoResponse.video_url, // Streaming URL from API
+            streaming_url: videoResponse.video_url, // Alias for compatibility
+            userUsername: videoData.user_username, // Alias for compatibility
           }
 
-          // Add to all videos
-          allVideos = [...allVideos, ...videosArray]
-
-          if (foundVideo && allVideos.length >= 100) {
-            // Found video and have enough for suggestions
-            break
-          }
-
-          // If we got fewer videos than requested, we've reached the end
-          if (videosArray.length < videosPerPage) {
-            break
-          }
-        }
-
-        // Fetch additional videos with a random seed for better variety in suggestions
-        if (allVideos.length < 50) {
-          const randomSeed = Math.random().toString(36).substring(2, 15)
-          const additionalVideos = await apiClient.getVideoList({ offset: 0, limit: 50, seed: randomSeed })
-          allVideos = [...allVideos, ...(additionalVideos.videos || [])]
-        }
-
-        // Shuffle suggested videos for variety
-        const shuffleArray = (array: any[]) => {
-          const shuffled = [...array]
-          for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-          }
-          return shuffled
-        }
-        
-        // Remove duplicates and current video, then shuffle
-        const uniqueVideos = Array.from(new Map(allVideos.map(v => [v.video_id || v.videoId, v])).values())
-        const filteredVideos = uniqueVideos.filter((v: any) => (v.video_id || v.videoId) !== videoId)
-        const shuffledSuggestions = shuffleArray(filteredVideos)
-
-        if (foundVideo) {
-          // Update video with streaming URL from getVideo response
-          foundVideo.video_url = videoResponse.video_url
-          foundVideo.streaming_url = videoResponse.video_url
-          
           // Update vote state from getVideo API response
           setUpvoteState({
             upvoted: videoResponse.upvoted || false,
@@ -215,80 +153,93 @@ export default function WatchPage() {
           setIsDisliked(videoResponse.downvoted || false)
           
           // Update follow state from getVideo API response
-          // Set UNCONDITIONALLY from API response (just like upvote/downvote)
           const followingStatus = videoResponse.following || false
           console.log(`[hiffi] Setting follow state from getVideo API: following=${followingStatus}`)
           setIsFollowing(followingStatus)
           
+          setVideo(completeVideo)
+          
           // Get video creator username for fetching creator data
-          const videoCreatorUsername = foundVideo.userUsername || foundVideo.user_username
-          
-          setVideo(foundVideo)
-          
-          // Set shuffled related videos
-          setRelatedVideos(shuffledSuggestions)
-          
-          // Fetch video creator data to get follower count
+          const videoCreatorUsername = videoData.user_username
+
+          // Fetch video creator data to get follower count and profile picture
           // Only fetch if user is logged in (endpoint requires authentication)
           if (videoCreatorUsername && user) {
             try {
               const creatorResponse = await apiClient.getUserByUsername(videoCreatorUsername)
-              console.log("[hiffi] Creator data from API:", creatorResponse);
+              console.log("[hiffi] Creator data from API:", creatorResponse)
               // Handle API response format: { success: true, user: {...}, following?: boolean }
-              const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
-              console.log("[hiffi] Creator profile:", creatorProfile);
-              console.log("[hiffi] Creator followers:", creatorProfile?.followers);
+              const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse)
+              console.log("[hiffi] Creator profile:", creatorProfile)
+              console.log("[hiffi] Creator followers:", creatorProfile?.followers)
               setVideoCreator(creatorProfile)
               // Update following status from API response if available
               if (creatorResponse?.following !== undefined) {
-                console.log("[hiffi] Setting follow state from getUserByUsername:", creatorResponse.following);
-                setIsFollowing(creatorResponse.following);
+                console.log("[hiffi] Setting follow state from getUserByUsername:", creatorResponse.following)
+                setIsFollowing(creatorResponse.following)
               }
             } catch (creatorError: any) {
               // Only log as warning if it's not a 401 (expected when not authenticated)
               if (creatorError?.status !== 401) {
                 console.warn("[hiffi] Failed to fetch creator data:", creatorError)
               }
-              // Continue without creator data
+              // Use profile picture from getVideo response if available
+              if (videoResponse.profile_picture) {
+                setVideoCreator({
+                  username: videoCreatorUsername,
+                  name: videoCreatorUsername,
+                  profile_picture: videoResponse.profile_picture,
+                })
+              } else {
+                setVideoCreator({
+                  username: videoCreatorUsername,
+                  name: videoCreatorUsername,
+                })
+              }
             }
           } else if (videoCreatorUsername) {
-            // User not logged in - use basic info from video object
+            // User not logged in - use basic info from video object and profile picture from API
             setVideoCreator({
               username: videoCreatorUsername,
               name: videoCreatorUsername,
+              profile_picture: videoResponse.profile_picture || "",
             })
           }
-        } else {
-          // If we couldn't find video metadata, create a minimal video object from getVideo response
-          // This shouldn't happen often, but handle gracefully
-          console.warn("[hiffi] Video metadata not found in list, using minimal data")
-          const minimalVideo = {
-            video_id: videoId,
-            video_url: videoResponse.video_url,
-            streaming_url: videoResponse.video_url,
-            video_title: "Video",
-            video_description: "",
-            video_views: 0,
-            video_upvotes: 0,
-            video_downvotes: 0,
-            video_comments: 0,
+
+          // Fetch related videos for suggestions (using video list)
+          try {
+            const seed = getSeed()
+            const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 50, seed })
+            const videosArray = videosResponse.videos || []
+            
+            // Remove current video and shuffle for variety
+            const filteredVideos = videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId)
+            
+            // Shuffle for variety
+            const shuffleArray = (array: any[]) => {
+              const shuffled = [...array]
+              for (let i: number = shuffled.length - 1; i > 0; i--) {
+                const j: number = Math.floor(Math.random() * (i + 1))
+                const temp = shuffled[i]
+                shuffled[i] = shuffled[j]
+                shuffled[j] = temp
+              }
+              return shuffled
+            }
+            
+            setRelatedVideos(shuffleArray(filteredVideos).slice(0, 12))
+          } catch (suggestionsError) {
+            console.warn("[hiffi] Failed to fetch related videos:", suggestionsError)
+            setRelatedVideos([])
           }
-          
-          // Update vote and follow state from getVideo API response
-          setUpvoteState({
-            upvoted: videoResponse.upvoted || false,
-            downvoted: videoResponse.downvoted || false,
-          })
-          setIsLiked(videoResponse.upvoted || false)
-          setIsDisliked(videoResponse.downvoted || false)
-          
-          // Update follow state from getVideo API response (minimal video case)
-          const followingStatus = videoResponse.following || false
-          console.log(`[hiffi] Setting follow state from getVideo API (minimal): following=${followingStatus}`)
-          setIsFollowing(followingStatus)
-          
-          setVideo(minimalVideo)
-          setRelatedVideos(shuffledSuggestions || allVideos.slice(0, 12))
+        } catch (videoError) {
+          console.error("[hiffi] Failed to get video:", videoError)
+          // Reset refs on error so we can retry
+          hasFetchedVideoRef.current = null
+          isFetchingRef.current = false
+          setUrlError("Video not found")
+          setIsLoading(false)
+          return
         }
       } catch (error) {
         console.error("[hiffi] Failed to fetch video data:", error)
@@ -600,31 +551,27 @@ export default function WatchPage() {
 
   if (isLoading || !video) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="flex flex-1">
-            <Sidebar className="hidden lg:block w-64 shrink-0" />
-          <main className="flex-1 p-4 lg:p-6 overflow-y-auto flex items-center justify-center">
-            <div className="text-center">
-              {urlError ? (
-                <>
-                  <div className="text-4xl mb-4">😕</div>
-                  <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
-                  <p className="text-muted-foreground mb-6">{urlError}</p>
-                  <Button onClick={() => router.push("/")} variant="default">
-                    Go to Home
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p>Loading video...</p>
-                </>
-              )}
-            </div>
-          </main>
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-full p-4 lg:p-6">
+          <div className="text-center">
+            {urlError ? (
+              <>
+                <div className="text-4xl mb-4">😕</div>
+                <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
+                <p className="text-muted-foreground mb-6">{urlError}</p>
+                <Button onClick={() => router.push("/")} variant="default">
+                  Go to Home
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p>Loading video...</p>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
@@ -642,12 +589,9 @@ export default function WatchPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-        <main className="flex-1 p-4 lg:p-6 overflow-y-auto w-full min-w-0">
-          <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <AppLayout>
+      <div className="p-4 lg:p-6">
+        <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-4">
               <VideoPlayer 
@@ -818,8 +762,7 @@ export default function WatchPage() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
       
       <DeleteVideoDialog
         open={deleteDialogOpen}
@@ -828,6 +771,6 @@ export default function WatchPage() {
         videoTitle={video.videoTitle || video.video_title}
         onDeleted={handleVideoDeleted}
       />
-    </div>
+    </AppLayout>
   )
 }

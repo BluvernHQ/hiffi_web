@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { apiClient } from "./api-client"
+import { toast } from "@/hooks/use-toast"
 
 interface User {
   name: string
@@ -66,7 +67,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log("[hiffi] Fetching user data from API")
-      const response = await apiClient.getCurrentUser()
+      
+      // Get username from cached data or token
+      let username: string | null = null
+      if (typeof window !== "undefined") {
+        const cachedData = localStorage.getItem(USER_DATA_KEY)
+        if (cachedData) {
+          try {
+            const parsed = JSON.parse(cachedData)
+            username = parsed.username
+          } catch (e) {
+            console.warn("[hiffi] Failed to parse cached user data for username")
+          }
+        }
+      }
+      
+      // If we don't have username, we can't fetch user data
+      if (!username) {
+        console.warn("[hiffi] No username available to fetch user data")
+        setUser(null)
+        setUserData(null)
+        apiClient.clearAuthToken()
+        return null
+      }
+      
+      // Use /users/{username} instead of deprecated /users/self
+      const response = await apiClient.getUserByUsername(username)
 
       if (response.success && response.user) {
         console.log("[hiffi] User data fetched successfully:", response.user.username)
@@ -158,8 +184,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
       
-      // Refresh user data from /users/self to get latest creator status and all user details
-      console.log("[hiffi] Refreshing user data from /users/self to get latest details")
+      // Check if account is disabled by calling /users/{username}
+      console.log("[hiffi] Checking if account is disabled")
+      try {
+        const userStatusResponse = await apiClient.getUserByUsername(response.data.user.username)
+        
+        // Check if user account is disabled
+        // API returns { disabled: true, success: false } for disabled accounts
+        if (userStatusResponse.disabled === true && userStatusResponse.success === false) {
+          console.warn("[hiffi] Account is disabled, logging out user")
+          
+          // Clear auth state
+          apiClient.clearAuthToken()
+          apiClient.clearCredentials()
+          setUser(null)
+          setUserData(null)
+          
+          // Clear cached data
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(USER_DATA_KEY)
+            localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+          }
+          
+          // Show toast notification with better UX
+          toast({
+            title: "Account Disabled",
+            description: (
+              <span>
+                Your account has been disabled. Please contact support at{" "}
+                <a 
+                  href="mailto:support@hiffi.com" 
+                  className="font-semibold text-primary underline hover:text-primary/80"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  support@hiffi.com
+                </a>
+                {" "}for more details or to get assistance.
+              </span>
+            ),
+            variant: "destructive",
+            duration: 10000, // Show for 10 seconds to ensure user sees it
+          })
+          
+          // Return early without throwing error to avoid console noise
+          // The toast message is sufficient feedback to the user
+          return
+        }
+      } catch (statusError: any) {
+        // If the error is about disabled account, handle it silently
+        if (statusError.message?.includes("disabled")) {
+          // Already handled above, just return
+          return
+        }
+        // Otherwise, log the error but continue with login (might be network issue)
+        console.warn("[hiffi] Failed to check account status, continuing with login:", statusError)
+      }
+      
+      // Refresh user data from /users/{username} to get latest creator status and all user details
+      console.log("[hiffi] Refreshing user data from /users/{username} to get latest details")
       let finalUserData: any = response.data.user
       try {
         const refreshedUserData = await refreshUserData(true) // Force refresh to get latest data

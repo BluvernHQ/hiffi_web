@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/navbar';
-import { Sidebar } from '@/components/layout/sidebar';
+import { AppLayout } from '@/components/layout/app-layout';
 import { VideoGrid } from '@/components/video/video-grid';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,7 +23,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const { userData: currentUserData, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingAction, setIsFollowingAction] = useState(false);
   const [profileUser, setProfileUser] = useState<any>(null);
@@ -83,19 +81,10 @@ export default function ProfilePage() {
         setIsLoading(true);
         setHasTriedFetch(true);
         
-        // Check if this is the current user's own profile
-        const isOwnProfileCheck = currentUserData?.username === username;
-        
-        // Use /users/self for current user's profile, /users/{username} for others
-        // Add cache busting parameter if force refresh is requested
-        let response;
-        if (isOwnProfileCheck) {
-          console.log("[hiffi] Fetching own profile using /users/self", forceRefresh ? "(force refresh)" : "");
-          response = await apiClient.getCurrentUser();
-        } else {
-          console.log("[hiffi] Fetching profile using /users/{username}", forceRefresh ? "(force refresh)" : "");
-          response = await apiClient.getUserByUsername(username);
-        }
+        // Use /users/{username} for all profiles (including own profile)
+        // /users/self is deprecated
+        console.log("[hiffi] Fetching profile using /users/{username}", forceRefresh ? "(force refresh)" : "");
+        const response = await apiClient.getUserByUsername(username);
         
         console.log("[hiffi] User data from API (raw response):", JSON.stringify(response, null, 2));
         
@@ -209,7 +198,7 @@ export default function ProfilePage() {
         setHasMore(true);
         
         // Fetch initial page of user's videos
-        await fetchUserVideos(0, true, isOwnProfileCheck);
+        await fetchUserVideos(0, true, isOwnProfile);
       } catch (error: any) {
         console.error("[hiffi] Failed to fetch user data:", error);
         // Check if it's an authentication error (401)
@@ -499,17 +488,15 @@ export default function ProfilePage() {
         
         // Refresh recipient user's profile data to get updated follower count
         try {
-          // Use /users/self for current user's profile, /users/{username} for others
-          const isOwnProfileCheck = currentUserData?.username === username;
-          const refreshedResponse = isOwnProfileCheck 
-            ? await apiClient.getCurrentUser()
-            : await apiClient.getUserByUsername(username);
+          // Use /users/{username} for all profiles (including own profile)
+          // /users/self is deprecated
+          const refreshedResponse = await apiClient.getUserByUsername(username);
           console.log("[hiffi] Refreshed user data after unfollow:", refreshedResponse);
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
           // Update following status from API response
-          if (!isOwnProfileCheck && refreshedResponse?.following !== undefined) {
+          if (!isOwnProfile && refreshedResponse?.following !== undefined) {
             setIsFollowing(refreshedResponse.following);
           }
         } catch (refreshError) {
@@ -538,17 +525,15 @@ export default function ProfilePage() {
         
         // Refresh recipient user's profile data to get updated follower count
         try {
-          // Use /users/self for current user's profile, /users/{username} for others
-          const isOwnProfileCheck = currentUserData?.username === username;
-          const refreshedResponse = isOwnProfileCheck 
-            ? await apiClient.getCurrentUser()
-            : await apiClient.getUserByUsername(username);
+          // Use /users/{username} for all profiles (including own profile)
+          // /users/self is deprecated
+          const refreshedResponse = await apiClient.getUserByUsername(username);
           console.log("[hiffi] Refreshed user data after follow:", refreshedResponse);
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
           // Update following status from API response
-          if (!isOwnProfileCheck && refreshedResponse?.following !== undefined) {
+          if (!isOwnProfile && refreshedResponse?.following !== undefined) {
             setIsFollowing(refreshedResponse.following);
           }
         } catch (refreshError) {
@@ -597,58 +582,50 @@ export default function ProfilePage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 overflow-y-auto flex items-center justify-center w-full min-w-0">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p>Loading profile...</p>
-            </div>
-          </main>
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading profile...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (!isLoading && hasTriedFetch && !profileUser) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 overflow-y-auto flex items-center justify-center w-full min-w-0">
-            <div className="text-center space-y-4 px-4 max-w-md">
-              {isUnauthenticated ? (
-                <>
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-bold">Please Sign In</h2>
-                    <p className="text-muted-foreground">
-                      You need to be signed in to view user profiles.
-                    </p>
-                  </div>
-                  <div className="flex gap-3 justify-center pt-2">
-                    <Button asChild>
-                      <Link href="/login">Sign In</Link>
-                    </Button>
-                    <Button variant="outline" asChild>
-                      <Link href="/signup">Sign Up</Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-full">
+          <div className="text-center space-y-4 px-4 max-w-md">
+            {isUnauthenticated ? (
+              <>
                 <div className="space-y-2">
-                  <p className="text-lg font-semibold">User not found</p>
-                  <p className="text-muted-foreground text-sm">
-                    The user profile you're looking for doesn't exist or has been removed.
+                  <h2 className="text-2xl font-bold">Please Sign In</h2>
+                  <p className="text-muted-foreground">
+                    You need to be signed in to view user profiles.
                   </p>
                 </div>
-              )}
-            </div>
-          </main>
+                <div className="flex gap-3 justify-center pt-2">
+                  <Button asChild>
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href="/signup">Sign Up</Link>
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-lg font-semibold">User not found</p>
+                <p className="text-muted-foreground text-sm">
+                  The user profile you're looking for doesn't exist or has been removed.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
@@ -660,11 +637,8 @@ export default function ProfilePage() {
   // Show personal profile view for regular users viewing their own profile
   if (isRegularUser && isOwnProfile) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden gap-0">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
+      <AppLayout>
+        <div className="bg-background w-full">
             {/* Cover Image / Banner */}
             <div className="h-32 sm:h-40 md:h-48 lg:h-64 w-full relative overflow-hidden">
               {profileUser.coverUrl ? (
@@ -880,56 +854,52 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-          </main>
-        </div>
 
-        {/* Edit Profile Dialogs */}
-        {isOwnProfile && profileUser && (
-          <>
-            <EditProfileDialog
-              open={isEditDialogOpen}
-              onOpenChange={setIsEditDialogOpen}
-              currentName={profileUser.name || profileUser.username || ""}
-              currentUsername={profileUser.username || username}
-              currentEmail={profileUser.email || currentUserData?.email || ""}
-              currentBio={profileUser.bio || ""}
-              onProfileUpdated={async () => {
-              // Immediately increment profile picture version to force re-render
-              // This ensures the new image displays even before backend refresh
-              setProfilePictureVersion(prev => prev + 1)
-              // Use a longer delay to ensure backend has processed the update and updated_at is refreshed
-              await new Promise(resolve => setTimeout(resolve, 500))
-              await fetchUserData(true)
-            }}
-            />
-            <ProfilePictureDialog
-              open={isProfilePictureDialogOpen}
-              onOpenChange={setIsProfilePictureDialogOpen}
-              currentProfilePicture={profileUser.profile_picture || ""}
-              currentName={profileUser.name || profileUser.username || ""}
-              currentUsername={profileUser.username || username}
-              onProfileUpdated={async () => {
-              // Immediately increment profile picture version to force re-render
-              // This ensures the new image displays even before backend refresh
-              setProfilePictureVersion(prev => prev + 1)
-              // Use a longer delay to ensure backend has processed the update and updated_at is refreshed
-              await new Promise(resolve => setTimeout(resolve, 500))
-              await fetchUserData(true)
-            }}
-            />
-          </>
-        )}
-      </div>
+          {/* Edit Profile Dialogs */}
+          {isOwnProfile && profileUser && (
+            <>
+              <EditProfileDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                currentName={profileUser.name || profileUser.username || ""}
+                currentUsername={profileUser.username || username}
+                currentEmail={profileUser.email || currentUserData?.email || ""}
+                currentBio={profileUser.bio || ""}
+                onProfileUpdated={async () => {
+                // Immediately increment profile picture version to force re-render
+                // This ensures the new image displays even before backend refresh
+                setProfilePictureVersion(prev => prev + 1)
+                // Use a longer delay to ensure backend has processed the update and updated_at is refreshed
+                await new Promise(resolve => setTimeout(resolve, 500))
+                await fetchUserData(true)
+              }}
+              />
+              <ProfilePictureDialog
+                open={isProfilePictureDialogOpen}
+                onOpenChange={setIsProfilePictureDialogOpen}
+                currentProfilePicture={profileUser.profile_picture || ""}
+                currentName={profileUser.name || profileUser.username || ""}
+                currentUsername={profileUser.username || username}
+                onProfileUpdated={async () => {
+                // Immediately increment profile picture version to force re-render
+                // This ensures the new image displays even before backend refresh
+                setProfilePictureVersion(prev => prev + 1)
+                // Use a longer delay to ensure backend has processed the update and updated_at is refreshed
+                await new Promise(resolve => setTimeout(resolve, 500))
+                await fetchUserData(true)
+              }}
+              />
+            </>
+          )}
+        </div>
+      </AppLayout>
     );
   }
 
   // Show standard profile view for creators/admins or when viewing other users
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-        <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
+    <AppLayout>
+      <div className="bg-background w-full">
           {/* Cover Image / Banner */}
           <div className="h-32 sm:h-40 md:h-48 lg:h-64 w-full relative overflow-hidden">
             {profileUser.coverUrl ? (
@@ -1168,39 +1138,38 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
 
-      {/* Edit Profile Dialogs */}
-      {isOwnProfile && profileUser && (
-        <>
-          <EditProfileDialog
-            open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
-            currentName={profileUser.name || profileUser.username || ""}
-            currentUsername={profileUser.username || username}
-            currentEmail={profileUser.email || currentUserData?.email || ""}
-            currentBio={profileUser.bio || ""}
-            onProfileUpdated={async () => {
-              // Use a small delay to prevent rapid state updates
-              await new Promise(resolve => setTimeout(resolve, 100))
-              await fetchUserData(true)
-            }}
-          />
-          <ProfilePictureDialog
-            open={isProfilePictureDialogOpen}
-            onOpenChange={setIsProfilePictureDialogOpen}
-            currentProfilePicture={profileUser.profile_picture || ""}
-            currentName={profileUser.name || profileUser.username || ""}
-            currentUsername={profileUser.username || username}
-            onProfileUpdated={async () => {
-              // Use a small delay to prevent rapid state updates
-              await new Promise(resolve => setTimeout(resolve, 100))
-              await fetchUserData(true)
-            }}
-          />
-        </>
-      )}
-    </div>
-  );
-}
+          {/* Edit Profile Dialogs */}
+          {isOwnProfile && profileUser && (
+            <>
+              <EditProfileDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                currentName={profileUser.name || profileUser.username || ""}
+                currentUsername={profileUser.username || username}
+                currentEmail={profileUser.email || currentUserData?.email || ""}
+                currentBio={profileUser.bio || ""}
+                onProfileUpdated={async () => {
+                  // Use a small delay to prevent rapid state updates
+                  await new Promise(resolve => setTimeout(resolve, 100))
+                  await fetchUserData(true)
+                }}
+              />
+              <ProfilePictureDialog
+                open={isProfilePictureDialogOpen}
+                onOpenChange={setIsProfilePictureDialogOpen}
+                currentProfilePicture={profileUser.profile_picture || ""}
+                currentName={profileUser.name || profileUser.username || ""}
+                currentUsername={profileUser.username || username}
+                onProfileUpdated={async () => {
+                  // Use a small delay to prevent rapid state updates
+                  await new Promise(resolve => setTimeout(resolve, 100))
+                  await fetchUserData(true)
+                }}
+              />
+            </>
+          )}
+        </div>
+      </AppLayout>
+    );
+  }

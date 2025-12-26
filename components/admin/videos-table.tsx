@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,6 +36,13 @@ export function AdminVideosTable() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
   const limit = 20
+
+  // Refs to maintain focus on search input
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const wasSearchFocusedRef = useRef(false)
+
+  // Debounce timers for number inputs
+  const numberInputTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
   useEffect(() => {
@@ -183,6 +190,37 @@ export function AdminVideosTable() {
     fetchVideos()
   }, [page, filters, sortKey, sortDirection])
 
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(numberInputTimersRef.current).forEach(timer => {
+        if (timer) clearTimeout(timer)
+      })
+    }
+  }, [])
+
+  // Maintain focus on search input after re-renders
+  // This runs whenever videos, loading, or filters change to ensure focus is maintained during search
+  useEffect(() => {
+    if (wasSearchFocusedRef.current && searchInputRef.current) {
+      // Use double requestAnimationFrame to ensure DOM is fully updated after state changes
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (searchInputRef.current) {
+            // Always restore focus if it was previously focused, even if currently focused
+            // This ensures focus is maintained through all re-renders
+            if (document.activeElement !== searchInputRef.current) {
+              searchInputRef.current.focus()
+            }
+            // Restore cursor position at the end
+            const cursorPosition = filters.video_title.length
+            searchInputRef.current.setSelectionRange(cursorPosition, cursorPosition)
+          }
+        })
+      })
+    }
+  }, [videos, loading, filters.video_title])
+
   const handleSort = (key: string, direction: SortDirection) => {
     setSortKey(direction ? key : null)
     setSortDirection(direction)
@@ -192,6 +230,32 @@ export function AdminVideosTable() {
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
     setPage(1) // Reset to first page when filters change
+  }
+
+  // Handle number input changes with debouncing to prevent page refresh on arrow clicks
+  const handleNumberFilterChange = (key: string, value: string) => {
+    // Prevent negative values - if value is negative or would become negative, set to empty or 0
+    let sanitizedValue = value
+    if (value !== "" && value !== "-") {
+      const numValue = parseFloat(value)
+      if (!isNaN(numValue) && numValue < 0) {
+        sanitizedValue = "0"
+      }
+    }
+    
+    // Update the filter value immediately for UI responsiveness
+    setFilters((prev) => ({ ...prev, [key]: sanitizedValue }))
+    
+    // Clear existing timer for this field
+    if (numberInputTimersRef.current[key]) {
+      clearTimeout(numberInputTimersRef.current[key])
+    }
+    
+    // Debounce the page reset - wait 500ms after user stops clicking arrows
+    numberInputTimersRef.current[key] = setTimeout(() => {
+      setPage(1)
+      delete numberInputTimersRef.current[key]
+    }, 500)
   }
 
   const clearFilters = () => {
@@ -338,9 +402,10 @@ export function AdminVideosTable() {
             <Input
               id="video_views_min"
               type="number"
+              min="0"
               placeholder="Min views..."
               value={filters.video_views_min}
-              onChange={(e) => handleFilterChange("video_views_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_views_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -355,9 +420,10 @@ export function AdminVideosTable() {
             <Input
               id="video_views_max"
               type="number"
+              min="0"
               placeholder="Max views..."
               value={filters.video_views_max}
-              onChange={(e) => handleFilterChange("video_views_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_views_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -375,9 +441,10 @@ export function AdminVideosTable() {
             <Input
               id="video_upvotes_min"
               type="number"
+              min="0"
               placeholder="Min upvotes..."
               value={filters.video_upvotes_min}
-              onChange={(e) => handleFilterChange("video_upvotes_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_upvotes_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -392,9 +459,10 @@ export function AdminVideosTable() {
             <Input
               id="video_upvotes_max"
               type="number"
+              min="0"
               placeholder="Max upvotes..."
               value={filters.video_upvotes_max}
-              onChange={(e) => handleFilterChange("video_upvotes_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_upvotes_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -409,9 +477,10 @@ export function AdminVideosTable() {
             <Input
               id="video_downvotes_min"
               type="number"
+              min="0"
               placeholder="Min downvotes..."
               value={filters.video_downvotes_min}
-              onChange={(e) => handleFilterChange("video_downvotes_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_downvotes_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -426,9 +495,10 @@ export function AdminVideosTable() {
             <Input
               id="video_downvotes_max"
               type="number"
+              min="0"
               placeholder="Max downvotes..."
               value={filters.video_downvotes_max}
-              onChange={(e) => handleFilterChange("video_downvotes_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_downvotes_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -443,9 +513,10 @@ export function AdminVideosTable() {
             <Input
               id="video_comments_min"
               type="number"
+              min="0"
               placeholder="Min comments..."
               value={filters.video_comments_min}
-              onChange={(e) => handleFilterChange("video_comments_min", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_comments_min", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -460,9 +531,10 @@ export function AdminVideosTable() {
             <Input
               id="video_comments_max"
               type="number"
+              min="0"
               placeholder="Max comments..."
               value={filters.video_comments_max}
-              onChange={(e) => handleFilterChange("video_comments_max", e.target.value)}
+              onChange={(e) => handleNumberFilterChange("video_comments_max", e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
@@ -532,9 +604,24 @@ export function AdminVideosTable() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Quick search by video title..."
               value={filters.video_title}
-              onChange={(e) => handleFilterChange("video_title", e.target.value)}
+              onChange={(e) => {
+                handleFilterChange("video_title", e.target.value)
+                wasSearchFocusedRef.current = true
+              }}
+              onFocus={() => {
+                wasSearchFocusedRef.current = true
+              }}
+              onBlur={() => {
+                // Only clear the flag if focus is moving to another element, not when component re-renders
+                setTimeout(() => {
+                  if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+                    wasSearchFocusedRef.current = false
+                  }
+                }, 0)
+              }}
               className="pl-9"
             />
           </div>

@@ -342,9 +342,12 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0
       setBufferPercentage(bufferPercent)
 
-      // Log buffer status for debugging
-      if (bufferAhead < BUFFER_LOW_THRESHOLD) {
-        console.warn(`[hiffi] Low buffer warning: only ${bufferAhead.toFixed(1)}s buffered ahead`)
+      // Log buffer status for debugging (only in development, reduce verbosity)
+      if (process.env.NODE_ENV === 'development' && bufferAhead < BUFFER_LOW_THRESHOLD) {
+        // Only log if buffer is very low (< 2s) to reduce noise
+        if (bufferAhead < 2) {
+          console.warn(`[hiffi] Low buffer warning: only ${bufferAhead.toFixed(1)}s buffered ahead`)
+        }
       }
 
       // Detect network speed based on buffering rate
@@ -359,7 +362,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
       // If buffer is low and video is playing, trigger buffering state (but not if ended)
       if (bufferAhead < 2 && !video.paused && !video.ended) {
-        console.warn('[hiffi] Buffer critically low, may cause stuttering')
+        // Only log in development to reduce console noise
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[hiffi] Buffer critically low, may cause stuttering')
+        }
         setIsBuffering(true)
       } else if (bufferAhead > BUFFER_LOW_THRESHOLD) {
         // Don't clear buffering if video has ended
@@ -638,15 +644,22 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
             const bufferAhead = video.buffered.length > 0 
               ? video.buffered.end(video.buffered.length - 1) - video.currentTime 
               : 0
-            console.warn(`[hiffi] Video waiting (buffering) - only ${bufferAhead.toFixed(1)}s ahead`)
+            // Only log in development and if buffer is very low to reduce console noise
+            if (process.env.NODE_ENV === 'development' && bufferAhead < 1) {
+              console.log(`[hiffi] Video waiting (buffering) - only ${bufferAhead.toFixed(1)}s ahead`)
+            }
             setIsBuffering(true)
           }
         }}
         onPlaying={() => {
           const video = videoRef.current
-          if (video && video.buffered.length > 0) {
+          // Only log in development to reduce console noise
+          if (process.env.NODE_ENV === 'development' && video && video.buffered.length > 0) {
             const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
-            console.log(`[hiffi] Video playing - ${bufferAhead.toFixed(1)}s buffered ahead`)
+            // Only log if buffer is low (less than 5s) to reduce noise
+            if (bufferAhead < 5) {
+              console.log(`[hiffi] Video playing - ${bufferAhead.toFixed(1)}s buffered ahead`)
+            }
           }
           setHasEnded(false) // Clear ended state when playing
           setIsBuffering(false)
@@ -654,12 +667,16 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         onSeeking={() => {
           const video = videoRef.current
           const seekTime = video?.currentTime || 0
-          console.log(`[hiffi] Seeking to ${seekTime.toFixed(1)}s...`)
+          // Only log in development
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[hiffi] Seeking to ${seekTime.toFixed(1)}s...`)
+          }
           setIsBuffering(true)
         }}
         onSeeked={() => {
           const video = videoRef.current
-          if (video && video.buffered.length > 0) {
+          // Only log in development
+          if (process.env.NODE_ENV === 'development' && video && video.buffered.length > 0) {
             const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
             console.log(`[hiffi] Seeked complete - ${bufferAhead.toFixed(1)}s buffered at new position`)
           }
@@ -668,12 +685,19 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         onStalled={() => {
           const video = videoRef.current
           if (video && !video.ended) {
-            console.error('[hiffi] Video stalled - network issue or insufficient buffering')
+            // Log at info level instead of error - stalling is often temporary and expected
+            // Only log in development to reduce console noise in production
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[hiffi] Video stalled - network issue or insufficient buffering (this is often temporary)')
+            }
             setIsBuffering(true)
           }
         }}
         onSuspend={() => {
-          console.log('[hiffi] Video load suspended by browser')
+          // Only log in development - browser suspending is normal behavior
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[hiffi] Video load suspended by browser')
+          }
         }}
         onProgress={(e) => {
           const video = e.currentTarget

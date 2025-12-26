@@ -54,7 +54,13 @@ function LoginForm() {
     try {
       await login(username, password)
     } catch (err: any) {
-      setError(err.message || "Invalid username or password")
+      // Don't show error message if it's about disabled account (toast already shown)
+      if (err.message?.includes("disabled")) {
+        // Error already handled with toast, just clear the form state
+        setError("")
+      } else {
+        setError(err.message || "Invalid username or password")
+      }
     } finally {
       setIsLoading(false)
     }

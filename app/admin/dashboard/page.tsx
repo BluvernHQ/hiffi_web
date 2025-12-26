@@ -205,14 +205,16 @@ function AdminDashboardContent() {
               )}
 
               {section === "users" && (
-                <div className="space-y-4">
-                  <div>
+                <div className="h-full flex flex-col min-h-0">
+                  <div className="mb-4 shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
                     <p className="text-sm text-muted-foreground mt-1">
                   View and manage all registered users on the platform
                     </p>
                   </div>
-                  {showContent ? <AdminUsersTable /> : <TableSkeleton />}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminUsersTable /> : <TableSkeleton />}
+                  </div>
                 </div>
               )}
 
