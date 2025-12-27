@@ -1,5 +1,14 @@
 // Service Worker to add x-api-key header to Workers video requests
 // This allows videos to stream directly from Workers without needing a proxy
+//
+// NOTE: This file is static and cannot use environment variables at runtime.
+// Update WORKERS_BASE_URL here to match your environment, or use a build script
+// to inject the value from NEXT_PUBLIC_WORKERS_URL during build.
+//
+// Environment URLs:
+//   - Dev: https://dev-workers.hiffi.workers.dev
+//   - Beta: https://black-paper-83cf.hiffi.workers.dev (current)
+//   - Prod: https://workers.hiffi.workers.dev
 
 const WORKERS_BASE_URL = 'https://black-paper-83cf.hiffi.workers.dev'
 let API_KEY = 'SECRET_KEY' // Default, will be updated via message

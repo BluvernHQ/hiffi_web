@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWorkersApiKey } from '@/lib/storage'
+import { WORKERS_BASE_URL } from '@/lib/config'
 
 /**
  * Video streaming proxy that supports Range requests for proper video playback
@@ -18,7 +19,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate that the URL is from Workers (security check)
-    const WORKERS_BASE_URL = 'https://black-paper-83cf.hiffi.workers.dev'
     if (!videoUrl.startsWith(WORKERS_BASE_URL)) {
       return NextResponse.json(
         { error: 'Invalid video URL' },

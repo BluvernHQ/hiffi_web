@@ -1,4 +1,7 @@
-export const WORKERS_BASE_URL = "https://black-paper-83cf.hiffi.workers.dev"
+import { WORKERS_BASE_URL } from "./config"
+
+// Re-export for backward compatibility
+export { WORKERS_BASE_URL }
 
 /**
  * Gets the API key for Workers requests

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://beta.hiffi.com/api"
+import { API_BASE_URL } from "./config"
 const TOKEN_KEY = "hiffi_auth_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"

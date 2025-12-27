@@ -1,7 +1,5 @@
 import axios from 'axios';
-
-// Base URL from documentation (configurable via environment variable)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://beta.hiffi.com/api';
+import { API_BASE_URL } from './config';
 
 // Create axios instance
 const api = axios.create({
