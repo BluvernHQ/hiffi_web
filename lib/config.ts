@@ -18,7 +18,7 @@ interface EnvironmentConfig {
 
 const environments: Record<Environment, EnvironmentConfig> = {
   dev: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://beta.hiffi.com/api',
     workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://dev-workers.hiffi.workers.dev',
   },
   beta: {
