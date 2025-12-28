@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiFi Video Player Test</title>
+    
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        .video-js {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-blue-400 text-center">Video Encoding Test Player</h1>
+        
+        <!-- Configuration Panel -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8 border border-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">R2 Public URL</label>
+                    <input type="text" id="baseUrl" placeholder="https://pub-xxxx.r2.dev" 
+                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Video ID</label>
+                    <input type="text" id="videoId" placeholder="uuid-here" 
+                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">API Key (x-api-key)</label>
+                    <input type="password" id="apiKey" placeholder="SECRET_KEY" 
+                           class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-4 items-center justify-center">
+                <button onclick="loadStream()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-semibold transition">
+                    Load HLS Stream
+                </button>
+            </div>
+        </div>
+
+        <!-- Quality Selector -->
+        <div id="qualitySelector" class="hidden mb-4 p-4 bg-gray-800 rounded border border-gray-700">
+            <label class="block text-sm font-medium mb-2 text-gray-300">Quality:</label>
+            <div id="qualityButtons" class="flex flex-wrap gap-2">
+                <!-- Quality buttons will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Player Container -->
+        <div class="relative bg-black rounded-lg overflow-hidden shadow-2xl">
+            <video id="video-player" class="video-js vjs-big-play-centered"></video>
+        </div>
+
+        <!-- Debug Info -->
+        <div class="mt-6 p-4 bg-gray-800 rounded border border-gray-700">
+            <h3 class="text-sm font-bold text-gray-400 uppercase mb-2">Current Stream Info</h3>
+            <p id="streamUrl" class="text-xs font-mono break-all text-gray-300">No stream loaded</p>
+        </div>
+    </div>
+
+    <!-- Video.js JS -->
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+
+    <script>
+        const player = videojs('video-player', {
+            autoplay: false,
+            controls: true,
+            responsive: true,
+            fluid: true,
+            playbackRates: [0.5, 1, 1.5, 2]
+        });
+
+        // Add XHR hook to inject x-api-key header and fix HLS segment paths
+        videojs.Vhs.xhr.beforeRequest = function(options) {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (apiKey) {
+                options.headers = options.headers || {};
+                options.headers['x-api-key'] = apiKey;
+            }
+            
+            // Fix HLS segment URLs to include 'segments/' directory
+            if (options.uri) {
+                // Pattern: /videos/{videoId}/hls/{profile}/seg_xxx.ts
+                // Should be: /videos/{videoId}/hls/{profile}/segments/seg_xxx.ts
+                const hlsSegmentPattern = /(\/videos\/[^\/]+\/hls\/[^\/]+\/)(seg_\d+\.ts|seg_\d+\.m4s)$/;
+                if (hlsSegmentPattern.test(options.uri)) {
+                    options.uri = options.uri.replace(hlsSegmentPattern, '$1segments/$2');
+                }
+            }
+            
+            return options;
+        };
+
+        let currentBaseUrl = '';
+        let currentVideoId = '';
+        let profiles = {};
+
+        async function loadStream() {
+            const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
+            const videoId = document.getElementById('videoId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const urlDisplay = document.getElementById('streamUrl');
+
+            if (!baseUrl || !videoId) {
+                alert('Please enter both R2 Public URL and Video ID');
+                return;
+            }
+
+            currentBaseUrl = baseUrl;
+            currentVideoId = videoId;
+
+            // Load profiles.json first
+            const profilesUrl = `${baseUrl}/videos/${videoId}/hls/profiles.json`;
+            try {
+                const headers = apiKey ? { 'x-api-key': apiKey } : {};
+                const response = await fetch(profilesUrl, { headers });
+                if (!response.ok) throw new Error('Failed to load profiles.json');
+                profiles = await response.json();
+                populateQualitySelector();
+            } catch (error) {
+                console.error('Error loading profiles:', error);
+                alert('Failed to load quality profiles. Playing master playlist instead.');
+                profiles = {};
+                document.getElementById('qualitySelector').classList.add('hidden');
+            }
+
+            const streamUrl = `${baseUrl}/videos/${videoId}/hls/master.m3u8`;
+            const mimeType = 'application/x-mpegURL';
+
+            urlDisplay.innerText = streamUrl;
+            
+            player.src({
+                src: streamUrl,
+                type: mimeType
+            });
+
+            player.play();
+        }
+
+        function populateQualitySelector() {
+            const container = document.getElementById('qualityButtons');
+            container.innerHTML = '';
+
+            // Add Auto option
+            const autoBtn = document.createElement('button');
+            autoBtn.className = 'px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium transition active:bg-blue-600';
+            autoBtn.textContent = 'Auto';
+            autoBtn.onclick = (e) => {
+                e.preventDefault();
+                switchQuality('auto', e.target);
+            };
+            container.appendChild(autoBtn);
+
+            // Sort profiles by resolution (height) descending
+            const sortedProfiles = Object.entries(profiles).sort((a, b) => b[1].height - a[1].height);
+
+            sortedProfiles.forEach(([profile, data]) => {
+                const btn = document.createElement('button');
+                btn.className = 'px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium transition';
+                btn.textContent = `${profile} (${data.height}p - ${data.bitrate}kbps)`;
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    switchQuality(profile, e.target);
+                };
+                container.appendChild(btn);
+            });
+
+            document.getElementById('qualitySelector').classList.remove('hidden');
+            // Set Auto as active initially
+            container.children[0].classList.add('bg-blue-600');
+        }
+
+        function switchQuality(profile, clickedElement) {
+            if (!currentBaseUrl || !currentVideoId) return;
+
+            // Update active button
+            const buttons = document.getElementById('qualityButtons').children;
+            for (let btn of buttons) {
+                btn.classList.remove('bg-blue-600');
+                btn.classList.add('bg-gray-700');
+            }
+            // Mark the clicked button as active
+            if (clickedElement) {
+                clickedElement.classList.remove('bg-gray-700');
+                clickedElement.classList.add('bg-blue-600');
+            }
+
+            if (profile === 'auto') {
+                // Load master playlist for adaptive streaming
+                const streamUrl = `${currentBaseUrl}/videos/${currentVideoId}/hls/master.m3u8`;
+                player.src({
+                    src: streamUrl,
+                    type: 'application/x-mpegURL'
+                });
+            } else {
+                // Load specific profile's playlist
+                const profileData = profiles[profile];
+                if (!profileData) return;
+                const streamUrl = `${currentBaseUrl}/videos/${currentVideoId}/hls/${profileData.path}`;
+                player.src({
+                    src: streamUrl,
+                    type: 'application/x-mpegURL'
+                });
+            }
+            
+            player.play();
+        }
+    </script>
+</body>
+</html>
+
