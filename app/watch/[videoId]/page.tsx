@@ -593,7 +593,7 @@ export default function WatchPage() {
       <div className="p-4 lg:p-6">
         <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-4 min-w-0">
               <VideoPlayer 
                 videoUrl={videoUrl} 
                 poster={thumbnailUrl} 
@@ -601,8 +601,8 @@ export default function WatchPage() {
                 suggestedVideos={relatedVideos.slice(0, 8)}
               />
 
-              <div className="space-y-4">
-                <h1 className="text-xl md:text-2xl font-bold">{video.videoTitle || video.video_title}</h1>
+              <div className="space-y-4 min-w-0">
+                <h1 className="text-xl md:text-2xl font-bold break-words">{video.videoTitle || video.video_title}</h1>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">

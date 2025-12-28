@@ -1,11 +1,29 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings, Check } from "lucide-react"
+import Script from "next/script"
 import { Slider } from "@/components/ui/slider"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, WORKERS_BASE_URL, getWorkersApiKey } from "@/lib/storage"
+
+// Add declaration for videojs since we're loading it from CDN
+declare global {
+  interface Window {
+    videojs: any
+  }
+}
 
 interface VideoPlayerProps {
   videoUrl: string
@@ -14,13 +32,49 @@ interface VideoPlayerProps {
   suggestedVideos?: any[]
 }
 
+const STORAGE_KEYS = {
+  VOLUME: 'hiffi_player_volume',
+  MUTED: 'hiffi_player_muted'
+}
+
 export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideos }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const playerRef = useRef<any>(null)
+  const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [volume, setVolume] = useState(1)
-  // Start unmuted by default
-  const [isMuted, setIsMuted] = useState(false)
+  
+  // Initialize state from localStorage immediately to avoid flash of muted/unmuted
+  const [volume, setVolume] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEYS.VOLUME)
+      return saved !== null ? parseFloat(saved) : 1
+    }
+    return 1
+  })
+  
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEYS.MUTED)
+      return saved !== null ? saved === 'true' : autoPlay
+    }
+    return autoPlay
+  })
+
   const [currentTime, setCurrentTime] = useState(0)
+
+  // Sync audio state across instances (in case multiple players exist)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEYS.VOLUME && e.newValue !== null) {
+        setVolume(parseFloat(e.newValue))
+      }
+      if (e.key === STORAGE_KEYS.MUTED && e.newValue !== null) {
+        setIsMuted(e.newValue === 'true')
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
   const [duration, setDuration] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
@@ -28,6 +82,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const playPromiseRef = useRef<Promise<void> | null>(null)
   const [signedVideoUrl, setSignedVideoUrl] = useState<string>("")
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
+  const [profiles, setProfiles] = useState<Record<string, { height: number; bitrate: number; path: string }>>({})
+  const [currentProfile, setCurrentProfile] = useState<string>("auto")
   const [isLoadingUrl, setIsLoadingUrl] = useState(true)
   const [urlError, setUrlError] = useState<string>("")
   const [isBuffering, setIsBuffering] = useState(false)
@@ -37,6 +93,13 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const lastRequestTimeRef = useRef<number>(0)
   const requestSizesRef = useRef<number[]>([])
   const bufferCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Sync isReady with window.videojs presence
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.videojs) {
+      setIsReady(true)
+    }
+  }, [])
 
   // Fetch poster with auth if needed
   useEffect(() => {
@@ -101,7 +164,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   }, [poster])
 
   useEffect(() => {
-    async function fetchVideoUrl() {
+    const fetchUrl = async () => {
       if (!videoUrl) {
         setUrlError("No video URL provided")
         setIsLoadingUrl(false)
@@ -121,14 +184,12 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           if (response.success && response.video_url) {
             // Process video URL (getVideoUrl handles Workers URL construction)
             const processedUrl = getVideoUrl(response.video_url)
-            console.log("[hiffi] Using streaming proxy for video:", processedUrl)
             
-            // Use streaming proxy instead of downloading entire blob
-            // This allows the browser to stream the video progressively
-            // Using /proxy/video/stream instead of /api/video/stream to avoid conflict with backend API
-            const proxyUrl = `/proxy/video/stream?url=${encodeURIComponent(processedUrl)}`
+            // For HLS, we want the master.m3u8 playlist
+            const masterPlaylistUrl = `${processedUrl.replace(/\/$/, "")}/hls/master.m3u8`
+            console.log("[hiffi] Using HLS master playlist:", masterPlaylistUrl)
             
-            setSignedVideoUrl(proxyUrl)
+            setSignedVideoUrl(masterPlaylistUrl)
             setUrlError("")
           } else {
             throw new Error("No video_url in response")
@@ -143,19 +204,21 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       }
 
       // For all other cases (full URLs, storage paths), use getVideoUrl to process
-      // Then use streaming proxy instead of downloading entire blob
       try {
         setIsLoadingUrl(true)
         console.log("[hiffi] Processing video URL:", videoUrl)
 
         const processedUrl = getVideoUrl(videoUrl)
-        console.log("[hiffi] Using streaming proxy for video:", processedUrl)
         
-        // Use streaming proxy instead of downloading entire blob
-        // Using /proxy/video/stream instead of /api/video/stream to avoid conflict with backend API
-        const proxyUrl = `/proxy/video/stream?url=${encodeURIComponent(processedUrl)}`
+        // Ensure it points to the HLS master playlist
+        // If the URL already ends in .m3u8, use it, otherwise assume it's a base path and add /hls/master.m3u8
+        const masterPlaylistUrl = processedUrl.endsWith('.m3u8') 
+          ? processedUrl 
+          : `${processedUrl.replace(/\/$/, "")}/hls/master.m3u8`
+          
+        console.log("[hiffi] Using HLS master playlist:", masterPlaylistUrl)
         
-        setSignedVideoUrl(proxyUrl)
+        setSignedVideoUrl(masterPlaylistUrl)
         setUrlError("")
         setIsLoadingUrl(false)
       } catch (error) {
@@ -165,8 +228,78 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       }
     }
 
-    fetchVideoUrl()
+    fetchUrl()
   }, [videoUrl])
+
+  // Fetch profiles.json when signedVideoUrl is available
+  useEffect(() => {
+    if (!signedVideoUrl) return
+
+    const fetchProfiles = async () => {
+      // The signedVideoUrl is likely .../hls/master.m3u8
+      // We want .../hls/profiles.json
+      const profilesUrl = signedVideoUrl.replace(/master\.m3u8$/, "profiles.json")
+      
+      try {
+        const apiKey = getWorkersApiKey()
+        const headers: Record<string, string> = apiKey ? { "x-api-key": apiKey } : {}
+        const response = await fetch(profilesUrl, { headers })
+        if (response.ok) {
+          const data = await response.json()
+          setProfiles(data)
+        }
+      } catch (error) {
+        console.error("[hiffi] Failed to fetch profiles.json:", error)
+      }
+    }
+
+    fetchProfiles()
+  }, [signedVideoUrl])
+
+  const switchQuality = (profile: string) => {
+    const player = playerRef.current
+    if (!player || !signedVideoUrl) return
+    
+    setCurrentProfile(profile)
+    
+    // Store current state
+    const currentTime = player.currentTime()
+    const wasPaused = player.paused()
+
+    if (profile === "auto") {
+      player.src({
+        src: signedVideoUrl, // This is the master.m3u8
+        type: "application/x-mpegURL"
+      })
+    } else {
+      const profileData = profiles[profile]
+      if (!profileData) return
+      
+      // Construct the URL for the specific profile
+      // signedVideoUrl is .../hls/master.m3u8
+      // We want .../hls/{profileData.path}
+      const baseUrl = signedVideoUrl.replace(/master\.m3u8$/, "")
+      const streamUrl = `${baseUrl}${profileData.path}`
+      
+      player.src({
+        src: streamUrl,
+        type: "application/x-mpegURL"
+      })
+    }
+    
+    // Restore state after metadata loaded
+    player.one("loadedmetadata", () => {
+      player.currentTime(currentTime)
+      if (!wasPaused) {
+        player.play().catch((err: any) => {
+          const errorName = err && (err.name || (err.constructor && err.constructor.name));
+          if (errorName !== 'AbortError') {
+            console.error("[hiffi] Play failed after quality switch:", err)
+          }
+        })
+      }
+    })
+  }
 
   // Cleanup blob URLs when component unmounts or URL changes (only for poster)
   useEffect(() => {
@@ -177,359 +310,261 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     }
   }, [signedPosterUrl])
 
-  // Trigger aggressive buffering on video load
+  // Initialize VideoJS and HLS Hooks
   useEffect(() => {
-    const video = videoRef.current
-    if (!video || !signedVideoUrl) return
+    if (!isReady || !videoRef.current || !signedVideoUrl) return
 
-    let mounted = true
+    const vjs = window.videojs
 
-    const triggerInitialBuffer = () => {
-      if (!mounted) return
-      
-      // Give browser a moment to start buffering
-      setTimeout(() => {
-        if (!mounted || !video) return
-        
-        // Check if buffer is building up
-        if (video.buffered.length > 0) {
-          const buffered = video.buffered.end(0)
-          console.log(`[hiffi] Initial buffer loaded: ${buffered.toFixed(1)}s`)
-          
-          // If less than 5s buffered, browser might be too conservative
-          if (buffered < 5 && !video.paused) {
-            console.log('[hiffi] Encouraging more aggressive buffering')
-            // Trigger metadata load to encourage buffering
-            video.load()
+    // Initialize player if not already done
+    if (!playerRef.current && videoRef.current) {
+      playerRef.current = vjs(videoRef.current, {
+        autoplay: autoPlay,
+        muted: isMuted,
+        controls: false, // We use our own custom UI
+        responsive: true,
+        fluid: false, // Disable VideoJS fluid mode to use our own Tailwind-based sizing
+        poster: signedPosterUrl || poster,
+        // Disable some default features to avoid conflicts with our UI
+        userActions: {
+          doubleClick: false,
+          hotkeys: false
+        }
+      })
+    }
+
+    const player = playerRef.current
+
+    // "Triple-Lock" XHR Hook Setup for HLS Auth & Path Rewriting
+    const setupXhrHook = (target: any, label: string) => {
+      if (!target) return false
+
+      const hook = (options: any) => {
+        const apiKey = getWorkersApiKey()
+        if (apiKey) {
+          options.headers = options.headers || {}
+          options.headers["x-api-key"] = apiKey
+        }
+
+        // Fix HLS segment URLs to include 'segments/' directory
+        if (options.uri) {
+          const hlsSegmentPattern = /(\/videos\/[^\/]+\/hls\/[^\/]+\/)(seg_\d+\.ts|seg_\d+\.m4s)$/
+          if (hlsSegmentPattern.test(options.uri)) {
+            options.uri = options.uri.replace(hlsSegmentPattern, "$1segments/$2")
           }
         }
-      }, 2000)
+        return options
+      }
+
+      if (target.xhr) {
+        target.xhr.onRequest = hook
+        target.xhr.beforeRequest = hook // Fallback
+        return true
+      }
+      return false
     }
 
-    video.addEventListener('loadeddata', triggerInitialBuffer, { once: true })
-
-    return () => {
-      mounted = false
-      video.removeEventListener('loadeddata', triggerInitialBuffer)
-    }
-  }, [signedVideoUrl])
-
-  useEffect(() => {
-    if (!autoPlay || !videoRef.current || !signedVideoUrl) return
-
-    const video = videoRef.current
-    let fallbackPlayHandler: (() => void) | null = null
+    // 1. Global VHS Hook
+    setupXhrHook(vjs.Vhs, "global VHS")
     
-    // Function to attempt playback immediately (YouTube-like behavior)
-    const attemptAutoplay = () => {
-      // Don't try if already playing
-      if (!video.paused) return
-      
-      // Clear any existing play promise
-      if (playPromiseRef.current) {
-        playPromiseRef.current.catch(() => {
-          // Ignore errors from cancelled promises
-        })
-        playPromiseRef.current = null
+    // 2. Tech-level Hooks - use ready() and check internal tech properties 
+    // to avoid the "tech() is dangerous" console warning
+    player.ready(() => {
+      // Access tech via internal property to avoid the warning trigger in .tech()
+      const tech = player.tech_
+      if (tech) {
+        setupXhrHook(tech.vhs, "player tech vhs")
+        setupXhrHook(tech.hls, "player tech hls")
       }
-
-      // Try to play immediately (browser will buffer in background)
-      const playPromise = video.play()
-      if (playPromise !== undefined) {
-        playPromiseRef.current = playPromise
-        playPromise
-          .then(() => {
-            setIsPlaying(true)
-          })
-          .catch((error) => {
-            // If autoplay is blocked, try with muted (like YouTube does)
-            if (error.name === 'NotAllowedError' && !video.muted) {
-              video.muted = true
-              setIsMuted(true)
-              const mutedPlayPromise = video.play()
-              if (mutedPlayPromise !== undefined) {
-                playPromiseRef.current = mutedPlayPromise
-                mutedPlayPromise
-                  .then(() => {
-                    setIsPlaying(true)
-                  })
-                  .catch(() => {
-                    setIsPlaying(false)
-                  })
-                  .finally(() => {
-                    if (playPromiseRef.current === mutedPlayPromise) {
-                      playPromiseRef.current = null
-                    }
-                  })
-              }
-            } else if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-              // If it's a loading error, wait for canplay as fallback
-              fallbackPlayHandler = () => {
-                if (video.paused) {
-                  const fallbackPromise = video.play()
-                  if (fallbackPromise !== undefined) {
-                    fallbackPromise
-                      .then(() => setIsPlaying(true))
-                      .catch(() => setIsPlaying(false))
-                  }
-                }
-              }
-              video.addEventListener('canplay', fallbackPlayHandler, { once: true })
-            } else {
-              setIsPlaying(false)
-            }
-          })
-          .finally(() => {
-            if (playPromiseRef.current === playPromise) {
-              playPromiseRef.current = null
-            }
-          })
-      }
-    }
-
-    // Attempt to play immediately when URL is available
-    // Use requestAnimationFrame to ensure video element has processed the src change
-    const rafId = requestAnimationFrame(() => {
-      attemptAutoplay()
     })
 
-    // Cleanup
-    return () => {
-      cancelAnimationFrame(rafId)
-      if (fallbackPlayHandler) {
-        video.removeEventListener('canplay', fallbackPlayHandler)
-      }
-      if (playPromiseRef.current) {
-        playPromiseRef.current.catch(() => {
-          // Ignore cleanup errors
-        })
-        playPromiseRef.current = null
-      }
+    // Load source
+    player.src({
+      src: signedVideoUrl,
+      type: "application/x-mpegURL"
+    })
+
+    if (autoPlay) {
+      player.play().catch((err: any) => {
+        const errorName = err && (err.name || (err.constructor && err.constructor.name))
+        if (errorName === 'NotAllowedError') {
+          console.log("[hiffi] Autoplay with sound blocked, trying muted...")
+          player.muted(true)
+          setIsMuted(true)
+          setVolume(0)
+          player.play().catch((e: any) => console.error("[hiffi] Muted autoplay also failed:", e))
+        } else if (errorName !== 'AbortError') {
+          console.warn("[hiffi] HLS Autoplay failed:", err)
+        }
+      })
     }
-  }, [autoPlay, signedVideoUrl])
-
-  // Sync muted state with video element
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-    
-    video.muted = isMuted
-  }, [isMuted, signedVideoUrl])
-
-  // Intelligent buffer monitoring and adaptive buffering
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video || !signedVideoUrl) return
-
-    const BUFFER_AHEAD_TARGET = 20 // Target 20 seconds ahead
-    const BUFFER_LOW_THRESHOLD = 5 // Warn if less than 5s buffered ahead
-    const CHECK_INTERVAL = 1000 // Check every second
-
-    const monitorBuffer = () => {
-      if (video.buffered.length === 0) {
-        setBufferPercentage(0)
-        return
-      }
-
-      const currentTime = video.currentTime
-      const bufferedEnd = video.buffered.end(video.buffered.length - 1)
-      const duration = video.duration
-
-      // Calculate buffer ahead (how many seconds buffered beyond current position)
-      const bufferAhead = bufferedEnd - currentTime
-      
-      // Calculate total buffer percentage
-      const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0
-      setBufferPercentage(bufferPercent)
-
-      // Log buffer status for debugging (only in development, reduce verbosity)
-      if (process.env.NODE_ENV === 'development' && bufferAhead < BUFFER_LOW_THRESHOLD) {
-        // Only log if buffer is very low (< 2s) to reduce noise
-        if (bufferAhead < 2) {
-          console.warn(`[hiffi] Low buffer warning: only ${bufferAhead.toFixed(1)}s buffered ahead`)
-        }
-      }
-
-      // Detect network speed based on buffering rate
-      const bufferRate = bufferAhead / (currentTime || 1)
-      if (bufferRate > 2) {
-        setNetworkSpeed('fast')
-      } else if (bufferRate > 0.5) {
-        setNetworkSpeed('medium')
-      } else {
-        setNetworkSpeed('slow')
-      }
-
-      // If buffer is low and video is playing, trigger buffering state (but not if ended)
-      if (bufferAhead < 2 && !video.paused && !video.ended) {
-        // Only log in development to reduce console noise
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[hiffi] Buffer critically low, may cause stuttering')
-        }
-        setIsBuffering(true)
-      } else if (bufferAhead > BUFFER_LOW_THRESHOLD) {
-        // Don't clear buffering if video has ended
-        if (!video.ended) {
-          setIsBuffering(false)
-        }
-      }
-    }
-
-    // Monitor buffer continuously while video is loaded
-    bufferCheckIntervalRef.current = setInterval(monitorBuffer, CHECK_INTERVAL)
-
-    // Initial check
-    monitorBuffer()
 
     return () => {
-      if (bufferCheckIntervalRef.current) {
-        clearInterval(bufferCheckIntervalRef.current)
-      }
+      // We don't dispose here yet because signedVideoUrl might change
+      // or component might re-render. Disposal is handled in a separate effect.
     }
-  }, [signedVideoUrl])
+  }, [isReady, signedVideoUrl, autoPlay])
 
+  // Proper Cleanup on Unmount
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-
-    let preloadUpgraded = false
-
-    const handlePlay = () => {
-      setIsPlaying(true)
-      
-      // Upgrade preload to "auto" after first play for aggressive buffering
-      if (!preloadUpgraded && video.preload !== 'auto') {
-        setTimeout(() => {
-          video.preload = 'auto'
-          preloadUpgraded = true
-          console.log('[hiffi] Upgraded preload to "auto" for progressive buffering')
-        }, 2000) // Wait 2s after play starts to avoid initial rush
-      }
-      
-      // Monitor buffer health
-      if (video.buffered.length > 0) {
-        const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
-        if (bufferAhead < 10) {
-          console.log('[hiffi] Play started with low buffer, will buffer progressively')
-        }
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.dispose()
+        playerRef.current = null
       }
     }
-    
+  }, [])
+
+  // Sync volume/mute state with player
+  useEffect(() => {
+    const player = playerRef.current
+    if (player && isReady) {
+      player.muted(isMuted)
+      player.volume(volume)
+    }
+  }, [isMuted, volume, isReady])
+
+  // Sync VideoJS state with our custom UI state
+  useEffect(() => {
+    const player = playerRef.current
+    if (!player) return
+
+    const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
+    const handleTimeUpdate = () => setCurrentTime(player.currentTime())
+    const handleDurationChange = () => setDuration(player.duration())
+    const handleEnded = () => {
+      setIsPlaying(false)
+      setHasEnded(true)
+      setIsBuffering(false)
+    }
+    const handleWaiting = () => setIsBuffering(true)
+    const handlePlaying = () => setIsBuffering(false)
+    const handleError = () => {
+      const error = player.error()
+      console.error("[hiffi] VideoJS Error:", error)
+      if (error) {
+        setUrlError(`Playback error: ${error.message || error.code}`)
+      }
+    }
 
-    video.addEventListener("play", handlePlay)
-    video.addEventListener("pause", handlePause)
+    player.on('play', handlePlay)
+    player.on('pause', handlePause)
+    player.on('timeupdate', handleTimeUpdate)
+    player.on('durationchange', handleDurationChange)
+    player.on('ended', handleEnded)
+    player.on('waiting', handleWaiting)
+    player.on('playing', handlePlaying)
+    player.on('error', handleError)
 
     return () => {
-      video.removeEventListener("play", handlePlay)
-      video.removeEventListener("pause", handlePause)
+      player.off('play', handlePlay)
+      player.off('pause', handlePause)
+      player.off('timeupdate', handleTimeUpdate)
+      player.off('durationchange', handleDurationChange)
+      player.off('ended', handleEnded)
+      player.off('waiting', handleWaiting)
+      player.off('playing', handlePlaying)
+      player.off('error', handleError)
     }
-  }, [signedVideoUrl])
+  }, [isReady, signedVideoUrl])
 
   const togglePlay = () => {
-    if (!videoRef.current) return
+    const player = playerRef.current
+    if (!player) return
 
     // Reset ended state if user plays again
     if (hasEnded) {
       setHasEnded(false)
-      videoRef.current.currentTime = 0
+      player.currentTime(0)
     }
 
     if (isPlaying) {
-      videoRef.current.pause()
-      // Clear any pending play promise since we're pausing
-      if (playPromiseRef.current) {
-        playPromiseRef.current.catch(() => {
-          // Ignore AbortError from interrupted play
-        })
-        playPromiseRef.current = null
-      }
-      // State will be updated by pause event listener
+      player.pause()
     } else {
-      const playPromise = videoRef.current.play()
-      if (playPromise !== undefined) {
-        playPromiseRef.current = playPromise
-        playPromise
-          .catch((error) => {
-            // Ignore AbortError - happens when play() is interrupted by pause()
-            if (error.name !== 'AbortError') {
-              console.error('[hiffi] Play failed:', error)
-            }
-          })
-          .finally(() => {
-            if (playPromiseRef.current === playPromise) {
-              playPromiseRef.current = null
-            }
-          })
-      }
-      // State will be updated by play event listener
+      player.play().catch((error: any) => {
+        const errorName = error && (error.name || (error.constructor && error.constructor.name));
+        if (errorName !== 'AbortError') {
+          console.error('[hiffi] Play failed:', error)
+        }
+      })
     }
   }
 
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0]
     setVolume(newVolume)
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume
+    if (playerRef.current) {
+      playerRef.current.volume(newVolume)
+      // Only unmute if volume > 0
+      if (newVolume > 0 && isMuted) {
+        setIsMuted(false)
+        playerRef.current.muted(false)
+      }
     }
-    setIsMuted(newVolume === 0)
+    
+    // Persist volume preference
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEYS.VOLUME, newVolume.toString())
+      if (newVolume > 0) {
+        localStorage.setItem(STORAGE_KEYS.MUTED, 'false')
+      }
+    }
   }
 
   const toggleMute = () => {
-    if (videoRef.current) {
+    const player = playerRef.current
+    if (player) {
       const newMuted = !isMuted
       setIsMuted(newMuted)
-      videoRef.current.muted = newMuted
+      player.muted(newMuted)
+      
+      // Persist muted preference
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEYS.MUTED, newMuted.toString())
+      }
+
       if (newMuted) {
         setVolume(0)
       } else {
-        setVolume(1)
-        videoRef.current.volume = 1
+        // Restore volume from storage or default to 1
+        const savedVolume = localStorage.getItem(STORAGE_KEYS.VOLUME)
+        const volumeToRestore = savedVolume ? parseFloat(savedVolume) : 1
+        const finalVolume = volumeToRestore > 0 ? volumeToRestore : 1
+        setVolume(finalVolume)
+        player.volume(finalVolume)
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEYS.VOLUME, finalVolume.toString())
+        }
       }
     }
   }
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime)
-    }
+    // Handled by VideoJS event listener
   }
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration)
-    }
+    // Handled by VideoJS event listener
   }
 
   const handleSeek = (value: number[]) => {
     const newTime = value[0]
-    const video = videoRef.current
+    const player = playerRef.current
     
-    if (!video) return
+    if (!player) return
 
-    // Check if seek position is already buffered
-    let isBuffered = false
-    for (let i = 0; i < video.buffered.length; i++) {
-      if (newTime >= video.buffered.start(i) && newTime <= video.buffered.end(i)) {
-        isBuffered = true
-        break
-      }
-    }
-
-    if (isBuffered) {
-      console.log(`[hiffi] Seeking to buffered position: ${newTime.toFixed(1)}s (instant)`)
-    } else {
-      console.log(`[hiffi] Seeking to unbuffered position: ${newTime.toFixed(1)}s (will load)`)
-      setIsBuffering(true)
-    }
-
+    setIsBuffering(true)
     setCurrentTime(newTime)
-    video.currentTime = newTime
+    player.currentTime(newTime)
   }
 
   const toggleFullscreen = () => {
+    const player = playerRef.current
+    if (!player) return
+
     if (!document.fullscreenElement) {
-      videoRef.current?.parentElement?.requestFullscreen()
+      player.el().parentElement?.requestFullscreen()
       setIsFullscreen(true)
     } else {
       document.exitFullscreen()
@@ -582,155 +617,38 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
-      <video
-        ref={videoRef}
-        src={signedVideoUrl}
-        poster={signedPosterUrl || poster}
-        className={cn(
-          "w-full h-full object-contain transition-opacity duration-1000",
-          hasEnded && "opacity-0"
-        )}
-        preload="metadata"
-        playsInline
-        muted={isMuted}
-        crossOrigin="anonymous"
-        // Hints to browser for better buffering
-        // @ts-ignore - not in standard types but works in most browsers
-        x-webkit-airplay="allow"
-        // @ts-ignore
-        controlsList="nodownload"
-        onClick={togglePlay}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={(e) => {
-          handleLoadedMetadata()
-          const video = e.currentTarget
-          // Log video capabilities for debugging
-          console.log('[hiffi] Video metadata loaded:', {
-            duration: video.duration,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            networkState: video.networkState,
-          })
-        }}
-        onEnded={() => {
-          console.log('[hiffi] Video ended')
-          setIsPlaying(false)
-          setHasEnded(true)
-          setIsBuffering(false) // Don't show buffering at end
-        }}
-        onError={(e) => {
-          const video = e.currentTarget
-          const error = video.error
-          if (error) {
-            console.error('[hiffi] Video playback error:', {
-              code: error.code,
-              message: error.message,
-              networkState: video.networkState,
-              readyState: video.readyState,
-            })
-            setUrlError(`Video playback error: ${error.message || 'Unknown error'}`)
-          }
-        }}
-        onLoadStart={() => {
-          console.log('[hiffi] Video load started')
-        }}
-        onCanPlay={() => {
-          console.log('[hiffi] Video can play')
-          setIsBuffering(false)
-        }}
-        onWaiting={() => {
-          const video = videoRef.current
-          if (video && !video.ended) {
-            const bufferAhead = video.buffered.length > 0 
-              ? video.buffered.end(video.buffered.length - 1) - video.currentTime 
-              : 0
-            // Only log in development and if buffer is very low to reduce console noise
-            if (process.env.NODE_ENV === 'development' && bufferAhead < 1) {
-              console.log(`[hiffi] Video waiting (buffering) - only ${bufferAhead.toFixed(1)}s ahead`)
-            }
-            setIsBuffering(true)
-          }
-        }}
-        onPlaying={() => {
-          const video = videoRef.current
-          // Only log in development to reduce console noise
-          if (process.env.NODE_ENV === 'development' && video && video.buffered.length > 0) {
-            const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
-            // Only log if buffer is low (less than 5s) to reduce noise
-            if (bufferAhead < 5) {
-              console.log(`[hiffi] Video playing - ${bufferAhead.toFixed(1)}s buffered ahead`)
-            }
-          }
-          setHasEnded(false) // Clear ended state when playing
-          setIsBuffering(false)
-        }}
-        onSeeking={() => {
-          const video = videoRef.current
-          const seekTime = video?.currentTime || 0
-          // Only log in development
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[hiffi] Seeking to ${seekTime.toFixed(1)}s...`)
-          }
-          setIsBuffering(true)
-        }}
-        onSeeked={() => {
-          const video = videoRef.current
-          // Only log in development
-          if (process.env.NODE_ENV === 'development' && video && video.buffered.length > 0) {
-            const bufferAhead = video.buffered.end(video.buffered.length - 1) - video.currentTime
-            console.log(`[hiffi] Seeked complete - ${bufferAhead.toFixed(1)}s buffered at new position`)
-          }
-          setIsBuffering(false)
-        }}
-        onStalled={() => {
-          const video = videoRef.current
-          if (video && !video.ended) {
-            // Log at info level instead of error - stalling is often temporary and expected
-            // Only log in development to reduce console noise in production
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[hiffi] Video stalled - network issue or insufficient buffering (this is often temporary)')
-            }
-            setIsBuffering(true)
-          }
-        }}
-        onSuspend={() => {
-          // Only log in development - browser suspending is normal behavior
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[hiffi] Video load suspended by browser')
-          }
-        }}
-        onProgress={(e) => {
-          const video = e.currentTarget
-          if (video.buffered.length > 0) {
-            const bufferedEnd = video.buffered.end(video.buffered.length - 1)
-            const duration = video.duration
-            const currentTime = video.currentTime
-            
-            if (duration > 0) {
-              const bufferedPercent = (bufferedEnd / duration) * 100
-              const bufferAhead = bufferedEnd - currentTime
-              
-              // Only log significant buffer updates (every 25%)
-              const roundedPercent = Math.floor(bufferedPercent / 25) * 25
-              if (roundedPercent > 0 && roundedPercent !== Math.floor((bufferedPercent - 1) / 25) * 25) {
-                console.log(`[hiffi] Buffer: ${bufferedPercent.toFixed(0)}% (${bufferAhead.toFixed(1)}s ahead, speed: ${networkSpeed})`)
-              }
-
-              // Detect network speed based on buffer progress rate
-              const now = Date.now()
-              if (lastRequestTimeRef.current > 0) {
-                const timeDelta = now - lastRequestTimeRef.current
-                if (timeDelta > 0 && timeDelta < 5000) {
-                  // Estimate download speed based on buffer growth
-                  const avgSpeed = bufferAhead > 10 ? 'fast' : bufferAhead > 5 ? 'medium' : 'slow'
-                  setNetworkSpeed(avgSpeed)
-                }
-              }
-              lastRequestTimeRef.current = now
-            }
-          }
-        }}
+      {/* Load video.js script */}
+      <Script 
+        src="https://vjs.zencdn.net/8.10.0/video.min.js"
+        onLoad={() => setIsReady(true)}
       />
+      
+      {/* Load video.js CSS */}
+      <link 
+        href="https://vjs.zencdn.net/8.10.0/video-js.css" 
+        rel="stylesheet" 
+      />
+
+      <div data-vjs-player className="w-full h-full flex items-center justify-center">
+        <video
+          ref={videoRef}
+          className={cn(
+            "video-js vjs-big-play-centered w-full h-full transition-opacity duration-1000",
+            hasEnded && "opacity-0"
+          )}
+          preload="auto"
+          autoPlay={autoPlay}
+          playsInline
+          muted={isMuted}
+          crossOrigin="anonymous"
+          // Hints to browser for better buffering
+          // @ts-ignore - not in standard types but works in most browsers
+          x-webkit-airplay="allow"
+          // @ts-ignore
+          controlsList="nodownload"
+          onClick={togglePlay}
+        />
+      </div>
 
       {/* Fade to black overlay when video ends */}
       {hasEnded && (
@@ -822,15 +740,59 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="hover:text-primary transition-colors">
-              <Settings className="h-5 w-5" />
-            </button>
+            {Object.keys(profiles).length > 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="hover:text-primary transition-colors focus:outline-none">
+                    <Settings className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-black/90 text-white border-white/10">
+                  <DropdownMenuLabel className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Quality</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuRadioGroup value={currentProfile} onValueChange={switchQuality}>
+                    <DropdownMenuRadioItem value="auto" className="text-sm focus:bg-white/10 focus:text-white cursor-pointer">
+                      Auto (Adaptive)
+                    </DropdownMenuRadioItem>
+                    {Object.entries(profiles)
+                      .sort((a, b) => b[1].height - a[1].height)
+                      .map(([key, profile]) => (
+                        <DropdownMenuRadioItem key={key} value={key} className="text-sm focus:bg-white/10 focus:text-white cursor-pointer">
+                          {profile.height}p
+                        </DropdownMenuRadioItem>
+                      ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">
+                <Settings className="h-5 w-5" />
+              </button>
+            )}
             <button onClick={toggleFullscreen} className="hover:text-primary transition-colors">
               {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </button>
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .video-js {
+          width: 100% !important;
+          height: 100% !important;
+        }
+        .vjs-tech {
+          object-fit: contain;
+        }
+        /* Hide Video.js internal big play button as we use our own */
+        .vjs-big-play-button {
+          display: none !important;
+        }
+        /* Hide error display as we handle errors in our UI */
+        .vjs-error-display {
+          display: none !important;
+        }
+      `}</style>
     </div>
   )
 }
