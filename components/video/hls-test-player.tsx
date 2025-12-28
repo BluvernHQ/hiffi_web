@@ -46,27 +46,51 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
         fluid: true,
         playbackRates: [0.5, 1, 1.5, 2]
       })
-
-      // Add XHR hook
-      if (vjs.Vhs && vjs.Vhs.xhr) {
-        vjs.Vhs.xhr.beforeRequest = (options: any) => {
-          const effectiveApiKey = apiKey || getWorkersApiKey()
-          if (effectiveApiKey) {
-            options.headers = options.headers || {}
-            options.headers["x-api-key"] = effectiveApiKey
-          }
-
-          // Fix HLS segment URLs to include 'segments/' directory
-          if (options.uri) {
-            const hlsSegmentPattern = /(\/videos\/[^\/]+\/hls\/[^\/]+\/)(seg_\d+\.ts|seg_\d+\.m4s)$/
-            if (hlsSegmentPattern.test(options.uri)) {
-              options.uri = options.uri.replace(hlsSegmentPattern, "$1segments/$2")
-            }
-          }
-          return options
-        }
-      }
     }
+
+    // Always update/ensure the XHR hook is set up correctly
+    // We try multiple ways to set the hook to ensure compatibility with VideoJS 8
+    const setupXhrHook = (target: any, label: string) => {
+      if (!target) return false;
+
+      const hook = (options: any) => {
+        const effectiveApiKey = apiKey || getWorkersApiKey()
+        if (effectiveApiKey) {
+          options.headers = options.headers || {}
+          options.headers["x-api-key"] = effectiveApiKey
+        }
+
+        // Fix HLS segment URLs to include 'segments/' directory
+        if (options.uri) {
+          const hlsSegmentPattern = /(\/videos\/[^\/]+\/hls\/[^\/]+\/)(seg_\d+\.ts|seg_\d+\.m4s)$/
+          if (hlsSegmentPattern.test(options.uri)) {
+            options.uri = options.uri.replace(hlsSegmentPattern, "$1segments/$2")
+            console.log(`[hiffi] Hook (${label}): Rewriting to ${options.uri}`)
+          }
+        }
+        return options
+      }
+
+      if (target.xhr) {
+        console.log(`[hiffi] Attaching hooks to ${label}`)
+        target.xhr.onRequest = hook
+        target.xhr.beforeRequest = hook // Fallback for some v8 versions
+        return true
+      }
+      return false
+    }
+
+    // 1. Try global registration
+    setupXhrHook(vjs.Vhs, "global VHS")
+    
+    // 2. Try tech-level registration when ready
+    playerRef.current.ready(() => {
+      const tech = playerRef.current.tech()
+      if (tech) {
+        setupXhrHook(tech.vhs, "player tech vhs")
+        setupXhrHook(tech.hls, "player tech hls")
+      }
+    })
 
     // Load profiles.json
     const loadProfiles = async () => {
@@ -95,7 +119,10 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
     })
     
     playerRef.current.play().catch((err: any) => {
-      console.log("[hiffi] Autoplay blocked or failed:", err)
+      const errorName = err && (err.name || (err.constructor && err.constructor.name));
+      if (errorName !== 'AbortError') {
+        console.log("[hiffi] Autoplay blocked or failed:", err)
+      }
     })
 
     return () => {
@@ -108,6 +135,10 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
     
     setCurrentProfile(profile)
     const cleanBaseUrl = baseUrl.replace(/\/$/, "")
+
+    // Store the current time and paused state to restore after source change
+    const currentTime = playerRef.current.currentTime()
+    const wasPaused = playerRef.current.paused()
 
     if (profile === "auto") {
       const streamUrl = `${cleanBaseUrl}/videos/${videoId}/hls/master.m3u8`
@@ -125,8 +156,24 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
       })
     }
     
-    playerRef.current.play().catch((err: any) => {
-      console.log("[hiffi] Play failed after quality switch:", err)
+    // When changing sources, we should wait for the player to be ready
+    // before attempting to seek or play to avoid AbortError
+    playerRef.current.one("loadedmetadata", () => {
+      playerRef.current.currentTime(currentTime)
+      if (!wasPaused) {
+        playerRef.current.play().catch((err: any) => {
+          // In some browsers/environments, the error might be nested or have a different structure
+          const errorName = err && (err.name || (err.constructor && err.constructor.name));
+          if (errorName !== 'AbortError') {
+            console.error("[hiffi] Play failed after quality switch:", err)
+          } else {
+            // Silently ignore AbortError as it's expected during rapid quality switches
+            if (process.env.NODE_ENV === 'development') {
+              console.log("[hiffi] Play request aborted (expected during source change)")
+            }
+          }
+        })
+      }
     })
   }
 

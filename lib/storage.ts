@@ -11,10 +11,6 @@ export function getWorkersApiKey(): string {
   // Use environment variable if set, otherwise default to "SECRET_KEY"
   const apiKey = process.env.NEXT_PUBLIC_WORKERS_API_KEY || "SECRET_KEY"
   
-  if (!process.env.NEXT_PUBLIC_WORKERS_API_KEY) {
-    console.log("[hiffi] Using default API key 'SECRET_KEY'. Set NEXT_PUBLIC_WORKERS_API_KEY to override.")
-  }
-  
   return apiKey
 }
 
