@@ -151,11 +151,11 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
-          <div className="flex items-center gap-4 md:gap-6 px-4">
+          <div className="flex items-center gap-2 sm:gap-4 px-4 flex-shrink-0">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden" 
+              className="md:hidden h-9 w-9" 
               onClick={onMenuClick}
             >
               <Menu className="h-5 w-5" />
@@ -167,21 +167,21 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
             </Link>
           </div>
 
-          <div className="flex flex-1 items-center justify-center px-2 md:px-8">
-            <div className="relative w-full max-w-[40px] md:max-w-md transition-all duration-300">
-              <button onClick={() => setIsSearchOpen(true)} className="w-full text-left">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none md:left-2.5" />
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  className="w-full h-9 rounded-full bg-muted pl-8 md:pl-9 md:w-[300px] lg:w-[400px] cursor-pointer text-sm"
-                  readOnly
-                />
-              </button>
+          <div className="flex-1 flex items-center justify-center px-2 min-w-0">
+            <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
+              <div 
+                onClick={() => setIsSearchOpen(true)} 
+                className="group relative flex items-center w-full h-9 rounded-full bg-muted/50 border border-input hover:bg-muted hover:border-primary/30 transition-all cursor-pointer overflow-hidden"
+              >
+                <Search className="absolute left-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                <span className="pl-10 text-sm text-muted-foreground truncate pr-4">
+                  Search...
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4 pr-4">
+          <div className="flex items-center gap-2 md:gap-4 pr-4 flex-shrink-0">
             {user && userData ? (
               <>
                 {showUploadButton && (
