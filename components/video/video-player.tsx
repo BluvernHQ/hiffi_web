@@ -56,9 +56,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEYS.MUTED)
-      return saved !== null ? saved === 'true' : autoPlay
+      // Default to unmuted (false) to ensure sound is present by default
+      return saved !== null ? saved === 'true' : false
     }
-    return autoPlay
+    return false
   })
 
   const [currentTime, setCurrentTime] = useState(0)
@@ -101,33 +102,30 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const lastTapRef = useRef<number>(0)
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Sync isReady with window.videojs presence
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.videojs) {
-      setIsReady(true)
-    }
-  }, [])
+  const handleMouseMove = () => {
+    // Only handle mouse movements on desktop
+    if (window.matchMedia("(max-width: 768px)").matches) return;
 
-  // Auto-hide logic for center controls (Mobile only)
-  useEffect(() => {
-    if (isPlaying && isPlayerAwake) {
-      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
-      awakeTimeoutRef.current = setTimeout(() => {
-        setIsPlayerAwake(false)
-      }, 2000)
-    } else if (!isPlaying) {
-      // Keep icon visible when paused
-      setIsPlayerAwake(true)
-      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
     }
-    return () => {
-      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
-    }
-  }, [isPlaying, isPlayerAwake])
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false)
+      }
+    }, 3000)
+  }
+
+  // Unified wake function for mobile
+  const wakePlayerMobile = () => {
+    setIsPlayerAwake(true)
+    setShowControls(true)
+  }
 
   const handleVideoInteraction = (e: React.MouseEvent) => {
-    // Ignore clicks on specific UI buttons
-    if ((e.target as HTMLElement).closest('button')) return;
+    // Ignore clicks on specific UI buttons or sliders
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="slider"]')) return;
 
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
@@ -160,8 +158,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         if (isPlaying) {
           if (!isPlayerAwake) {
             // First tap "wakes" the player
-            setIsPlayerAwake(true)
-            handleMouseMove() // Shows and starts auto-hide for bottom controls
+            wakePlayerMobile()
           } else {
             // Second tap pauses
             togglePlay()
@@ -176,6 +173,39 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       }
     }, DOUBLE_TAP_DELAY);
   };
+
+  // Sync isReady with window.videojs presence
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.videojs) {
+      setIsReady(true)
+    }
+  }, [])
+
+  // Auto-hide logic for center controls and bottom bar (Mobile-first sync)
+  useEffect(() => {
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    
+    if (isPlaying && isPlayerAwake) {
+      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+      awakeTimeoutRef.current = setTimeout(() => {
+        setIsPlayerAwake(false)
+        // Also hide bottom controls on mobile when center icon fades
+        if (isMobile) {
+          setShowControls(false)
+        }
+      }, 2000)
+    } else if (!isPlaying) {
+      // Keep icon and controls visible when paused
+      setIsPlayerAwake(true)
+      if (isMobile) {
+        setShowControls(true)
+      }
+      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+    }
+    return () => {
+      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+    }
+  }, [isPlaying, isPlayerAwake])
 
   // Fetch poster with auth if needed
   useEffect(() => {
@@ -662,18 +692,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
   }
 
-  const handleMouseMove = () => {
-    setShowControls(true)
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current)
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false)
-      }
-    }, 3000)
-  }
-
   if (isLoadingUrl) {
     return (
       <div className="relative aspect-video bg-black rounded-xl overflow-hidden flex items-center justify-center">
@@ -698,10 +716,16 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video bg-black rounded-xl overflow-hidden group"
+      className="relative aspect-video bg-black rounded-xl overflow-hidden group select-none touch-manipulation"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
+      {/* Interaction Layer - Captures taps anywhere on the player to wake/toggle */}
+      <div 
+        className="absolute inset-0 z-10 cursor-pointer"
+        onClick={handleVideoInteraction}
+      />
+
       {/* Load video.js script */}
       <Script 
         src="https://vjs.zencdn.net/8.10.0/video.min.js"
@@ -731,7 +755,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           x-webkit-airplay="allow"
           // @ts-ignore
           controlsList="nodownload"
-          onClick={handleVideoInteraction}
         />
       </div>
 
@@ -759,7 +782,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       {/* Fade to black overlay when video ends */}
       {hasEnded && (
         <div className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
-          onClick={handleVideoInteraction}
         >
           <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
             <Play className="h-10 w-10 text-white ml-1" fill="currentColor" />
@@ -771,7 +793,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       {!isPlaying && !isBuffering && !hasEnded && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
-          onClick={handleVideoInteraction}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
             <Play className="h-8 w-8 text-white ml-1" fill="currentColor" />
@@ -787,15 +808,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-4 transition-opacity duration-300",
-          showControls ? "opacity-100" : "opacity-0",
+          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 py-4 transition-all duration-300 ease-out z-40 pb-[env(safe-area-inset-bottom,1rem)]",
+          showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none",
         )}
       >
         {/* Combined progress bar with buffer indicator */}
-        <div className="mb-4 group/slider relative">
+        <div className="mb-4 group/slider relative h-6 flex items-center">
           {/* Background track */}
-          <div className="absolute inset-0 h-1 bg-white/20 rounded-full pointer-events-none" 
-            style={{ top: '50%', transform: 'translateY(-50%)' }}>
+          <div className="absolute left-0 right-0 h-1 bg-white/20 rounded-full pointer-events-none">
             {/* Buffer progress (lighter color) */}
             <div 
               className="h-full bg-white/30 rounded-full transition-all duration-300"
@@ -809,7 +829,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
             max={duration}
             step={0.1}
             onValueChange={handleSeek}
-            className="cursor-pointer relative z-10"
+            className="cursor-pointer relative z-10 w-full"
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
 
@@ -824,16 +845,27 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
             </button>
 
             <div className="flex items-center gap-2 group/volume">
-              <button onClick={toggleMute} className="hover:text-primary transition-colors">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }} 
+                className="hover:text-primary transition-colors p-2 -m-2"
+              >
                 {isMuted || volume === 0 ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
               </button>
-              <div className="w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300">
+              <div className={cn(
+                "overflow-hidden transition-all duration-300 ease-in-out",
+                "w-0 md:group-hover/volume:w-24", // Desktop: hover to show
+                (window.matchMedia("(max-width: 768px)").matches && showControls) && "w-24" // Mobile: show when awake
+              )}>
                 <Slider
                   value={[isMuted ? 0 : volume]}
                   max={1}
-                  step={0.1}
+                  step={0.01}
                   onValueChange={handleVolumeChange}
-                  className="w-20"
+                  className="w-20 py-4 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
             </div>

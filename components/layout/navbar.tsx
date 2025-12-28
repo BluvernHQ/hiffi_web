@@ -167,14 +167,14 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
             </Link>
           </div>
 
-          <div className="flex flex-1 items-center justify-center px-4 md:px-8">
-            <div className="relative w-full max-w-md">
+          <div className="flex flex-1 items-center justify-center px-2 md:px-8">
+            <div className="relative w-full max-w-[40px] md:max-w-md transition-all duration-300">
               <button onClick={() => setIsSearchOpen(true)} className="w-full text-left">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none md:left-2.5" />
                 <Input
                   type="search"
-                  placeholder="Search videos..."
-                  className="w-full rounded-full bg-muted pl-9 md:w-[300px] lg:w-[400px] cursor-pointer"
+                  placeholder="Search..."
+                  className="w-full h-9 rounded-full bg-muted pl-8 md:pl-9 md:w-[300px] lg:w-[400px] cursor-pointer text-sm"
                   readOnly
                 />
               </button>
@@ -262,11 +262,8 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" asChild>
+                <Button asChild className="rounded-full px-6">
                   <Link href="/login">Log in</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/signup">Sign up</Link>
                 </Button>
               </div>
             )}

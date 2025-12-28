@@ -91,9 +91,9 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   }
 
   return (
-    <div onClick={handleCardClick} className="group cursor-pointer w-full">
-      <Card className="overflow-hidden border-0 shadow-none bg-transparent h-full">
-        <CardContent className="p-0 space-y-3">
+    <div onClick={handleCardClick} className="group cursor-pointer w-full h-auto">
+      <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
+        <CardContent className="p-0 flex flex-col h-auto gap-2 pb-4">
           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
             {thumbnailUrl ? (
               <AuthenticatedImage
@@ -134,7 +134,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
               size="sm"
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-tight">
+              <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-tight break-words">
                 {title || "Untitled Video"}
               </h3>
               <div className="flex items-center gap-1.5 mt-1 text-xs sm:text-sm text-muted-foreground">
