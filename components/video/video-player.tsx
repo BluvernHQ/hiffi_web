@@ -38,6 +38,7 @@ const STORAGE_KEYS = {
 }
 
 export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideos }: VideoPlayerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
   const [isReady, setIsReady] = useState(false)
@@ -90,9 +91,15 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const [bufferPercentage, setBufferPercentage] = useState(0)
   const [networkSpeed, setNetworkSpeed] = useState<'slow' | 'medium' | 'fast'>('medium')
   const [hasEnded, setHasEnded] = useState(false)
+  const [isPlayerAwake, setIsPlayerAwake] = useState(false)
+  const awakeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastRequestTimeRef = useRef<number>(0)
   const requestSizesRef = useRef<number[]>([])
   const bufferCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Mobile interaction refs
+  const lastTapRef = useRef<number>(0)
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync isReady with window.videojs presence
   useEffect(() => {
@@ -100,6 +107,75 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       setIsReady(true)
     }
   }, [])
+
+  // Auto-hide logic for center controls (Mobile only)
+  useEffect(() => {
+    if (isPlaying && isPlayerAwake) {
+      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+      awakeTimeoutRef.current = setTimeout(() => {
+        setIsPlayerAwake(false)
+      }, 2000)
+    } else if (!isPlaying) {
+      // Keep icon visible when paused
+      setIsPlayerAwake(true)
+      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+    }
+    return () => {
+      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
+    }
+  }, [isPlaying, isPlayerAwake])
+
+  const handleVideoInteraction = (e: React.MouseEvent) => {
+    // Ignore clicks on specific UI buttons
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      lastTapRef.current = 0;
+      
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      
+      if (x < rect.width / 2) {
+        // Double tap left - seek back 10s
+        handleSeek([Math.max(0, currentTime - 10)]);
+      } else {
+        // Double tap right - seek forward 10s
+        handleSeek([Math.min(duration, currentTime + 10)]);
+      }
+      return;
+    }
+    
+    lastTapRef.current = now;
+    
+    // Single tap behavior
+    tapTimeoutRef.current = setTimeout(() => {
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      
+      if (isMobile) {
+        if (isPlaying) {
+          if (!isPlayerAwake) {
+            // First tap "wakes" the player
+            setIsPlayerAwake(true)
+            handleMouseMove() // Shows and starts auto-hide for bottom controls
+          } else {
+            // Second tap pauses
+            togglePlay()
+          }
+        } else {
+          // Paused - tap starts playback
+          togglePlay()
+        }
+      } else {
+        // Desktop behavior: tap toggles play/pause
+        togglePlay();
+      }
+    }, DOUBLE_TAP_DELAY);
+  };
 
   // Fetch poster with auth if needed
   useEffect(() => {
@@ -559,12 +635,20 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     player.currentTime(newTime)
   }
 
+  // Handle fullscreen changes (e.g. via ESC key)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
   const toggleFullscreen = () => {
-    const player = playerRef.current
-    if (!player) return
+    if (!containerRef.current) return
 
     if (!document.fullscreenElement) {
-      player.el().parentElement?.requestFullscreen()
+      containerRef.current.requestFullscreen()
       setIsFullscreen(true)
     } else {
       document.exitFullscreen()
@@ -613,6 +697,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
   return (
     <div
+      ref={containerRef}
       className="relative aspect-video bg-black rounded-xl overflow-hidden group"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
@@ -646,25 +731,47 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           x-webkit-airplay="allow"
           // @ts-ignore
           controlsList="nodownload"
-          onClick={togglePlay}
+          onClick={handleVideoInteraction}
         />
+      </div>
+
+      {/* Center Play/Pause Indicator (Mobile-first UX) */}
+      <div 
+        className={cn(
+          "absolute inset-0 flex items-center justify-center pointer-events-none z-20",
+          "md:hidden" // Only show this specific style on mobile
+        )}
+      >
+        <div 
+          className={cn(
+            "h-20 w-20 rounded-full flex items-center justify-center transition-all duration-200 ease-out bg-black/35 backdrop-blur-[2px]",
+            isPlayerAwake ? "opacity-100 scale-100" : "opacity-0 scale-90"
+          )}
+        >
+          {isPlaying ? (
+            <Pause className="h-10 w-10 text-white/85" fill="currentColor" />
+          ) : (
+            <Play className="h-10 w-10 text-white/85 ml-1" fill="currentColor" />
+          )}
+        </div>
       </div>
 
       {/* Fade to black overlay when video ends */}
       {hasEnded && (
-        <div className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer"
-          onClick={togglePlay}
+        <div className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
+          onClick={handleVideoInteraction}
         >
-          <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
-            <Play className="h-8 w-8 text-white ml-1" fill="currentColor" />
+          <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
+            <Play className="h-10 w-10 text-white ml-1" fill="currentColor" />
           </div>
         </div>
       )}
 
+      {/* Desktop Big Play Button (Hidden on Mobile) */}
       {!isPlaying && !isBuffering && !hasEnded && (
         <div
-          className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
-          onClick={togglePlay}
+          className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
+          onClick={handleVideoInteraction}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
             <Play className="h-8 w-8 text-white ml-1" fill="currentColor" />
@@ -747,7 +854,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
                     <Settings className="h-5 w-5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-black/90 text-white border-white/10">
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-48 bg-black/90 text-white border-white/10"
+                  container={isFullscreen ? containerRef.current : undefined}
+                >
                   <DropdownMenuLabel className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Quality</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuRadioGroup value={currentProfile} onValueChange={switchQuality}>

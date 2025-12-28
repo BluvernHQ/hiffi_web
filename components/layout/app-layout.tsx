@@ -44,7 +44,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         />
         
         {/* Main Content Area - Adapts to sidebar, never affects it */}
-        <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100vh-4rem)]">
+        <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
           {children}
         </main>
       </div>
