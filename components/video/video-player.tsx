@@ -94,6 +94,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const [hasEnded, setHasEnded] = useState(false)
   const [isPlayerAwake, setIsPlayerAwake] = useState(false)
   const awakeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isSwitchingQualityRef = useRef(false)
   const lastRequestTimeRef = useRef<number>(0)
   const requestSizesRef = useRef<number[]>([])
   const bufferCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -366,6 +367,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     const player = playerRef.current
     if (!player || !signedVideoUrl) return
     
+    isSwitchingQualityRef.current = true
     setCurrentProfile(profile)
     
     // Store current state
@@ -379,7 +381,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       })
     } else {
       const profileData = profiles[profile]
-      if (!profileData) return
+      if (!profileData) {
+        isSwitchingQualityRef.current = false
+        return
+      }
       
       // Construct the URL for the specific profile
       // signedVideoUrl is .../hls/master.m3u8
@@ -402,7 +407,18 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           if (errorName !== 'AbortError') {
             console.error("[hiffi] Play failed after quality switch:", err)
           }
+        }).finally(() => {
+          // Reset the flag after play attempt (or failure)
+          // Using a small delay to ensure timeupdate events from the seek/play are ignored
+          setTimeout(() => {
+            isSwitchingQualityRef.current = false
+          }, 100)
         })
+      } else {
+        // Reset the flag if paused
+        setTimeout(() => {
+          isSwitchingQualityRef.current = false
+        }, 100)
       }
     })
   }
@@ -537,7 +553,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
-    const handleTimeUpdate = () => setCurrentTime(player.currentTime())
+    const handleTimeUpdate = () => {
+      if (!isSwitchingQualityRef.current) {
+        setCurrentTime(player.currentTime())
+      }
+    }
     const handleDurationChange = () => setDuration(player.duration())
     const handleEnded = () => {
       setIsPlaying(false)
@@ -781,7 +801,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
       {/* Fade to black overlay when video ends */}
       {hasEnded && (
-        <div className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
+        <div 
+          className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
+          onClick={togglePlay}
         >
           <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
             <Play className="h-10 w-10 text-white ml-1" fill="currentColor" />
@@ -793,6 +815,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       {!isPlaying && !isBuffering && !hasEnded && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
+          onClick={togglePlay}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
             <Play className="h-8 w-8 text-white ml-1" fill="currentColor" />
