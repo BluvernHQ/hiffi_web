@@ -99,8 +99,8 @@ export function ProfilePicture({
         })
         .catch(error => {
           console.error("[ProfilePicture] Failed to fetch profile picture:", error)
-          // Fallback to direct URL (might work if auth not required)
-          setImageUrl(profilePicUrl)
+          // Do NOT fall back to direct URL if auth failed, as it will just 401 again
+          setImageUrl(null)
           setIsLoading(false)
         })
     } else {

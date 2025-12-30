@@ -11,8 +11,8 @@ import { apiClient } from '@/lib/api-client';
 import { getThumbnailUrl } from '@/lib/storage';
 import { AuthenticatedImage } from '@/components/video/authenticated-image';
 import { useAuth } from '@/lib/auth-context';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from '@/lib/utils';
+import { ProfilePicture } from '@/components/profile/profile-picture';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
 
 interface SearchResult {
   id: string;
@@ -21,7 +21,7 @@ interface SearchResult {
   thumbnail?: string;
   username?: string;
   views?: number;
-  profilePictureBlobUrl?: string; // Store blob URL for authenticated profile pictures
+  user?: any; // Add user object for ProfilePicture
 }
 
 const TRENDING_SEARCHES = [
@@ -100,44 +100,16 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           
           // Add user suggestions
           if (usersResponse.success && usersResponse.users) {
-            // Cleanup previous blob URLs
-            previousBlobUrlsRef.current.forEach((blobUrl) => {
-              if (blobUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(blobUrl);
-              }
+            const userSuggestions: SearchResult[] = usersResponse.users.map((user: any) => {
+              return {
+                id: user.uid || user.username || '',
+                title: user.username || '',
+                type: 'user' as const,
+                username: user.username || '',
+                thumbnail: user.profile_picture || user.image || '',
+                user: user,
+              };
             });
-            previousBlobUrlsRef.current.clear();
-            
-            const userSuggestions: SearchResult[] = await Promise.all(
-              usersResponse.users.map(async (user: any) => {
-                const profilePicPath = user.profile_picture || user.image || '';
-                let profilePictureBlobUrl: string | undefined = undefined;
-                
-                if (profilePicPath) {
-                  const profilePicUrl = getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true);
-                  if (profilePicUrl && profilePicUrl.includes('black-paper-83cf.hiffi.workers.dev')) {
-                    try {
-                      // Fetch with authentication and create blob URL
-                      profilePictureBlobUrl = await fetchProfilePictureWithAuth(profilePicUrl);
-                      if (profilePictureBlobUrl) {
-                        previousBlobUrlsRef.current.add(profilePictureBlobUrl);
-                      }
-                    } catch (error) {
-                      console.error('[SearchOverlay] Failed to fetch profile picture with auth:', error);
-                    }
-                  }
-                }
-                
-                return {
-                  id: user.uid || user.username || '',
-                  title: user.username || '',
-                  type: 'user' as const,
-                  username: user.username || '',
-                  thumbnail: profilePicPath,
-                  profilePictureBlobUrl,
-                };
-              })
-            );
             allSuggestions.push(...userSuggestions);
           }
           
@@ -336,19 +308,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
                                       selectedIndex === itemIndex && "bg-muted"
                                     )}>
-                                      <Avatar className="h-10 w-10 flex-shrink-0">
-                                        <AvatarImage 
-                                          src={result.profilePictureBlobUrl || (result.thumbnail ? getProfilePictureUrl({ profile_picture: result.thumbnail, image: result.thumbnail }, true) : undefined)} 
-                                          alt={result.username}
-                                          key={`search-user-${result.id}-${result.profilePictureBlobUrl ? 'blob' : 'direct'}`}
-                                        />
-                                        <AvatarFallback 
-                                          className="text-white font-semibold"
-                                          style={{ backgroundColor: getColorFromName(result.username || 'U') }}
-                                        >
-                                          {getAvatarLetter({ username: result.username }, 'U')}
-                                        </AvatarFallback>
-                                      </Avatar>
+                                      <ProfilePicture user={result.user} size="sm" />
                                       <div className="flex-1 min-w-0">
                                         <p className="font-medium truncate">
                                           @{result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) => 

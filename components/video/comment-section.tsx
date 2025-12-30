@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { formatDistanceToNow } from "date-fns"
@@ -141,15 +141,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
 
       {user ? (
         <div className="flex gap-4">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={getProfilePictureUrl(userData)} />
-            <AvatarFallback 
-              className="text-white font-semibold"
-              style={{ backgroundColor: getColorFromName((userData?.name || userData?.username || "U")) }}
-            >
-              {getAvatarLetter(userData, "U")}
-            </AvatarFallback>
-          </Avatar>
+          <ProfilePicture user={userData} size="md" />
           <form onSubmit={handleSubmit} className="flex-1 space-y-2">
             <Textarea
               placeholder="Add a comment..."
@@ -296,22 +288,14 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
 
   return (
     <div className="flex gap-4">
-      <Avatar className="h-10 w-10">
-        <AvatarImage src={getProfilePictureUrl(comment)} />
-        <AvatarFallback 
-          className="text-white font-semibold"
-          style={{ 
-            backgroundColor: getColorFromName(
-              ((comment as any).comment_by_name || comment.comment_by_username || "U")
-            ) 
-          }}
-        >
-          {getAvatarLetter({ 
-            name: (comment as any).comment_by_name, 
-            username: comment.comment_by_username 
-          }, "U")}
-        </AvatarFallback>
-      </Avatar>
+      <ProfilePicture 
+        user={{
+          username: comment.comment_by_username,
+          profile_picture: (comment as any).profile_picture || (comment as any).comment_by_avatar,
+          name: (comment as any).comment_by_name
+        }} 
+        size="md" 
+      />
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
           {user ? (
@@ -347,15 +331,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
         {showReplyInput && user && (
           <form onSubmit={handleReplySubmit} className="mt-2 space-y-2">
             <div className="flex gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={getProfilePictureUrl(userData)} />
-                <AvatarFallback 
-                  className="text-white font-semibold text-sm"
-                  style={{ backgroundColor: getColorFromName((userData?.name || userData?.username || "U")) }}
-                >
-                  {getAvatarLetter(userData, "U")}
-                </AvatarFallback>
-              </Avatar>
+              <ProfilePicture user={userData} size="sm" />
               <Textarea
                 placeholder="Write a reply..."
                 value={replyText}
@@ -415,22 +391,14 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
               <div className="space-y-4 mt-3 pl-4 border-l-2 border-muted">
                 {replies.map((reply) => (
                   <div key={reply.reply_id} className="flex gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={getProfilePictureUrl(reply)} />
-                      <AvatarFallback 
-                        className="text-white font-semibold text-sm"
-                        style={{ 
-                          backgroundColor: getColorFromName(
-                            ((reply as any).reply_by_name || reply.reply_by_username || "U")
-                          ) 
-                        }}
-                      >
-                        {getAvatarLetter({ 
-                          name: (reply as any).reply_by_name, 
-                          username: reply.reply_by_username 
-                        }, "U")}
-                      </AvatarFallback>
-                    </Avatar>
+                    <ProfilePicture 
+                      user={{
+                        username: reply.reply_by_username,
+                        profile_picture: (reply as any).profile_picture || (reply as any).reply_by_avatar,
+                        name: (reply as any).reply_by_name
+                      }} 
+                      size="sm" 
+                    />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-xs">@{reply.reply_by_username || "Unknown"}</span>

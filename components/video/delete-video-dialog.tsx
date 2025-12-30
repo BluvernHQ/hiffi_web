@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,20 @@ export function DeleteVideoDialog({
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
 
+  // Safety cleanup: Ensure body styles are restored if the component is unmounted
+  // This is a fail-safe for when the parent unmounts this component during the closing animation
+  useEffect(() => {
+    return () => {
+      // We only want to do this if this was the last dialog/overlay
+      // Radix usually handles this, but unmounting can skip its cleanup
+      const hasOtherOverlays = document.querySelectorAll('[data-radix-focus-guard]').length > 0
+      if (!hasOtherOverlays) {
+        document.body.style.pointerEvents = ""
+        document.body.style.overflow = ""
+      }
+    }
+  }, [])
+
   const handleDelete = async () => {
     if (!videoId) return
 
@@ -47,7 +61,14 @@ export function DeleteVideoDialog({
         })
         
         onOpenChange(false)
-        onDeleted?.()
+        
+        // Give the dialog time to close before calling onDeleted
+        // This prevents the parent component from unmounting the dialog
+        // before it can clean up body styles (like pointer-events: none)
+        // Increased delay to 500ms to be safer across different devices/browsers
+        setTimeout(() => {
+          onDeleted?.()
+        }, 500)
       } else {
         throw new Error(response.message || "Failed to delete video")
       }

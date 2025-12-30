@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
 import { VideoCard } from "@/components/video/video-card"
+import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -608,40 +609,24 @@ export default function WatchPage() {
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
                     {user ? (
                       <Link href={`/profile/${video.userUsername || video.user_username}`}>
-                        <Avatar className="h-10 w-10 flex-shrink-0">
-                          <AvatarImage src={getProfilePictureUrl(video)} />
-                          <AvatarFallback 
-                            className="text-white font-semibold"
-                            style={{ 
-                              backgroundColor: getColorFromName(
-                                (video.userName || video.user_name || video.userUsername || video.user_username || "U")
-                              ) 
-                            }}
-                          >
-                            {getAvatarLetter({ 
-                              name: video.userName || video.user_name, 
-                              username: video.userUsername || video.user_username 
-                            }, "U")}
-                          </AvatarFallback>
-                        </Avatar>
+                        <ProfilePicture 
+                          user={{
+                            username: video.userUsername || video.user_username,
+                            profile_picture: video.profile_picture || video.user_profile_picture,
+                            name: video.userName || video.user_name
+                          }} 
+                          size="md" 
+                        />
                       </Link>
                     ) : (
-                      <Avatar className="h-10 w-10 flex-shrink-0">
-                        <AvatarImage src={getProfilePictureUrl(video)} />
-                        <AvatarFallback 
-                          className="text-white font-semibold"
-                          style={{ 
-                            backgroundColor: getColorFromName(
-                              (video.userName || video.user_name || video.userUsername || video.user_username || "U")
-                            ) 
-                          }}
-                        >
-                          {getAvatarLetter({ 
-                            name: video.userName || video.user_name, 
-                            username: video.userUsername || video.user_username 
-                          }, "U")}
-                        </AvatarFallback>
-                      </Avatar>
+                      <ProfilePicture 
+                        user={{
+                          username: video.userUsername || video.user_username,
+                          profile_picture: video.profile_picture || video.user_profile_picture,
+                          name: video.userName || video.user_name
+                        }} 
+                        size="md" 
+                      />
                     )}
                     <div className="min-w-0">
                       {user ? (
