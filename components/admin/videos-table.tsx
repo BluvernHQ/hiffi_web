@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
-import { Loader2, Search, ChevronLeft, ChevronRight, Play, Trash2, Filter } from "lucide-react"
+import { Loader2, Search, ChevronLeft, ChevronRight, Play, Trash2, Filter, CheckCircle2, AlertCircle } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
@@ -32,6 +33,9 @@ export function AdminVideosTable() {
   const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [videoToDelete, setVideoToDelete] = useState<any>(null)
+  const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
+  const [isBulkDelete, setIsBulkDelete] = useState(false)
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState({ current: 0, total: 0 })
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
@@ -225,11 +229,13 @@ export function AdminVideosTable() {
     setSortKey(direction ? key : null)
     setSortDirection(direction)
     setPage(1)
+    setSelectedVideoIds([]) // Clear selection when sorting
   }
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
     setPage(1) // Reset to first page when filters change
+    setSelectedVideoIds([]) // Clear selection when filtering
   }
 
   // Handle number input changes with debouncing to prevent page refresh on arrow clicks
@@ -254,8 +260,111 @@ export function AdminVideosTable() {
     // Debounce the page reset - wait 500ms after user stops clicking arrows
     numberInputTimersRef.current[key] = setTimeout(() => {
       setPage(1)
+      setSelectedVideoIds([]) // Clear selection when filtering
       delete numberInputTimersRef.current[key]
     }, 500)
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = videos.map(v => v.video_id || v.videoId).filter(Boolean)
+      setSelectedVideoIds(allIds)
+    } else {
+      setSelectedVideoIds([])
+    }
+  }
+
+  const handleSelectVideo = (videoId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedVideoIds(prev => [...prev, videoId])
+    } else {
+      setSelectedVideoIds(prev => prev.filter(id => id !== videoId))
+    }
+  }
+
+  const handleDeleteClick = (video: any) => {
+    setVideoToDelete(video)
+    setIsBulkDelete(false)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleBulkDeleteClick = () => {
+    setIsBulkDelete(true)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (isBulkDelete) {
+      if (selectedVideoIds.length === 0) return
+
+      try {
+        setLoading(true)
+        setBulkDeleteProgress({ current: 0, total: selectedVideoIds.length })
+        
+        let successCount = 0
+        let errorCount = 0
+
+        for (const videoId of selectedVideoIds) {
+          try {
+            await apiClient.deleteVideoByVideoId(videoId)
+            successCount++
+          } catch (error) {
+            console.error(`[admin] Failed to delete video ${videoId}:`, error)
+            errorCount++
+          }
+          setBulkDeleteProgress(prev => ({ ...prev, current: prev.current + 1 }))
+        }
+
+        toast({
+          title: "Bulk Delete Complete",
+          description: `Successfully deleted ${successCount} videos.${errorCount > 0 ? ` Failed to delete ${errorCount} videos.` : ""}`,
+          variant: errorCount > 0 ? "destructive" : "default",
+        })
+
+        setSelectedVideoIds([])
+        await fetchVideos()
+      } catch (error: any) {
+        console.error("[admin] Bulk delete error:", error)
+        toast({
+          title: "Error",
+          description: "An error occurred during bulk deletion",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+        setDeleteDialogOpen(false)
+        setIsBulkDelete(false)
+        setBulkDeleteProgress({ current: 0, total: 0 })
+      }
+    } else {
+      if (!videoToDelete) return
+      const videoId = videoToDelete.video_id || videoToDelete.videoId
+      if (!videoId) return
+
+      try {
+        setDeletingVideoId(videoId)
+        await apiClient.deleteVideoByVideoId(videoId)
+        
+        toast({
+          title: "Success",
+          description: "Video deleted successfully",
+        })
+        
+        setSelectedVideoIds(prev => prev.filter(id => id !== videoId))
+        await fetchVideos()
+      } catch (error: any) {
+        console.error("[admin] Failed to delete video:", error)
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete video",
+          variant: "destructive",
+        })
+      } finally {
+        setDeletingVideoId(null)
+        setDeleteDialogOpen(false)
+        setVideoToDelete(null)
+      }
+    }
   }
 
   const clearFilters = () => {
@@ -279,6 +388,7 @@ export function AdminVideosTable() {
       updated_before: "",
     })
     setPage(1)
+    setSelectedVideoIds([])
   }
 
   const hasActiveFilters = Object.values(filters).some((v) => v !== "")
@@ -295,41 +405,6 @@ export function AdminVideosTable() {
     const hours = String(date.getHours()).padStart(2, "0")
     const minutes = String(date.getMinutes()).padStart(2, "0")
     return `${year}-${month}-${day}T${hours}:${minutes}`
-  }
-
-  const handleDeleteClick = (video: any) => {
-    setVideoToDelete(video)
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!videoToDelete) return
-    const videoId = videoToDelete.video_id || videoToDelete.videoId
-    if (!videoId) return
-
-    try {
-      setDeletingVideoId(videoId)
-      await apiClient.deleteVideoByVideoId(videoId)
-      
-      toast({
-        title: "Success",
-        description: "Video deleted successfully",
-      })
-      
-      // Refresh the list
-      await fetchVideos()
-    } catch (error: any) {
-      console.error("[admin] Failed to delete video:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete video",
-        variant: "destructive",
-      })
-    } finally {
-      setDeletingVideoId(null)
-      setDeleteDialogOpen(false)
-      setVideoToDelete(null)
-    }
   }
 
   if (loading && videos.length === 0) {
@@ -601,30 +676,50 @@ export function AdminVideosTable() {
       <div className="flex-1 space-y-4 min-w-0 overflow-hidden flex flex-col">
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-4 shrink-0">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Quick search by video title..."
-              value={filters.video_title}
-              onChange={(e) => {
-                handleFilterChange("video_title", e.target.value)
-                wasSearchFocusedRef.current = true
-              }}
-              onFocus={() => {
-                wasSearchFocusedRef.current = true
-              }}
-              onBlur={() => {
-                // Only clear the flag if focus is moving to another element, not when component re-renders
-                setTimeout(() => {
-                  if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
-                    wasSearchFocusedRef.current = false
-                  }
-                }, 0)
-              }}
-              className="pl-9"
-            />
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Quick search by video title..."
+                value={filters.video_title}
+                onChange={(e) => {
+                  handleFilterChange("video_title", e.target.value)
+                  wasSearchFocusedRef.current = true
+                }}
+                onFocus={() => {
+                  wasSearchFocusedRef.current = true
+                }}
+                onBlur={() => {
+                  // Only clear the flag if focus is moving to another element, not when component re-renders
+                  setTimeout(() => {
+                    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+                      wasSearchFocusedRef.current = false
+                    }
+                  }, 0)
+                }}
+                className="pl-9"
+              />
+            </div>
+            
+            {selectedVideoIds.length > 0 && (
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                <span className="text-sm font-medium text-muted-foreground">
+                  {selectedVideoIds.length} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDeleteClick}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Selected
+                </Button>
+              </div>
+            )}
           </div>
+          
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
@@ -676,12 +771,19 @@ export function AdminVideosTable() {
                     onSort={handleSort}
                   />
                   <th className="h-12 px-4 text-left align-middle font-semibold text-sm">Actions</th>
+                  <th className="h-12 w-12 px-4 text-center align-middle font-semibold text-sm sticky right-0 z-30 bg-muted/95 backdrop-blur-sm border-l">
+                    <Checkbox
+                      checked={videos.length > 0 && selectedVideoIds.length === videos.length}
+                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                      aria-label="Select all"
+                    />
+                  </th>
                 </tr>
               </thead>
             <tbody>
               {videos.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <td colSpan={7} className="h-32 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center py-8">
                       <p className="text-base font-medium">No videos found</p>
                       <p className="text-sm text-muted-foreground mt-1">
@@ -699,13 +801,14 @@ export function AdminVideosTable() {
                   const username = video.user_username || video.userUsername
                   const views = video.video_views || video.videoViews || 0
                   const createdAt = video.created_at || video.createdAt
+                  const isSelected = selectedVideoIds.includes(videoId)
 
                   return (
                     <tr 
                       key={videoId} 
-                      className="border-b hover:bg-muted/50 transition-colors"
+                      className={`border-b hover:bg-muted/50 transition-colors ${isSelected ? "bg-primary/5" : ""}`}
                     >
-                      <td className="px-4 py-3 sticky left-0 z-10 bg-background border-r">
+                      <td className="px-4 py-3 sticky left-0 z-10 bg-inherit border-r">
                         {videoId ? (
                           <Link href={`/watch/${videoId}`} className="block group">
                             <div className="relative h-16 w-28 rounded overflow-hidden bg-muted group-hover:opacity-80 transition-opacity">
@@ -792,6 +895,13 @@ export function AdminVideosTable() {
                             </Button>
                           </div>
                         )}
+                      </td>
+                      <td className="px-4 py-3 sticky right-0 z-10 bg-inherit border-l text-center">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectVideo(videoId, !!checked)}
+                          aria-label={`Select video ${title}`}
+                        />
                       </td>
                     </tr>
                   )
@@ -914,21 +1024,55 @@ export function AdminVideosTable() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Video</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete the video <strong>"{videoToDelete?.video_title || videoToDelete?.videoTitle || "Untitled"}"</strong>? This action cannot be undone and will delete all associated data including comments, replies, and views.
+            <DialogTitle>{isBulkDelete ? "Delete Multiple Videos" : "Delete Video"}</DialogTitle>
+            <DialogDescription asChild>
+              <div>
+                {isBulkDelete ? (
+                  <>
+                    Are you sure you want to delete <strong>{selectedVideoIds.length}</strong> selected videos? This action cannot be undone and will delete all associated data for each video.
+                    {bulkDeleteProgress.total > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Deleting videos...</span>
+                          <span>{bulkDeleteProgress.current} / {bulkDeleteProgress.total}</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300" 
+                            style={{ width: `${(bulkDeleteProgress.current / bulkDeleteProgress.total) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to delete the video <strong>"{videoToDelete?.video_title || videoToDelete?.videoTitle || "Untitled"}"</strong>? This action cannot be undone and will delete all associated data including comments, replies, and views.
+                  </>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setDeleteDialogOpen(false)
+              if (!isBulkDelete) setVideoToDelete(null)
+            }} disabled={deletingVideoId !== null || bulkDeleteProgress.total > 0}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={deletingVideoId !== null}
+              disabled={deletingVideoId !== null || bulkDeleteProgress.total > 0}
             >
-              {deletingVideoId ? "Deleting..." : "Delete"}
+              {deletingVideoId || bulkDeleteProgress.total > 0 ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
