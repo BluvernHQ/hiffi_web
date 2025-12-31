@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
 import { VideoCard } from "@/components/video/video-card"
+import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -99,6 +100,11 @@ export default function WatchPage() {
   })
   const hasFetchedVideoRef = useRef<string | null>(null)
   const isFetchingRef = useRef<boolean>(false)
+  
+  // Memoize sliced suggested videos to prevent unnecessary re-renders and glitches 
+  // when toggling description or other UI states.
+  const sidebarSuggestedVideos = useMemo(() => relatedVideos.slice(0, 6), [relatedVideos])
+  const playerSuggestedVideos = useMemo(() => relatedVideos.slice(0, 8), [relatedVideos])
 
   useEffect(() => {
     async function fetchVideoData() {
@@ -137,11 +143,13 @@ export default function WatchPage() {
           }
 
           // Build complete video object with streaming URL and all metadata
+          // Build complete video object with streaming URL and all metadata
           const completeVideo = {
             ...videoData,
             video_url: videoResponse.video_url, // Streaming URL from API
             streaming_url: videoResponse.video_url, // Alias for compatibility
             userUsername: videoData.user_username, // Alias for compatibility
+            user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
 
           // Update vote state from getVideo API response
@@ -170,8 +178,12 @@ export default function WatchPage() {
               console.log("[hiffi] Creator data from API:", creatorResponse)
               // Handle API response format: { success: true, user: {...}, following?: boolean }
               const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse)
-              console.log("[hiffi] Creator profile:", creatorProfile)
-              console.log("[hiffi] Creator followers:", creatorProfile?.followers)
+              console.log("[hiffi] Creator profile fetched:", {
+                username: creatorProfile?.username,
+                profile_picture: creatorProfile?.profile_picture,
+                image: creatorProfile?.image,
+                updated_at: creatorProfile?.updated_at
+              })
               setVideoCreator(creatorProfile)
               // Update following status from API response if available
               if (creatorResponse?.following !== undefined) {
@@ -598,7 +610,7 @@ export default function WatchPage() {
                 videoUrl={videoUrl} 
                 poster={thumbnailUrl} 
                 autoPlay 
-                suggestedVideos={relatedVideos.slice(0, 8)}
+                suggestedVideos={playerSuggestedVideos}
               />
 
               <div className="space-y-4 min-w-0">
@@ -608,40 +620,26 @@ export default function WatchPage() {
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
                     {user ? (
                       <Link href={`/profile/${video.userUsername || video.user_username}`}>
-                        <Avatar className="h-10 w-10 flex-shrink-0">
-                          <AvatarImage src={getProfilePictureUrl(video)} />
-                          <AvatarFallback 
-                            className="text-white font-semibold"
-                            style={{ 
-                              backgroundColor: getColorFromName(
-                                (video.userName || video.user_name || video.userUsername || video.user_username || "U")
-                              ) 
-                            }}
-                          >
-                            {getAvatarLetter({ 
-                              name: video.userName || video.user_name, 
-                              username: video.userUsername || video.user_username 
-                            }, "U")}
-                          </AvatarFallback>
-                        </Avatar>
+                        <ProfilePicture 
+                          user={videoCreator || {
+                            username: video.userUsername || video.user_username,
+                            profile_picture: video.user_profile_picture || video.profile_picture,
+                            name: video.userName || video.user_name,
+                            updated_at: video.updated_at || video.created_at
+                          }} 
+                          size="md" 
+                        />
                       </Link>
                     ) : (
-                      <Avatar className="h-10 w-10 flex-shrink-0">
-                        <AvatarImage src={getProfilePictureUrl(video)} />
-                        <AvatarFallback 
-                          className="text-white font-semibold"
-                          style={{ 
-                            backgroundColor: getColorFromName(
-                              (video.userName || video.user_name || video.userUsername || video.user_username || "U")
-                            ) 
-                          }}
-                        >
-                          {getAvatarLetter({ 
-                            name: video.userName || video.user_name, 
-                            username: video.userUsername || video.user_username 
-                          }, "U")}
-                        </AvatarFallback>
-                      </Avatar>
+                      <ProfilePicture 
+                        user={videoCreator || {
+                          username: video.userUsername || video.user_username,
+                          profile_picture: video.profile_picture || video.user_profile_picture,
+                          name: video.userName || video.user_name,
+                          updated_at: video.updated_at || video.created_at
+                        }} 
+                        size="md" 
+                      />
                     )}
                     <div className="min-w-0">
                       {user ? (
@@ -756,7 +754,7 @@ export default function WatchPage() {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Up Next</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 items-start">
-                {relatedVideos.slice(0, 6).map((video) => (
+                {sidebarSuggestedVideos.map((video) => (
                   <VideoCard key={video.videoId || video.video_id} video={video} />
                 ))}
               </div>

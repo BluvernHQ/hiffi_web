@@ -208,22 +208,36 @@ export default function UploadPage() {
         has_thumbnail_url: !!bridgeResponse.gateway_url_thumbnail,
       });
 
-      setProgress(25);
-
-      // Step 2: Upload video file to gateway_url
+      // Step 2: Upload video file to gateway_url with real-time progress
       console.log('[Upload] Uploading video file...');
-      await apiClient.uploadFile(bridgeResponse.gateway_url, file);
+      await apiClient.uploadFile(
+        bridgeResponse.gateway_url, 
+        file,
+        (p) => {
+          // Map 0-100% of file upload to 5-80% of total progress
+          const overallProgress = Math.round(5 + (p * 0.75));
+          setProgress(overallProgress);
+        }
+      );
       console.log('[Upload] Video file uploaded successfully');
-      setProgress(60);
+      setProgress(80);
 
       // Step 3: Upload thumbnail if provided to gateway_url_thumbnail
       // Thumbnail is optional - video upload will proceed even without thumbnail
       if (thumbnail && bridgeResponse.gateway_url_thumbnail) {
         try {
           console.log('[Upload] Starting thumbnail upload...')
-          await apiClient.uploadFile(bridgeResponse.gateway_url_thumbnail, thumbnail);
+          await apiClient.uploadFile(
+            bridgeResponse.gateway_url_thumbnail, 
+            thumbnail,
+            (p) => {
+              // Map 0-100% of thumbnail upload to 80-95% of total progress
+              const overallProgress = Math.round(80 + (p * 0.15));
+              setProgress(overallProgress);
+            }
+          );
           console.log('[Upload] Thumbnail uploaded successfully')
-          setProgress(85);
+          setProgress(95);
         } catch (thumbnailError) {
           console.error('[Upload] Thumbnail upload failed:', thumbnailError)
           // Continue with upload even if thumbnail fails - video upload already succeeded
@@ -232,12 +246,12 @@ export default function UploadPage() {
             description: "Video uploaded but thumbnail upload failed. You can update the thumbnail later.",
             variant: "default",
           });
-          setProgress(85);
+          setProgress(95);
         }
       } else {
         // No thumbnail provided - this is allowed, system will auto-generate one
         console.log('[Upload] No thumbnail provided, skipping thumbnail upload. System will auto-generate thumbnail.')
-        setProgress(85);
+        setProgress(95);
       }
 
       // Step 4: Acknowledge upload with bridge_id

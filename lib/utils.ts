@@ -156,8 +156,10 @@ export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Pr
     return blobUrl;
   } catch (error) {
     console.error("[utils] Error fetching profile picture with auth:", error);
-    // Return the original URL as fallback - might work if Workers allows public access
-    return profilePictureUrl;
+    // Don't fall back to the original URL if it's a Workers URL, 
+    // as it will just cause a 401 in the browser.
+    // Instead, throw or return null to allow the UI to handle it.
+    throw error;
   }
 }
 

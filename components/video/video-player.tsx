@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, WORKERS_BASE_URL, getWorkersApiKey } from "@/lib/storage"
+import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
 
 // Add declaration for videojs since we're loading it from CDN
 declare global {
@@ -83,13 +84,22 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const playPromiseRef = useRef<Promise<void> | null>(null)
   const [signedVideoUrl, setSignedVideoUrl] = useState<string>("")
+  const signedVideoUrlRef = useRef<string>("")
+  const [videoSourceType, setVideoSourceType] = useState<VideoSourceType | null>(null)
+  const videoSourceTypeRef = useRef<VideoSourceType | null>(null)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [profiles, setProfiles] = useState<Record<string, { height: number; bitrate: number; path: string }>>({})
   const [currentProfile, setCurrentProfile] = useState<string>("auto")
-  const [isLoadingUrl, setIsLoadingUrl] = useState(true)
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const [urlError, setUrlError] = useState<string>("")
   const [isBuffering, setIsBuffering] = useState(false)
+  const [fallbackAttempted, setFallbackAttempted] = useState(false)
+  const fallbackRef = useRef(false)
   const [bufferPercentage, setBufferPercentage] = useState(0)
+  
+  // Track if we've successfully resolved the URL at least once to reduce spinners on minor updates
+  const [hasResolvedOnce, setHasResolvedOnce] = useState(false)
+  
   const [networkSpeed, setNetworkSpeed] = useState<'slow' | 'medium' | 'fast'>('medium')
   const [hasEnded, setHasEnded] = useState(false)
   const [isPlayerAwake, setIsPlayerAwake] = useState(false)
@@ -278,72 +288,59 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         return
       }
 
-      // If videoUrl is a video ID, use GET /videos/{videoID} to get the Workers URL
-      // Video IDs are typically 64-character hex strings
-      if (/^[a-f0-9]{64}$/i.test(videoUrl)) {
-        try {
-          setIsLoadingUrl(true)
-          console.log("[hiffi] Fetching video streaming URL for video ID:", videoUrl)
-
-          const response = await apiClient.getVideo(videoUrl)
-          console.log("[hiffi] Received video response:", response)
-
-          if (response.success && response.video_url) {
-            // Process video URL (getVideoUrl handles Workers URL construction)
-            const processedUrl = getVideoUrl(response.video_url)
-            
-            // For HLS, we want the master.m3u8 playlist
-            const masterPlaylistUrl = `${processedUrl.replace(/\/$/, "")}/hls/master.m3u8`
-            console.log("[hiffi] Using HLS master playlist:", masterPlaylistUrl)
-            
-            setSignedVideoUrl(masterPlaylistUrl)
-            setUrlError("")
-          } else {
-            throw new Error("No video_url in response")
-          }
-        } catch (error) {
-          console.error("[hiffi] Failed to fetch video streaming URL:", error)
-          setUrlError("Failed to load video")
-        } finally {
-          setIsLoadingUrl(false)
-        }
-        return
-      }
-
-      // For all other cases (full URLs, storage paths), use getVideoUrl to process
       try {
-        setIsLoadingUrl(true)
-        console.log("[hiffi] Processing video URL:", videoUrl)
+        // Only show the big loading spinner on the first resolution
+        if (!hasResolvedOnce) {
+          setIsLoadingUrl(true)
+        }
+        
+        console.log("[hiffi] Resolving source for video:", videoUrl)
+        
+        let targetPath = videoUrl
+        
+        // If it's a video ID, we need to get the path from the API first
+        if (/^[a-f0-9]{64}$/i.test(videoUrl)) {
+          const response = await apiClient.getVideo(videoUrl)
+          if (response.success && response.video_url) {
+            targetPath = response.video_url
+          } else {
+            throw new Error("Failed to get video path from API")
+          }
+        }
 
-        const processedUrl = getVideoUrl(videoUrl)
+        const source = await resolveVideoSource(targetPath)
+        console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
         
-        // Ensure it points to the HLS master playlist
-        // If the URL already ends in .m3u8, use it, otherwise assume it's a base path and add /hls/master.m3u8
-        const masterPlaylistUrl = processedUrl.endsWith('.m3u8') 
-          ? processedUrl 
-          : `${processedUrl.replace(/\/$/, "")}/hls/master.m3u8`
-          
-        console.log("[hiffi] Using HLS master playlist:", masterPlaylistUrl)
-        
-        setSignedVideoUrl(masterPlaylistUrl)
+        // Update all related states together to reduce re-renders
+        setVideoSourceType(source.type)
+        videoSourceTypeRef.current = source.type
+        setSignedVideoUrl(source.url)
+        signedVideoUrlRef.current = source.url
         setUrlError("")
-        setIsLoadingUrl(false)
+        setHasResolvedOnce(true)
       } catch (error) {
-        console.error("[hiffi] Failed to process video URL:", error)
+        console.error("[hiffi] Failed to resolve video source:", error)
         setUrlError("Failed to load video")
+      } finally {
         setIsLoadingUrl(false)
       }
     }
 
     fetchUrl()
+    // Reset fallback tracking when video changes
+    fallbackRef.current = false
+    setFallbackAttempted(false)
   }, [videoUrl])
 
-  // Fetch profiles.json when signedVideoUrl is available
+  // Fetch profiles.json when signedVideoUrl is available and source is HLS
   useEffect(() => {
-    if (!signedVideoUrl) return
+    if (!signedVideoUrl || videoSourceType !== 'hls') {
+      setProfiles({})
+      return
+    }
 
     const fetchProfiles = async () => {
-      // The signedVideoUrl is likely .../hls/master.m3u8
+      // The signedVideoUrl is .../hls/master.m3u8
       // We want .../hls/profiles.json
       const profilesUrl = signedVideoUrl.replace(/master\.m3u8$/, "profiles.json")
       
@@ -434,7 +431,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
   // Initialize VideoJS and HLS Hooks
   useEffect(() => {
-    if (!isReady || !videoRef.current || !signedVideoUrl) return
+    if (!isReady || !videoRef.current || !signedVideoUrl || !videoSourceType) return
 
     const vjs = window.videojs
 
@@ -447,6 +444,16 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         responsive: true,
         fluid: false, // Disable VideoJS fluid mode to use our own Tailwind-based sizing
         poster: signedPosterUrl || poster,
+        preload: 'auto',
+        // VHS (Video HLS) specific optimizations for "instant" play
+        html5: {
+          vhs: {
+            enableLowInitialPlaylist: true, // Start with lowest bitrate for instant start
+            fastQualityTeardown: true, // Switch to better quality faster
+            overrideNative: true, // Use VideoJS's HLS engine even if browser has native support
+            useDevicePixelRatio: true,
+          }
+        },
         // Disable some default features to avoid conflicts with our UI
         userActions: {
           doubleClick: false,
@@ -486,46 +493,50 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       return false
     }
 
-    // 1. Global VHS Hook
-    setupXhrHook(vjs.Vhs, "global VHS")
-    
-    // 2. Tech-level Hooks - use ready() and check internal tech properties 
-    // to avoid the "tech() is dangerous" console warning
-    player.ready(() => {
-      // Access tech via internal property to avoid the warning trigger in .tech()
-      const tech = player.tech_
-      if (tech) {
-        setupXhrHook(tech.vhs, "player tech vhs")
-        setupXhrHook(tech.hls, "player tech hls")
-      }
-    })
-
-    // Load source
-    player.src({
-      src: signedVideoUrl,
-      type: "application/x-mpegURL"
-    })
-
-    if (autoPlay) {
-      player.play().catch((err: any) => {
-        const errorName = err && (err.name || (err.constructor && err.constructor.name))
-        if (errorName === 'NotAllowedError') {
-          console.log("[hiffi] Autoplay with sound blocked, trying muted...")
-          player.muted(true)
-          setIsMuted(true)
-          setVolume(0)
-          player.play().catch((e: any) => console.error("[hiffi] Muted autoplay also failed:", e))
-        } else if (errorName !== 'AbortError') {
-          console.warn("[hiffi] HLS Autoplay failed:", err)
+    // Only setup HLS hooks if we are using HLS
+    if (videoSourceType === 'hls') {
+      // 1. Global VHS Hook
+      setupXhrHook(vjs.Vhs, "global VHS")
+      
+      // 2. Tech-level Hooks
+      player.ready(() => {
+        const tech = player.tech_
+        if (tech) {
+          setupXhrHook(tech.vhs, "player tech vhs")
+          setupXhrHook(tech.hls, "player tech hls")
         }
       })
     }
 
+    // Load source with correct type
+    player.ready(() => {
+      console.log(`[hiffi] Setting player source: ${videoSourceType} - ${signedVideoUrl}`)
+      
+      player.src({
+        src: signedVideoUrl,
+        type: videoSourceType === 'hls' ? "application/x-mpegURL" : "video/mp4"
+      })
+
+      if (autoPlay) {
+        player.play().catch((err: any) => {
+          const errorName = err && (err.name || (err.constructor && err.constructor.name))
+          if (errorName === 'NotAllowedError') {
+            console.log("[hiffi] Autoplay with sound blocked, trying muted...")
+            player.muted(true)
+            setIsMuted(true)
+            setVolume(0)
+            player.play().catch((e: any) => console.error("[hiffi] Muted autoplay also failed:", e))
+          } else if (errorName !== 'AbortError') {
+            console.warn(`[hiffi] ${videoSourceType?.toUpperCase()} Autoplay failed:`, err)
+          }
+        })
+      }
+    })
+
     return () => {
-      // We don't dispose here yet because signedVideoUrl might change
-      // or component might re-render. Disposal is handled in a separate effect.
+      // Cleanup is handled by separate effect
     }
-  }, [isReady, signedVideoUrl, autoPlay])
+  }, [isReady, signedVideoUrl, videoSourceType, autoPlay])
 
   // Proper Cleanup on Unmount
   useEffect(() => {
@@ -568,10 +579,77 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     const handlePlaying = () => setIsBuffering(false)
     const handleError = () => {
       const error = player.error()
-      console.error("[hiffi] VideoJS Error:", error)
-      if (error) {
-        setUrlError(`Playback error: ${error.message || error.code}`)
+      if (!error) return
+
+      const errorCode = error.code
+      const errorMessage = error.message
+      console.error(`[hiffi] VideoJS Error (Code ${errorCode}):`, errorMessage, error)
+      
+      // Automatic Fallback Logic
+      // Trigger if HLS fails OR if we get a source not supported error
+      const isHls = videoSourceTypeRef.current === 'hls'
+      const shouldFallback = (isHls || errorCode === 4) && !fallbackRef.current
+      
+      if (shouldFallback) {
+        console.warn("[hiffi] HLS/Source failure detected, forcing automatic fallback to MP4...")
+        fallbackRef.current = true
+        setFallbackAttempted(true)
+        
+        // Robust way to get base URL
+        const currentUrl = signedVideoUrlRef.current || ""
+        let baseUrl = currentUrl
+        
+        // If it's a proxied URL, we need to extract the original URL first
+        if (currentUrl.includes('/proxy/video/stream?url=')) {
+          const urlParam = new URLSearchParams(currentUrl.split('?')[1]).get('url')
+          if (urlParam) baseUrl = urlParam
+        }
+
+        // Now derive the base path (remove hls/master.m3u8 or original/source.mp4)
+        if (baseUrl.includes('/hls/')) {
+          baseUrl = baseUrl.split('/hls/')[0]
+        } else if (baseUrl.includes('/original/')) {
+          baseUrl = baseUrl.split('/original/')[0]
+        } else {
+          baseUrl = baseUrl.replace(/\/master\.m3u8$/, "").replace(/\/hls$/, "")
+        }
+        
+        const rawMp4Url = `${baseUrl.replace(/\/$/, "")}/original/source.mp4`
+        const playableMp4Url = rawMp4Url.startsWith(WORKERS_BASE_URL)
+          ? `/proxy/video/stream?url=${encodeURIComponent(rawMp4Url)}`
+          : rawMp4Url
+          
+        console.log(`[hiffi] Fallback path: ${rawMp4Url} -> ${playableMp4Url}`)
+        
+        // 1. Update state and refs immediately
+        setVideoSourceType('mp4')
+        videoSourceTypeRef.current = 'mp4'
+        setSignedVideoUrl(playableMp4Url)
+        signedVideoUrlRef.current = playableMp4Url
+        
+        // 2. Perform a "Hard Reload" of the source
+        player.error(null) // Clear error
+        player.src({
+          src: playableMp4Url,
+          type: "video/mp4"
+        })
+        
+        // 3. Re-initialize playback
+        setTimeout(() => {
+          player.load()
+          player.play().catch((err: any) => {
+            const errorName = err && (err.name || (err.constructor && err.constructor.name));
+            if (errorName !== 'AbortError') {
+              console.error("[hiffi] Fallback playback failed:", err)
+              setUrlError("Video source unavailable. Please try again later.")
+            }
+          })
+        }, 100)
+        return
       }
+
+      // If we reach here, it's either not a fallback case or fallback already failed
+      setUrlError(`Playback error: ${errorMessage || "The video could not be loaded."}`)
     }
 
     player.on('play', handlePlay)
@@ -593,7 +671,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       player.off('playing', handlePlaying)
       player.off('error', handleError)
     }
-  }, [isReady, signedVideoUrl])
+  }, [isReady, signedVideoUrl, videoSourceType])
 
   const togglePlay = () => {
     const player = playerRef.current

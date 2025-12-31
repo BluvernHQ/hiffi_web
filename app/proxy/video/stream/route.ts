@@ -59,55 +59,20 @@ export async function GET(request: NextRequest) {
       'x-api-key': apiKey,
     }
 
-    // Smart progressive chunk sizing for optimal startup
+    // Pass through the Range header exactly as the browser sent it.
+    // This allows the browser to manage its own buffer and MOOV atom discovery
+    // without the proxy bottlenecking the requests into small chunks.
     if (rangeHeader) {
-      // Parse the range request
-      const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/)
-      if (rangeMatch) {
-        const start = parseInt(rangeMatch[1])
-        const end = rangeMatch[2] ? parseInt(rangeMatch[2]) : undefined
-        
-        if (!end) {
-          // Progressive chunk sizing based on position
-          let chunkSize: number
-          
-          if (start === 0) {
-            // First chunk: Small for instant playback (512KB)
-            chunkSize = 512 * 1024
-            console.log(`[hiffi] Initial chunk: bytes=${start}-${start + chunkSize} (512KB) - fast start`)
-          } else if (start < 4 * 1024 * 1024) {
-            // Next 4MB: Medium chunks (1MB) - build buffer quickly
-            chunkSize = 1 * 1024 * 1024
-            console.log(`[hiffi] Early buffer: bytes=${start}-${start + chunkSize} (1MB)`)
-          } else {
-            // After 4MB: Large chunks (2MB) - sustained buffering
-            chunkSize = 2 * 1024 * 1024
-            console.log(`[hiffi] Progressive load: bytes=${start}-${start + chunkSize} (2MB)`)
-          }
-          
-          headers['Range'] = `bytes=${start}-${start + chunkSize}`
-        } else {
-          // Explicit range - honor it
-          headers['Range'] = rangeHeader
-          console.log(`[hiffi] Explicit range: ${rangeHeader}`)
-        }
-      } else {
       headers['Range'] = rangeHeader
-      }
+      console.log(`[hiffi] Proxying Range request: ${rangeHeader}`)
     } else {
-      // No range header - return first 512KB for instant start
-      const INSTANT_START_SIZE = 512 * 1024 // 512KB
-      headers['Range'] = `bytes=0-${INSTANT_START_SIZE}`
-      console.log(`[hiffi] Instant start: requesting first 512KB`)
+      console.log(`[hiffi] No range header, requesting full stream pass-through`)
     }
 
-    // Fetch video from Workers with Range support
-    // Use keep-alive connection pooling for better performance
+    // Fetch video from Workers with streaming support
     const response = await fetch(videoUrl, {
       headers,
-      // Don't follow redirects automatically - let Workers handle it
       redirect: 'follow',
-      // Use keep-alive for connection reuse
       keepalive: true,
     })
 
