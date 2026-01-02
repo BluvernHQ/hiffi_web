@@ -3,9 +3,10 @@
 import type React from "react"
 
 import { useState, useEffect, Suspense } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
+import { validateRedirect, buildSignupUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,13 +22,20 @@ function LoginForm() {
   const [error, setError] = useState("")
   const { login, user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Get redirect parameter from URL (preserved from where user came from)
+  const redirectParam = searchParams.get('redirect')
+  const redirectPath = validateRedirect(redirectParam)
 
-  // Redirect to home if already logged in
+  // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/")
+      // Use redirect path if valid, otherwise go to home
+      const destination = redirectPath || "/"
+      router.replace(destination)
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router, redirectPath])
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -52,7 +60,9 @@ function LoginForm() {
     setError("")
 
     try {
-      await login(username, password)
+      // Pass redirect path to login function - it will handle navigation after successful auth
+      await login(username, password, redirectPath)
+      // Note: Navigation happens inside login() function, so we don't need to navigate here
     } catch (err: any) {
       // Don't show error message if it's about disabled account (toast already shown)
       if (err.message?.includes("disabled")) {
@@ -67,7 +77,9 @@ function LoginForm() {
   }
 
   const handleSkip = () => {
-    router.push("/")
+    // If there's a valid redirect, go there; otherwise go home
+    const destination = redirectPath || "/"
+    router.replace(destination)
   }
 
   return (
@@ -149,7 +161,10 @@ function LoginForm() {
         <CardFooter className="flex justify-center">
           <div className="text-center text-sm">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
+            <Link 
+              href={redirectPath ? buildSignupUrl(redirectPath) : "/signup"} 
+              className="text-primary hover:underline font-medium"
+            >
               Sign up
             </Link>
           </div>

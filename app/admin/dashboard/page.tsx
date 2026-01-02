@@ -87,10 +87,42 @@ function AdminDashboardContent() {
   }
 
   const handleLogoutConfirm = async () => {
+    setIsLoggingOut(true)
+    // Close dialog immediately before logout to prevent overlay from blocking interactions
+    setLogoutDialogOpen(false)
     try {
-      setIsLoggingOut(true)
+      // Force cleanup of dialog overlay elements
+      if (typeof window !== "undefined") {
+        // Wait for React to process state update
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        
+        // Aggressively remove all dialog-related elements
+        const cleanup = () => {
+          // Remove overlay elements
+          const overlayElements = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-focus-guard]')
+          overlayElements.forEach(el => {
+            try {
+              el.remove()
+            } catch (e) {
+              // Ignore errors
+            }
+          })
+          
+          // Reset body styles
+          document.body.style.pointerEvents = ""
+          document.body.style.overflow = ""
+        }
+        
+        // Cleanup immediately
+        cleanup()
+        
+        // Cleanup again after a short delay to catch any elements that were added during animation
+        await new Promise(resolve => setTimeout(resolve, 150))
+        cleanup()
+      }
+      
       await logout()
-      router.replace("/admin")
+      // logout() will redirect to "/", so we don't need to reset state here
     } catch (error) {
       console.error("Logout failed:", error)
       toast({
@@ -98,8 +130,17 @@ function AdminDashboardContent() {
         description: "Failed to logout. Please try again.",
         variant: "destructive",
       })
+      // Reset state if logout fails so user can try again
       setIsLoggingOut(false)
       setLogoutDialogOpen(false)
+      
+      // Cleanup on error as well
+      if (typeof window !== "undefined") {
+        const overlayElements = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-focus-guard]')
+        overlayElements.forEach(el => el.remove())
+        document.body.style.pointerEvents = ""
+        document.body.style.overflow = ""
+      }
     }
   }
 

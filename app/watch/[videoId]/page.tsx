@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
 import { VideoCard } from "@/components/video/video-card"
+import { CompactVideoCard } from "@/components/video/compact-video-card"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -20,6 +21,7 @@ import { getThumbnailUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { getSeed } from "@/lib/seed-manager"
 import { DeleteVideoDialog } from "@/components/video/delete-video-dialog"
+import { AuthDialog } from "@/components/auth/auth-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,6 +96,7 @@ export default function WatchPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [urlError, setUrlError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [upvoteState, setUpvoteState] = useState<{ upvoted: boolean; downvoted: boolean }>({
     upvoted: false,
     downvoted: false,
@@ -103,7 +106,8 @@ export default function WatchPage() {
   
   // Memoize sliced suggested videos to prevent unnecessary re-renders and glitches 
   // when toggling description or other UI states.
-  const sidebarSuggestedVideos = useMemo(() => relatedVideos.slice(0, 6), [relatedVideos])
+  // Show more videos in YouTube-style compact layout
+  const sidebarSuggestedVideos = useMemo(() => relatedVideos.slice(0, 20), [relatedVideos])
   const playerSuggestedVideos = useMemo(() => relatedVideos.slice(0, 8), [relatedVideos])
 
   useEffect(() => {
@@ -434,10 +438,7 @@ export default function WatchPage() {
 
   const handleFollow = async () => {
     if (!user || !userData) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to follow users",
-      })
+      setAuthDialogOpen(true)
       return
     }
 
@@ -658,7 +659,7 @@ export default function WatchPage() {
                         {(videoCreator?.followers ?? 0).toLocaleString()} followers
                       </span>
                     </div>
-                    {user && userData && (userData?.username) !== (video.userUsername || video.user_username) && (
+                    {(userData?.username) !== (video.userUsername || video.user_username) && (
                       <Button
                         variant={isFollowing ? "secondary" : "default"}
                         size="sm"
@@ -750,15 +751,15 @@ export default function WatchPage() {
               </div>
             </div>
 
-            {/* Sidebar / Related Videos */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Up Next</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 items-start">
-                {sidebarSuggestedVideos.map((video) => (
-                  <VideoCard key={video.videoId || video.video_id} video={video} />
-                ))}
-              </div>
-            </div>
+              {/* Sidebar / Related Videos - YouTube Style */}
+             <div className="space-y-2">
+               <h3 className="font-semibold text-sm mb-3 px-1">Up Next</h3>
+               <div className="flex flex-col gap-1">
+                 {sidebarSuggestedVideos.map((video) => (
+                   <CompactVideoCard key={video.videoId || video.video_id} video={video} />
+                 ))}
+               </div>
+             </div>
           </div>
         </div>
       
@@ -768,6 +769,12 @@ export default function WatchPage() {
         videoId={videoId}
         videoTitle={video.videoTitle || video.video_title}
         onDeleted={handleVideoDeleted}
+      />
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        title="Sign in to follow creators"
+        description="Create an account or sign in to follow creators and stay updated with their latest videos."
       />
     </AppLayout>
   )
