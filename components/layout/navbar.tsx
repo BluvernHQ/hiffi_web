@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { buildLoginUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
@@ -28,7 +29,8 @@ interface NavbarProps {
   currentFilter?: 'all' | 'following'
 }
 
-export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+// Internal component that uses useSearchParams - wrapped in Suspense
+function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
@@ -246,5 +248,25 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+// Public Navbar component wrapped in Suspense
+export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+  return (
+    <Suspense fallback={
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center">
+          <div className="flex items-center gap-2 sm:gap-4 px-4 flex-shrink-0">
+            <Link href="/" className="flex items-center gap-2">
+              <Logo size={32} showText={false} />
+              <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+    }>
+      <NavbarContent onMenuClick={onMenuClick} currentFilter={currentFilter} />
+    </Suspense>
   )
 }
