@@ -911,6 +911,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           }}
           visible={showNextUpOverlay}
           isVideoPlaying={isPlaying}
+          hasVideoEnded={hasEnded}
         />
       )}
 

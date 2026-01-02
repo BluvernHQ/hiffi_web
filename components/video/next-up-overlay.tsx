@@ -21,6 +21,7 @@ interface NextUpOverlayProps {
   onCancel?: () => void
   visible: boolean
   isVideoPlaying?: boolean // Pause countdown when video is paused
+  hasVideoEnded?: boolean // If true, countdown should continue even if video is not playing
 }
 
 export function NextUpOverlay({
@@ -29,7 +30,8 @@ export function NextUpOverlay({
   onPlay,
   onCancel,
   visible,
-  isVideoPlaying = true
+  isVideoPlaying = true,
+  hasVideoEnded = false
 }: NextUpOverlayProps) {
   const [countdown, setCountdown] = useState(countdownDuration)
   const [isPaused, setIsPaused] = useState(false)
@@ -64,8 +66,27 @@ export function NextUpOverlay({
   }, [visible, countdownDuration])
 
   // Pause/resume countdown based on video playback state
+  // Note: If video has ended, countdown should continue regardless of playback state
   useEffect(() => {
     if (!visible) return
+
+    // Don't pause countdown if video has ended - let it continue to autoplay
+    if (hasVideoEnded) {
+      // Ensure countdown is not paused when video has ended
+      if (isPaused) {
+        setIsPaused(false)
+        // Resume any paused time
+        if (pauseStartTimeRef.current !== null) {
+          const pausedDuration = (performance.now() - pauseStartTimeRef.current) / 1000
+          pausedTimeRef.current += pausedDuration
+          if (startTimeRef.current !== null) {
+            startTimeRef.current += pausedDuration * 1000
+          }
+          pauseStartTimeRef.current = null
+        }
+      }
+      return
+    }
 
     if (!isVideoPlaying && !isPaused) {
       // Video paused - pause countdown
@@ -91,7 +112,7 @@ export function NextUpOverlay({
       }
       setIsPaused(false)
     }
-  }, [isVideoPlaying, visible, isPaused])
+  }, [isVideoPlaying, visible, isPaused, hasVideoEnded])
 
   // Countdown animation using requestAnimationFrame for smooth updates
   useEffect(() => {
