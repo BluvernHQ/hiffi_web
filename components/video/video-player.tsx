@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, WORKERS_BASE_URL } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
+import { NextUpOverlay } from "./next-up-overlay"
+import { AuthenticatedImage } from "./authenticated-image"
 
 // Add declaration for videojs since we're loading it from CDN
 declare global {
@@ -31,6 +33,7 @@ interface VideoPlayerProps {
   poster?: string
   autoPlay?: boolean
   suggestedVideos?: any[]
+  onVideoEnd?: () => void
 }
 
 const STORAGE_KEYS = {
@@ -38,7 +41,7 @@ const STORAGE_KEYS = {
   MUTED: 'hiffi_player_muted'
 }
 
-export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideos }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideos, onVideoEnd }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
@@ -108,9 +111,12 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const [hasResolvedOnce, setHasResolvedOnce] = useState(false)
   
   const [hasEnded, setHasEnded] = useState(false)
+  const [showNextUpOverlay, setShowNextUpOverlay] = useState(false)
   const [isPlayerAwake, setIsPlayerAwake] = useState(false)
   const awakeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isSwitchingQualityRef = useRef(false)
+  const durationRef = useRef(0)
+  const autoplayCanceledRef = useRef(false) // Track if user canceled autoplay
   
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
@@ -271,6 +277,13 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
     }
   }, [isPlaying, isPlayerAwake])
+
+  // Reset autoplay canceled flag when video URL changes (new video)
+  useEffect(() => {
+    if (signedVideoUrl) {
+      autoplayCanceledRef.current = false
+    }
+  }, [signedVideoUrl])
 
   // Fetch poster with auth if needed
   useEffect(() => {
@@ -542,14 +555,39 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     const handlePause = () => setIsPlaying(false)
     const handleTimeUpdate = () => {
       if (!isSwitchingQualityRef.current) {
-        setCurrentTime(player.currentTime())
+        const currentTime = player.currentTime()
+        setCurrentTime(currentTime)
+        
+        // Show next up overlay when video is in last 10 seconds
+        if (durationRef.current > 0 && currentTime > 0 && suggestedVideos && suggestedVideos.length > 0) {
+          const timeRemaining = durationRef.current - currentTime
+          const SHOW_OVERLAY_THRESHOLD = 10 // Show overlay in last 10 seconds
+          
+          if (timeRemaining <= SHOW_OVERLAY_THRESHOLD && !showNextUpOverlay && !hasEnded && !autoplayCanceledRef.current) {
+            setShowNextUpOverlay(true)
+          } else if (timeRemaining > SHOW_OVERLAY_THRESHOLD && showNextUpOverlay) {
+            setShowNextUpOverlay(false)
+          }
+        }
       }
     }
-    const handleDurationChange = () => setDuration(player.duration())
+    const handleDurationChange = () => {
+      const newDuration = player.duration()
+      setDuration(newDuration)
+      durationRef.current = newDuration
+    }
     const handleEnded = () => {
       setIsPlaying(false)
       setHasEnded(true)
       setIsBuffering(false)
+      
+      // Show next up overlay if not already showing and autoplay wasn't canceled
+      if (!showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && !autoplayCanceledRef.current) {
+        setShowNextUpOverlay(true)
+      }
+      
+      // Note: onVideoEnd will be called by NextUpOverlay when countdown completes
+      // or when user clicks play
     }
     const handleWaiting = () => setIsBuffering(true)
     const handlePlaying = () => setIsBuffering(false)
@@ -706,9 +744,40 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     
     if (!player) return
 
+    // Store whether player was playing before seek
+    const wasPlaying = !player.paused()
+    
+    // Check if seeking back beyond threshold - hide overlay if so
+    if (durationRef.current > 0) {
+      const timeRemaining = durationRef.current - newTime
+      const SHOW_OVERLAY_THRESHOLD = 10
+      if (timeRemaining > SHOW_OVERLAY_THRESHOLD && showNextUpOverlay) {
+        setShowNextUpOverlay(false)
+      }
+    }
+    
     setIsBuffering(true)
     setCurrentTime(newTime)
     player.currentTime(newTime)
+    
+    // If player was playing, ensure it continues playing after seek
+    // Use a small delay to allow the seek to complete
+    if (wasPlaying) {
+      setTimeout(() => {
+        const playerAfterSeek = playerRef.current
+        if (playerAfterSeek && playerAfterSeek.paused()) {
+          // Only resume if still paused (user didn't pause manually)
+          safePlay(playerAfterSeek).catch(() => {
+            // Ignore autoplay errors - user can manually play
+          })
+        }
+      }, 100)
+    }
+    
+    // Clear buffering state after a reasonable delay
+    setTimeout(() => {
+      setIsBuffering(false)
+    }, 500)
   }
 
   // Handle fullscreen changes (e.g. via ESC key)
@@ -823,8 +892,30 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         </div>
       </div>
 
-      {/* Fade to black overlay when video ends */}
-      {hasEnded && (
+      {/* Next Up Overlay - Shows when video is ending or has ended */}
+      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
+        <NextUpOverlay
+          nextVideo={suggestedVideos[0]}
+          countdownDuration={5}
+          onPlay={() => {
+            setShowNextUpOverlay(false)
+            autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
+            if (onVideoEnd) {
+              onVideoEnd()
+            }
+          }}
+          onCancel={() => {
+            setShowNextUpOverlay(false)
+            setHasEnded(false)
+            autoplayCanceledRef.current = true // Mark autoplay as canceled
+          }}
+          visible={showNextUpOverlay}
+          isVideoPlaying={isPlaying}
+        />
+      )}
+
+      {/* Fade to black overlay when video ends (only if next up overlay not showing) */}
+      {hasEnded && !showNextUpOverlay && (
         <div 
           className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
           onClick={togglePlay}

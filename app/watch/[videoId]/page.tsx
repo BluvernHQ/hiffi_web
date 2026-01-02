@@ -601,6 +601,18 @@ export default function WatchPage() {
     router.push("/")
   }
 
+  const handleVideoEnd = () => {
+    // Autoplay next video from suggested videos
+    if (sidebarSuggestedVideos && sidebarSuggestedVideos.length > 0) {
+      const nextVideo = sidebarSuggestedVideos[0]
+      const nextVideoId = nextVideo.videoId || nextVideo.video_id
+      if (nextVideoId) {
+        console.log("[hiffi] Autoplaying next video:", nextVideoId)
+        router.push(`/watch/${nextVideoId}`)
+      }
+    }
+  }
+
   return (
     <AppLayout>
       <div className="p-4 lg:p-6 pb-0 lg:pb-6">
@@ -612,6 +624,7 @@ export default function WatchPage() {
                 poster={thumbnailUrl} 
                 autoPlay 
                 suggestedVideos={playerSuggestedVideos}
+                onVideoEnd={handleVideoEnd}
               />
 
               <div className="space-y-4 min-w-0">
