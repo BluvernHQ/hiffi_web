@@ -23,11 +23,14 @@ function isValidFilter(filter: string | null): filter is FilterType {
 function saveStateToStorage(videos: any[], offset: number, hasMore: boolean, filter: FilterType) {
   if (typeof window === 'undefined') return
   try {
+    // Store current seed with state so we can detect refreshes
+    const currentSeed = getSeed()
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
       videos,
       offset,
       hasMore,
       filter,
+      seed: currentSeed,
       timestamp: Date.now()
     }))
   } catch (error) {
@@ -264,13 +267,61 @@ function HomePageContent() {
     }
   }, [userData?.username, userData?.profile_picture, userData?.image, userData?.updated_at, videos.length])
 
-  // Initial load on mount - try to restore from storage first
+  // Initial load on mount - check if this is a page refresh
   useEffect(() => {
     try {
+      // Get the current seed - this will generate a new one if page was refreshed
+      // The seed manager clears the seed on refresh, so getSeed() will generate a new seed
+      const currentSeed = getSeed()
+      
+      // Check if there's saved state
       const restoredState = loadStateFromStorage('all')
       
-      if (restoredState) {
-        // Restore state from sessionStorage
+      // Check if saved state has a seed stored (from previous session)
+      let savedStateSeed: string | null = null
+      if (restoredState && typeof window !== 'undefined') {
+        try {
+          const stored = sessionStorage.getItem(STORAGE_KEY)
+          if (stored) {
+            const state = JSON.parse(stored)
+            savedStateSeed = state.seed || null
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+      
+      // If saved state exists but seed doesn't match (or wasn't stored), it's a refresh
+      // Clear saved state and fetch fresh videos with new seed
+      if (restoredState && savedStateSeed && savedStateSeed !== currentSeed) {
+        console.log('[hiffi] Page refresh detected - seed changed, clearing saved state and fetching fresh videos')
+        console.log('[hiffi] Old seed:', savedStateSeed, 'New seed:', currentSeed)
+        sessionStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(SCROLL_KEY)
+        setOffset(0)
+        setHasMore(true)
+        setVideos([])
+        fetchVideos(0, true)
+        return
+      }
+      
+      // If saved state exists and seed matches (or no seed was stored), restore state
+      if (restoredState && (!savedStateSeed || savedStateSeed === currentSeed)) {
+        // Store current seed with state for next comparison
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = sessionStorage.getItem(STORAGE_KEY)
+            if (stored) {
+              const state = JSON.parse(stored)
+              state.seed = currentSeed
+              sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+        
+        // Restore state from sessionStorage (same session, just navigating back)
         console.log('[hiffi] Restoring state from storage:', {
           videos: restoredState.videos.length,
           offset: restoredState.offset,

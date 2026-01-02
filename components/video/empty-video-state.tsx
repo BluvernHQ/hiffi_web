@@ -4,6 +4,8 @@ import { Video, Upload, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
+import { usePathname, useSearchParams } from "next/navigation"
+import { buildLoginUrl } from "@/lib/auth-utils"
 
 interface EmptyVideoStateProps {
   title?: string
@@ -17,6 +19,8 @@ export function EmptyVideoState({
   showUploadButton = true 
 }: EmptyVideoStateProps) {
   const { user, userData } = useAuth()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const isCreator = userData?.role === "creator"
   const defaultDescription = user 
     ? "Be the first to share a video and start the community!"
@@ -56,7 +60,7 @@ export function EmptyVideoState({
       
       {showUploadButton && !user && (
         <Button asChild size="lg" variant="outline" className="mt-2">
-          <Link href="/login">
+          <Link href={buildLoginUrl(pathname, searchParams.toString() ? `?${searchParams.toString()}` : undefined)}>
             Sign In to Upload
           </Link>
         </Button>

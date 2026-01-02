@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from '@/lib/utils';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialog';
+import { AuthDialog } from '@/components/auth/auth-dialog';
 
 export default function ProfilePage() {
   const params = useParams();
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const [hasTriedFetch, setHasTriedFetch] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isProfilePictureDialogOpen, setIsProfilePictureDialogOpen] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [profilePictureVersion, setProfilePictureVersion] = useState(0);
   const [isUnauthenticated, setIsUnauthenticated] = useState(false);
@@ -457,10 +459,7 @@ export default function ProfilePage() {
 
   const handleFollow = async () => {
     if (!currentUserData) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to follow users",
-      });
+      setAuthDialogOpen(true);
       return;
     }
 
@@ -1166,6 +1165,12 @@ export default function ProfilePage() {
                   await new Promise(resolve => setTimeout(resolve, 100))
                   await fetchUserData(true)
                 }}
+              />
+              <AuthDialog
+                open={authDialogOpen}
+                onOpenChange={setAuthDialogOpen}
+                title="Sign in to follow creators"
+                description="Create an account or sign in to follow creators and stay updated with their latest videos."
               />
             </>
           )}

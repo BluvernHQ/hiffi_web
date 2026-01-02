@@ -4,6 +4,8 @@ import { Users, Search, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
+import { usePathname, useSearchParams } from "next/navigation"
+import { buildLoginUrl } from "@/lib/auth-utils"
 
 interface FollowingEmptyStateProps {
   hasFollowedUsers: boolean
@@ -12,6 +14,8 @@ interface FollowingEmptyStateProps {
 
 export function FollowingEmptyState({ hasFollowedUsers, onDiscoverClick }: FollowingEmptyStateProps) {
   const { user } = useAuth()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4">
@@ -31,7 +35,7 @@ export function FollowingEmptyState({ hasFollowedUsers, onDiscoverClick }: Follo
             Follow creators to build your personalized video feed
           </p>
           <Button asChild size="lg" className="mt-4">
-            <Link href="/login">
+            <Link href={buildLoginUrl(pathname, searchParams.toString() ? `?${searchParams.toString()}` : undefined)}>
               <LogIn className="mr-2 h-4 w-4" />
               Sign In
             </Link>

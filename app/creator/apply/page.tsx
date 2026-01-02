@@ -56,12 +56,12 @@ export default function BecomeCreatorPage() {
     try {
       setIsUnlocking(true)
       
-      // Update user role to creator
-      // Sends: PUT /users/{username} with body: { "role": "creator" } and Bearer token
+      // Update user role to creator via PUT /users/self
+      // Sends: PUT /users/self with body: { "role": "creator" } and Bearer token
       console.log("[creator] Updating user role to 'creator'")
-      console.log("[creator] Sending request: PUT /users/{username} with body: { role: 'creator' }")
+      console.log("[creator] Sending request: PUT /users/self with body: { role: 'creator' }")
       
-      const updateResponse = await apiClient.updateUser(userData.username, { role: "creator" }) // Note: role update may not be officially supported per API docs
+      const updateResponse = await apiClient.updateSelfUser({ role: "creator" })
       console.log("[creator] Update API response (full):", JSON.stringify(updateResponse, null, 2))
       
       // Check if the response contains the updated user data

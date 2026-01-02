@@ -1,8 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { buildLoginUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2 } from "lucide-react"
@@ -27,12 +29,15 @@ interface NavbarProps {
   currentFilter?: 'all' | 'following'
 }
 
-export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+// Internal component that uses useSearchParams - wrapped in Suspense
+function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
@@ -42,13 +47,55 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   }
 
   const handleLogoutConfirm = async () => {
+    setIsLoggingOut(true)
+    // Close dialog immediately before logout to prevent overlay from blocking interactions
+    setLogoutDialogOpen(false)
     try {
-      setIsLoggingOut(true)
+      // Force cleanup of dialog overlay elements
+      if (typeof window !== "undefined") {
+        // Wait for React to process state update
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        
+        // Aggressively remove all dialog-related elements
+        const cleanup = () => {
+          // Remove overlay elements
+          const overlayElements = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-focus-guard]')
+          overlayElements.forEach(el => {
+            try {
+              el.remove()
+            } catch (e) {
+              // Ignore errors
+            }
+          })
+          
+          // Reset body styles
+          document.body.style.pointerEvents = ""
+          document.body.style.overflow = ""
+        }
+        
+        // Cleanup immediately
+        cleanup()
+        
+        // Cleanup again after a short delay to catch any elements that were added during animation
+        await new Promise(resolve => setTimeout(resolve, 150))
+        cleanup()
+      }
+      
       await logout()
+      // logout() will redirect, so we don't need to reset state here
     } catch (error) {
       console.error("Logout failed:", error)
+      // Reset state if logout fails so user can try again
       setIsLoggingOut(false)
       setLogoutDialogOpen(false)
+      
+      // Cleanup on error as well
+      if (typeof window !== "undefined") {
+        const overlayElements = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-focus-guard]')
+        overlayElements.forEach(el => el.remove())
+        document.body.style.pointerEvents = ""
+        document.body.style.overflow = ""
+      }
     }
   }
 
@@ -156,7 +203,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
             ) : (
               <div className="flex items-center gap-2">
                 <Button asChild className="rounded-full px-6">
-                  <Link href="/login">Log in</Link>
+                  <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>
                 </Button>
               </div>
             )}
@@ -201,5 +248,25 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+// Public Navbar component wrapped in Suspense
+export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+  return (
+    <Suspense fallback={
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center">
+          <div className="flex items-center gap-2 sm:gap-4 px-4 flex-shrink-0">
+            <Link href="/" className="flex items-center gap-2">
+              <Logo size={32} showText={false} />
+              <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+    }>
+      <NavbarContent onMenuClick={onMenuClick} currentFilter={currentFilter} />
+    </Suspense>
   )
 }

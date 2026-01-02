@@ -364,7 +364,7 @@ class ApiClient {
   }
 
   // Auth endpoints
-  async register(data: { username: string; name: string; password: string }): Promise<{
+  async register(data: { username: string; name: string; password: string; email: string }): Promise<{
     success: boolean
     data: {
       id: number
@@ -730,11 +730,38 @@ class ApiClient {
     }
   }
 
+  // Update current user via PUT /users/self
+  // This endpoint allows users to update their own profile including role
+  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      user?: any
+      data?: { user: any }
+    }>(
+      "/users/self",
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
+    
+    // Normalize response structure
+    const isSuccess = response.status === "success" || response.success !== false
+    const userData = response.user || response.data?.user || response.data || response
+    
+    return {
+      success: isSuccess,
+      user: userData,
+    }
+  }
+
   // Note: updateUser is not in the official API docs - users can only update themselves via updateSelf
   // Keeping this for potential admin use, but it may not be supported by the backend
   // Also supports profile_picture field for profile picture updates
   async updateUser(username: string, data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; [key: string]: any }): Promise<any> {
-    console.warn("[API] updateUser is not in the official API docs. Use updateSelf instead.")
+    console.warn("[API] updateUser is not in the official API docs. Use updateSelfUser instead.")
     return this.request(
       `/users/${username}`,
       {

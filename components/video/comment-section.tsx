@@ -13,6 +13,8 @@ import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
+import { usePathname, useSearchParams } from "next/navigation"
+import { buildLoginUrl } from "@/lib/auth-utils"
 
 interface Comment {
   comment_id: string
@@ -36,6 +38,9 @@ interface Reply {
 export function CommentSection({ videoId }: { videoId: string }) {
   const { user, userData } = useAuth()
   const { toast } = useToast()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
   const [isLoading, setIsLoading] = useState(true)
@@ -168,7 +173,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
         <div className="bg-muted p-4 rounded-lg text-center">
           <p className="text-muted-foreground mb-2">Sign in to leave a comment</p>
           <Button asChild variant="outline">
-            <Link href="/login">Sign In</Link>
+            <Link href={buildLoginUrl(pathname, searchParamsString)}>Sign In</Link>
           </Button>
         </div>
       )}

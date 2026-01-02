@@ -2,12 +2,13 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
+import { validateRedirect, buildLoginUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,31 +16,41 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, Check, X, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
 
-export default function SignupPage() {
+function SignupForm() {
   const [name, setName] = useState("")
   const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [nameError, setNameError] = useState("")
   const [usernameError, setUsernameError] = useState("")
+  const [emailError, setEmailError] = useState("")
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const { signup, user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
 
   // Validation regex patterns
   const nameRegex = /^[a-zA-Z\s]*$/ // Only letters and spaces
   const usernameRegex = /^[a-z0-9_]*$/ // Lowercase letters, numbers, and underscores only
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/ // Basic email format validation
 
-  // Redirect to home if already logged in
+  // Get redirect parameter from URL (preserved from where user came from)
+  const redirectParam = searchParams.get('redirect')
+  const redirectPath = validateRedirect(redirectParam)
+
+  // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/")
+      // Use redirect path if valid, otherwise go to home
+      const destination = redirectPath || "/"
+      router.replace(destination)
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router, redirectPath])
 
   // Validate full name
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,6 +73,20 @@ export default function SignupPage() {
       setUsernameError("")
     } else {
       setUsernameError("Username can only contain lowercase letters, numbers, and underscores")
+    }
+  }
+
+  // Validate email format
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.trim()
+    setEmail(value)
+    
+    if (value === "") {
+      setEmailError("")
+    } else if (!emailRegex.test(value)) {
+      setEmailError("Please enter a valid email address")
+    } else {
+      setEmailError("")
     }
   }
 
@@ -150,8 +175,22 @@ export default function SignupPage() {
       return
     }
 
+    // Validate email
+    if (!email.trim()) {
+      setEmailError("Email is required")
+      setIsLoading(false)
+      return
+    }
+    if (!emailRegex.test(email.trim())) {
+      setEmailError("Please enter a valid email address")
+      setIsLoading(false)
+      return
+    }
+
     try {
-      await signup(username, password, name.trim())
+      // Pass redirect path to signup function - it will handle navigation after successful auth
+      await signup(username, password, name.trim(), email.trim(), redirectPath)
+      // Note: Navigation happens inside signup() function, so we don't need to navigate here
     } catch (err: any) {
       const errorMessage = err.message || "Something went wrong. Please try again."
       const errorStatus = err.status || 0
@@ -180,7 +219,9 @@ export default function SignupPage() {
   }
 
   const handleSkip = () => {
-    router.push("/")
+    // If there's a valid redirect, go there; otherwise go home
+    const destination = redirectPath || "/"
+    router.replace(destination)
   }
 
   return (
@@ -271,6 +312,25 @@ export default function SignupPage() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="john.doe@example.com"
+                value={email}
+                onChange={handleEmailChange}
+                autoComplete="email"
+                required
+                className={emailError ? "border-destructive" : ""}
+              />
+              {emailError && (
+                <p className="text-xs text-destructive">{emailError}</p>
+              )}
+              {!emailError && email && emailRegex.test(email) && (
+                <p className="text-xs text-muted-foreground">Valid email address</p>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
@@ -306,11 +366,14 @@ export default function SignupPage() {
                 checkingUsername || 
                 !!nameError ||
                 !!usernameError ||
+                !!emailError ||
                 !name.trim() ||
+                !email.trim() ||
                 username.length < 3 || 
                 username.length > 30 ||
                 (username.length > 0 && !usernameRegex.test(username)) ||
-                usernameAvailable === false
+                usernameAvailable === false ||
+                !emailRegex.test(email.trim())
               }
             >
               {isLoading ? (
@@ -332,12 +395,32 @@ export default function SignupPage() {
         <CardFooter className="flex justify-center">
           <div className="text-center text-sm">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
+            <Link 
+              href={redirectPath ? buildLoginUrl(redirectPath) : "/login"} 
+              className="text-primary hover:underline font-medium"
+            >
               Sign in
             </Link>
           </div>
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   )
 }

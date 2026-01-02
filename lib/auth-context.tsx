@@ -16,8 +16,8 @@ interface AuthContextType {
   user: User | null
   userData: any | null
   loading: boolean
-  login: (username: string, password: string) => Promise<void>
-  signup: (username: string, password: string, name: string) => Promise<void>
+  login: (username: string, password: string, redirectPath?: string | null) => Promise<void>
+  signup: (username: string, password: string, name: string, email: string, redirectPath?: string | null) => Promise<void>
   logout: () => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
 }
@@ -163,9 +163,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
-  const login = async (username: string, password: string) => {
+  // Global cleanup effect: Remove any blocking overlays that might persist after navigation
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const cleanupBlockingElements = () => {
+      // Reset body styles
+      document.body.style.pointerEvents = ""
+      document.body.style.overflow = ""
+      
+      // Remove Radix Dialog overlays
+      const selectors = [
+        '[data-radix-dialog-overlay]',
+        '[data-radix-focus-guard]',
+        '[data-radix-portal]'
+      ]
+      
+      selectors.forEach(selector => {
+        try {
+          document.querySelectorAll(selector).forEach(el => {
+            try {
+              el.remove()
+            } catch (e) {
+              // Ignore
+            }
+          })
+        } catch (e) {
+          // Ignore
+        }
+      })
+    }
+
+    // Run cleanup on mount
+    cleanupBlockingElements()
+
+    // Also run cleanup when page becomes visible (after navigation)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(cleanupBlockingElements, 50)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  const login = async (username: string, password: string, redirectPath?: string | null) => {
     try {
       console.log("[hiffi] Attempting login for:", username)
+      
       const response = await apiClient.login({ username, password })
       
       if (!response.success || !response.data) {
@@ -257,13 +306,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log("[hiffi] User data set after login")
       
-      // Check if user is admin and redirect to admin dashboard, otherwise redirect to home
+      // Check if user is admin and redirect to admin dashboard, otherwise use redirect path or home
       const userRole = String(finalUserData?.role || "").toLowerCase().trim()
       if (userRole === "admin") {
         console.log("[hiffi] User is admin, redirecting to admin dashboard")
-        router.push("/admin/dashboard")
+        router.replace("/admin/dashboard")
       } else {
-        router.push("/")
+        // Use redirect path if provided (from query param), otherwise go to home
+        const destination = redirectPath || "/"
+        console.log("[hiffi] Redirecting after login to:", destination)
+        router.replace(destination)
       }
     } catch (error: any) {
       console.error("[hiffi] Sign in failed:", error)
@@ -272,12 +324,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signup = async (username: string, password: string, name: string) => {
+  const signup = async (username: string, password: string, name: string, email: string, redirectPath?: string | null) => {
     try {
       console.log("[hiffi] Attempting signup for:", username)
 
       // Register user with backend
-      const response = await apiClient.register({ username, password, name })
+      const response = await apiClient.register({ username, password, name, email })
       
       if (!response.success || !response.data) {
         throw new Error("Registration failed. Please try again.")
@@ -298,9 +350,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Wait a moment for state updates to propagate to all components
       await new Promise(resolve => setTimeout(resolve, 150))
 
-      // User is authenticated and data is loaded, navigate to home
-      console.log("[hiffi] Signup complete, user authenticated with data loaded, navigating to home")
-      router.push("/")
+      // User is authenticated and data is loaded, navigate based on redirect path
+      const destination = redirectPath || "/"
+      console.log("[hiffi] Signup complete, redirecting to:", destination)
+      router.replace(destination)
     } catch (error: any) {
       console.error("[hiffi] Sign up failed:", error)
       
@@ -334,8 +387,96 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("[hiffi] Logout successful")
       
-      // Always redirect to home page after logout
-      router.push("/")
+      // Comprehensive cleanup function
+      const cleanupOverlays = () => {
+        if (typeof window === "undefined") return
+        
+        // Remove body styles that Radix Dialog sets
+        document.body.style.pointerEvents = ""
+        document.body.style.overflow = ""
+        
+        // Force remove any remaining Radix Dialog overlay elements
+        const overlaySelectors = [
+          '[data-radix-dialog-overlay]',
+          '[data-radix-focus-guard]',
+          '[data-radix-portal]',
+          '.radix-dialog-overlay'
+        ]
+        
+        overlaySelectors.forEach(selector => {
+          try {
+            const elements = document.querySelectorAll(selector)
+            elements.forEach(el => {
+              try {
+                el.remove()
+              } catch (e) {
+                // Ignore errors
+              }
+            })
+          } catch (e) {
+            // Ignore selector errors
+          }
+        })
+        
+        // Also check for any portal containers that might still be present
+        const portals = document.querySelectorAll('[data-radix-portal]')
+        portals.forEach(portal => {
+          // Remove if it contains dialog-related elements or is empty
+          if (portal.querySelector('[data-radix-dialog-overlay]') || portal.children.length === 0) {
+            try {
+              portal.remove()
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+        })
+      }
+
+      // Run cleanup immediately
+      if (typeof window !== "undefined") {
+        cleanupOverlays()
+        
+        // Conditional redirect: Stay on watch page, otherwise go home
+        const currentPath = window.location.pathname
+        if (currentPath.startsWith("/watch/")) {
+          console.log("[hiffi] User logged out on watch page, staying on current page")
+          router.refresh()
+          // Run cleanup multiple times to catch elements added during navigation
+          setTimeout(() => cleanupOverlays(), 50)
+          setTimeout(() => cleanupOverlays(), 150)
+          setTimeout(() => cleanupOverlays(), 300)
+        } else {
+          // Always redirect to home page after logout for other pages
+          router.replace("/")
+          // Run cleanup multiple times to catch elements added during navigation
+          setTimeout(() => cleanupOverlays(), 50)
+          setTimeout(() => cleanupOverlays(), 150)
+          setTimeout(() => cleanupOverlays(), 300)
+          
+          // Also add a listener for when the page becomes visible/ready
+          const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+              cleanupOverlays()
+            }
+          }
+          const handleLoad = () => {
+            cleanupOverlays()
+            setTimeout(cleanupOverlays, 100)
+          }
+          
+          document.addEventListener('visibilitychange', handleVisibilityChange)
+          window.addEventListener('load', handleLoad)
+          
+          // Clean up listeners after a delay
+          setTimeout(() => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+            window.removeEventListener('load', handleLoad)
+          }, 1000)
+        }
+      } else {
+        // Fallback for SSR if somehow called
+        router.replace("/")
+      }
     } catch (error) {
       console.error("[hiffi] Sign out failed:", error)
       throw error
