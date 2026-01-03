@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { Navbar } from "@/components/layout/navbar"
-import { Sidebar } from "@/components/layout/sidebar"
+import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Sparkles, Video, TrendingUp, Users, Zap, CheckCircle2 } from "lucide-react"
@@ -16,7 +15,6 @@ export default function BecomeCreatorPage() {
   const { user, userData, loading: authLoading, refreshUserData } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [isCreator, setIsCreator] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
@@ -57,38 +55,22 @@ export default function BecomeCreatorPage() {
       setIsUnlocking(true)
       
       // Update user role to creator via PUT /users/self
-      // Sends: PUT /users/self with body: { "role": "creator" } and Bearer token
       console.log("[creator] Updating user role to 'creator'")
-      console.log("[creator] Sending request: PUT /users/self with body: { role: 'creator' }")
-      
       const updateResponse = await apiClient.updateSelfUser({ role: "creator" })
-      console.log("[creator] Update API response (full):", JSON.stringify(updateResponse, null, 2))
+      console.log("[creator] Update API response:", updateResponse)
       
       // Check if the response contains the updated user data
       const updatedUser = updateResponse?.user
       const responseRole = updatedUser?.role
-      console.log("[creator] Role in update response:", responseRole)
-      
-      // If response shows role was updated, use it immediately
-      if (responseRole === "creator") {
-        console.log("[creator] Role updated successfully in API response!")
-      } else {
-        console.warn("[creator] Role not found as 'creator' in update response. Response role:", responseRole)
-      }
-      
-      // Wait a moment for backend to process, then refresh
-      await new Promise(resolve => setTimeout(resolve, 500))
       
       // Refresh user data to get the updated role from backend
       await refreshUserData(true)
       
-      // Wait again and verify the role was actually updated
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Verify the role was actually updated
       const verifyResponse = await apiClient.getUserByUsername(userData.username)
       const verifiedRole = verifyResponse?.success ? verifyResponse?.user?.role : null
-      console.log("[creator] Verified role after refresh:", verifiedRole)
       
-      if (verifiedRole === "creator") {
+      if (verifiedRole === "creator" || responseRole === "creator") {
         toast({
           title: "Congratulations! 🎉",
           description: "You are now a Hiffi Creator! Start uploading your videos.",
@@ -103,12 +85,10 @@ export default function BecomeCreatorPage() {
         }, 1500)
       } else {
         console.error("[creator] Role verification failed. Expected 'creator', got:", verifiedRole)
-        console.error("[creator] Full verification response:", verifyResponse)
         
-        // Show detailed error message
         toast({
           title: "Role Update Issue",
-          description: `The role update was sent but the backend returned role as '${verifiedRole || "user"}'. Please check the backend logs to ensure the PUT /users/{username} endpoint accepts and processes the 'role' field.`,
+          description: `The role update was sent but the backend returned role as '${verifiedRole || "user"}'. Please try again or contact support.`,
           variant: "destructive",
         })
         setIsUnlocking(false)
@@ -128,31 +108,23 @@ export default function BecomeCreatorPage() {
   // Show loading state while checking auth
   if (authLoading || isChecking) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 overflow-y-auto flex items-center justify-center w-full min-w-0">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading...</p>
-            </div>
-          </main>
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
   // If already a creator, show Hiffi Studio
   if (isCreator) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
-            <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-              <div className="max-w-5xl mx-auto">
+      <AppLayout>
+        <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                   <div className="flex items-center gap-3 mb-2">
@@ -250,21 +222,15 @@ export default function BecomeCreatorPage() {
                 </Card>
               </div>
             </div>
-          </main>
-        </div>
-      </div>
+      </AppLayout>
     )
   }
 
   // Show become creator page for non-creators
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-        <main className="flex-1 overflow-y-auto bg-background w-full min-w-0">
-          <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto">
+    <AppLayout>
+      <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
               {/* Hero Section */}
               <div className="text-center mb-8 mt-8">
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
@@ -359,8 +325,6 @@ export default function BecomeCreatorPage() {
               </Card>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+      </AppLayout>
   )
 }
