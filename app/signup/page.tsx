@@ -32,6 +32,9 @@ function SignupForm() {
   const [registrationId, setRegistrationId] = useState<string | null>(null)
   const [otp, setOtp] = useState("")
   const [isVerifying, setIsVerifying] = useState(false)
+  const [resendCountdown, setResendCountdown] = useState(0)
+  const [isResending, setIsResending] = useState(false)
+  const [registrationData, setRegistrationData] = useState<{ username: string; password: string; name: string; email: string } | null>(null)
   const { signup, verifyOtp, user, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -120,6 +123,56 @@ function SignupForm() {
 
     return () => clearTimeout(timer)
   }, [username])
+
+  // Countdown timer for resend OTP
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => {
+        setResendCountdown(resendCountdown - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCountdown])
+
+  const handleResendOtp = async () => {
+    if (!registrationData || isResending || resendCountdown > 0) {
+      return
+    }
+
+    setIsResending(true)
+    setError("")
+
+    try {
+      const result = await signup(
+        registrationData.username,
+        registrationData.password,
+        registrationData.name,
+        registrationData.email
+      )
+
+      if (!result.success) {
+        const errorMessage = result.error || "Failed to resend OTP. Please try again."
+        setError(errorMessage)
+        return
+      }
+
+      if (result.registrationId) {
+        setRegistrationId(result.registrationId)
+        setResendCountdown(60) // Start 60 second countdown
+        toast({
+          title: "OTP resent!",
+          description: "Please check your email for the new OTP code.",
+        })
+      } else {
+        setError("Failed to resend OTP. Please try again.")
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || "Failed to resend OTP. Please try again."
+      setError(errorMessage)
+    } finally {
+      setIsResending(false)
+    }
+  }
 
   // Show loading state while checking auth - moved after all hooks
   if (authLoading) {
@@ -216,6 +269,8 @@ function SignupForm() {
       // Registration successful, show OTP input
       if (result.registrationId) {
         setRegistrationId(result.registrationId)
+        setRegistrationData({ username, password, name: name.trim(), email: email.trim() })
+        setResendCountdown(60) // Start 60 second countdown
         toast({
           title: "Registration successful!",
           description: "Please check your email for the OTP code.",
@@ -317,7 +372,24 @@ function SignupForm() {
                   "Verify OTP"
                 )}
               </Button>
-              <div className="text-center">
+              <div className="text-center space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  Didn't receive the code?{" "}
+                  {resendCountdown > 0 ? (
+                    <span className="text-muted-foreground">
+                      Resend in {resendCountdown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={isResending}
+                      className="text-primary hover:underline font-medium disabled:opacity-50"
+                    >
+                      {isResending ? "Sending..." : "Resend OTP"}
+                    </button>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
@@ -326,6 +398,8 @@ function SignupForm() {
                     setRegistrationId(null)
                     setOtp("")
                     setError("")
+                    setRegistrationData(null)
+                    setResendCountdown(0)
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >

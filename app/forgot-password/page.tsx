@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
@@ -28,6 +28,8 @@ function ForgotPasswordForm() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
   const [emailError, setEmailError] = useState("")
+  const [resendCountdown, setResendCountdown] = useState(0)
+  const [isResending, setIsResending] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -38,6 +40,16 @@ function ForgotPasswordForm() {
 
   // Email validation regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  // Countdown timer for resend OTP
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => {
+        setResendCountdown(resendCountdown - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCountdown])
 
   // Validate email format
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +62,48 @@ function ForgotPasswordForm() {
       setEmailError("Please enter a valid email address")
     } else {
       setEmailError("")
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (!email.trim() || isResending || resendCountdown > 0) {
+      return
+    }
+
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address")
+      return
+    }
+
+    setIsResending(true)
+    setError("")
+
+    try {
+      const response = await apiClient.requestPasswordReset(email.trim())
+      
+      if (!response.success) {
+        const errorMessage = response.error || "Failed to resend reset code. Please try again."
+        setError(errorMessage)
+        return
+      }
+
+      if (!response.data?.id) {
+        setError("Failed to resend reset code. Please try again.")
+        return
+      }
+
+      // Success - update reset ID and start countdown
+      setResetId(response.data.id)
+      setResendCountdown(60) // Start 60 second countdown
+      toast({
+        title: "Reset code resent!",
+        description: "Please check your email for the new OTP code.",
+      })
+    } catch (err: any) {
+      const errorMessage = err.message || "Failed to resend reset code. Please try again."
+      setError(errorMessage)
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -86,6 +140,7 @@ function ForgotPasswordForm() {
 
       // Success - show OTP form
       setResetId(response.data.id)
+      setResendCountdown(60) // Start 60 second countdown
       toast({
         title: "Reset code sent!",
         description: "Please check your email for the OTP code.",
@@ -309,7 +364,24 @@ function ForgotPasswordForm() {
                   "Reset Password"
                 )}
               </Button>
-              <div className="text-center">
+              <div className="text-center space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  Didn't receive the code?{" "}
+                  {resendCountdown > 0 ? (
+                    <span className="text-muted-foreground">
+                      Resend in {resendCountdown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={isResending}
+                      className="text-primary hover:underline font-medium disabled:opacity-50"
+                    >
+                      {isResending ? "Sending..." : "Resend OTP"}
+                    </button>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
@@ -320,6 +392,7 @@ function ForgotPasswordForm() {
                     setNewPassword("")
                     setConfirmPassword("")
                     setError("")
+                    setResendCountdown(0)
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
