@@ -366,29 +366,17 @@ class ApiClient {
   // Auth endpoints
   async register(data: { username: string; name: string; password: string; email: string }): Promise<{
     success: boolean
-    data: {
-      id: number
-      token: string
-      uid: string
-      user: {
-        name: string
-        uid: string
-        username: string
-      }
+    data?: {
+      id: string
     }
+    error?: string
   }> {
     const response = await this.request<{
       success: boolean
-      data: {
-        id: number
-        token: string
-        uid: string
-        user: {
-          name: string
-          uid: string
-          username: string
-        }
+      data?: {
+        id: string
       }
+      error?: string
     }>(
       "/auth/register",
       {
@@ -398,10 +386,95 @@ class ApiClient {
       false,
     )
     
-    // Store the token
-    if (response.success && response.data.token) {
+    return response
+  }
+
+  async verifyOtp(data: { id: string; otp: string }): Promise<{
+    success: boolean
+    data?: {
+      expires_in: number
+      id: number
+      token: string
+      uid: string
+      user: {
+        name: string
+        uid: string
+        username: string
+      }
+    }
+    error?: string
+  }> {
+    const response = await this.request<{
+      success: boolean
+      data?: {
+        expires_in: number
+        id: number
+        token: string
+        uid: string
+        user: {
+          name: string
+          uid: string
+          username: string
+        }
+      }
+      error?: string
+    }>(
+      "/auth/verify",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      false,
+    )
+    
+    // Store the token if verification is successful
+    if (response.success && response.data?.token) {
       this.setAuthToken(response.data.token)
     }
+    
+    return response
+  }
+
+  async requestPasswordReset(email: string): Promise<{
+    success: boolean
+    data?: {
+      id: string
+    }
+    error?: string
+  }> {
+    const response = await this.request<{
+      success: boolean
+      data?: {
+        id: string
+      }
+      error?: string
+    }>(
+      "/auth/reset-password/request",
+      {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      },
+      false,
+    )
+    
+    return response
+  }
+
+  async verifyPasswordReset(data: { id: string; otp: string; new_password: string }): Promise<{
+    success: boolean
+    error?: string
+  }> {
+    const response = await this.request<{
+      success: boolean
+      error?: string
+    }>(
+      "/auth/reset-password/verify",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      false,
+    )
     
     return response
   }

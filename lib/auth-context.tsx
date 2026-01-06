@@ -17,7 +17,8 @@ interface AuthContextType {
   userData: any | null
   loading: boolean
   login: (username: string, password: string, redirectPath?: string | null) => Promise<void>
-  signup: (username: string, password: string, name: string, email: string, redirectPath?: string | null) => Promise<void>
+  signup: (username: string, password: string, name: string, email: string) => Promise<{ success: boolean; registrationId?: string; error?: string }>
+  verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
   logout: () => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
 }
@@ -324,18 +325,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signup = async (username: string, password: string, name: string, email: string, redirectPath?: string | null) => {
+  const signup = async (username: string, password: string, name: string, email: string) => {
     try {
       console.log("[hiffi] Attempting signup for:", username)
 
-      // Register user with backend
+      // Register user with backend - returns registration ID for OTP verification
       const response = await apiClient.register({ username, password, name, email })
       
-      if (!response.success || !response.data) {
-        throw new Error("Registration failed. Please try again.")
+      if (!response.success) {
+        // Handle error response
+        const errorMessage = response.error || "Registration failed. Please try again."
+        return { success: false, error: errorMessage }
       }
 
-      console.log("[hiffi] Registration successful, user:", response.data.user.username)
+      if (!response.data?.id) {
+        return { success: false, error: "Registration failed. Please try again." }
+      }
+
+      console.log("[hiffi] Registration successful, registration ID:", response.data.id)
+      return { success: true, registrationId: response.data.id }
+    } catch (error: any) {
+      console.error("[hiffi] Sign up failed:", error)
+      const errorMessage = error.message || "Failed to sign up. Please try again."
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  const verifyOtp = async (registrationId: string, otp: string, redirectPath?: string | null) => {
+    try {
+      console.log("[hiffi] Verifying OTP for registration ID:", registrationId)
+
+      // Verify OTP with backend
+      const response = await apiClient.verifyOtp({ id: registrationId, otp })
+      
+      if (!response.success || !response.data) {
+        const errorMessage = response.error || "OTP verification failed. Please try again."
+        throw new Error(errorMessage)
+      }
+
+      console.log("[hiffi] OTP verification successful, user:", response.data.user.username)
 
       // Set user data from response
       setUser(response.data.user)
@@ -350,19 +378,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Wait a moment for state updates to propagate to all components
       await new Promise(resolve => setTimeout(resolve, 150))
 
+      // Refresh user data to get full user details
+      try {
+        const refreshedUserData = await refreshUserData(true)
+        if (refreshedUserData) {
+          console.log("[hiffi] User data refreshed after OTP verification")
+        }
+      } catch (refreshError) {
+        console.warn("[hiffi] Failed to refresh user data after OTP verification, using verification response data:", refreshError)
+      }
+
       // User is authenticated and data is loaded, navigate based on redirect path
       const destination = redirectPath || "/"
-      console.log("[hiffi] Signup complete, redirecting to:", destination)
+      console.log("[hiffi] OTP verification complete, redirecting to:", destination)
       router.replace(destination)
     } catch (error: any) {
-      console.error("[hiffi] Sign up failed:", error)
+      console.error("[hiffi] OTP verification failed:", error)
       
       // Clear any partial state
       apiClient.clearAuthToken()
-          setUser(null)
-          setUserData(null)
+      setUser(null)
+      setUserData(null)
       
-      const errorMessage = error.message || "Failed to sign up. Please try again."
+      const errorMessage = error.message || "OTP verification failed. Please try again."
       throw new Error(errorMessage)
     }
   }
@@ -484,7 +522,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading, login, signup, logout, refreshUserData }}>
+    <AuthContext.Provider value={{ user, userData, loading, login, signup, verifyOtp, logout, refreshUserData }}>
       {children}
     </AuthContext.Provider>
   )

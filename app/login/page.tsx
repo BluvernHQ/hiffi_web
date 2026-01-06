@@ -118,9 +118,7 @@ function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -143,6 +141,14 @@ function LoginForm() {
                     <Eye className="h-4 w-4" />
                   )}
                 </button>
+              </div>
+              <div className="flex justify-end">
+                <Link 
+                  href="/forgot-password" 
+                  className="text-xs text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
               </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

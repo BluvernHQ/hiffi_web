@@ -29,7 +29,10 @@ function SignupForm() {
   const [emailError, setEmailError] = useState("")
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
-  const { signup, user, loading: authLoading } = useAuth()
+  const [registrationId, setRegistrationId] = useState<string | null>(null)
+  const [otp, setOtp] = useState("")
+  const [isVerifying, setIsVerifying] = useState(false)
+  const { signup, verifyOtp, user, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -188,33 +191,73 @@ function SignupForm() {
     }
 
     try {
-      // Pass redirect path to signup function - it will handle navigation after successful auth
-      await signup(username, password, name.trim(), email.trim(), redirectPath)
-      // Note: Navigation happens inside signup() function, so we don't need to navigate here
+      // Register user - returns registration ID for OTP verification
+      const result = await signup(username, password, name.trim(), email.trim())
+      
+      if (!result.success) {
+        const errorMessage = result.error || "Something went wrong. Please try again."
+        
+        // Handle username-already-in-use error
+        if (errorMessage.toLowerCase().includes("username") && 
+            (errorMessage.toLowerCase().includes("already") || 
+             errorMessage.toLowerCase().includes("in use"))) {
+          toast({
+            title: "Username already in use",
+            description: "This username is already taken. Please choose a different username.",
+            variant: "destructive",
+          })
+          setError("")
+        } else {
+          setError(errorMessage)
+        }
+        return
+      }
+
+      // Registration successful, show OTP input
+      if (result.registrationId) {
+        setRegistrationId(result.registrationId)
+        toast({
+          title: "Registration successful!",
+          description: "Please check your email for the OTP code.",
+        })
+      } else {
+        setError("Registration failed. Please try again.")
+      }
     } catch (err: any) {
       const errorMessage = err.message || "Something went wrong. Please try again."
-      const errorStatus = err.status || 0
-      
-      // Handle username-already-in-use error (409 Conflict or message contains username/taken/exists)
-      if (
-        errorStatus === 409 ||
-        (errorMessage.toLowerCase().includes("username") &&
-          (errorMessage.toLowerCase().includes("already") || 
-           errorMessage.toLowerCase().includes("taken") || 
-           errorMessage.toLowerCase().includes("exists")))
-      ) {
-        toast({
-          title: "Username already in use",
-          description: "This username is already taken. Please choose a different username.",
-          variant: "destructive",
-        })
-        setError("") // Clear error state - toast handles the message
-      } else {
-        // Other errors show in form
-        setError(errorMessage)
-      }
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!registrationId) {
+      setError("Registration ID is missing. Please try signing up again.")
+      return
+    }
+
+    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+      setError("Please enter a valid 6-digit OTP code.")
+      return
+    }
+
+    setIsVerifying(true)
+    setError("")
+
+    try {
+      // Verify OTP - this will handle navigation after successful verification
+      await verifyOtp(registrationId, otp, redirectPath)
+      // Note: Navigation happens inside verifyOtp() function
+    } catch (err: any) {
+      const errorMessage = err.message || "OTP verification failed. Please try again."
+      setError(errorMessage)
+      // Clear OTP on error so user can retry
+      setOtp("")
+    } finally {
+      setIsVerifying(false)
     }
   }
 
@@ -222,6 +265,78 @@ function SignupForm() {
     // If there's a valid redirect, go there; otherwise go home
     const destination = redirectPath || "/"
     router.replace(destination)
+  }
+
+  // Show OTP verification form if registration was successful
+  if (registrationId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-4">
+              <Logo size={48} />
+            </div>
+            <CardTitle className="text-2xl text-center font-bold">Verify your email</CardTitle>
+            <CardDescription className="text-center">
+              We've sent a 6-digit code to {email}. Please enter it below to complete your registration.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleOtpSubmit} className="space-y-4" autoComplete="off">
+              <div className="space-y-2">
+                <Label htmlFor="otp">OTP Code</Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6)
+                    setOtp(value)
+                    setError("")
+                  }}
+                  autoComplete="off"
+                  required
+                  maxLength={6}
+                  className="text-center text-2xl tracking-widest font-mono"
+                  autoFocus
+                />
+                {error && <p className="text-sm text-destructive">{error}</p>}
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isVerifying || otp.length !== 6}
+              >
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify OTP"
+                )}
+              </Button>
+              <div className="text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setRegistrationId(null)
+                    setOtp("")
+                    setError("")
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Back to registration
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
