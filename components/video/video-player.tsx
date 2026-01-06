@@ -293,58 +293,16 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     }
 
     const posterUrl = getThumbnailUrl(poster)
-    const isWorkersUrl = posterUrl.startsWith(WORKERS_BASE_URL)
-
-    if (!isWorkersUrl) {
-      setSignedPosterUrl(posterUrl)
+    
+    // If it's a Workers URL, use the proxy
+    if (posterUrl.startsWith(WORKERS_BASE_URL)) {
+      const path = posterUrl.replace(`${WORKERS_BASE_URL}/`, "")
+      setSignedPosterUrl(`/proxy/image/${path}`)
       return
     }
 
-    let cancelled = false
-
-    async function fetchPoster() {
-      try {
-        const apiKey = getWorkersApiKey()
-        if (!apiKey) {
-          console.error("[hiffi] No API key found for poster, using original URL")
+    // For other URLs, use directly
           setSignedPosterUrl(posterUrl)
-          return
-        }
-        console.log("[hiffi] Fetching poster from Workers with x-api-key header")
-        const response = await fetch(posterUrl, {
-          headers: {
-            'x-api-key': apiKey, // Always pass "SECRET_KEY" (or value from env var)
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch poster: ${response.status}`)
-        }
-
-        if (cancelled) return
-
-        const blob = await response.blob()
-        const blobUrl = URL.createObjectURL(blob)
-        
-        if (!cancelled) {
-          setSignedPosterUrl(blobUrl)
-        } else {
-          URL.revokeObjectURL(blobUrl)
-        }
-      } catch (error) {
-        console.error("[hiffi] Failed to fetch poster:", error)
-        // Fallback to original URL if fetch fails
-        if (!cancelled) {
-          setSignedPosterUrl(posterUrl)
-        }
-      }
-    }
-
-    fetchPoster()
-
-    return () => {
-      cancelled = true
-    }
   }, [poster])
 
   useEffect(() => {

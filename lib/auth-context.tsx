@@ -85,10 +85,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // If we don't have username, we can't fetch user data
       if (!username) {
+        // Try to get username from credentials cookie as fallback
+        const credentials = apiClient.getCredentials()
+        username = credentials.username
+      }
+
+      if (!username) {
         console.warn("[hiffi] No username available to fetch user data")
-        setUser(null)
-        setUserData(null)
-        apiClient.clearAuthToken()
+        // If we have a token but no username, we might be in a broken state.
+        // Try auto-login to restore credentials and session.
         return null
       }
       
@@ -151,14 +156,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Check if we have a token and fetch user data
     const checkAuth = async () => {
-      const token = apiClient.getAuthToken()
-      if (token) {
-        await refreshUserData()
-      } else {
+      try {
+        const token = apiClient.getAuthToken()
+        if (token) {
+          const fetchedUser = await refreshUserData()
+          
+          // If refresh failed but we have a token, try to restore session via auto-login
+          if (!fetchedUser) {
+            console.log("[hiffi] Refresh failed with token present, attempting auto-login fallback")
+            // This might happen if localStorage was cleared but cookies remain
+            const credentials = apiClient.getCredentials()
+            if (credentials.username && credentials.password) {
+              await login(credentials.username, credentials.password)
+            } else {
+              // No way to restore, clear token
+              apiClient.clearAuthToken()
+              setUser(null)
+              setUserData(null)
+            }
+          }
+        } else {
+          setUser(null)
+          setUserData(null)
+        }
+      } catch (error) {
+        console.error("[hiffi] Auth check failed:", error)
         setUser(null)
         setUserData(null)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     checkAuth()

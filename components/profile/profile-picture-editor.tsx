@@ -96,8 +96,8 @@ export function ProfilePictureEditor({
       setUploadProgress(90)
       const uploadedImagePath = uploadUrlResponse.path
 
-      // Step 3: Update profile with new picture
-      await apiClient.updateSelf({ profile_picture: uploadedImagePath })
+      // Step 3: Update profile with new picture using /users/self
+      await apiClient.updateSelfUser({ profile_picture: uploadedImagePath })
       setUploadProgress(100)
 
       // Refresh user data

@@ -20,7 +20,7 @@ import { ProfilePicture } from "@/components/profile/profile-picture"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from "@/lib/utils"
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { Logo } from "./logo"
 
 

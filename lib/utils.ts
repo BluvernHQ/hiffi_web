@@ -6,9 +6,28 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Get a single color for avatar background based on name/username
+// Get a color for avatar background based on name/username
 export function getColorFromName(name: string): string {
-  return '#F97316'; // Theme orange
+  if (!name) return '#F97316'; // Fallback orange
+  
+  const colors = [
+    '#F97316', // Orange
+    '#EF4444', // Red
+    '#3B82F6', // Blue
+    '#10B981', // Green
+    '#8B5CF6', // Purple
+    '#EC4899', // Pink
+    '#F59E0B', // Amber
+    '#06B6D4', // Cyan
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
 }
 
 // Get display name for avatar (prioritizes name over username)
@@ -109,13 +128,12 @@ export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true)
 }
 
 /**
- * Fetches a profile picture from Workers with authentication and returns a blob URL
- * This is needed when the Workers endpoint requires x-api-key header
- * Always fetches fresh - no caching
- * @param profilePictureUrl - Full Workers URL to the profile picture
- * @returns Promise<string> - Blob URL that can be used in img src
+ * @deprecated Use getProfilePictureProxyUrl instead. 
+ * Fetches a profile picture from Workers with authentication and returns a blob URL.
+ * WARNING: This causes memory leaks if the returned Object URL is not revoked.
  */
 export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Promise<string> {
+  console.warn("[utils] fetchProfilePictureWithAuth is deprecated and causes memory leaks. Use getProfilePictureProxyUrl instead.");
   if (!profilePictureUrl) {
     throw new Error("Profile picture URL is required");
   }
@@ -128,80 +146,76 @@ export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Pr
   const apiKey = getWorkersApiKey();
   if (!apiKey) {
     console.error("[utils] No API key found, profile picture may fail to load");
-    // Return the URL anyway - might work if Workers doesn't require auth
     return profilePictureUrl;
   }
 
   try {
-    // Add cache busting to ensure fresh fetch every time
     const separator = profilePictureUrl.includes("?") ? "&" : "?";
     const freshUrl = `${profilePictureUrl}${separator}_fresh=${Date.now()}`;
     
-    console.log("[utils] Fetching profile picture from Workers with auth (fresh):", freshUrl);
     const response = await fetch(freshUrl, {
-      headers: {
-        'x-api-key': apiKey,
-      },
-      cache: 'no-store', // Don't cache to ensure fresh images
+      headers: { 'x-api-key': apiKey },
+      cache: 'no-store',
     });
 
     if (!response.ok) {
-      console.error(`[utils] Failed to fetch profile picture: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch profile picture: ${response.statusText}`);
     }
 
     const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    console.log("[utils] Profile picture fetched successfully (fresh), created blob URL");
-    return blobUrl;
+    return URL.createObjectURL(blob);
   } catch (error) {
     console.error("[utils] Error fetching profile picture with auth:", error);
-    // Don't fall back to the original URL if it's a Workers URL, 
-    // as it will just cause a 401 in the browser.
-    // Instead, throw or return null to allow the UI to handle it.
     throw error;
   }
 }
 
 /**
+ * Converts a Workers URL to use the proxy route.
+ * This allows the browser to display images that require authentication
+ * using native <img> tags, which avoids memory leaks and enables caching.
+ * @param url - The original Workers URL or path
+ * @param type - The type of image ('image' for general/cached, 'profile-picture' for no-cache)
+ * @returns Proxy URL if it's a Workers URL, otherwise returns the original URL
+ */
+export function getImageProxyUrl(url: string, type: 'image' | 'profile-picture' = 'image'): string {
+  if (!url) return "";
+  
+  // If it's already a proxy URL, return as is
+  if (url.startsWith("/proxy/")) return url;
+  
+  const proxyPrefix = `/proxy/${type}/`;
+  
+  // If it's a Workers URL, convert to proxy URL
+  if (url.includes(WORKERS_BASE_URL)) {
+    try {
+      const parsedUrl = new URL(url);
+      const path = parsedUrl.pathname.replace(/^\//, "");
+      const queryString = parsedUrl.search;
+      return `${proxyPrefix}${path}${queryString}`;
+    } catch (e) {
+      // Fallback for relative paths or malformed URLs
+      const path = url.replace(WORKERS_BASE_URL, "").replace(/^\//, "");
+      return `${proxyPrefix}${path}`;
+    }
+  }
+  
+  // If it's a path (not a full URL), use it with proxy
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    const cleanPath = url.replace(/^\//, "");
+    return `${proxyPrefix}${cleanPath}`;
+  }
+  
+  return url;
+}
+
+/**
  * Converts a profile picture URL to use the proxy route if it's a Workers URL
- * This allows the browser to display profile pictures that require authentication
- * @param profilePictureUrl - Profile picture URL (can be Workers URL or path)
+ * @param profilePictureUrl - Profile picture URL
  * @returns Proxy URL if it's a Workers URL, otherwise returns the original URL
  */
 export function getProfilePictureProxyUrl(profilePictureUrl: string): string {
-  if (!profilePictureUrl) {
-    return "";
-  }
-  
-  // If it's already a proxy URL, return as is
-  if (profilePictureUrl.startsWith("/proxy/profile-picture/")) {
-    return profilePictureUrl;
-  }
-  
-  // If it's a Workers URL, convert to proxy URL
-  if (profilePictureUrl.includes(WORKERS_BASE_URL)) {
-    // Extract the path after the base URL
-    const url = new URL(profilePictureUrl);
-    const path = url.pathname.replace(/^\//, "");
-    
-    // Preserve query parameters (for cache busting)
-    const queryString = url.search;
-    return `/proxy/profile-picture/${path}${queryString}`;
-  }
-  
-  // If it's a path (not a full URL), use it directly with proxy
-  if (!profilePictureUrl.startsWith("http://") && !profilePictureUrl.startsWith("https://")) {
-    // Remove leading slash if present
-    const cleanPath = profilePictureUrl.replace(/^\//, "");
-    // Check if there are query parameters in the path
-    const [pathPart, queryPart] = cleanPath.split("?");
-    const queryString = queryPart ? `?${queryPart}` : "";
-    return `/proxy/profile-picture/${pathPart}${queryString}`;
-  }
-  
-  // For other URLs (not Workers), return as is
-  return profilePictureUrl;
+  return getImageProxyUrl(profilePictureUrl, 'profile-picture');
 }
 
 // Check if user is a creator

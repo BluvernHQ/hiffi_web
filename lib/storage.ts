@@ -61,11 +61,14 @@ export function getVideoUrl(videoPath: string): string {
 }
 
 /**
- * Fetches a video as a blob with x-api-key header
+ * @deprecated Use the video streaming proxy (/proxy/video/stream) instead.
+ * Fetches a video as a blob with x-api-key header.
+ * WARNING: This causes memory exhaustion for large videos as it downloads the entire file into memory.
  * @param videoUrl - Full Workers URL to the video
  * @returns Blob URL that can be used in video src
  */
 export async function fetchVideoWithAuth(videoUrl: string): Promise<string> {
+  console.warn("[storage] fetchVideoWithAuth is deprecated and causes memory exhaustion. Use the streaming proxy instead.");
   if (!videoUrl) throw new Error("Video URL is required")
   
   const apiKey = getWorkersApiKey()

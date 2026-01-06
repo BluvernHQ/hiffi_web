@@ -122,13 +122,33 @@ export default function UploadPage() {
   };
 
   const handleRemoveThumbnail = () => {
+    // Clean up auto thumbnail URLs before clearing state
+    autoThumbnails.forEach(url => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn('Error revoking auto thumbnail URL:', e);
+      }
+    });
+    
     setThumbnail(null);
     setThumbnailPreview(null);
-    // Clean up auto thumbnail URLs
-    autoThumbnails.forEach(url => URL.revokeObjectURL(url));
     setAutoThumbnails([]);
     setAutoThumbnailBlobs([]);
   };
+
+  // Add cleanup on unmount for auto-generated thumbnails
+  useEffect(() => {
+    return () => {
+      autoThumbnails.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      });
+    };
+  }, [autoThumbnails]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

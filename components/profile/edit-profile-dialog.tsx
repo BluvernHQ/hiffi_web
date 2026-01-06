@@ -93,9 +93,9 @@ export function EditProfileDialog({
         updateData.bio = bio.trim()
       }
 
-      // Update all fields via updateSelf
+      // Update all fields via updateSelfUser (all updates go through /users/self)
       if (Object.keys(updateData).length > 0) {
-        await apiClient.updateSelf(updateData)
+        await apiClient.updateSelfUser(updateData)
       }
 
       // Show success toast immediately

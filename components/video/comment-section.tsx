@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { usePathname, useSearchParams } from "next/navigation"
 import { buildLoginUrl } from "@/lib/auth-utils"
+import { useCallback, useRef } from "react"
 
 interface Comment {
   comment_id: string
@@ -42,6 +43,8 @@ export function CommentSection({ videoId }: { videoId: string }) {
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   const [comments, setComments] = useState<Comment[]>([])
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({})
+  const pendingFetches = useRef<Set<string>>(new Set())
   const [newComment, setNewComment] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -52,14 +55,50 @@ export function CommentSection({ videoId }: { videoId: string }) {
     fetchComments()
   }, [videoId])
 
+  const fetchUserProfiles = useCallback(async (usernames: string[]) => {
+    const toFetch = usernames.filter(u => 
+      u && 
+      !userProfiles[u] && 
+      !pendingFetches.current.has(u)
+    )
+    
+    if (toFetch.length === 0) return
+
+    toFetch.forEach(u => pendingFetches.current.add(u))
+
+    await Promise.all(
+      toFetch.map(async (username) => {
+        try {
+          const response = await apiClient.getUserByUsername(username)
+          if (response.success && response.user) {
+            setUserProfiles(prev => ({
+              ...prev,
+              [username]: response.user
+            }))
+          }
+        } catch (error) {
+          console.error(`[hiffi] Failed to fetch profile for ${username}:`, error)
+        } finally {
+          pendingFetches.current.delete(username)
+        }
+      })
+    )
+  }, [userProfiles])
+
   const fetchComments = async () => {
     try {
       setIsLoading(true)
       const response = await apiClient.getComments(videoId, 1, 20)
       if (response.success) {
-      setComments(response.comments || [])
+        const fetchedComments = response.comments || []
+        setComments(fetchedComments)
+        
+        // Fetch profiles for commenters
+        const usernames = fetchedComments.map(c => c.comment_by_username)
+        fetchUserProfiles(usernames)
+
         // Check if there are more comments based on count and current offset
-        const totalLoaded = response.offset + response.comments.length
+        const totalLoaded = response.offset + fetchedComments.length
         setHasMore(totalLoaded < response.count)
         setPage(1)
       } else {
@@ -113,10 +152,16 @@ export function CommentSection({ videoId }: { videoId: string }) {
       const nextPage = page + 1
       const response = await apiClient.getComments(videoId, nextPage, 20)
       if (response.success) {
-      setComments([...comments, ...(response.comments || [])])
-      setPage(nextPage)
+        const newComments = response.comments || []
+        setComments([...comments, ...newComments])
+        
+        // Fetch profiles for new commenters
+        const usernames = newComments.map(c => c.comment_by_username)
+        fetchUserProfiles(usernames)
+
+        setPage(nextPage)
         // Check if there are more comments based on count and current offset
-        const totalLoaded = response.offset + response.comments.length
+        const totalLoaded = response.offset + newComments.length
         setHasMore(totalLoaded < response.count)
       }
     } catch (error) {
@@ -183,6 +228,8 @@ export function CommentSection({ videoId }: { videoId: string }) {
           <CommentItem 
             key={comment.comment_id} 
             comment={comment}
+            userProfiles={userProfiles}
+            fetchUserProfiles={fetchUserProfiles}
             onReplyAdded={fetchComments}
           />
         ))}
@@ -201,7 +248,17 @@ export function CommentSection({ videoId }: { videoId: string }) {
   )
 }
 
-function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded?: () => void }) {
+function CommentItem({ 
+  comment, 
+  userProfiles,
+  fetchUserProfiles,
+  onReplyAdded 
+}: { 
+  comment: Comment; 
+  userProfiles: Record<string, any>;
+  fetchUserProfiles: (usernames: string[]) => Promise<void>;
+  onReplyAdded?: () => void 
+}) {
   const { toast } = useToast()
   const { user, userData } = useAuth()
   const [showReplies, setShowReplies] = useState(false)
@@ -211,13 +268,26 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
   const [replyText, setReplyText] = useState("")
   const [isSubmittingReply, setIsSubmittingReply] = useState(false)
 
+  // Fetch profile if missing
+  const profileLoaded = !!userProfiles[comment.comment_by_username]
+  useEffect(() => {
+    if (comment.comment_by_username && !profileLoaded) {
+      fetchUserProfiles([comment.comment_by_username])
+    }
+  }, [comment.comment_by_username, profileLoaded, fetchUserProfiles])
+
   const fetchReplies = async () => {
     try {
       setIsLoadingReplies(true)
       const response = await apiClient.getReplies(comment.comment_id, 1, 50)
       if (response.success) {
-      setReplies(response.replies || [])
-      setShowReplies(true)
+        const fetchedReplies = response.replies || []
+        setReplies(fetchedReplies)
+        setShowReplies(true)
+
+        // Fetch profiles for repliers
+        const usernames = fetchedReplies.map(r => r.reply_by_username).filter((u): u is string => !!u)
+        fetchUserProfiles(usernames)
       } else {
         setReplies([])
       }
@@ -294,7 +364,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
   return (
     <div className="flex gap-4">
       <ProfilePicture 
-        user={{
+        user={userProfiles[comment.comment_by_username] || {
           username: comment.comment_by_username,
           profile_picture: (comment as any).profile_picture || (comment as any).comment_by_avatar,
           name: (comment as any).comment_by_name
@@ -397,7 +467,7 @@ function CommentItem({ comment, onReplyAdded }: { comment: Comment; onReplyAdded
                 {replies.map((reply) => (
                   <div key={reply.reply_id} className="flex gap-3">
                     <ProfilePicture 
-                      user={{
+                      user={userProfiles[reply.reply_by_username || ""] || {
                         username: reply.reply_by_username,
                         profile_picture: (reply as any).profile_picture || (reply as any).reply_by_avatar,
                         name: (reply as any).reply_by_name

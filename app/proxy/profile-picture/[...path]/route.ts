@@ -26,8 +26,9 @@ export async function GET(
       )
     }
 
-    // Construct the Workers URL
-    const workersUrl = `${WORKERS_BASE_URL}/${profilePicturePath}`
+    // Construct the Workers URL with original query parameters
+    const searchParams = request.nextUrl.searchParams.toString()
+    const workersUrl = `${WORKERS_BASE_URL}/${profilePicturePath}${searchParams ? '?' + searchParams : ''}`
     
     console.log(`[hiffi] Profile picture proxy: fetching from Workers: ${workersUrl}`)
 

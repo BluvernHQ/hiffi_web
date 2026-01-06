@@ -11,7 +11,7 @@
 //   - Prod: https://workers.hiffi.workers.dev
 
 const WORKERS_BASE_URL = 'https://black-paper-83cf.hiffi.workers.dev'
-let API_KEY = 'SECRET_KEY' // Default, will be updated via message
+let API_KEY = 'gdwvvwwvdyvyvwevyvfwedfwerwf34rt3f3f3' // Default, will be updated via message
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -24,7 +24,7 @@ self.addEventListener('activate', (event) => {
 // Listen for messages to update API key
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SET_API_KEY') {
-    API_KEY = event.data.apiKey || 'SECRET_KEY'
+    API_KEY = event.data.apiKey || 'gdwvvwwvdyvyvwevyvfwedfwerwf34rt3f3f3'
     console.log('[hiffi] Service Worker API key updated')
   }
 })

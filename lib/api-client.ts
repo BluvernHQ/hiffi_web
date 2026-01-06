@@ -744,63 +744,15 @@ class ApiClient {
     throw new Error(response.message || "Failed to get profile photo upload URL")
   }
 
-  // Update user profile - officially supports: name, profile_picture
-  // Note: Some backends may accept additional fields like role, but this is not documented
-  // DEPRECATED: This method uses /users/self which is deprecated. Use updateUser(username, data) instead.
+  // Update user profile - uses PUT /users/self
   async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user: any }> {
-    console.warn("[API] updateSelf is deprecated. Use updateUser(username, data) instead.")
-    
-    // Try to get username from localStorage
-    let username: string | null = null
-    if (typeof window !== "undefined") {
-      try {
-        const userData = localStorage.getItem("hiffi_user_data")
-        if (userData) {
-          const parsed = JSON.parse(userData)
-          username = parsed.username
-        }
-      } catch (e) {
-        console.warn("[API] Failed to get username from localStorage")
-      }
-    }
-    
-    if (!username) {
-      console.error("[API] Cannot use updateSelf without username. Use updateUser(username, data) instead.")
-      return {
-        success: false,
-        user: null,
-      }
-    }
-    
-    // Use updateUser with username instead of deprecated /users/self
-    return this.updateUser(username, data)
+    return this.updateSelfUser(data)
   }
 
-  // Update user profile picture - uses PUT /users/{username} with { "image": path }
+  // Update user profile picture - DEPRECATED: Uses /users/{username} which returns 405. Use updateSelfUser instead.
   async updateUserProfile(username: string, data: { image?: string; name?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
-    // Use /users/{username} instead of deprecated /users/self
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      user?: any
-      data?: { user: any }
-    }>(
-      `/users/${encodeURIComponent(username)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-      true,
-    )
-    
-    // Normalize response structure
-    const isSuccess = response.status === "success" || response.success !== false
-    const userData = response.user || response.data?.user || response.data || response
-    
-    return {
-      success: isSuccess,
-      user: userData,
-    }
+    console.warn("[API] updateUserProfile is deprecated and likely returns 405. Use updateSelfUser instead.")
+    return this.updateSelfUser(data)
   }
 
   // Update current user via PUT /users/self

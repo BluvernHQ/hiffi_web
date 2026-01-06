@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getThumbnailUrl } from '@/lib/storage';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl, fetchProfilePictureWithAuth } from '@/lib/utils';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
 import { getSeed } from '@/lib/seed-manager';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,8 +34,7 @@ function SearchPageContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentQuery, setCurrentQuery] = useState<string | null>(null); // Use null to detect initial mount
   const { toast } = useToast();
-  const [userProfilePictures, setUserProfilePictures] = useState<Map<string, string>>(new Map()); // Map of username -> blob URL
-  const previousBlobUrlsRef = useRef<Map<string, string>>(new Map()); // Track previous blob URLs for cleanup
+  const [userProfilePictures, setUserProfilePictures] = useState<Map<string, string>>(new Map()); // Map of username -> proxy URL
 
   const fetchSearchResults = async (searchQuery: string, isInitialLoad: boolean = true) => {
     if (!searchQuery.trim()) {
@@ -64,32 +63,15 @@ function SearchPageContent() {
           setUserResults(users);
           setUserCount(usersResponse.count || 0);
           
-          // Fetch profile pictures with authentication for all users
-          // Cleanup previous blob URLs
-          previousBlobUrlsRef.current.forEach((blobUrl) => {
-            if (blobUrl.startsWith('blob:')) {
-              URL.revokeObjectURL(blobUrl);
-            }
-          });
-          
           const profilePictureMap = new Map<string, string>();
-          await Promise.all(
-            users.map(async (user: any) => {
+          users.forEach((user: any) => {
               const profilePicPath = user.profile_picture || user.image || '';
               if (profilePicPath) {
                 const profilePicUrl = getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true);
-                if (profilePicUrl && profilePicUrl.includes('black-paper-83cf.hiffi.workers.dev')) {
-                  try {
-                    const blobUrl = await fetchProfilePictureWithAuth(profilePicUrl);
-                    profilePictureMap.set(user.username || user.uid || '', blobUrl);
-                  } catch (error) {
-                    console.error('[SearchPage] Failed to fetch profile picture for user:', user.username, error);
-                  }
-                }
+              const proxyUrl = getProfilePictureProxyUrl(profilePicUrl);
+              profilePictureMap.set(user.username || user.uid || '', proxyUrl);
               }
-            })
-          );
-          previousBlobUrlsRef.current = new Map(profilePictureMap);
+          });
           setUserProfilePictures(profilePictureMap);
         } else {
           setUserResults([]);
@@ -176,16 +158,6 @@ function SearchPageContent() {
   }, [searchParams]);
 
   // Cleanup blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      previousBlobUrlsRef.current.forEach((blobUrl) => {
-        if (blobUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(blobUrl);
-        }
-      });
-    };
-  }, []);
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
