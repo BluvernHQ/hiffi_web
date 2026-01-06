@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null
   userData: any | null
   loading: boolean
-  login: (username: string, password: string, redirectPath?: string | null) => Promise<void>
+  login: (identifier: string, password: string, redirectPath?: string | null) => Promise<void>
   signup: (username: string, password: string, name: string, email: string) => Promise<{ success: boolean; registrationId?: string; error?: string }>
   verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
   logout: () => Promise<void>
@@ -239,11 +239,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (username: string, password: string, redirectPath?: string | null) => {
+  const login = async (identifier: string, password: string, redirectPath?: string | null) => {
     try {
-      console.log("[hiffi] Attempting login for:", username)
+      console.log("[hiffi] Attempting login for:", identifier)
       
-      const response = await apiClient.login({ username, password })
+      // Determine if identifier is an email or username
+      const isEmail = identifier.includes("@") && identifier.includes(".")
+      const loginData = isEmail 
+        ? { email: identifier, password } 
+        : { username: identifier, password }
+      
+      const response = await apiClient.login(loginData)
       
       if (!response.success || !response.data) {
         throw new Error("Login failed. Please check your credentials.")

@@ -479,7 +479,7 @@ class ApiClient {
     return response
   }
 
-  async login(data: { username: string; password: string }): Promise<{
+  async login(data: { username?: string; email?: string; password: string }): Promise<{
     success: boolean
     data: {
       token: string
@@ -513,7 +513,8 @@ class ApiClient {
     if (response.success && response.data.token) {
       this.setAuthToken(response.data.token)
       // Store credentials in cookies for auto-login
-      this.setCredentials(data.username, data.password)
+      // Use the username returned by the server for consistency
+      this.setCredentials(response.data.user.username, data.password)
     }
     
     return response
@@ -745,7 +746,7 @@ class ApiClient {
   }
 
   // Update user profile - uses PUT /users/self
-  async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user: any }> {
+  async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
     return this.updateSelfUser(data)
   }
 

@@ -15,7 +15,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
 
 function LoginForm() {
-  const [username, setUsername] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -61,7 +61,7 @@ function LoginForm() {
 
     try {
       // Pass redirect path to login function - it will handle navigation after successful auth
-      await login(username, password, redirectPath)
+      await login(identifier, password, redirectPath)
       // Note: Navigation happens inside login() function, so we don't need to navigate here
     } catch (err: any) {
       // Don't show error message if it's about disabled account (toast already shown)
@@ -69,7 +69,7 @@ function LoginForm() {
         // Error already handled with toast, just clear the form state
         setError("")
       } else {
-        setError(err.message || "Invalid username or password")
+        setError(err.message || "Invalid username or email, or password")
       }
     } finally {
       setIsLoading(false)
@@ -101,18 +101,18 @@ function LoginForm() {
             <Logo size={48} />
           </div>
           <CardTitle className="text-2xl text-center font-bold">Login</CardTitle>
-          <CardDescription className="text-center">Enter your username to sign in to your account</CardDescription>
+          <CardDescription className="text-center">Enter your username or email to sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="identifier">Username or Email</Label>
               <Input
-                id="username"
+                id="identifier"
                 type="text"
-                placeholder="johndoe"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                placeholder="johndoe or john@example.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value.toLowerCase())}
                 autoComplete="off"
                 required
               />
