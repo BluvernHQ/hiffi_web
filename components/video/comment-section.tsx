@@ -371,20 +371,28 @@ function CommentItem({
         }} 
         size="md" 
       />
-      <div className="flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          {user ? (
-            <Link href={`/profile/${comment.comment_by_username}`} className="font-semibold text-sm hover:text-primary">
-              @{comment.comment_by_username}
-            </Link>
-          ) : (
-            <span className="font-semibold text-sm">@{comment.comment_by_username}</span>
-          )}
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(comment.commented_at), { addSuffix: true })}
-          </span>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm truncate">
+              {userProfiles[comment.comment_by_username]?.name || (comment as any).comment_by_name || comment.comment_by_username}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {user ? (
+              <Link href={`/profile/${comment.comment_by_username}`} className="hover:text-foreground transition-colors truncate max-w-[150px]">
+                @{comment.comment_by_username}
+              </Link>
+            ) : (
+              <span className="truncate max-w-[150px]">@{comment.comment_by_username}</span>
+            )}
+            <span className="flex-shrink-0">•</span>
+            <span className="flex-shrink-0">
+              {formatDistanceToNow(new Date(comment.commented_at), { addSuffix: true })}
+            </span>
+          </div>
         </div>
-        <p className="text-sm">{comment.comment}</p>
+        <p className="text-sm pt-0.5">{comment.comment}</p>
         <div className="flex items-center gap-4 pt-1">
           <button
             className="text-xs text-muted-foreground hover:text-foreground font-medium"
@@ -474,14 +482,20 @@ function CommentItem({
                       }} 
                       size="sm" 
                     />
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-xs">@{reply.reply_by_username || "Unknown"}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(reply.replied_at), { addSuffix: true })}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-xs truncate">
+                          {userProfiles[reply.reply_by_username || ""]?.name || (reply as any).reply_by_name || reply.reply_by_username || "Unknown"}
                         </span>
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
+                          <span className="truncate max-w-[120px]">@{reply.reply_by_username || "unknown"}</span>
+                          <span className="flex-shrink-0">•</span>
+                          <span className="flex-shrink-0">
+                            {formatDistanceToNow(new Date(reply.replied_at), { addSuffix: true })}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-xs">{reply.reply}</p>
+                      <p className="text-xs pt-0.5">{reply.reply}</p>
                     </div>
                   </div>
                 ))}

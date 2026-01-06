@@ -82,22 +82,21 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
         )}
       </div>
 
-      {/* Content - YouTube style: title, channel, views, date */}
       <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
         <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight mb-1">
           {title || "Untitled Video"}
         </h3>
-        <Link
-          href={`/profile/${username}`}
-          className="text-xs text-muted-foreground hover:text-foreground truncate mb-0.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          @{username || "unknown"}
-        </Link>
-        <div className="text-xs text-muted-foreground">
-          <span>{(views || 0).toLocaleString()} views</span>
-          <span className="mx-1">•</span>
-          <span>{timeAgo}</span>
+        <div className="flex items-center min-w-0 mb-0.5">
+          <Link
+            href={`/profile/${username}`}
+            className="text-xs text-muted-foreground hover:text-foreground truncate font-medium min-w-0 flex-shrink"
+            onClick={(e) => e.stopPropagation()}
+          >
+            @{username || "unknown"}
+          </Link>
+        </div>
+        <div className="text-xs text-muted-foreground flex items-center min-w-0">
+          <span className="flex-shrink-0">{timeAgo}</span>
         </div>
       </div>
     </div>

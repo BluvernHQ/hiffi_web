@@ -8,10 +8,11 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
-import { Play, MoreVertical, Trash2 } from "lucide-react"
+import { Play, MoreVertical, Trash2, Loader2, Clock } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
 import { DeleteVideoDialog } from "./delete-video-dialog"
 import { AuthenticatedImage } from "./authenticated-image"
 import {
@@ -39,6 +40,7 @@ interface VideoCardProps {
     user_username?: string
     createdAt?: string
     created_at?: string
+    status?: string
   }
   priority?: boolean
   onDeleted?: () => void
@@ -47,6 +49,7 @@ interface VideoCardProps {
 export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps) {
   const router = useRouter()
   const { user, userData } = useAuth()
+  const { toast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
@@ -54,6 +57,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
+  const isEncoding = video.status === "temp"
 
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
   
@@ -79,12 +83,19 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   }
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on action buttons or links
+    // Don't navigate if clicking on action buttons, links, or if video is still encoding
     if (
+      isEncoding ||
       (e.target as HTMLElement).closest('a[href^="/profile"]') ||
       (e.target as HTMLElement).closest('button') ||
       (e.target as HTMLElement).closest('[role="menuitem"]')
     ) {
+      if (isEncoding) {
+        toast({
+          title: "Video is processing",
+          description: "This video is currently being encoded. Please check back in a few minutes.",
+        })
+      }
       return
     }
     router.push(`/watch/${videoId}`)
@@ -115,69 +126,83 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
               </div>
             )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                <Play className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground ml-0.5" fill="currentColor" />
+            
+            {isEncoding && (
+              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white/90 text-[10px] px-2 py-0.5 rounded-md border border-white/10">
+                <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+                <span className="font-medium tracking-tight">Processing</span>
               </div>
-            </div>
-            <div className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded font-medium">
-              {(views || 0).toLocaleString()}
-            </div>
+            )}
+
+            {!isEncoding && (
+              <>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                    <Play className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground ml-0.5" fill="currentColor" />
+                  </div>
+                </div>
+                <div className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded font-medium">
+                  {(views || 0).toLocaleString()}
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex gap-2 sm:gap-3 px-1">
-            <ProfilePicture 
-              user={{
-                username: username,
-                profile_picture: (video as any).user_profile_picture || (video as any).profile_picture || (video as any).user?.profile_picture,
-                updated_at: (video as any).user_updated_at || (video as any).updated_at
-              }}
-              size="sm"
-            />
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-tight break-words">
+          <div className="flex gap-3 px-1 relative">
+            <div className="flex-shrink-0">
+              <ProfilePicture 
+                user={{
+                  username: username,
+                  profile_picture: (video as any).user_profile_picture || (video as any).profile_picture || (video as any).user?.profile_picture,
+                  updated_at: (video as any).user_updated_at || (video as any).updated_at
+                }}
+                size="sm"
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col pr-6">
+              <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-1">
                 {title || "Untitled Video"}
               </h3>
-              <div className="flex items-center gap-1.5 mt-1 text-xs sm:text-sm text-muted-foreground">
-                {user ? (
-                  <Link
-                    href={`/profile/${username}`}
-                    className="hover:text-foreground truncate font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    @{username || "unknown"}
-                  </Link>
-                ) : (
-                  <span className="truncate font-medium">@{username || "unknown"}</span>
-                )}
-                <span>•</span>
-                <span className="whitespace-nowrap">{timeAgo}</span>
+              <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-1 leading-normal">
+                <Link
+                  href={`/profile/${username}`}
+                  className="hover:text-foreground truncate font-medium max-w-full block py-0.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  @{username || "unknown"}
+                </Link>
+                <div className="flex items-center opacity-80">
+                  <span className="whitespace-nowrap flex-shrink-0">{timeAgo}</span>
+                </div>
               </div>
             </div>
+
             {isOwner && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">Video options</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDeleteDialogOpen(true)
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Video
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="absolute right-0 top-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Video options</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Video
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
           </div>
           

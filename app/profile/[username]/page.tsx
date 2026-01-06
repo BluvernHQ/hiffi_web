@@ -220,22 +220,35 @@ export default function ProfilePage() {
         setLoadingMore(true);
       }
 
-      // Use the new endpoint: GET /videos/list/{username}
-      const videosResponse = await apiClient.getUserVideos(username, { 
-        offset: currentOffset, 
-        limit: VIDEOS_PER_PAGE 
-      });
+      // Fetch videos from appropriate endpoint based on profile ownership
+      let videosResponse;
+      if (isOwnProfile) {
+        console.log("[hiffi] Fetching own videos using /videos/list/self");
+        videosResponse = await apiClient.listSelfVideos({ 
+          offset: currentOffset, 
+          limit: VIDEOS_PER_PAGE 
+        });
+      } else {
+        console.log(`[hiffi] Fetching videos for ${username} using /videos/list/{username}`);
+        videosResponse = await apiClient.getUserVideos(username, { 
+          offset: currentOffset, 
+          limit: VIDEOS_PER_PAGE 
+        });
+      }
 
       const videosArray = videosResponse.videos || [];
 
-      // Enhance videos with profile user's profile picture if available
-      // This ensures the profile picture is shown in video cards on the profile page
-      // Since the API doesn't return profile_picture in video list responses, we add it from profileUser
+      // Enhance videos with profile user's profile picture and username if available
       const enhancedVideos = videosArray.map((video: any) => {
-        // Always add profile picture from profileUser if available (API doesn't include it)
-        // Use profileUser first, then fallback to currentUserData if viewing own profile
         const sourceUser = profileUser || (isOwnProfile ? currentUserData : null);
         
+        // Ensure username is present (sometimes missing in self-video list)
+        if (!video.user_username && !video.userUsername && sourceUser?.username) {
+          video.user_username = sourceUser.username;
+        } else if (!video.user_username && !video.userUsername && username) {
+          video.user_username = username;
+        }
+
         if (sourceUser?.profile_picture) {
           // Always set user_profile_picture from the profile user data
           // This ensures profile pictures show even when API doesn't return them
