@@ -28,7 +28,7 @@ export function AdminUsersTable() {
   const [total, setTotal] = useState(0)
   const [showFilters, setShowFilters] = useState(true)
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [deletingUsername, setDeletingUsername] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<any>(null)
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null)
@@ -504,11 +504,11 @@ export function AdminUsersTable() {
   }
 
   const handleDeleteConfirm = async () => {
-    if (!userToDelete?.uid) return
+    if (!userToDelete?.username) return
 
     try {
-      setDeletingUserId(userToDelete.uid)
-      await apiClient.deleteUserByUid(userToDelete.uid)
+      setDeletingUsername(userToDelete.username)
+      await apiClient.deleteUserByUsername(userToDelete.username)
       
       toast({
         title: "Success",
@@ -524,7 +524,7 @@ export function AdminUsersTable() {
         variant: "destructive",
       })
     } finally {
-      setDeletingUserId(null)
+      setDeletingUsername(null)
       setDeleteDialogOpen(false)
       setUserToDelete(null)
     }
@@ -1059,10 +1059,10 @@ export function AdminUsersTable() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteClick(user)}
-                            disabled={deletingUserId === user.uid}
+                            disabled={deletingUsername === user.username}
                             className="hover:bg-destructive/10 text-destructive hover:text-destructive"
                           >
-                            {deletingUserId === user.uid ? (
+                            {deletingUsername === user.username ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Trash2 className="h-4 w-4" />
@@ -1202,9 +1202,9 @@ export function AdminUsersTable() {
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={deletingUserId !== null}
+              disabled={deletingUsername !== null}
             >
-              {deletingUserId ? "Deleting..." : "Delete"}
+              {deletingUsername ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2760,13 +2760,13 @@ class ApiClient {
   }
 
   // Admin endpoints - Delete User
-  // DELETE /admin/users/{uid} - Delete a user account by UID
-  async deleteUserByUid(uid: string): Promise<{
+  // DELETE /admin/users/{username} - Delete a user account by username
+  async deleteUserByUsername(username: string): Promise<{
     status: string
     message: string
   }> {
-    if (!uid || uid.trim() === "") {
-      throw new Error("User UID is required")
+    if (!username || username.trim() === "") {
+      throw new Error("Username is required")
     }
     
     const response = await this.request<{
@@ -2776,7 +2776,7 @@ class ApiClient {
       data?: {
         message?: string
       }
-    }>(`/admin/users/${encodeURIComponent(uid)}`, { method: "DELETE" }, true)
+    }>(`/admin/users/${encodeURIComponent(username)}`, { method: "DELETE" }, true)
     
     // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
     if (response.success && response.data) {
