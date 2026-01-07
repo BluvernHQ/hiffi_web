@@ -6,7 +6,7 @@ export function VideoCardSkeleton() {
   return (
     <div className="w-full">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-full">
-        <CardContent className="p-0 space-y-3">
+        <CardContent className="p-0 flex flex-col gap-0.5 sm:gap-1">
           {/* Thumbnail skeleton */}
           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted animate-shimmer" />
           
@@ -16,16 +16,15 @@ export function VideoCardSkeleton() {
             <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-muted flex-shrink-0 animate-shimmer" />
             
             {/* Text skeleton */}
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex-1 min-w-0 flex flex-col gap-1 sm:gap-1.5">
               {/* Title skeleton */}
-              <div className="space-y-1.5">
-                <div className="h-4 bg-muted rounded animate-shimmer" style={{ width: '90%' }} />
-                <div className="h-4 bg-muted rounded animate-shimmer" style={{ width: '60%' }} />
+              <div className="space-y-1">
+                <div className="h-3.5 bg-muted rounded animate-shimmer" style={{ width: '90%' }} />
+                <div className="h-3.5 bg-muted rounded animate-shimmer" style={{ width: '60%' }} />
               </div>
               {/* Metadata skeleton */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-col gap-0.5 sm:gap-1">
                 <div className="h-3 bg-muted rounded animate-shimmer" style={{ width: '80px' }} />
-                <span className="text-muted-foreground">•</span>
                 <div className="h-3 bg-muted rounded animate-shimmer" style={{ width: '60px' }} />
               </div>
             </div>

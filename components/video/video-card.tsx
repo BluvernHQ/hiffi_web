@@ -104,7 +104,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   return (
     <div onClick={handleCardClick} className="group cursor-pointer w-full h-auto">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
-        <CardContent className="p-0 flex flex-col h-auto gap-2 pb-4">
+        <CardContent className="p-0 flex flex-col h-auto gap-0.5 sm:gap-1 pb-0">
           <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
             {thumbnailUrl ? (
               <AuthenticatedImage
@@ -159,10 +159,10 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
               />
             </div>
             <div className="flex-1 min-w-0 flex flex-col pr-6">
-              <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-1">
+              <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
                 {title || "Untitled Video"}
               </h3>
-              <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-1 leading-normal">
+              <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal">
                 <Link
                   href={`/profile/${username}`}
                   className="hover:text-foreground truncate font-medium max-w-full block py-0.5"
@@ -176,7 +176,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
               </div>
             </div>
 
-            {isOwner && (
+            {isOwner && !isEncoding && (
               <div className="absolute right-0 top-0">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>

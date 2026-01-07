@@ -129,13 +129,6 @@ function SearchPageContent() {
       setCurrentQuery(queryKey);
       
       // Always reset state when query changes (including clearing on refresh with no query)
-      // Cleanup blob URLs before clearing
-      previousBlobUrlsRef.current.forEach((blobUrl) => {
-        if (blobUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(blobUrl);
-        }
-      });
-      previousBlobUrlsRef.current = new Map();
       setVideoResults([]);
       setUserResults([]);
       setVideoCount(0);
