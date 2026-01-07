@@ -152,11 +152,11 @@ function SearchPageContent() {
 
   // Cleanup blob URLs on unmount
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden gap-0">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-        <main className="flex-1 overflow-y-auto w-full min-w-0">
+        <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
           <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
               <div className="mb-4 sm:mb-6">
@@ -356,11 +356,11 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-background">
           <Navbar onMenuClick={() => {}} />
           <div className="flex flex-1 overflow-hidden">
             <Sidebar isMobileOpen={false} onMobileClose={() => {}} />
-            <main className="flex-1 overflow-y-auto w-full min-w-0">
+            <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
               <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
                   <div className="text-center py-12">

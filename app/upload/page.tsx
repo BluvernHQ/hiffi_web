@@ -302,11 +302,11 @@ export default function UploadPage() {
   // Show loading state while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-background">
         <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 flex items-center justify-center">
+          <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)] flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
               <p>Loading...</p>
@@ -320,11 +320,11 @@ export default function UploadPage() {
   // Show login prompt if not authenticated
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-background">
         <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-          <main className="flex-1 p-6 overflow-y-auto w-full min-w-0">
+          <main className="flex-1 p-6 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
             <div className="max-w-3xl mx-auto">
               <Card className="mt-12">
                 <CardContent className="pt-6 text-center space-y-6">
@@ -356,11 +356,11 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
-        <main className="flex-1 p-6 overflow-y-auto w-full min-w-0">
+        <main className="flex-1 p-6 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
           <div className="max-w-3xl mx-auto">
             <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Upload Video</h1>
 

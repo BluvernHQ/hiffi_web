@@ -134,14 +134,14 @@ export default function FollowingPage() {
   // Show loading state
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-background">
         <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden gap-0">
+        <div className="flex flex-1 overflow-hidden">
           <Sidebar 
             isMobileOpen={isSidebarOpen} 
             onMobileClose={() => setIsSidebarOpen(false)}
           />
-          <main className="flex-1 overflow-y-auto bg-background">
+          <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
             <div className="container mx-auto px-4 py-6 sm:py-8">
               <div className="flex items-center justify-center min-h-[60vh]">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -159,14 +159,14 @@ export default function FollowingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden gap-0">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           isMobileOpen={isSidebarOpen} 
           onMobileClose={() => setIsSidebarOpen(false)}
         />
-        <main className="flex-1 overflow-y-auto bg-background w-full min-w-0 h-[calc(100vh-4rem)]">
+        <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
