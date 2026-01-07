@@ -206,6 +206,7 @@ export default function ProfilePage() {
 
   // Fetch user videos with infinite scroll support
   const fetchUserVideos = useCallback(async (currentOffset: number, isInitialLoad: boolean, isOwnProfile: boolean) => {
+    // Prevent duplicate requests
     if (isFetching) {
       console.log("[hiffi] Already fetching videos, skipping duplicate request");
       return;
@@ -223,13 +224,13 @@ export default function ProfilePage() {
       // Fetch videos from appropriate endpoint based on profile ownership
       let videosResponse;
       if (isOwnProfile) {
-        console.log("[hiffi] Fetching own videos using /videos/list/self");
+        console.log(`[hiffi] Fetching own videos - Offset: ${currentOffset}, Limit: ${VIDEOS_PER_PAGE}`);
         videosResponse = await apiClient.listSelfVideos({ 
           offset: currentOffset, 
           limit: VIDEOS_PER_PAGE 
         });
       } else {
-        console.log(`[hiffi] Fetching videos for ${username} using /videos/list/{username}`);
+        console.log(`[hiffi] Fetching videos for ${username} - Offset: ${currentOffset}, Limit: ${VIDEOS_PER_PAGE}`);
         videosResponse = await apiClient.getUserVideos(username, { 
           offset: currentOffset, 
           limit: VIDEOS_PER_PAGE 
@@ -237,6 +238,7 @@ export default function ProfilePage() {
       }
 
       const videosArray = videosResponse.videos || [];
+      console.log(`[hiffi] Received ${videosArray.length} videos at offset ${currentOffset}`);
 
       // Enhance videos with profile user's profile picture and username if available
       const enhancedVideos = videosArray.map((video: any) => {
@@ -258,7 +260,7 @@ export default function ProfilePage() {
           // Fallback to image field if profile_picture is not available
           video.user_profile_picture = sourceUser.image;
           video.user_updated_at = sourceUser.updated_at;
-          }
+        }
         
         return video;
       });
@@ -266,29 +268,40 @@ export default function ProfilePage() {
       if (currentOffset === 0) {
         // Initial load - replace videos
         setUserVideos(enhancedVideos);
+        setOffset(0);
       } else {
         // Append new videos to existing ones
         setUserVideos((prev) => {
           // Prevent duplicates by checking video IDs
-          const existingIds = new Set(prev.map(v => (v as any).videoId || v.video_id));
-          const newVideos = enhancedVideos.filter(v => !existingIds.has((v as any).videoId || v.video_id));
-          return [...prev, ...newVideos];
+          const existingIds = new Set(prev.map(v => (v as any).videoId || (v as any).video_id));
+          const newVideos = enhancedVideos.filter(v => !existingIds.has((v as any).videoId || (v as any).video_id));
+          const updatedVideos = [...prev, ...newVideos];
+          const newOffset = prev.length + newVideos.length;
+          setOffset(newOffset);
+          return updatedVideos;
         });
       }
 
-      // Check if there are more videos to load
-      // If we got fewer videos than requested, or if offset + videos.length >= count, there are no more
-      if (videosArray.length < VIDEOS_PER_PAGE || (currentOffset + videosArray.length >= videosResponse.count)) {
-        setHasMore(false);
-      } else {
-        setHasMore(true);
+      // If we got fewer videos than requested, there are no more pages
+      setHasMore(enhancedVideos.length === VIDEOS_PER_PAGE);
+      
+      if (enhancedVideos.length < VIDEOS_PER_PAGE) {
+        console.log(`[hiffi] Reached end of pagination. Got ${enhancedVideos.length} videos, expected ${VIDEOS_PER_PAGE}`);
       }
     } catch (error) {
       console.error("[hiffi] Failed to fetch user videos:", error);
-      if (currentOffset === 0) {
+      
+      // Retry logic for pagination (but not for initial load)
+      if (currentOffset > 0) {
+        console.log("[hiffi] Retrying pagination request...");
+        // Don't retry immediately, let user try scrolling again
+        // Just set hasMore to false to prevent infinite retry loops
+        setHasMore(false);
+      } else {
+        // Set empty array on error for initial load
         setUserVideos([]);
+        setHasMore(false);
       }
-      setHasMore(false);
     } finally {
       setIsLoading(false);
       setLoadingMore(false);
@@ -297,6 +310,10 @@ export default function ProfilePage() {
   }, [username, isFetching, profileUser, currentUserData, isOwnProfile]);
 
   const loadMoreVideos = useCallback(() => {
+    // Only load more if:
+    // 1. Not currently loading (initial or more)
+    // 2. Not already fetching
+    // 3. There are more videos available
     if (!isLoading && !loadingMore && !isFetching && hasMore) {
       // Offset should be the number of items to skip, not page number
       // Calculate next offset based on current number of videos loaded
@@ -304,6 +321,8 @@ export default function ProfilePage() {
       console.log(`[hiffi] Loading more videos for user ${username} - Current videos: ${userVideos.length}, Next offset: ${nextOffset}`);
       setOffset(nextOffset);
       fetchUserVideos(nextOffset, false, isOwnProfile);
+    } else {
+      console.log(`[hiffi] Cannot load more - loading: ${isLoading}, loadingMore: ${loadingMore}, isFetching: ${isFetching}, hasMore: ${hasMore}`);
     }
   }, [isLoading, loadingMore, isFetching, hasMore, userVideos.length, username, isOwnProfile, fetchUserVideos]);
 

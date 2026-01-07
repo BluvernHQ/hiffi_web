@@ -758,16 +758,60 @@ class ApiClient {
 
   // Update current user via PUT /users/self
   // This endpoint allows users to update their own profile including role
-  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
+  // When email is changed, response includes: { success: true, data: { id: "...", message: "..." } }
+  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; email?: string; [key: string]: any }): Promise<{ success: boolean; user?: any; data?: { id?: string; message?: string; [key: string]: any } }> {
     const response = await this.request<{
       success?: boolean
       status?: string
       user?: any
-      data?: { user: any }
+      data?: { user?: any; id?: string; message?: string; [key: string]: any }
     }>(
       "/users/self",
       {
         method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
+    
+    // Normalize response structure
+    const isSuccess = response.status === "success" || response.success !== false
+    
+    // If response has data.id, it means OTP was sent (email change)
+    // Preserve the full data structure in this case
+    if (response.data?.id) {
+      return {
+        success: isSuccess,
+        data: response.data,
+      }
+    }
+    
+    // Otherwise, return normalized user data
+    const userData = response.user || response.data?.user || response.data || response
+    
+    return {
+      success: isSuccess,
+      user: userData,
+    }
+  }
+
+  // Verify email update OTP via POST /users/self/verify-update
+  async verifyEmailUpdate(data: { id: string; otp: string }): Promise<{
+    success: boolean
+    user?: any
+    data?: any
+    error?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      user?: any
+      data?: any
+      error?: string
+    }>(
+      "/users/self/verify-update",
+      {
+        method: "POST",
         body: JSON.stringify(data),
       },
       true,
@@ -780,6 +824,8 @@ class ApiClient {
     return {
       success: isSuccess,
       user: userData,
+      data: response.data,
+      error: response.error,
     }
   }
 
