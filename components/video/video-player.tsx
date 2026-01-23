@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings, Check } from "lucide-react"
+import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Minimize, Settings, Check } from "lucide-react"
 import Script from "next/script"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -117,6 +117,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const isSwitchingQualityRef = useRef(false)
   const durationRef = useRef(0)
   const autoplayCanceledRef = useRef(false) // Track if user canceled autoplay
+  const autoplayAttemptTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track autoplay attempt timeout
   
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
@@ -186,6 +187,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const handleVideoInteraction = (e: React.MouseEvent) => {
     // Ignore clicks on specific UI buttons or sliders
     if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="slider"]')) return;
+    
+    // Focus the container for keyboard controls
+    if (containerRef.current) {
+      containerRef.current.focus()
+    }
 
     // Clear forced-mute flag on any interaction and restore intended sound
     if (isForcedMuteRef.current) {
@@ -278,10 +284,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     }
   }, [isPlaying, isPlayerAwake])
 
-  // Reset autoplay canceled flag when video URL changes (new video)
+  // Reset autoplay canceled flag and last processed URL when video URL changes (new video)
   useEffect(() => {
     if (signedVideoUrl) {
       autoplayCanceledRef.current = false
+      lastProcessedUrlRef.current = "" // Reset to allow processing of new URL
     }
   }, [signedVideoUrl])
 
@@ -442,10 +449,15 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
   // Track initialization to prevent multiple setups
   const isInitializingRef = useRef(false)
+  const lastProcessedUrlRef = useRef<string>("")
 
   // Proper Cleanup on Unmount
   useEffect(() => {
     return () => {
+      if (autoplayAttemptTimeoutRef.current) {
+        clearTimeout(autoplayAttemptTimeoutRef.current)
+        autoplayAttemptTimeoutRef.current = null
+      }
       if (playerRef.current) {
         console.log("[hiffi] Disposing player")
         playerRef.current.dispose()
@@ -484,8 +496,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     }
 
     // Initialize player
+    // Note: We set autoplay to false in VideoJS config to have full control
+    // We handle autoplay manually with safePlay() to preserve user's mute preference
     const player = vjs(videoRef.current, {
-      autoplay: autoPlay ? 'any' : false,
+      autoplay: false, // Always false - we handle autoplay manually
       muted: isMuted,
       controls: false,
       responsive: true,
@@ -509,8 +523,23 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     playerRef.current = player
 
     // Sync state listeners
-    const handlePlay = () => setIsPlaying(true)
-    const handlePause = () => setIsPlaying(false)
+    const handlePlay = () => {
+      setIsPlaying(true)
+      // Clear any pending autoplay timeout since play succeeded
+      if (autoplayAttemptTimeoutRef.current) {
+        clearTimeout(autoplayAttemptTimeoutRef.current)
+        autoplayAttemptTimeoutRef.current = null
+      }
+    }
+    const handlePause = () => {
+      // Only update state if we're not in the middle of an autoplay attempt
+      // This prevents temporary pauses during autoplay from stopping playback
+      if (!autoplayAttemptTimeoutRef.current) {
+        setIsPlaying(false)
+      } else {
+        console.log("[hiffi] Pause event during autoplay attempt, ignoring temporarily")
+      }
+    }
     const handleTimeUpdate = () => {
       if (!isSwitchingQualityRef.current) {
         const currentTime = player.currentTime()
@@ -548,7 +577,30 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       // or when user clicks play
     }
     const handleWaiting = () => setIsBuffering(true)
-    const handlePlaying = () => setIsBuffering(false)
+    const handlePlaying = () => {
+      setIsBuffering(false)
+      
+      // If video was forced to mute for autoplay, try to restore user's preference after playback starts
+      // This gives the browser a chance to allow unmuted playback once playback has started
+      if (isForcedMuteRef.current && !isMutedRef.current && player.muted()) {
+        // Try to unmute after a short delay to ensure playback is stable
+        setTimeout(() => {
+          if (player && !player.paused() && isForcedMuteRef.current && !isMutedRef.current) {
+            console.log("[hiffi] Attempting to restore unmuted playback after forced mute")
+            try {
+              player.muted(false)
+              player.volume(volumeRef.current)
+              // If unmuting succeeds, clear the forced mute flag
+              if (!player.muted()) {
+                isForcedMuteRef.current = false
+              }
+            } catch (err) {
+              console.log("[hiffi] Could not restore unmuted playback:", err)
+            }
+          }
+        }, 300)
+      }
+    }
     
     const syncVolumeFromPlayer = () => {
       const playerMuted = player.muted()
@@ -585,17 +637,86 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     player.on('volumechange', syncVolumeFromPlayer)
     player.on('error', handleError)
 
+    // Track if we've attempted autoplay to avoid multiple attempts
+    let autoplayAttempted = false
+
+    // Function to attempt autoplay when video is ready
+    const attemptAutoplay = () => {
+      if (autoPlay && !autoplayAttempted && !autoplayCanceledRef.current) {
+        // Ensure player state matches user's saved preference before attempting autoplay
+        // This is crucial for preserving user intent across reloads
+        player.muted(isMuted)
+        player.volume(volume)
+        
+        autoplayAttempted = true
+        console.log("[hiffi] Attempting autoplay with user's volume preference:", { isMuted, volume })
+        
+        // Set a timeout to track autoplay attempt - clear it after playback starts
+        // This prevents pause events from interfering with autoplay
+        if (autoplayAttemptTimeoutRef.current) {
+          clearTimeout(autoplayAttemptTimeoutRef.current)
+        }
+        autoplayAttemptTimeoutRef.current = setTimeout(() => {
+          autoplayAttemptTimeoutRef.current = null
+        }, 2000) // Give autoplay 2 seconds to start
+        
+        safePlay(player).then(() => {
+          // Clear timeout once play succeeds
+          if (autoplayAttemptTimeoutRef.current) {
+            clearTimeout(autoplayAttemptTimeoutRef.current)
+            autoplayAttemptTimeoutRef.current = null
+          }
+        }).catch(() => {
+          // Clear timeout if play fails
+          if (autoplayAttemptTimeoutRef.current) {
+            clearTimeout(autoplayAttemptTimeoutRef.current)
+            autoplayAttemptTimeoutRef.current = null
+          }
+        })
+      }
+    }
+
     // Load source
     player.ready(() => {
       console.log(`[hiffi] Player ready, setting source: ${signedVideoUrl}`)
+      
+      // Track this as the last processed URL
+      lastProcessedUrlRef.current = signedVideoUrl
+      
+      // Ensure volume/mute state is set before loading source
+      player.muted(isMuted)
+      player.volume(volume)
       
       player.src({
         src: signedVideoUrl,
         type: "application/x-mpegURL"
       })
 
-      if (autoPlay) {
-        setTimeout(() => safePlay(player), 50)
+      // Try autoplay when source is loaded and ready
+      const tryAutoplayOnReady = () => {
+        // Only attempt if player is ready
+        if (player.readyState() >= 2) {
+          // If already playing, don't attempt again
+          if (!player.paused()) {
+            return
+          }
+          console.log("[hiffi] Video ready, attempting autoplay")
+          attemptAutoplay()
+        }
+      }
+      
+      player.one('loadeddata', tryAutoplayOnReady)
+      player.one('canplay', tryAutoplayOnReady)
+      player.one('loadedmetadata', tryAutoplayOnReady)
+      
+      // Also try autoplay immediately if source is already loaded (for cached videos)
+      if (autoPlay && !autoplayCanceledRef.current) {
+        setTimeout(() => {
+          if (!autoplayAttempted && player.readyState() >= 2) { // HAVE_CURRENT_DATA
+            console.log("[hiffi] Video already loaded (cached), attempting autoplay")
+            tryAutoplayOnReady()
+          }
+        }, 200) // Slightly longer delay to ensure everything is set up
       }
     })
 
@@ -603,18 +724,112 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       // Listeners are removed when player is disposed in the separate cleanup effect
       isInitializingRef.current = false
     }
-  }, [isReady, signedVideoUrl, videoSourceType])
+  }, [isReady, signedVideoUrl, videoSourceType, autoPlay, isMuted, volume])
+
+  // Handle source changes when URL changes but player is already initialized
+  useEffect(() => {
+    const player = playerRef.current
+    if (!player || !isReady || !signedVideoUrl || !videoSourceType || isInitializingRef.current) return
+    
+    // Skip if we've already processed this URL (to avoid duplicate processing)
+    if (lastProcessedUrlRef.current === signedVideoUrl) return
+    
+    // Check if source has actually changed
+    const currentSrc = player.currentSrc()
+    if (currentSrc === signedVideoUrl) {
+      lastProcessedUrlRef.current = signedVideoUrl
+      return // Source hasn't changed
+    }
+    
+    console.log(`[hiffi] Source changed, updating player source: ${signedVideoUrl}`)
+    lastProcessedUrlRef.current = signedVideoUrl
+    
+    // Reset autoplay attempt flag for new source
+    let autoplayAttempted = false
+    
+    const attemptAutoplay = () => {
+      if (autoPlay && !autoplayAttempted && !autoplayCanceledRef.current) {
+        player.muted(isMuted)
+        player.volume(volume)
+        autoplayAttempted = true
+        console.log("[hiffi] Attempting autoplay for new source with user's volume preference:", { isMuted, volume })
+        
+        // Set a timeout to track autoplay attempt
+        if (autoplayAttemptTimeoutRef.current) {
+          clearTimeout(autoplayAttemptTimeoutRef.current)
+        }
+        autoplayAttemptTimeoutRef.current = setTimeout(() => {
+          autoplayAttemptTimeoutRef.current = null
+        }, 2000)
+        
+        safePlay(player).then(() => {
+          if (autoplayAttemptTimeoutRef.current) {
+            clearTimeout(autoplayAttemptTimeoutRef.current)
+            autoplayAttemptTimeoutRef.current = null
+          }
+        }).catch(() => {
+          if (autoplayAttemptTimeoutRef.current) {
+            clearTimeout(autoplayAttemptTimeoutRef.current)
+            autoplayAttemptTimeoutRef.current = null
+          }
+        })
+      }
+    }
+    
+    // Update source
+    player.muted(isMuted)
+    player.volume(volume)
+    player.src({
+      src: signedVideoUrl,
+      type: "application/x-mpegURL"
+    })
+    
+    // Try autoplay when new source is loaded
+    const tryAutoplayOnReady = () => {
+      if (player.readyState() >= 2) {
+        // If already playing, don't attempt again
+        if (!player.paused()) {
+          return
+        }
+        attemptAutoplay()
+      }
+    }
+    
+    player.one('loadeddata', tryAutoplayOnReady)
+    player.one('canplay', tryAutoplayOnReady)
+    player.one('loadedmetadata', tryAutoplayOnReady)
+    
+    // Also try immediately if already loaded
+    setTimeout(() => {
+      if (!autoplayAttempted && player.readyState() >= 2) {
+        tryAutoplayOnReady()
+      }
+    }, 200)
+  }, [signedVideoUrl, videoSourceType, isReady, autoPlay, isMuted, volume])
 
   // Sync volume/mute state with player separately
   useEffect(() => {
     const player = playerRef.current
     if (player && isReady) {
-      // Don't try to unmute the player automatically if browser forced it, 
-      // as it might cause another block. Let handleVideoInteraction restore it.
-      if (isForcedMuteRef.current && !isMuted) {
+      // Don't sync if we're in the middle of an autoplay attempt
+      // This prevents volume changes from interfering with autoplay
+      if (autoplayAttemptTimeoutRef.current) {
         return
       }
       
+      // Don't try to unmute the player automatically if browser forced it, 
+      // as it might cause another block. Let handleVideoInteraction or handlePlaying restore it.
+      // Also don't sync if player is muted but user wants unmuted (forced mute scenario)
+      if (isForcedMuteRef.current) {
+        // Only sync volume, not mute state, when forced mute is active
+        // This preserves the user's intended unmuted state in the UI
+        if (Math.abs(player.volume() - volume) > 0.01) {
+          player.volume(volume)
+        }
+        return
+      }
+      
+      // Normal sync - user preference takes precedence
       if (player.muted() !== isMuted) player.muted(isMuted)
       if (Math.abs(player.volume() - volume) > 0.01) player.volume(volume)
     }
@@ -747,6 +962,120 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard shortcuts if user is typing in an input, textarea, or contenteditable
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('input') ||
+        target.closest('textarea') ||
+        target.closest('[contenteditable="true"]')
+      ) {
+        return
+      }
+
+      // Only handle keys when video player container is focused or video is playing
+      // This prevents conflicts with other parts of the page
+      const isPlayerFocused = containerRef.current?.contains(document.activeElement) || 
+                              document.activeElement === containerRef.current
+
+      // Allow keyboard controls when player is focused OR when video is playing
+      // (standard behavior - users can control playback even if they clicked elsewhere)
+      if (!isPlayerFocused && !isPlaying) {
+        return
+      }
+
+      const player = playerRef.current
+      if (!player) return
+
+      switch (e.key) {
+        case ' ': // Space - Play/Pause
+          e.preventDefault()
+          togglePlay()
+          break
+
+        case 'ArrowLeft': // Seek backward 10 seconds
+          e.preventDefault()
+          if (duration > 0) {
+            const newTime = Math.max(0, currentTime - 10)
+            handleSeek([newTime])
+          }
+          break
+
+        case 'ArrowRight': // Seek forward 10 seconds
+          e.preventDefault()
+          if (duration > 0) {
+            const newTime = Math.min(duration, currentTime + 10)
+            handleSeek([newTime])
+          }
+          break
+
+        case 'ArrowUp': // Increase volume
+          e.preventDefault()
+          const volumeUp = Math.min(1, volume + 0.1)
+          handleVolumeChange([volumeUp])
+          break
+
+        case 'ArrowDown': // Decrease volume
+          e.preventDefault()
+          const volumeDown = Math.max(0, volume - 0.1)
+          handleVolumeChange([volumeDown])
+          break
+
+        case 'm':
+        case 'M': // Toggle mute
+          e.preventDefault()
+          toggleMute()
+          break
+
+        case 'f':
+        case 'F': // Toggle fullscreen
+          e.preventDefault()
+          toggleFullscreen()
+          break
+
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': // Seek to percentage (0 = 0%, 1 = 10%, ..., 9 = 90%)
+          e.preventDefault()
+          if (duration > 0) {
+            const percentage = parseInt(e.key) / 10
+            const seekTime = duration * percentage
+            handleSeek([seekTime])
+          }
+          break
+
+        case 'Home': // Seek to beginning
+          e.preventDefault()
+          if (duration > 0) {
+            handleSeek([0])
+          }
+          break
+
+        case 'End': // Seek to end
+          e.preventDefault()
+          if (duration > 0) {
+            handleSeek([duration])
+          }
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isPlaying, currentTime, duration, volume, isMuted, isFullscreen])
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return
 
@@ -763,6 +1092,18 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     const minutes = Math.floor(time / 60)
     const seconds = Math.floor(time % 60)
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
+  }
+
+  const getVolumeIcon = () => {
+    if (isMuted || volume === 0) {
+      return <VolumeX className="h-6 w-6" />
+    } else if (volume <= 0.5) {
+      // Low volume: 1-50% - show one sound line
+      return <Volume1 className="h-6 w-6" />
+    } else {
+      // High volume: 51-100% - show two sound lines
+      return <Volume2 className="h-6 w-6" />
+    }
   }
 
   if (isLoadingUrl) {
@@ -792,6 +1133,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       className="relative aspect-video bg-black rounded-xl overflow-hidden group select-none touch-manipulation"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
+      tabIndex={0}
+      onFocus={() => setShowControls(true)}
     >
       {/* Interaction Layer - Captures taps anywhere on the player to wake/toggle */}
       <div 
@@ -949,7 +1292,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
                 }} 
                 className="hover:text-primary transition-colors p-2 -m-2"
               >
-                {isMuted || volume === 0 ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+                {getVolumeIcon()}
               </button>
               <div className={cn(
                 "overflow-hidden transition-all duration-300 ease-in-out",
