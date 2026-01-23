@@ -498,9 +498,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     // Initialize player
     // Note: We set autoplay to false in VideoJS config to have full control
     // We handle autoplay manually with safePlay() to preserve user's mute preference
+    // Use refs to get current values to avoid stale closures
     const player = vjs(videoRef.current, {
       autoplay: false, // Always false - we handle autoplay manually
-      muted: isMuted,
+      muted: isMutedRef.current,
       controls: false,
       responsive: true,
       fluid: false,
@@ -538,6 +539,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         setIsPlaying(false)
       } else {
         console.log("[hiffi] Pause event during autoplay attempt, ignoring temporarily")
+        // Clear the timeout if user manually pauses during autoplay attempt
+        // This allows the pause to be processed normally
+        clearTimeout(autoplayAttemptTimeoutRef.current)
+        autoplayAttemptTimeoutRef.current = null
+        setIsPlaying(false)
       }
     }
     const handleTimeUpdate = () => {
@@ -641,15 +647,19 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     let autoplayAttempted = false
 
     // Function to attempt autoplay when video is ready
+    // Use refs to get current volume/mute values to avoid stale closures
     const attemptAutoplay = () => {
       if (autoPlay && !autoplayAttempted && !autoplayCanceledRef.current) {
         // Ensure player state matches user's saved preference before attempting autoplay
         // This is crucial for preserving user intent across reloads
-        player.muted(isMuted)
-        player.volume(volume)
+        // Use current state values from refs to avoid stale closures
+        const currentMuted = isMutedRef.current
+        const currentVolume = volumeRef.current
+        player.muted(currentMuted)
+        player.volume(currentVolume)
         
         autoplayAttempted = true
-        console.log("[hiffi] Attempting autoplay with user's volume preference:", { isMuted, volume })
+        console.log("[hiffi] Attempting autoplay with user's volume preference:", { isMuted: currentMuted, volume: currentVolume })
         
         // Set a timeout to track autoplay attempt - clear it after playback starts
         // This prevents pause events from interfering with autoplay
@@ -684,8 +694,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       lastProcessedUrlRef.current = signedVideoUrl
       
       // Ensure volume/mute state is set before loading source
-      player.muted(isMuted)
-      player.volume(volume)
+      // Use refs to get current values to avoid stale closures
+      player.muted(isMutedRef.current)
+      player.volume(volumeRef.current)
       
       player.src({
         src: signedVideoUrl,
@@ -724,7 +735,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       // Listeners are removed when player is disposed in the separate cleanup effect
       isInitializingRef.current = false
     }
-  }, [isReady, signedVideoUrl, videoSourceType, autoPlay, isMuted, volume])
+  }, [isReady, signedVideoUrl, videoSourceType, autoPlay])
 
   // Handle source changes when URL changes but player is already initialized
   useEffect(() => {
@@ -749,10 +760,13 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     
     const attemptAutoplay = () => {
       if (autoPlay && !autoplayAttempted && !autoplayCanceledRef.current) {
-        player.muted(isMuted)
-        player.volume(volume)
+        // Use refs to get current volume/mute values to avoid stale closures
+        const currentMuted = isMutedRef.current
+        const currentVolume = volumeRef.current
+        player.muted(currentMuted)
+        player.volume(currentVolume)
         autoplayAttempted = true
-        console.log("[hiffi] Attempting autoplay for new source with user's volume preference:", { isMuted, volume })
+        console.log("[hiffi] Attempting autoplay for new source with user's volume preference:", { isMuted: currentMuted, volume: currentVolume })
         
         // Set a timeout to track autoplay attempt
         if (autoplayAttemptTimeoutRef.current) {
@@ -777,8 +791,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     }
     
     // Update source
-    player.muted(isMuted)
-    player.volume(volume)
+    // Use refs to get current volume/mute values to avoid stale closures
+    player.muted(isMutedRef.current)
+    player.volume(volumeRef.current)
     player.src({
       src: signedVideoUrl,
       type: "application/x-mpegURL"
@@ -805,7 +820,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         tryAutoplayOnReady()
       }
     }, 200)
-  }, [signedVideoUrl, videoSourceType, isReady, autoPlay, isMuted, volume])
+  }, [signedVideoUrl, videoSourceType, isReady, autoPlay])
 
   // Sync volume/mute state with player separately
   useEffect(() => {
@@ -845,7 +860,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       player.currentTime(0)
     }
 
-    if (isPlaying) {
+    // Check actual player state instead of relying on React state
+    // This prevents issues where state might be out of sync
+    const isActuallyPlaying = !player.paused()
+    
+    if (isActuallyPlaying) {
       player.pause()
     } else {
       safePlay(player)
@@ -983,6 +1002,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       const isPlayerFocused = containerRef.current?.contains(document.activeElement) || 
                               document.activeElement === containerRef.current
 
+      // For volume controls (ArrowUp/ArrowDown), always prevent default scrolling
+      // when video is playing, even if player is not focused
+      const isVolumeKey = e.key === 'ArrowUp' || e.key === 'ArrowDown'
+      if (isVolumeKey && isPlaying) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+
       // Allow keyboard controls when player is focused OR when video is playing
       // (standard behavior - users can control playback even if they clicked elsewhere)
       if (!isPlayerFocused && !isPlaying) {
@@ -995,11 +1022,13 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       switch (e.key) {
         case ' ': // Space - Play/Pause
           e.preventDefault()
+          e.stopPropagation()
           togglePlay()
           break
 
         case 'ArrowLeft': // Seek backward 10 seconds
           e.preventDefault()
+          e.stopPropagation()
           if (duration > 0) {
             const newTime = Math.max(0, currentTime - 10)
             handleSeek([newTime])
@@ -1008,6 +1037,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
         case 'ArrowRight': // Seek forward 10 seconds
           e.preventDefault()
+          e.stopPropagation()
           if (duration > 0) {
             const newTime = Math.min(duration, currentTime + 10)
             handleSeek([newTime])
@@ -1016,12 +1046,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
         case 'ArrowUp': // Increase volume
           e.preventDefault()
+          e.stopPropagation()
           const volumeUp = Math.min(1, volume + 0.1)
           handleVolumeChange([volumeUp])
           break
 
         case 'ArrowDown': // Decrease volume
           e.preventDefault()
+          e.stopPropagation()
           const volumeDown = Math.max(0, volume - 0.1)
           handleVolumeChange([volumeDown])
           break
@@ -1029,12 +1061,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         case 'm':
         case 'M': // Toggle mute
           e.preventDefault()
+          e.stopPropagation()
           toggleMute()
           break
 
         case 'f':
         case 'F': // Toggle fullscreen
           e.preventDefault()
+          e.stopPropagation()
           toggleFullscreen()
           break
 
@@ -1049,6 +1083,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         case '8':
         case '9': // Seek to percentage (0 = 0%, 1 = 10%, ..., 9 = 90%)
           e.preventDefault()
+          e.stopPropagation()
           if (duration > 0) {
             const percentage = parseInt(e.key) / 10
             const seekTime = duration * percentage
@@ -1058,6 +1093,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
         case 'Home': // Seek to beginning
           e.preventDefault()
+          e.stopPropagation()
           if (duration > 0) {
             handleSeek([0])
           }
@@ -1065,6 +1101,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
         case 'End': // Seek to end
           e.preventDefault()
+          e.stopPropagation()
           if (duration > 0) {
             handleSeek([duration])
           }

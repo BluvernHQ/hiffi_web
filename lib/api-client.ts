@@ -1774,6 +1774,33 @@ class ApiClient {
     }
   }
 
+  // DELETE /social/videos/comment/{commentID} - Delete a comment
+  async deleteComment(commentId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        message?: string
+      }
+      message?: string
+    }>(
+      `/social/videos/comment/${commentId}`,
+      {
+        method: "DELETE",
+      },
+      true,
+    )
+    
+    // Normalize response structure
+    const isSuccess = !!(response.status === "success" || response.success)
+    const message = response.data?.message || response.message || ""
+    
+    return {
+      success: isSuccess,
+      message: message,
+    }
+  }
+
   // GET /social/videos/replies/{commentID} - List replies for a comment
   async getReplies(commentId: string, page: number = 1, limit: number = 20): Promise<{
     success: boolean

@@ -6,8 +6,16 @@ import { useState, useEffect } from "react"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { formatDistanceToNow } from "date-fns"
-import { MessageSquare, Loader2 } from "lucide-react"
+import { MessageSquare, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
@@ -231,6 +239,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
             userProfiles={userProfiles}
             fetchUserProfiles={fetchUserProfiles}
             onReplyAdded={fetchComments}
+            onCommentDeleted={fetchComments}
           />
         ))}
 
@@ -252,12 +261,14 @@ function CommentItem({
   comment, 
   userProfiles,
   fetchUserProfiles,
-  onReplyAdded 
+  onReplyAdded,
+  onCommentDeleted
 }: { 
   comment: Comment; 
   userProfiles: Record<string, any>;
   fetchUserProfiles: (usernames: string[]) => Promise<void>;
-  onReplyAdded?: () => void 
+  onReplyAdded?: () => void;
+  onCommentDeleted?: () => void;
 }) {
   const { toast } = useToast()
   const { user, userData } = useAuth()
@@ -267,6 +278,8 @@ function CommentItem({
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [replyText, setReplyText] = useState("")
   const [isSubmittingReply, setIsSubmittingReply] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   // Fetch profile if missing
   const profileLoaded = !!userProfiles[comment.comment_by_username]
@@ -361,6 +374,50 @@ function CommentItem({
     }
   }
 
+  const handleDeleteComment = async () => {
+    if (!user) return
+
+    try {
+      setIsDeleting(true)
+      const response = await apiClient.deleteComment(comment.comment_id)
+      
+      if (response.success) {
+        toast({
+          title: "Comment deleted",
+          description: "Your comment has been deleted successfully.",
+        })
+        
+        setShowDeleteDialog(false)
+        
+        // Give the dialog time to close before refreshing comments
+        setTimeout(() => {
+          // Notify parent to refresh comments
+          if (onCommentDeleted) {
+            onCommentDeleted()
+          }
+        }, 300)
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to delete comment",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("[hiffi] Failed to delete comment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete comment. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Check if current user is the owner of the comment
+  const isOwner = user && (user.uid === comment.commented_by || userData?.username === comment.comment_by_username)
+
   return (
     <div className="flex gap-4">
       <ProfilePicture 
@@ -409,6 +466,16 @@ function CommentItem({
           >
             Reply
           </button>
+          {isOwner && (
+            <button
+              className="text-xs text-muted-foreground hover:text-destructive font-medium flex items-center gap-1"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete
+            </button>
+          )}
         </div>
 
         {showReplyInput && user && (
@@ -510,6 +577,54 @@ function CommentItem({
           </div>
         )}
       </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle>Delete Comment</DialogTitle>
+                <DialogDescription className="mt-1">
+                  This action cannot be undone.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this comment? This will permanently remove the comment and all its replies.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteComment}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Comment"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
