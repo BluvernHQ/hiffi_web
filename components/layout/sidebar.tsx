@@ -9,11 +9,6 @@ import {
   Home,
   UserCheck,
   Video,
-  // Compass,
-  // Heart,
-  // Library,
-  // History,
-  // ThumbsUp,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
