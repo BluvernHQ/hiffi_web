@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
@@ -21,7 +22,6 @@ import { SearchOverlay } from "@/components/search/search-overlay"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
-import { Logo } from "./logo"
 
 
 interface NavbarProps {
@@ -102,8 +102,8 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-2 sm:px-4">
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+        <div className="flex h-16 items-center">
+          <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Button 
               variant="ghost" 
               size="icon" 
@@ -113,13 +113,27 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/home" className="flex items-center gap-1 sm:gap-2">
-              <Logo size={40} showText />
+            <Link href="/home" className="flex items-center gap-3">
+              <Image
+                src="/hiffi_logo.png"
+                alt="Hiffi Logo"
+                width={56}
+                height={56}
+                className="object-contain"
+                priority
+              />
+              <Image
+                src="/hiffi_work_red.png"
+                alt="Hiffi"
+                width={104}
+                height={32}
+                className="h-6 w-auto object-contain"
+              />
             </Link>
           </div>
 
-          <div className="flex-1 flex items-center justify-center px-1 sm:px-2 min-w-0">
-            <div className="relative w-full max-w-[150px] sm:max-w-[220px] md:max-w-md transition-all duration-300">
+          <div className="flex-1 flex items-center justify-center px-2 min-w-0">
+            <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
               <div 
                 onClick={() => setIsSearchOpen(true)} 
                 className="group relative flex items-center w-full h-9 rounded-full bg-muted/50 border border-input hover:bg-muted hover:border-primary/30 transition-all cursor-pointer overflow-hidden"
@@ -132,7 +146,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-4 pr-2 sm:pr-3 md:pr-4 flex-shrink-0">
             {user && userData ? (
               <>
                 {showUploadButton && (
@@ -201,7 +215,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <Button asChild className="rounded-full px-3.5 sm:px-6 text-sm sm:text-base">
+                <Button asChild className="rounded-full px-6">
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>
                 </Button>
               </div>
@@ -255,10 +269,24 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   return (
     <Suspense fallback={
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center px-2 sm:px-4">
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            <Link href="/home" className="flex items-center gap-1 sm:gap-2">
-              <Logo size={40} showText />
+        <div className="flex h-16 items-center">
+          <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
+            <Link href="/home" className="flex items-center gap-3">
+              <Image
+                src="/hiffi_logo.png"
+                alt="Hiffi Logo"
+                width={56}
+                height={56}
+                className="object-contain"
+                priority
+              />
+              <Image
+                src="/hiffi_work_red.png"
+                alt="Hiffi"
+                width={104}
+                height={32}
+                className="h-6 w-auto object-contain"
+              />
             </Link>
           </div>
         </div>
