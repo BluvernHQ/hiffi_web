@@ -114,8 +114,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <span className="sr-only">Toggle menu</span>
             </Button>
             <Link href="/home" className="flex items-center gap-2">
-              <Logo size={32} showText={false} />
-              <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
+              <Logo size={40} showText />
             </Link>
           </div>
 
@@ -259,8 +258,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-4 flex-shrink-0">
             <Link href="/home" className="flex items-center gap-2">
-              <Logo size={32} showText={false} />
-              <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
+              <Logo size={40} showText />
             </Link>
           </div>
         </div>

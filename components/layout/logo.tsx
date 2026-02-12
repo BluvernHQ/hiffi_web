@@ -10,14 +10,16 @@ interface LogoProps {
 }
 
 export function Logo({ className, size = 32, showText = false }: LogoProps) {
+  const iconSize = showText ? Math.round(size * 1.6) : size
+
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div className="relative" style={{ width: size, height: size }}>
+    <div className={cn("flex items-center", showText ? "gap-0" : "gap-2", className)}>
+      <div className="relative" style={{ width: iconSize, height: iconSize }}>
         <Image
           src="/hiffi_logo.png"
           alt="Hiffi Logo"
-          width={size}
-          height={size}
+          width={iconSize}
+          height={iconSize}
           className="object-contain"
           priority
         />

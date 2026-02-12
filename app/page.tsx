@@ -10,8 +10,8 @@ export default function LandingPage() {
           <Image 
             src="/hiffi_logo.png" 
             alt="Hiffi Logo" 
-            width={40} 
-            height={40} 
+            width={56} 
+            height={56} 
             className="object-contain"
           />
           <Image 
