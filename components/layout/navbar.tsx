@@ -113,7 +113,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
               <Logo size={32} showText={false} />
               <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
             </Link>
@@ -258,7 +258,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-4 flex-shrink-0">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
               <Logo size={32} showText={false} />
               <span className="hidden font-bold text-xl md:inline-block">Hiffi</span>
             </Link>

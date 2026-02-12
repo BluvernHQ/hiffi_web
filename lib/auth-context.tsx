@@ -347,7 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace("/admin/dashboard")
       } else {
         // Use redirect path if provided (from query param), otherwise go to home
-        const destination = redirectPath || "/"
+        const destination = redirectPath || "/home"
         console.log("[hiffi] Redirecting after login to:", destination)
         router.replace(destination)
       }

@@ -1350,7 +1350,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
             <div className="text-sm font-medium flex items-center gap-2">
               <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
               {isBuffering && (
-                <span className="text-xs text-orange-400">Buffering...</span>
+                <span className="text-xs text-secondary">Buffering...</span>
               )}
             </div>
           </div>

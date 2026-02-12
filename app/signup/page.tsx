@@ -53,7 +53,7 @@ function SignupForm() {
   useEffect(() => {
     if (!authLoading && user) {
       // Use redirect path if valid, otherwise go to home
-      const destination = redirectPath || "/"
+      const destination = redirectPath || "/home"
       router.replace(destination)
     }
   }, [user, authLoading, router, redirectPath])

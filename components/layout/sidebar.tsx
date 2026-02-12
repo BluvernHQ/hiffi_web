@@ -26,7 +26,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
   const pathname = usePathname()
   const router = useRouter()
   const [internalMobileOpen, setInternalMobileOpen] = useState(false)
-  const isHomePage = pathname === "/"
+  const isHomePage = pathname === "/" || pathname === "/home"
   
   // Use external state if provided, otherwise use internal state
   const mobileOpen = isMobileOpen !== undefined ? isMobileOpen : internalMobileOpen
@@ -44,7 +44,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
   const mainNavItems: Array<{ icon: typeof Home; label: string; href: string }> = []
 
   const filterItems = [
-    { icon: Home, label: "Home", value: "all" as const, href: "/" },
+    { icon: Home, label: "Home", value: "all" as const, href: "/home" },
     { icon: UserCheck, label: "Following", value: "following" as const, href: "/following", requireAuth: true },
   ]
 
@@ -59,8 +59,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
    * Uses exact match for home, prefix match for other routes.
    */
   const isActive = (href: string) => {
-    if (href === "/") {
-      return pathname === "/"
+    if (href === "/home") {
+      return pathname === "/home"
     }
     return pathname?.startsWith(href)
   }

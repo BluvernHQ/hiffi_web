@@ -14,7 +14,7 @@ export function Logo({ className, size = 32, showText = false }: LogoProps) {
     <div className={cn("flex items-center gap-2", className)}>
       <div className="relative" style={{ width: size, height: size }}>
         <Image
-          src="/icon.svg"
+          src="/hiffi_logo.png"
           alt="Hiffi Logo"
           width={size}
           height={size}
@@ -23,7 +23,14 @@ export function Logo({ className, size = 32, showText = false }: LogoProps) {
         />
       </div>
       {showText && (
-        <span className="font-bold text-xl">Hiffi</span>
+        <Image
+          src="/hiffi_work_red.png"
+          alt="Hiffi"
+          width={size * 3}
+          height={size}
+          className="h-auto object-contain"
+          style={{ height: size * 0.8 }}
+        />
       )}
     </div>
   )

@@ -572,7 +572,7 @@ export default function WatchPage() {
                 <div className="text-4xl mb-4">😕</div>
                 <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
                 <p className="text-muted-foreground mb-6">{urlError}</p>
-                <Button onClick={() => router.push("/")} variant="default">
+                <Button onClick={() => router.push("/home")} variant="default">
                   Go to Home
                 </Button>
               </>
@@ -598,7 +598,7 @@ export default function WatchPage() {
   
   const handleVideoDeleted = () => {
     // Redirect to home after deletion
-    router.push("/")
+    router.push("/home")
   }
 
   const handleVideoEnd = () => {

@@ -5,12 +5,12 @@
 
 :root {
   /* Hiffi Color Palette */
-  /* Primary: #FF6B35 (Orange) */
-  --primary: #FF6B35; 
+  /* Primary: #ED1C2F (Red) */
+  --primary: #ED1C2F;
   --primary-foreground: #FFFFFF;
   
-  /* Secondary: #FF8A5B (Light Orange) */
-  --secondary: #FF8A5B;
+  /* Secondary: #F14D5D */
+  --secondary: #F14D5D;
   --secondary-foreground: #FFFFFF;
   
   /* Background: White */
@@ -30,8 +30,8 @@
   --muted-foreground: #737373;
   
   /* Accent */
-  --accent: #FFF0EB; /* Very light orange for hover states */
-  --accent-foreground: #FF6B35;
+  --accent: #FFECEF; /* Very light red for hover states */
+  --accent-foreground: #ED1C2F;
   
   /* Destructive: #B00020 */
   --destructive: #B00020;
@@ -40,11 +40,11 @@
   /* Border/Input/Ring */
   --border: #E5E5E5;
   --input: #E5E5E5;
-  --ring: #FF6B35;
+  --ring: #ED1C2F;
   
   /* Charts (Keep defaults or adjust) */
-  --chart-1: #FF6B35;
-  --chart-2: #FF8A5B;
+  --chart-1: #ED1C2F;
+  --chart-2: #F14D5D;
   --chart-3: #24B47E; /* Green from docs */
   --chart-4: #3118ED; /* Blue from docs */
   --chart-5: #F59F1B; /* Yellow from docs */
@@ -53,12 +53,12 @@
   
   --sidebar: #FAFAFA;
   --sidebar-foreground: #1A1A1A;
-  --sidebar-primary: #FF6B35;
+  --sidebar-primary: #ED1C2F;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FFF0EB;
-  --sidebar-accent-foreground: #FF6B35;
+  --sidebar-accent: #FFECEF;
+  --sidebar-accent-foreground: #ED1C2F;
   --sidebar-border: #E5E5E5;
-  --sidebar-ring: #FF6B35;
+  --sidebar-ring: #ED1C2F;
 }
 
 .dark {
@@ -69,28 +69,28 @@
   --card-foreground: #F2F6FF;
   --popover: #161B22;
   --popover-foreground: #F2F6FF;
-  --primary: #FF6B35;
+  --primary: #ED1C2F;
   --primary-foreground: #FFFFFF;
-  --secondary: #FF8A5B;
+  --secondary: #F14D5D;
   --secondary-foreground: #FFFFFF;
   --muted: #21262D;
   --muted-foreground: #8B949E;
   --accent: #21262D;
-  --accent-foreground: #FF6B35;
+  --accent-foreground: #ED1C2F;
   --destructive: #B00020;
   --destructive-foreground: #FFFFFF;
   --border: #30363D;
   --input: #30363D;
-  --ring: #FF6B35;
+  --ring: #ED1C2F;
   
   --sidebar: #090C10;
   --sidebar-foreground: #F2F6FF;
-  --sidebar-primary: #FF6B35;
+  --sidebar-primary: #ED1C2F;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #21262D;
-  --sidebar-accent-foreground: #FF6B35;
+  --sidebar-accent-foreground: #ED1C2F;
   --sidebar-border: #30363D;
-  --sidebar-ring: #FF6B35;
+  --sidebar-ring: #ED1C2F;
 }
 
 @theme inline {

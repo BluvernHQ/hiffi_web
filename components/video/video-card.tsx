@@ -129,7 +129,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
             
             {isEncoding && (
               <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white/90 text-[10px] px-2 py-0.5 rounded-md border border-white/10">
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 <span className="font-medium tracking-tight">Processing</span>
               </div>
             )}

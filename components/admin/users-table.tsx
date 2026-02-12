@@ -1045,7 +1045,7 @@ export function AdminUsersTable() {
                               size="sm"
                               onClick={() => handleDisableUser(user)}
                               disabled={togglingUserId === (user.uid || user.username)}
-                              className="hover:bg-orange-500/10 text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+                              className="hover:bg-primary/10 text-primary hover:text-primary/90 dark:text-primary dark:hover:text-primary/90"
                               title="Disable user"
                             >
                               {togglingUserId === (user.uid || user.username) ? (
