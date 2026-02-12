@@ -18,16 +18,16 @@ interface EnvironmentConfig {
 
 const environments: Record<Environment, EnvironmentConfig> = {
   dev: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://beta.hiffi.com/api',
+    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://hiffi.com/api',
     workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
   },
   beta: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://beta.hiffi.com/api',
+    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://hiffi.com/api',
     workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
   },
   prod: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://hiffi.com/api',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://workers.hiffi.workers.dev',
+    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
   },
 }
 

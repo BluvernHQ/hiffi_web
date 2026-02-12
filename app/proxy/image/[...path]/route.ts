@@ -30,7 +30,11 @@ export async function GET(
 
     // Construct the Workers URL with original query parameters
     const searchParams = request.nextUrl.searchParams.toString()
-    const workersUrl = `${WORKERS_BASE_URL}/${imagePath}${searchParams ? '?' + searchParams : ''}`
+    // Ensure imagePath doesn't start with a slash to avoid double slashes
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath
+    const workersUrl = `${WORKERS_BASE_URL}/${cleanPath}${searchParams ? '?' + searchParams : ''}`
+    
+    console.log(`[hiffi] Image proxy: Fetching from Workers URL: ${workersUrl}`)
     
     // Get the API key for Workers authentication
     const apiKey = getWorkersApiKey()
@@ -47,14 +51,24 @@ export async function GET(
       headers: {
         'x-api-key': apiKey,
       },
-      // Cache the response from Workers to improve performance
-      next: { revalidate: 3600 } // Revalidate every hour
+      // Don't cache failed responses
+      cache: 'no-store',
     })
 
     if (!response.ok) {
-      console.error(`[hiffi] Workers returned error for image: ${response.status} ${response.statusText} URL: ${workersUrl}`)
+      const errorText = await response.text().catch(() => 'No error details')
+      console.error(`[hiffi] Workers returned error for image: ${response.status} ${response.statusText}`, {
+        url: workersUrl,
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText.substring(0, 200), // First 200 chars of error
+      })
       return NextResponse.json(
-        { error: `Failed to fetch image: ${response.statusText}` },
+        { 
+          error: `Failed to fetch image: ${response.statusText}`,
+          url: workersUrl,
+          status: response.status
+        },
         { status: response.status }
       )
     }
@@ -64,6 +78,8 @@ export async function GET(
     
     // Get content type from Workers response
     const contentType = response.headers.get('content-type') || 'image/jpeg'
+    
+    console.log(`[hiffi] Image proxy: Successfully fetched image (${imageBlob.size} bytes, ${contentType})`)
     
     // Return the image with appropriate headers
     return new NextResponse(imageBlob, {
@@ -76,7 +92,11 @@ export async function GET(
       },
     })
   } catch (error: any) {
-    console.error('[hiffi] Image proxy error:', error)
+    console.error('[hiffi] Image proxy error:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+    })
     return NextResponse.json(
       { error: 'Failed to fetch image', details: error.message },
       { status: 500 }
