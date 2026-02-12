@@ -179,3 +179,79 @@
 .animate-fade-in {
   animation: fade-in 0.4s ease-out;
 }
+
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-1deg);
+  }
+}
+
+@keyframes landing-float-alt {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(7px) rotate(1deg);
+  }
+}
+
+@keyframes landing-pulse-red {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(237, 28, 47, 0);
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(237, 28, 47, 0.2);
+  }
+}
+
+.landing-rise {
+  animation: landing-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-float {
+  animation: landing-float 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.landing-float-alt {
+  animation: landing-float-alt 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.landing-pulse-red {
+  animation: landing-pulse-red 4.5s ease-in-out infinite;
+}
+
+.landing-hero-emphasis {
+  text-shadow: 0 0 0 rgba(237, 28, 47, 0);
+  animation: landing-pulse-red 5.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-rise,
+  .landing-float,
+  .landing-float-alt,
+  .landing-pulse-red,
+  .landing-hero-emphasis {
+    animation: none !important;
+  }
+}
