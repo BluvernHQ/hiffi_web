@@ -10,15 +10,15 @@ export default function LandingPage() {
           <Image 
             src="/hiffi_logo.png" 
             alt="Hiffi Logo" 
-            width={56} 
-            height={56} 
+            width={28} 
+            height={28} 
             className="object-contain"
           />
           <Image 
             src="/hiffi_work_red.png" 
             alt="Hiffi" 
-            width={104}
-            height={32}
+            width={104} 
+            height={32} 
             className="h-6 w-auto object-contain"
           />
         </div>

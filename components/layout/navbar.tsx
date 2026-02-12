@@ -117,8 +117,8 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <Image
                 src="/hiffi_logo.png"
                 alt="Hiffi Logo"
-                width={56}
-                height={56}
+                width={28}
+                height={28}
                 className="object-contain"
                 priority
               />
@@ -275,8 +275,8 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
               <Image
                 src="/hiffi_logo.png"
                 alt="Hiffi Logo"
-                width={56}
-                height={56}
+                width={28}
+                height={28}
                 className="object-contain"
                 priority
               />

@@ -10,10 +10,10 @@ interface LogoProps {
 }
 
 export function Logo({ className, size = 32, showText = false }: LogoProps) {
-  const iconSize = showText ? Math.round(size * 1.6) : size
+  const iconSize = showText ? Math.round(size * 0.75) : Math.round(size * 0.95)
 
   return (
-    <div className={cn("flex items-center", showText ? "gap-0" : "gap-2", className)}>
+    <div className={cn("flex items-center", showText ? "gap-2" : "gap-2", className)}>
       <div className="relative" style={{ width: iconSize, height: iconSize }}>
         <Image
           src="/hiffi_logo.png"
@@ -31,7 +31,7 @@ export function Logo({ className, size = 32, showText = false }: LogoProps) {
           width={size * 3}
           height={size}
           className="h-auto object-contain"
-          style={{ height: size * 0.8 }}
+          style={{ height: size }}
         />
       )}
     </div>
