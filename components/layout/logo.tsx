@@ -26,7 +26,7 @@ export function Logo({ className, size = 32, showText = false }: LogoProps) {
       </div>
       {showText && (
         <Image
-          src="/hiffi_work_red.png"
+          src="/hiffi_word_black.png"
           alt="Hiffi"
           width={size * 3}
           height={size}
