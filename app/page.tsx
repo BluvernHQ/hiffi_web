@@ -17,9 +17,9 @@ export default function LandingPage() {
           <Image 
             src="/hiffi_work_red.png" 
             alt="Hiffi" 
-            width={120} 
-            height={40} 
-            className="h-7 w-auto object-contain"
+            width={104}
+            height={32}
+            className="h-6 w-auto object-contain"
           />
         </div>
       </nav>
