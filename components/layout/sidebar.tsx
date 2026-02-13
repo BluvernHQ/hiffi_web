@@ -28,11 +28,11 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const pathname = usePathname()
   const router = useRouter()
   const [internalMobileOpen, setInternalMobileOpen] = useState(false)
-  const isHomePage = pathname === "/" || pathname === "/home"
-  
+  const isHomePage = pathname === "/"
+
   // Use external state if provided, otherwise use internal state
   const mobileOpen = isMobileOpen !== undefined ? isMobileOpen : internalMobileOpen
-  
+
   // Close handler: use external close function if provided, otherwise use internal state setter
   const closeSidebar = () => {
     if (onMobileClose) {
@@ -46,7 +46,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const mainNavItems: Array<{ icon: typeof Home; label: string; href: string }> = []
 
   const filterItems = [
-    { icon: Home, label: "Home", value: "all" as const, href: "/home" },
+    { icon: Home, label: "Home", value: "all" as const, href: "/" },
     { icon: UserCheck, label: "Following", value: "following" as const, href: "/following", requireAuth: true },
   ]
 
@@ -61,8 +61,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
    * Uses exact match for home, prefix match for other routes.
    */
   const isActive = (href: string) => {
-    if (href === "/home") {
-      return pathname === "/home"
+    if (href === "/") {
+      return pathname === "/"
     }
     return pathname?.startsWith(href)
   }
@@ -70,7 +70,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const NavLink = ({ item }: { item: typeof mainNavItems[0] }) => {
     const Icon = item.icon
     const itemIsActive = isActive(item.href)
-    
+
     return (
       <Link
         href={item.href}
@@ -93,7 +93,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const FilterItem = ({ item }: { item: typeof filterItems[0] }) => {
     const Icon = item.icon
     const isDisabled = item.requireAuth && !user
-    
+
     // Simplified active state: use pathname matching for consistency
     // Home is active when pathname is exactly "/"
     // Following is active when pathname starts with "/following"
@@ -177,29 +177,29 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
 
             {/* Navigation - Consistent padding across all pages */}
             <nav className="space-y-1 p-4 lg:p-4 lg:pt-4">
-            {/* Main navigation items */}
-            {mainNavItems.length > 0 && (
-              <div className="space-y-1">
-                {mainNavItems.map((item) => (
-                  <NavLink key={item.href} item={item} />
-                ))}
-              </div>
-            )}
+              {/* Main navigation items */}
+              {mainNavItems.length > 0 && (
+                <div className="space-y-1">
+                  {mainNavItems.map((item) => (
+                    <NavLink key={item.href} item={item} />
+                  ))}
+                </div>
+              )}
 
-            {/* Filter options - always show Explore section */}
-            <div className={mainNavItems.length > 0 ? "pt-4" : ""}>
-              <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Explore
+              {/* Filter options - always show Explore section */}
+              <div className={mainNavItems.length > 0 ? "pt-4" : ""}>
+                <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Explore
+                </div>
+                <div className="space-y-1">
+                  {filterItems.map((item) => (
+                    <FilterItem key={item.value} item={item} />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                {filterItems.map((item) => (
-                  <FilterItem key={item.value} item={item} />
-                ))}
-              </div>
-            </div>
 
-            {/* Commented out as requested */}
-            {/* {user && secondaryNavItems.length > 0 && (
+              {/* Commented out as requested */}
+              {/* {user && secondaryNavItems.length > 0 && (
               <div className="pt-4">
                 <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Your Activity
@@ -211,33 +211,33 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </div>
               </div>
             )} */}
-          </nav>
-        </div>
-        
-        {/* Sidebar Footer */}
-        <div className="border-t px-4 py-4 mt-auto shrink-0">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col gap-1.5">
-              <Link
-                href="/terms-of-use"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                onClick={closeSidebar}
-              >
-                Terms of Use
-              </Link>
-              <Link
-                href="/privacy-policy"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                onClick={closeSidebar}
-              >
-                Privacy Policy
-              </Link>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              © 2026 Kinimi Corporation
+            </nav>
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="border-t px-4 py-4 mt-auto shrink-0">
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
+                <Link
+                  href="/terms-of-use"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={closeSidebar}
+                >
+                  Terms of Use
+                </Link>
+                <Link
+                  href="/privacy-policy"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={closeSidebar}
+                >
+                  Privacy Policy
+                </Link>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                © 2026 Kinimi Corporation
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </aside>
     </>

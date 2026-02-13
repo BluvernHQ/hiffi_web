@@ -172,7 +172,7 @@ export default function BecomeCreatorPage() {
                     </Card>
                   </Link>
 
-                  <Link href="/home" className="block">
+                  <Link href="/" className="block">
                     <Card className="cursor-pointer hover:border-primary/50 transition-colors">
                       <CardHeader>
                         <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">

@@ -347,7 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace("/admin/dashboard")
       } else {
         // Use redirect path if provided (from query param), otherwise go to home
-        const destination = redirectPath || "/home"
+        const destination = redirectPath || "/"
         console.log("[hiffi] Redirecting after login to:", destination)
         router.replace(destination)
       }
@@ -518,7 +518,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => cleanupOverlays(), 300)
         } else {
           // Always redirect to home page after logout for other pages
-          router.replace("/home")
+          router.replace("/")
           // Run cleanup multiple times to catch elements added during navigation
           setTimeout(() => cleanupOverlays(), 50)
           setTimeout(() => cleanupOverlays(), 150)
@@ -546,7 +546,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Fallback for SSR if somehow called
-        router.replace("/home")
+        router.replace("/")
       }
     } catch (error) {
       console.error("[hiffi] Sign out failed:", error)

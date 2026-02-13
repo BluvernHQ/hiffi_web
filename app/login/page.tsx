@@ -32,7 +32,7 @@ function LoginForm() {
   useEffect(() => {
     if (!authLoading && user) {
       // Use redirect path if valid, otherwise go to home
-      const destination = redirectPath || "/home"
+      const destination = redirectPath || "/"
       router.replace(destination)
     }
   }, [user, authLoading, router, redirectPath])
@@ -78,7 +78,7 @@ function LoginForm() {
 
   const handleSkip = () => {
     // If there's a valid redirect, go there; otherwise go home
-    const destination = redirectPath || "/home"
+    const destination = redirectPath || "/"
     router.replace(destination)
   }
 

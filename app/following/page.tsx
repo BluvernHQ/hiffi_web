@@ -177,7 +177,7 @@ export default function FollowingPage() {
           {!isLoadingVideos && videos.length === 0 ? (
             <FollowingEmptyState
               hasFollowedUsers={true}
-              onDiscoverClick={() => router.push('/home')}
+              onDiscoverClick={() => router.push('/')}
             />
           ) : (
             <VideoGrid

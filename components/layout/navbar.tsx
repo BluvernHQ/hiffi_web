@@ -38,10 +38,10 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
-  
+
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
-  
+
   const handleLogoutClick = () => {
     setLogoutDialogOpen(true)
   }
@@ -55,7 +55,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
       if (typeof window !== "undefined") {
         // Wait for React to process state update
         await new Promise(resolve => requestAnimationFrame(resolve))
-        
+
         // Aggressively remove all dialog-related elements
         const cleanup = () => {
           // Remove overlay elements
@@ -67,20 +67,20 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               // Ignore errors
             }
           })
-          
+
           // Reset body styles
           document.body.style.pointerEvents = ""
           document.body.style.overflow = ""
         }
-        
+
         // Cleanup immediately
         cleanup()
-        
+
         // Cleanup again after a short delay to catch any elements that were added during animation
         await new Promise(resolve => setTimeout(resolve, 150))
         cleanup()
       }
-      
+
       await logout()
       // logout() will redirect, so we don't need to reset state here
     } catch (error) {
@@ -88,7 +88,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
       // Reset state if logout fails so user can try again
       setIsLoggingOut(false)
       setLogoutDialogOpen(false)
-      
+
       // Cleanup on error as well
       if (typeof window !== "undefined") {
         const overlayElements = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-focus-guard]')
@@ -104,16 +104,16 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
       <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-9 w-9" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
               onClick={onMenuClick}
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/home" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <Image
                 src="/hiffi_logo.png"
                 alt="Hiffi Logo"
@@ -134,8 +134,8 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
           <div className="flex-1 flex items-center justify-center px-2 min-w-0">
             <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
-              <div 
-                onClick={() => setIsSearchOpen(true)} 
+              <div
+                onClick={() => setIsSearchOpen(true)}
                 className="group relative flex items-center w-full h-9 rounded-full bg-muted/50 border border-input hover:bg-muted hover:border-primary/30 transition-all cursor-pointer overflow-hidden"
               >
                 <Search className="absolute left-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -271,7 +271,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
-            <Link href="/home" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <Image
                 src="/hiffi_logo.png"
                 alt="Hiffi Logo"

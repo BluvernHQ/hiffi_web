@@ -343,7 +343,7 @@ export default function UploadPage() {
                       <Link href="/signup">Sign up</Link>
                     </Button>
                     <Button variant="ghost" asChild>
-                      <Link href="/home">Go to Home</Link>
+                      <Link href="/">Go to Home</Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -560,7 +560,7 @@ export default function UploadPage() {
                     <p className="text-muted-foreground mt-2">Your video has been uploaded successfully and is now processing.</p>
                   </div>
                   <div className="flex justify-center gap-4 pt-4">
-                    <Button variant="outline" onClick={() => router.push('/home')}>Go to Home</Button>
+                    <Button variant="outline" onClick={() => router.push('/')}>Go to Home</Button>
                     <Button onClick={() => {
                       setFile(null);
                       setThumbnail(null);
