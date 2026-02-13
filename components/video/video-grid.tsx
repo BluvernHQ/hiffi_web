@@ -83,7 +83,7 @@ export function VideoGrid({ videos, loading, hasMore, onLoadMore, onVideoDeleted
     <div className="w-full">
       {/* Show shimmer skeletons on initial load */}
       {isInitialLoad && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
           {Array.from({ length: 8 }).map((_, index) => (
             <VideoCardSkeleton key={`skeleton-${index}`} />
           ))}
@@ -93,7 +93,7 @@ export function VideoGrid({ videos, loading, hasMore, onLoadMore, onVideoDeleted
       {/* Show videos when available */}
       {safeVideos.length > 0 && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
             {safeVideos.map((video, index) => (
               <div
                 key={video.videoId || video.video_id}

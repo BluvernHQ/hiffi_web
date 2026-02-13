@@ -17,11 +17,13 @@ interface SidebarProps {
   className?: string
   isMobileOpen?: boolean
   onMobileClose?: () => void
+  isDesktopOpen?: boolean
+  onDesktopToggle?: () => void
   currentFilter?: 'all' | 'following'
   onFilterChange?: (filter: 'all' | 'following') => void
 }
 
-export function Sidebar({ className, isMobileOpen = false, onMobileClose, currentFilter = 'all', onFilterChange }: SidebarProps) {
+export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange }: SidebarProps) {
   const { user, userData } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
@@ -141,15 +143,21 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
       {/* Sidebar - Consistent dimensions and positioning across all pages */}
       <aside
         className={cn(
-          // Fixed width - never changes (256px / w-64)
-          "w-64 flex-shrink-0 bg-background",
-          // Mobile: fixed overlay
-          "fixed left-0 top-0 z-[70] h-screen shadow-lg transition-transform duration-300 ease-in-out",
-          // Desktop: sticky positioning below navbar
+          // Fixed width - never changes (256px / w-64) when open
+          "flex-shrink-0 bg-background",
+          // Mobile: fixed overlay, always w-64
+          "fixed left-0 top-0 z-[70] h-screen w-64 shadow-lg transition-transform duration-300 ease-in-out",
+          // Desktop: sticky positioning below navbar, can be hidden
           // top-16 = 4rem = navbar height, h-[calc(100vh-4rem)] = viewport minus navbar
-          "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:translate-x-0 lg:overflow-y-auto",
+          "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",
+          // Desktop overflow - only allow scrolling when open
+          isDesktopOpen && "lg:overflow-y-auto",
+          !isDesktopOpen && "lg:overflow-hidden",
           // Mobile visibility
-          !mobileOpen && "-translate-x-full lg:translate-x-0",
+          !mobileOpen && "-translate-x-full",
+          // Desktop visibility - hidden by default (no width, translated out), shown when isDesktopOpen is true
+          !isDesktopOpen && "lg:w-0 lg:-translate-x-full",
+          isDesktopOpen && "lg:w-64 lg:translate-x-0",
           className
         )}
       >
@@ -204,6 +212,31 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
               </div>
             )} */}
           </nav>
+        </div>
+        
+        {/* Sidebar Footer */}
+        <div className="border-t px-4 py-4 mt-auto shrink-0">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Link
+                href="/terms-of-use"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={closeSidebar}
+              >
+                Terms of Use
+              </Link>
+              <Link
+                href="/privacy-policy"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={closeSidebar}
+              >
+                Privacy Policy
+              </Link>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              © 2026 Kinimi Corporation
+            </div>
+          </div>
         </div>
         </div>
       </aside>

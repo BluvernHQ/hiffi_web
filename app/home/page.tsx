@@ -382,8 +382,8 @@ function HomePageContent() {
     <AppLayout 
       currentFilter={currentFilter}
     >
-      <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
               <div className="flex items-center justify-between mb-1 sm:justify-start">

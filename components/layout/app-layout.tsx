@@ -1,9 +1,8 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, useState, useEffect } from "react"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
-import { useState } from "react"
 
 interface AppLayoutProps {
   children: ReactNode
@@ -15,21 +14,52 @@ interface AppLayoutProps {
  * Shared layout component that provides consistent structure across all pages.
  * 
  * Layout Rules:
- * - Sidebar: Fixed width (256px / w-64), sticky positioning, always visible on desktop
+ * - Sidebar: Fixed width (256px / w-64) when open, hidden by default on desktop, toggleable via menu button
  * - Main content: Flex-1, scrollable, consistent padding
  * - Gap: 0 (no gap between sidebar and content for seamless look)
  * - Height: Full viewport minus navbar (64px / h-16)
  * 
- * This ensures the sidebar feels like a persistent anchor across all pages.
+ * Sidebar can be toggled on both mobile and desktop via the menu button in the navbar.
  */
+const SIDEBAR_STORAGE_KEY = 'hiffi_sidebar_desktop_open'
+
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
+  // Mobile sidebar state - always starts closed (no persistence needed)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  
+  // Desktop sidebar state - persist in localStorage
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      return saved === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  // Save desktop sidebar state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isDesktopSidebarOpen))
+    } catch (error) {
+      // Ignore localStorage errors (e.g., in private browsing)
+      console.debug('[hiffi] Failed to save sidebar state:', error)
+    }
+  }, [isDesktopSidebarOpen])
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Navbar - Fixed at top, always visible */}
       <Navbar 
-        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        onMenuClick={() => {
+          // Toggle mobile sidebar on mobile, desktop sidebar on desktop
+          if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            setIsDesktopSidebarOpen(!isDesktopSidebarOpen)
+          } else {
+            setIsSidebarOpen(!isSidebarOpen)
+          }
+        }} 
         currentFilter={currentFilter}
       />
       
@@ -39,6 +69,8 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         <Sidebar 
           isMobileOpen={isSidebarOpen} 
           onMobileClose={() => setIsSidebarOpen(false)}
+          isDesktopOpen={isDesktopSidebarOpen}
+          onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
           currentFilter={currentFilter}
           onFilterChange={onFilterChange}
         />

@@ -107,7 +107,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden h-9 w-9" 
+              className="h-9 w-9" 
               onClick={onMenuClick}
             >
               <Menu className="h-5 w-5" />

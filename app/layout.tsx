@@ -53,17 +53,17 @@ export default function RootLayout({
             }}
           />
         )}
-        {/* Google tag (gtag.js) - ID from env only */}
+        {/* Google tag (gtag.js) - beforeInteractive so it runs in initial HTML like Google recommends */}
         {gaId && (
           <>
             <Script
               id="google-gtag-src"
-              strategy="afterInteractive"
+              strategy="beforeInteractive"
               src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
             />
             <Script
               id="google-gtag-config"
-              strategy="afterInteractive"
+              strategy="beforeInteractive"
               dangerouslySetInnerHTML={{
                 __html: `
                   window.dataLayer = window.dataLayer || [];
