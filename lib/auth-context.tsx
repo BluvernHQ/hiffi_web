@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log("[hiffi] Fetching user data from API")
-      
+
       // Get username from cached data or token
       let username: string | null = null
       if (typeof window !== "undefined") {
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
-      
+
       // If we don't have username, we can't fetch user data
       if (!username) {
         // Try to get username from credentials cookie as fallback
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Try auto-login to restore credentials and session.
         return null
       }
-      
+
       // Use /users/{username} instead of deprecated /users/self
       const response = await apiClient.getUserByUsername(username)
 
@@ -127,16 +127,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error("[hiffi] Failed to fetch user data:", error)
-      
+
       // If unauthorized (401), clear token and sign out
       if (error?.status === 401 || error?.status === 404) {
         console.warn("[hiffi] Unauthorized or user not found, clearing auth")
         apiClient.clearAuthToken()
-          setUser(null)
-          setUserData(null)
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(USER_DATA_KEY)
-            localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+        setUser(null)
+        setUserData(null)
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(USER_DATA_KEY)
+          localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
         }
       } else {
         setUser(null)
@@ -153,14 +153,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log("[hiffi] Checking auth state on mount")
-    
+
     // Check if we have a token and fetch user data
     const checkAuth = async () => {
       try {
         const token = apiClient.getAuthToken()
         if (token) {
           const fetchedUser = await refreshUserData()
-          
+
           // If refresh failed but we have a token, try to restore session via auto-login
           if (!fetchedUser) {
             console.log("[hiffi] Refresh failed with token present, attempting auto-login fallback")
@@ -199,14 +199,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Reset body styles
       document.body.style.pointerEvents = ""
       document.body.style.overflow = ""
-      
+
       // Remove Radix Dialog overlays
       const selectors = [
         '[data-radix-dialog-overlay]',
         '[data-radix-focus-guard]',
         '[data-radix-portal]'
       ]
-      
+
       selectors.forEach(selector => {
         try {
           document.querySelectorAll(selector).forEach(el => {
@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
@@ -242,15 +242,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, password: string, redirectPath?: string | null) => {
     try {
       console.log("[hiffi] Attempting login for:", identifier)
-      
+
       // Determine if identifier is an email or username
       const isEmail = identifier.includes("@") && identifier.includes(".")
-      const loginData = isEmail 
-        ? { email: identifier, password } 
+      const loginData = isEmail
+        ? { email: identifier, password }
         : { username: identifier, password }
-      
+
       const response = await apiClient.login(loginData)
-      
+
       if (!response.success || !response.data) {
         throw new Error("Login failed. Please check your credentials.")
       }
@@ -260,43 +260,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set initial user data from login response
       setUser(response.data.user)
       setUserData(response.data.user)
-      
+
       // Cache the user data
       if (typeof window !== "undefined") {
         localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
-      
+
       // Check if account is disabled by calling /users/{username}
       console.log("[hiffi] Checking if account is disabled")
       try {
         const userStatusResponse = await apiClient.getUserByUsername(response.data.user.username)
-        
+
         // Check if user account is disabled
         // API returns { disabled: true, success: false } for disabled accounts
         if (userStatusResponse.disabled === true && userStatusResponse.success === false) {
           console.warn("[hiffi] Account is disabled, logging out user")
-          
+
           // Clear auth state
           apiClient.clearAuthToken()
           apiClient.clearCredentials()
           setUser(null)
           setUserData(null)
-          
+
           // Clear cached data
           if (typeof window !== "undefined") {
             localStorage.removeItem(USER_DATA_KEY)
             localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
           }
-          
+
           // Show toast notification with better UX
           toast({
             title: "Account Disabled",
             description: (
               <span>
                 Your account has been disabled. Please contact support at{" "}
-                <a 
-                  href="mailto:support@hiffi.com" 
+                <a
+                  href="mailto:support@hiffi.com"
                   className="font-semibold text-primary underline hover:text-primary/80"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -308,7 +308,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             variant: "destructive",
             duration: 10000, // Show for 10 seconds to ensure user sees it
           })
-          
+
           // Return early without throwing error to avoid console noise
           // The toast message is sufficient feedback to the user
           return
@@ -322,7 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Otherwise, log the error but continue with login (might be network issue)
         console.warn("[hiffi] Failed to check account status, continuing with login:", statusError)
       }
-      
+
       // Refresh user data from /users/{username} to get latest creator status and all user details
       console.log("[hiffi] Refreshing user data from /users/{username} to get latest details")
       let finalUserData: any = response.data.user
@@ -337,9 +337,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
         // Continue with login response data if refresh fails
       }
-      
+
       console.log("[hiffi] User data set after login")
-      
+
       // Check if user is admin and redirect to admin dashboard, otherwise use redirect path or home
       const userRole = String(finalUserData?.role || "").toLowerCase().trim()
       if (userRole === "admin") {
@@ -364,7 +364,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Register user with backend - returns registration ID for OTP verification
       const response = await apiClient.register({ username, password, name, email })
-      
+
       if (!response.success) {
         // Handle error response
         const errorMessage = response.error || "Registration failed. Please try again."
@@ -390,7 +390,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Verify OTP with backend
       const response = await apiClient.verifyOtp({ id: registrationId, otp })
-      
+
       if (!response.success || !response.data) {
         const errorMessage = response.error || "OTP verification failed. Please try again."
         throw new Error(errorMessage)
@@ -427,12 +427,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace(destination)
     } catch (error: any) {
       console.error("[hiffi] OTP verification failed:", error)
-      
+
       // Clear any partial state
       apiClient.clearAuthToken()
       setUser(null)
       setUserData(null)
-      
+
       const errorMessage = error.message || "OTP verification failed. Please try again."
       throw new Error(errorMessage)
     }
@@ -441,7 +441,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       console.log("[hiffi] Attempting logout")
-      
+
       // Clear auth token
       apiClient.clearAuthToken()
       // Clear stored credentials
@@ -457,15 +457,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("[hiffi] Logout successful")
-      
+
       // Comprehensive cleanup function
       const cleanupOverlays = () => {
         if (typeof window === "undefined") return
-        
+
         // Remove body styles that Radix Dialog sets
         document.body.style.pointerEvents = ""
         document.body.style.overflow = ""
-        
+
         // Force remove any remaining Radix Dialog overlay elements
         const overlaySelectors = [
           '[data-radix-dialog-overlay]',
@@ -473,7 +473,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           '[data-radix-portal]',
           '.radix-dialog-overlay'
         ]
-        
+
         overlaySelectors.forEach(selector => {
           try {
             const elements = document.querySelectorAll(selector)
@@ -488,7 +488,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Ignore selector errors
           }
         })
-        
+
         // Also check for any portal containers that might still be present
         const portals = document.querySelectorAll('[data-radix-portal]')
         portals.forEach(portal => {
@@ -506,7 +506,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Run cleanup immediately
       if (typeof window !== "undefined") {
         cleanupOverlays()
-        
+
         // Conditional redirect: Stay on watch page, otherwise go home
         const currentPath = window.location.pathname
         if (currentPath.startsWith("/watch/")) {
@@ -518,12 +518,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => cleanupOverlays(), 300)
         } else {
           // Always redirect to home page after logout for other pages
-          router.replace("/")
+          router.replace("/home")
           // Run cleanup multiple times to catch elements added during navigation
           setTimeout(() => cleanupOverlays(), 50)
           setTimeout(() => cleanupOverlays(), 150)
           setTimeout(() => cleanupOverlays(), 300)
-          
+
           // Also add a listener for when the page becomes visible/ready
           const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
@@ -534,10 +534,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             cleanupOverlays()
             setTimeout(cleanupOverlays, 100)
           }
-          
+
           document.addEventListener('visibilitychange', handleVisibilityChange)
           window.addEventListener('load', handleLoad)
-          
+
           // Clean up listeners after a delay
           setTimeout(() => {
             document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -546,7 +546,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Fallback for SSR if somehow called
-        router.replace("/")
+        router.replace("/home")
       }
     } catch (error) {
       console.error("[hiffi] Sign out failed:", error)

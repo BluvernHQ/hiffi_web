@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Navbar } from '@/components/layout/navbar'
-import { Sidebar } from '@/components/layout/sidebar'
+import { AppLayout } from '@/components/layout/app-layout'
 import { VideoGrid } from '@/components/video/video-grid'
 import { FollowingEmptyState } from '@/components/video/following-empty-state'
 import { useAuth } from '@/lib/auth-context'
@@ -17,7 +16,6 @@ export default function FollowingPage() {
   const router = useRouter()
   const { userData, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -49,15 +47,15 @@ export default function FollowingPage() {
 
     try {
       setIsFetching(true)
-      
+
       if (isInitialLoad) {
         setLoading(true)
       } else {
         setLoadingMore(true)
       }
-      
+
       console.log(`[hiffi] Fetching following videos - Offset: ${currentOffset}, Limit: ${VIDEOS_PER_PAGE}`)
-      
+
       const response = await apiClient.getFollowingVideos({
         offset: currentOffset,
         limit: VIDEOS_PER_PAGE,
@@ -65,7 +63,7 @@ export default function FollowingPage() {
 
       // Handle null or undefined videos array
       const videosArray = response.videos || []
-      
+
       console.log(`[hiffi] Received ${videosArray.length} following videos at offset ${currentOffset}`)
 
       if (currentOffset === 0) {
@@ -83,13 +81,13 @@ export default function FollowingPage() {
 
       // If we got fewer videos than requested, there are no more pages
       setHasMore(videosArray.length === VIDEOS_PER_PAGE)
-      
+
       if (videosArray.length < VIDEOS_PER_PAGE) {
         console.log(`[hiffi] Reached end of pagination. Got ${videosArray.length} videos, expected ${VIDEOS_PER_PAGE}`)
       }
     } catch (error) {
       console.error("[hiffi] Failed to fetch following videos:", error)
-      
+
       // Retry logic for pagination (but not for initial load)
       if (currentOffset > 0) {
         console.log("[hiffi] Retrying pagination request...")
@@ -134,22 +132,15 @@ export default function FollowingPage() {
   // Show loading state
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar 
-            isMobileOpen={isSidebarOpen} 
-            onMobileClose={() => setIsSidebarOpen(false)}
-          />
-          <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
-            <div className="container mx-auto px-4 py-6 sm:py-8">
-              <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
+      <AppLayout currentFilter="following">
+        <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+          <div className="w-full">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          </main>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     )
   }
 
@@ -159,60 +150,51 @@ export default function FollowingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
-          isMobileOpen={isSidebarOpen} 
-          onMobileClose={() => setIsSidebarOpen(false)}
-        />
-        <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
-          <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Video className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Following</h1>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Videos from creators you follow
-                  </p>
-                </div>
+    <AppLayout currentFilter="following">
+      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Video className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Following</h1>
               </div>
-
-              {/* Video count indicator */}
-              {videos.length > 0 && !loading && (
-                <div className="text-xs text-muted-foreground mb-4 text-center sm:text-left">
-                  Showing {videos.length} {videos.length === 1 ? 'video' : 'videos'}
-                  {hasMore && ' • Scroll for more'}
-                </div>
-              )}
-
-              {/* Show custom empty state for Following filter */}
-              {!isLoadingVideos && videos.length === 0 ? (
-                <FollowingEmptyState 
-                  hasFollowedUsers={true}
-                  onDiscoverClick={() => router.push('/home')}
-                />
-              ) : (
-                <VideoGrid 
-                  videos={videos} 
-                  loading={isLoadingVideos} 
-                  hasMore={shouldShowLoadMore} 
-                  onLoadMore={loadMoreVideos}
-                  onVideoDeleted={(videoId) => {
-                    // Remove deleted video from the list
-                    setVideos((prev) => 
-                      prev.filter((v) => ((v as any).videoId || (v as any).video_id) !== videoId)
-                    )
-                  }}
-                />
-              )}
+              <p className="text-sm text-muted-foreground mt-1">
+                Videos from creators you follow
+              </p>
             </div>
           </div>
-        </main>
+
+          {/* Video count indicator */}
+          {videos.length > 0 && !loading && (
+            <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 text-center sm:text-left">
+              Showing {videos.length} {videos.length === 1 ? 'video' : 'videos'}
+              {hasMore && ' • Scroll for more'}
+            </div>
+          )}
+
+          {/* Show custom empty state for Following filter */}
+          {!isLoadingVideos && videos.length === 0 ? (
+            <FollowingEmptyState
+              hasFollowedUsers={true}
+              onDiscoverClick={() => router.push('/home')}
+            />
+          ) : (
+            <VideoGrid
+              videos={videos}
+              loading={isLoadingVideos}
+              hasMore={shouldShowLoadMore}
+              onLoadMore={loadMoreVideos}
+              onVideoDeleted={(videoId) => {
+                // Remove deleted video from the list
+                setVideos((prev) =>
+                  prev.filter((v) => ((v as any).videoId || (v as any).video_id) !== videoId)
+                )
+              }}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

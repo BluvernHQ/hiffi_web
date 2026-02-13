@@ -89,15 +89,15 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       debounceTimerRef.current = setTimeout(async () => {
         try {
           const searchQuery = query.trim();
-          
+
           // Fetch both users and videos in parallel
           const [usersResponse, videosResponse] = await Promise.all([
             apiClient.searchUsers(searchQuery, 5).catch(() => ({ success: false, users: [], count: 0 })),
             apiClient.searchVideos(searchQuery, 5).catch(() => ({ success: false, videos: [], count: 0 })),
           ]);
-          
+
           const allSuggestions: SearchResult[] = [];
-          
+
           // Add user suggestions
           if (usersResponse.success && usersResponse.users) {
             const userSuggestions: SearchResult[] = usersResponse.users.map((user: any) => {
@@ -112,22 +112,22 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
             });
             allSuggestions.push(...userSuggestions);
           }
-          
+
           // Add video suggestions
           if (videosResponse.success && videosResponse.videos) {
             const videoSuggestions: SearchResult[] = videosResponse.videos.map((video: any) => {
               const videoId = video.video_id || video.videoId || '';
               const thumbnailPath = video.video_thumbnail || video.videoThumbnail || '';
-              
+
               // If no thumbnail field, construct from video_id
               const thumbnail = thumbnailPath || (videoId ? `thumbnails/videos/${videoId}.jpg` : '');
-              
+
               console.log('[SearchOverlay] Video:', {
                 videoId,
                 thumbnailPath,
                 finalThumbnail: thumbnail
               });
-              
+
               return {
                 id: videoId,
                 title: video.video_title || video.videoTitle || '',
@@ -139,7 +139,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
             });
             allSuggestions.push(...videoSuggestions);
           }
-          
+
           // Limit to 8 total suggestions (mix of users and videos)
           setSuggestions(allSuggestions.slice(0, 8));
         } catch (error) {
@@ -155,18 +155,25 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
     }
 
     return () => {
-      if (debounceTimerRef.current) { 
+      if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
     };
   }, [query]);
 
   const handleSearch = (searchQuery: string) => {
-    if (searchQuery.trim()) {
-      // Navigate to search page - router.push will trigger the search page to update
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery) {
+      // 1. Close overlay immediately to feel responsive
       onClose();
       setQuery('');
+
+      // 2. Perform navigation
+      // Using window.location.href as a fallback if router.push feels slow in some Next.js setups,
+      // but router.push is preferred for SPA transition. 
+      // The delay described might be due to the search page blocking UI while fetching.
+      // We will ensure the search page handles its own loading state properly.
+      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
     }
   };
 
@@ -175,11 +182,11 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 z-[90] backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Search Panel */}
       <div className="fixed top-0 left-0 right-0 z-[100] bg-background border-b shadow-lg">
         <div className="container max-w-3xl mx-auto p-4">
@@ -208,7 +215,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     }
                     // Always navigate to search page if there's a query
                     if (query.trim()) {
-                    handleSearch(query);
+                      handleSearch(query);
                     }
                   } else if (e.key === 'Escape') {
                     onClose();
@@ -281,7 +288,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     {(() => {
                       const users = suggestions.filter(s => s.type === 'user');
                       const videos = suggestions.filter(s => s.type === 'video');
-                      
+
                       return (
                         <div className="space-y-4">
                           {/* Users Section */}
@@ -295,40 +302,40 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                 {users.map((result, index) => {
                                   const itemIndex = suggestions.indexOf(result);
                                   return (
-                                  <Link
-                                    key={result.id}
-                                    href={`/profile/${result.username}`}
-                                    onClick={onClose}
-                                    className="block"
-                                    ref={(el) => {
-                                      if (el) resultItemRefs.current[itemIndex] = el;
-                                    }}
-                                  >
-                                    <div className={cn(
-                                      "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
-                                      selectedIndex === itemIndex && "bg-muted"
-                                    )}>
-                                      <ProfilePicture user={result.user} size="sm" />
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate">
-                                          @{result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) => 
-                                            part.toLowerCase() === query.toLowerCase() ? (
-                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
-                                            ) : (
-                                              <span key={i}>{part}</span>
-                                            )
-                                          )}
-                                        </p>
+                                    <Link
+                                      key={result.id}
+                                      href={`/profile/${result.username}`}
+                                      onClick={onClose}
+                                      className="block"
+                                      ref={(el) => {
+                                        if (el) resultItemRefs.current[itemIndex] = el;
+                                      }}
+                                    >
+                                      <div className={cn(
+                                        "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
+                                        selectedIndex === itemIndex && "bg-muted"
+                                      )}>
+                                        <ProfilePicture user={result.user} size="sm" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium truncate">
+                                            @{result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
+                                              part.toLowerCase() === query.toLowerCase() ? (
+                                                <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                              ) : (
+                                                <span key={i}>{part}</span>
+                                              )
+                                            )}
+                                          </p>
+                                        </div>
+                                        <User className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                       </div>
-                                      <User className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                  </Link>
+                                    </Link>
                                   );
                                 })}
                               </div>
                             </div>
                           )}
-                          
+
                           {/* Videos Section */}
                           {videos.length > 0 && (
                             <div>
@@ -340,52 +347,52 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                 {videos.map((result) => {
                                   const itemIndex = suggestions.indexOf(result);
                                   return (
-                                  <Link
-                                    key={result.id}
-                                    href={`/watch/${result.id}`}
-                                    onClick={onClose}
-                                    className="block"
-                                    ref={(el) => {
-                                      if (el) resultItemRefs.current[itemIndex] = el;
-                                    }}
-                                  >
-                                    <div className={cn(
-                                      "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
-                                      selectedIndex === itemIndex && "bg-muted"
-                                    )}>
-                                      <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
-                                        {result.thumbnail ? (
-                                          <AuthenticatedImage
-                                            src={getThumbnailUrl(result.thumbnail)}
-                                          alt={result.title}
-                                            fill
-                                            className="object-cover"
-                                          />
-                                        ) : (
-                                          <div className="w-full h-full bg-muted flex items-center justify-center">
-                                            <Video className="h-4 w-4 text-muted-foreground" />
+                                    <Link
+                                      key={result.id}
+                                      href={`/watch/${result.id}`}
+                                      onClick={onClose}
+                                      className="block"
+                                      ref={(el) => {
+                                        if (el) resultItemRefs.current[itemIndex] = el;
+                                      }}
+                                    >
+                                      <div className={cn(
+                                        "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
+                                        selectedIndex === itemIndex && "bg-muted"
+                                      )}>
+                                        <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
+                                          {result.thumbnail ? (
+                                            <AuthenticatedImage
+                                              src={getThumbnailUrl(result.thumbnail)}
+                                              alt={result.title}
+                                              fill
+                                              className="object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                                              <Video className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
+                                            <Video className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                           </div>
-                                        )}
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
-                                          <Video className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium truncate mb-1">
+                                            {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
+                                              part.toLowerCase() === query.toLowerCase() ? (
+                                                <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                              ) : (
+                                                <span key={i}>{part}</span>
+                                              )
+                                            )}
+                                          </p>
+                                          <p className="text-sm text-muted-foreground truncate">
+                                            @{result.username}
+                                          </p>
                                         </div>
                                       </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate mb-1">
-                                          {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) => 
-                                            part.toLowerCase() === query.toLowerCase() ? (
-                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
-                                            ) : (
-                                              <span key={i}>{part}</span>
-                                            )
-                                          )}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground truncate">
-                                          @{result.username}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </Link>
+                                    </Link>
                                   );
                                 })}
                               </div>
@@ -394,8 +401,8 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         </div>
                       );
                     })()}
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       className={cn(
                         "w-full mt-4 border-t pt-4",
                         selectedIndex === suggestions.length && "bg-muted"
@@ -411,8 +418,8 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 ) : query.trim().length > 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>No results found for "{query}"</p>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       className="mt-2"
                       onClick={() => handleSearch(query)}
                     >
