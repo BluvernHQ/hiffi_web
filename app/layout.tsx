@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
-import { GoogleAnalytics } from '@next/third-parties/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
@@ -33,11 +32,12 @@ export default function RootLayout({
 }>) {
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
   const gaId = process.env.NEXT_PUBLIC_GA_ID
+  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
 
   return (
     <html lang="en">
       <head>
-        {/* Microsoft Clarity */}
+        {/* Microsoft Clarity - ID from env only, never in source */}
         {clarityId && (
           <Script
             id="microsoft-clarity"
@@ -53,6 +53,37 @@ export default function RootLayout({
             }}
           />
         )}
+        {/* Google tag (gtag.js) - ID from env only */}
+        {gaId && (
+          <>
+            <Script
+              id="google-gtag-src"
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+            />
+            <Script
+              id="google-gtag-config"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}');
+                `,
+              }}
+            />
+          </>
+        )}
+        {/* Umami - ID from env only */}
+        {umamiWebsiteId && (
+          <Script
+            id="umami"
+            src="https://analytics.superlabs.co/script.js"
+            data-website-id={umamiWebsiteId}
+            strategy="afterInteractive"
+          />
+        )}
       </head>
       <body className={`font-sans antialiased`}>
         <AuthProvider>
@@ -61,12 +92,7 @@ export default function RootLayout({
         <Toaster />
         {/* Analytics */}
         {clarityId && <ClarityTracker />}
-        {gaId && (
-          <>
-            <GoogleAnalytics gaId={gaId} />
-            <GATracker gaId={gaId} />
-          </>
-        )}
+        {gaId && <GATracker gaId={gaId} />}
       </body>
     </html>
   )
