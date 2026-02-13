@@ -176,12 +176,12 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 z-[90] backdrop-blur-sm"
         onClick={onClose}
       />
       
       {/* Search Panel */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-background border-b shadow-lg">
+      <div className="fixed top-0 left-0 right-0 z-[100] bg-background border-b shadow-lg">
         <div className="container max-w-3xl mx-auto p-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="relative flex-1">

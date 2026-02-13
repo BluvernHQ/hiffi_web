@@ -101,7 +101,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Button 

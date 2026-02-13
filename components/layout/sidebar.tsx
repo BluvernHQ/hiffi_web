@@ -133,7 +133,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm lg:hidden"
           onClick={closeSidebar}
         />
       )}
@@ -144,7 +144,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, curren
           // Fixed width - never changes (256px / w-64)
           "w-64 flex-shrink-0 bg-background",
           // Mobile: fixed overlay
-          "fixed left-0 top-0 z-40 h-screen shadow-lg transition-transform duration-300 ease-in-out",
+          "fixed left-0 top-0 z-[70] h-screen shadow-lg transition-transform duration-300 ease-in-out",
           // Desktop: sticky positioning below navbar
           // top-16 = 4rem = navbar height, h-[calc(100vh-4rem)] = viewport minus navbar
           "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:translate-x-0 lg:overflow-y-auto",

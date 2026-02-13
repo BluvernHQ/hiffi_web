@@ -190,8 +190,8 @@ export function NextUpOverlay({
   return (
     <div 
       className={cn(
-        "absolute bottom-0 right-0 z-[45] flex items-end justify-end",
-        "pb-20 pr-4", // Extra padding to avoid controls overlap (controls are z-40)
+        "absolute bottom-0 right-0 z-[35] flex items-end justify-end",
+        "pb-20 pr-4", // Extra padding to avoid controls overlap (controls are z-30)
         "animate-in slide-in-from-bottom-4 fade-in duration-300",
         "supports-[prefers-reduced-motion]:animate-none",
         "pointer-events-none" // Allow clicks to pass through to video controls
