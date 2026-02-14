@@ -63,8 +63,11 @@ function loadStateFromStorage(filter: FilterType): { videos: any[], offset: numb
 function saveScrollPosition() {
   if (typeof window === 'undefined') return
   try {
-    const scrollY = window.scrollY || document.documentElement.scrollTop
-    sessionStorage.setItem(SCROLL_KEY, scrollY.toString())
+    const mainContent = document.getElementById('main-content')
+    if (mainContent) {
+      const scrollY = mainContent.scrollTop
+      sessionStorage.setItem(SCROLL_KEY, scrollY.toString())
+    }
   } catch (error) {
     console.error('[hiffi] Failed to save scroll position:', error)
   }
@@ -77,12 +80,22 @@ function restoreScrollPosition() {
     if (savedScroll) {
       const scrollY = parseInt(savedScroll, 10)
       if (!isNaN(scrollY) && scrollY >= 0) {
-        // Use requestAnimationFrame to ensure DOM is ready
-        requestAnimationFrame(() => {
-          if (typeof window !== 'undefined') {
-            window.scrollTo({ top: scrollY, behavior: 'auto' })
+        // Use multiple attempts to ensure DOM and images are loaded
+        const tryRestore = () => {
+          const mainContent = document.getElementById('main-content')
+          if (mainContent) {
+            mainContent.scrollTo({ top: scrollY, behavior: 'auto' })
+            return true
           }
-        })
+          return false
+        }
+
+        // Try immediately
+        if (!tryRestore()) {
+          // Retry a few times if element not found yet
+          const attempts = [10, 50, 150, 300]
+          attempts.forEach(delay => setTimeout(tryRestore, delay))
+        }
       }
     }
   } catch (error) {
@@ -133,10 +146,17 @@ function HomePageContent() {
       }, 100)
     }
 
-    window.addEventListener('scroll', throttledHandleScroll, { passive: true })
+    // Listen to scroll on the main container
+    const mainContent = document.getElementById('main-content')
+    if (mainContent) {
+      mainContent.addEventListener('scroll', throttledHandleScroll, { passive: true })
+    }
+
     return () => {
       if (timeoutId) clearTimeout(timeoutId)
-      window.removeEventListener('scroll', throttledHandleScroll)
+      if (mainContent) {
+        mainContent.removeEventListener('scroll', throttledHandleScroll)
+      }
     }
   }, [])
 

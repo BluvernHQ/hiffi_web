@@ -56,7 +56,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   }, [isDesktopSidebarOpen, mounted])
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden relative">
       {/* Navbar - Fixed at top, always visible */}
       <Navbar
         onMenuClick={() => {
@@ -83,7 +83,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         />
 
         {/* Main Content Area - Adapts to sidebar, never affects it */}
-        <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
+        <main id="main-content" className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
           {children}
         </main>
       </div>

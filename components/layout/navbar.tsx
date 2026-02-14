@@ -127,7 +127,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 alt="Hiffi"
                 width={104}
                 height={32}
-                className="h-6 w-auto object-contain"
+                className="h-6 w-auto object-contain hidden sm:block"
               />
             </Link>
           </div>
@@ -285,7 +285,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
                 alt="Hiffi"
                 width={104}
                 height={32}
-                className="h-6 w-auto object-contain"
+                className="h-6 w-auto object-contain hidden sm:block"
               />
             </Link>
           </div>
