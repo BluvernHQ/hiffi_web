@@ -526,7 +526,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     // Configure global VHS settings before player creation
     if (vjs.Vhs) {
-      vjs.Vhs.xhr.onRequest = (options: any) => {
+      vjs.Vhs.xhr.beforeRequest = (options: any) => {
         const apiKey = getWorkersApiKey()
         if (apiKey) {
           options.headers = options.headers || {}
@@ -549,7 +549,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     // We handle autoplay manually with safePlay() to preserve user's mute preference
     // Use refs to get current values to avoid stale closures
     const player = vjs(videoRef.current, {
-      autoplay: false, // Always false - we handle autoplay manually
+      autoplay: autoPlay ? 'any' : false, // Use 'any' for robust autoplay (tries unmuted, falls back to muted)
       muted: isMutedRef.current,
       controls: false,
       responsive: true,
@@ -572,8 +572,15 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     playerRef.current = player
 
+    // Track forced mute from built-in autoplay
+    player.on('autoplay-muted', () => {
+      console.log("[hiffi] Browser forced muted autoplay")
+      isForcedMuteRef.current = true
+    })
+
     // Sync state listeners
     const handlePlay = () => {
+      console.log("[hiffi] Video playing")
       setIsPlaying(true)
       setIsAutoplayInProgress(false)
       // Clear any pending autoplay timeout since play succeeded
@@ -583,17 +590,14 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       }
     }
     const handlePause = () => {
-      // Only update state if we're not in the middle of an autoplay attempt
-      // This prevents temporary pauses during autoplay from stopping playback
-      if (!autoplayAttemptTimeoutRef.current) {
-        setIsPlaying(false)
-      } else {
-        console.log("[hiffi] Pause event during autoplay attempt, ignoring temporarily")
-        // Clear the timeout if user manually pauses during autoplay attempt
-        // This allows the pause to be processed normally
+      setIsPlaying(false)
+      // If we pause while autoplay is in progress, it means it failed or was stopped
+      setIsAutoplayInProgress(false)
+      
+      if (autoplayAttemptTimeoutRef.current) {
+        console.log("[hiffi] Pause event during autoplay attempt")
         clearTimeout(autoplayAttemptTimeoutRef.current)
         autoplayAttemptTimeoutRef.current = null
-        setIsPlaying(false)
       }
     }
     const handleTimeUpdate = () => {
@@ -744,7 +748,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       lastProcessedUrlRef.current = signedVideoUrl
       
       // Ensure volume/mute state is set before loading source
-      // Use refs to get current values to avoid stale closures
       player.muted(isMutedRef.current)
       player.volume(volumeRef.current)
       
@@ -753,31 +756,17 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         type: "application/x-mpegURL"
       })
 
-      // Try autoplay when source is loaded and ready
-      const tryAutoplayOnReady = () => {
-        // Only attempt if player is ready
-        if (player.readyState() >= 2) {
-          // If already playing, don't attempt again
-          if (!player.paused()) {
-            return
+      // With autoplay: 'any', VideoJS will automatically attempt to play.
+      // We just need to ensure isAutoplayInProgress doesn't get stuck if it fails.
+      if (autoPlay) {
+        if (autoplayAttemptTimeoutRef.current) clearTimeout(autoplayAttemptTimeoutRef.current)
+        autoplayAttemptTimeoutRef.current = setTimeout(() => {
+          if (player && player.paused()) {
+            console.log("[hiffi] Autoplay seems to have failed or been blocked, clearing loading state")
+            setIsAutoplayInProgress(false)
           }
-          console.log("[hiffi] Video ready, attempting autoplay")
-          attemptAutoplay()
-        }
-      }
-      
-      player.one('loadeddata', tryAutoplayOnReady)
-      player.one('canplay', tryAutoplayOnReady)
-      player.one('loadedmetadata', tryAutoplayOnReady)
-      
-      // Also try autoplay immediately if source is already loaded (for cached videos)
-      if (autoPlay && !autoplayCanceledRef.current) {
-        setTimeout(() => {
-          if (!autoplayAttempted && player.readyState() >= 2) { // HAVE_CURRENT_DATA
-            console.log("[hiffi] Video already loaded (cached), attempting autoplay")
-            tryAutoplayOnReady()
-          }
-        }, 200) // Slightly longer delay to ensure everything is set up
+          autoplayAttemptTimeoutRef.current = null
+        }, 3000) // 3 second safety timeout
       }
     })
 
@@ -792,56 +781,17 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     const player = playerRef.current
     if (!player || !isReady || !signedVideoUrl || !videoSourceType || isInitializingRef.current) return
     
-    // Skip if we've already processed this URL (to avoid duplicate processing)
+    // Skip if we've already processed this URL
     if (lastProcessedUrlRef.current === signedVideoUrl) return
-    
-    // Check if source has actually changed
-    const currentSrc = player.currentSrc()
-    if (currentSrc === signedVideoUrl) {
-      lastProcessedUrlRef.current = signedVideoUrl
-      return // Source hasn't changed
-    }
     
     console.log(`[hiffi] Source changed, updating player source: ${signedVideoUrl}`)
     lastProcessedUrlRef.current = signedVideoUrl
     
-    // Reset autoplay attempt flag for new source
-    let autoplayAttempted = false
-    
-    const attemptAutoplay = () => {
-      if (autoPlay && !autoplayAttempted && !autoplayCanceledRef.current) {
-        // Use refs to get current volume/mute values to avoid stale closures
-        const currentMuted = isMutedRef.current
-        const currentVolume = volumeRef.current
-        player.muted(currentMuted)
-        player.volume(currentVolume)
-        autoplayAttempted = true
-        console.log("[hiffi] Attempting autoplay for new source with user's volume preference:", { isMuted: currentMuted, volume: currentVolume })
-        
-        // Set a timeout to track autoplay attempt
-        if (autoplayAttemptTimeoutRef.current) {
-          clearTimeout(autoplayAttemptTimeoutRef.current)
-        }
-        autoplayAttemptTimeoutRef.current = setTimeout(() => {
-          autoplayAttemptTimeoutRef.current = null
-        }, 2000)
-        
-        safePlay(player).then(() => {
-          if (autoplayAttemptTimeoutRef.current) {
-            clearTimeout(autoplayAttemptTimeoutRef.current)
-            autoplayAttemptTimeoutRef.current = null
-          }
-        }).catch(() => {
-          if (autoplayAttemptTimeoutRef.current) {
-            clearTimeout(autoplayAttemptTimeoutRef.current)
-            autoplayAttemptTimeoutRef.current = null
-          }
-        })
-      }
-    }
+    // Reset state for new source
+    setHasEnded(false)
+    if (autoPlay) setIsAutoplayInProgress(true)
     
     // Update source
-    // Use refs to get current volume/mute values to avoid stale closures
     player.muted(isMutedRef.current)
     player.volume(volumeRef.current)
     player.src({
@@ -849,27 +799,17 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       type: "application/x-mpegURL"
     })
     
-    // Try autoplay when new source is loaded
-    const tryAutoplayOnReady = () => {
-      if (player.readyState() >= 2) {
-        // If already playing, don't attempt again
-        if (!player.paused()) {
-          return
+    // Safety timeout for source changes too
+    if (autoPlay) {
+      if (autoplayAttemptTimeoutRef.current) clearTimeout(autoplayAttemptTimeoutRef.current)
+      autoplayAttemptTimeoutRef.current = setTimeout(() => {
+        if (player && player.paused()) {
+          console.log("[hiffi] Autoplay for new source failed or blocked, clearing loading state")
+          setIsAutoplayInProgress(false)
         }
-        attemptAutoplay()
-      }
+        autoplayAttemptTimeoutRef.current = null
+      }, 3000)
     }
-    
-    player.one('loadeddata', tryAutoplayOnReady)
-    player.one('canplay', tryAutoplayOnReady)
-    player.one('loadedmetadata', tryAutoplayOnReady)
-    
-    // Also try immediately if already loaded
-    setTimeout(() => {
-      if (!autoplayAttempted && player.readyState() >= 2) {
-        tryAutoplayOnReady()
-      }
-    }, 200)
   }, [signedVideoUrl, videoSourceType, isReady, autoPlay])
 
   // Sync volume/mute state with player separately
