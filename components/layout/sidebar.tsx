@@ -145,7 +145,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
         className={cn(
           // Fixed width - never changes (256px / w-64) when open
           "flex-shrink-0 bg-background",
-          // Mobile: use 100dvh so full sidebar (including footer) fits above browser chrome
+          // Mobile: fixed overlay, always w-64
           "fixed left-0 top-0 z-[70] h-[100dvh] w-64 shadow-lg transition-transform duration-300 ease-in-out",
           // Desktop: sticky positioning below navbar, can be hidden
           // top-16 = 4rem = navbar height; use 100dvh to match app layout so footer isn't clipped
@@ -160,8 +160,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
           className
         )}
       >
-        <div className="flex flex-col h-full min-h-0">
-          <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto">
             {/* Mobile Header */}
             <div className="flex h-16 items-center justify-between border-b px-4 lg:hidden shrink-0">
               <h2 className="text-lg font-semibold">Menu</h2>
@@ -213,8 +213,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
             </nav>
           </div>
 
-          {/* Sidebar Footer - safe-area so not hidden by browser bar on mobile */}
-          <div className="border-t px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] mt-auto shrink-0">
+          {/* Sidebar Footer */}
+          <div className="border-t px-4 py-4 mt-auto shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] mb-[env(safe-area-inset-bottom)]">
             <div className="flex flex-col gap-2">
               <div className="flex flex-col gap-1.5">
                 <Link
