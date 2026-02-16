@@ -115,19 +115,12 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             </Button>
             <Link href="/" className="flex items-center gap-3">
               <Image
-                src="/hiffi_logo.png"
+                src="/appbarlogo.png"
                 alt="Hiffi Logo"
-                width={28}
-                height={28}
-                className="object-contain"
-                priority
-              />
-              <Image
-                src="/hiffi_work_red.png"
-                alt="Hiffi"
-                width={104}
+                width={132}
                 height={32}
-                className="h-6 w-auto object-contain hidden sm:block"
+                className="h-8 w-auto object-contain"
+                priority
               />
             </Link>
           </div>
@@ -273,19 +266,12 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Link href="/" className="flex items-center gap-3">
               <Image
-                src="/hiffi_logo.png"
+                src="/appbarlogo.png"
                 alt="Hiffi Logo"
-                width={28}
-                height={28}
-                className="object-contain"
-                priority
-              />
-              <Image
-                src="/hiffi_work_red.png"
-                alt="Hiffi"
-                width={104}
+                width={132}
                 height={32}
-                className="h-6 w-auto object-contain hidden sm:block"
+                className="h-8 w-auto object-contain"
+                priority
               />
             </Link>
           </div>
