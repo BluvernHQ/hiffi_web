@@ -66,6 +66,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
             fill
             className="object-cover"
             sizes="168px"
+            authenticated={false}
           />
         ) : (
           <div className="w-full h-full bg-muted flex items-center justify-center">

@@ -819,6 +819,7 @@ export function AdminVideosTable() {
                                     alt={title}
                                     fill
                                     className="object-cover"
+                                    authenticated={false}
                                   />
                                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 pointer-events-none">
                                     <Play className="h-6 w-6 text-white" />

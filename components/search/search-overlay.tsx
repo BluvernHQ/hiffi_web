@@ -367,6 +367,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                               alt={result.title}
                                               fill
                                               className="object-cover"
+                                              authenticated={false}
                                             />
                                           ) : (
                                             <div className="w-full h-full bg-muted flex items-center justify-center">

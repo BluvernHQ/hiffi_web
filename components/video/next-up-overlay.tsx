@@ -236,6 +236,7 @@ export function NextUpOverlay({
                   fill
                   className="object-cover"
                   sizes="120px"
+                  authenticated={false}
                 />
               ) : (
                 <div className="w-full h-full bg-muted flex items-center justify-center">

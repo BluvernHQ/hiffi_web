@@ -301,15 +301,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     const posterUrl = getThumbnailUrl(poster)
     
-    // If it's a Workers URL, use the proxy
-    if (posterUrl.startsWith(WORKERS_BASE_URL)) {
-      const path = posterUrl.replace(`${WORKERS_BASE_URL}/`, "")
-      setSignedPosterUrl(`/proxy/image/${path}`)
-      return
-    }
-
-    // For other URLs, use directly
-          setSignedPosterUrl(posterUrl)
+    // Use the URL directly (Workers are now public for thumbnails)
+    setSignedPosterUrl(posterUrl)
   }, [poster])
 
   useEffect(() => {

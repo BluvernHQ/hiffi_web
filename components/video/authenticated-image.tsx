@@ -13,6 +13,7 @@ interface AuthenticatedImageProps {
   className?: string
   priority?: boolean
   sizes?: string
+  authenticated?: boolean
   onError?: () => void
 }
 
@@ -20,6 +21,8 @@ interface AuthenticatedImageProps {
  * Image component that uses a server-side proxy to fetch authenticated images.
  * This eliminates the need for fetch -> Blob -> URL.createObjectURL on the client,
  * which prevents memory leaks and enables browser-native caching.
+ * 
+ * If authenticated is false (e.g. for public thumbnails), it uses the source URL directly.
  */
 export function AuthenticatedImage({
   src,
@@ -30,6 +33,7 @@ export function AuthenticatedImage({
   className,
   priority = false,
   sizes,
+  authenticated = true,
   onError,
 }: AuthenticatedImageProps) {
   const [imageLoadError, setImageLoadError] = useState(false)
@@ -38,8 +42,8 @@ export function AuthenticatedImage({
   const getDisplayUrl = () => {
     if (!src) return null
     
-    // Only proxy if it's a Workers URL
-    if (src.startsWith(WORKERS_BASE_URL)) {
+    // Only proxy if it's a Workers URL and authenticated is true
+    if (authenticated && src.startsWith(WORKERS_BASE_URL)) {
       const path = src.replace(`${WORKERS_BASE_URL}/`, "")
       return `/proxy/image/${path}`
     }

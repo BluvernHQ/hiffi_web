@@ -114,6 +114,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
                 className="object-cover transition-transform duration-200 group-hover:scale-105"
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                 priority={priority}
+                authenticated={false}
                 onError={() => {
                   if (process.env.NODE_ENV === 'development') {
                     console.error("[VideoCard] Failed to load thumbnail:", thumbnailUrl)
