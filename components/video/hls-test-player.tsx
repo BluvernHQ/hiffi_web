@@ -74,7 +74,6 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
       if (target.xhr) {
         console.log(`[hiffi] Attaching hooks to ${label}`)
         target.xhr.onRequest = hook
-        target.xhr.beforeRequest = hook // Fallback for some v8 versions
         return true
       }
       return false

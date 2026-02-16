@@ -111,6 +111,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const [hasResolvedOnce, setHasResolvedOnce] = useState(false)
   
   const [hasEnded, setHasEnded] = useState(false)
+  const [isAutoplayInProgress, setIsAutoplayInProgress] = useState(autoPlay)
   const [showNextUpOverlay, setShowNextUpOverlay] = useState(false)
   const [isPlayerAwake, setIsPlayerAwake] = useState(false)
   const awakeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -156,9 +157,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           }
         } catch (mutedErr) {
           console.error("[hiffi] Muted autoplay also failed:", mutedErr)
+          setIsAutoplayInProgress(false)
         }
       } else if (errorName !== 'AbortError') {
         console.warn("[hiffi] Play failed:", err)
+        setIsAutoplayInProgress(false)
       }
     }
   }
@@ -192,6 +195,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     if (containerRef.current) {
       containerRef.current.focus()
     }
+
+    // Clear autoplay progress on any interaction
+    setIsAutoplayInProgress(false)
 
     // Clear forced-mute flag on any interaction and restore intended sound
     if (isForcedMuteRef.current) {
@@ -271,8 +277,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           setShowControls(false)
         }
       }, 2000)
-    } else if (!isPlaying) {
-      // Keep icon and controls visible when paused
+    } else if (!isPlaying && !isAutoplayInProgress) {
+      // Keep icon and controls visible when paused (but not during initial autoplay attempt)
       setIsPlayerAwake(true)
       if (isMobile) {
         setShowControls(true)
@@ -289,8 +295,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     if (signedVideoUrl) {
       autoplayCanceledRef.current = false
       lastProcessedUrlRef.current = "" // Reset to allow processing of new URL
+      setIsAutoplayInProgress(autoPlay)
     }
-  }, [signedVideoUrl])
+  }, [signedVideoUrl, autoPlay])
 
   // Fetch poster with auth if needed
   useEffect(() => {
@@ -369,10 +376,15 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       try {
         const apiKey = getWorkersApiKey()
         const headers: Record<string, string> = apiKey ? { "x-api-key": apiKey } : {}
+        
+        console.log(`[hiffi] Fetching profiles from: ${profilesUrl}`)
         const response = await fetch(profilesUrl, { headers })
         if (response.ok) {
           const data = await response.json()
+          console.log("[hiffi] Profiles loaded:", Object.keys(data))
           setProfiles(data)
+        } else {
+          console.warn(`[hiffi] Failed to load profiles.json: ${response.status} ${response.statusText}`)
         }
       } catch (error) {
         console.error("[hiffi] Failed to fetch profiles.json:", error)
@@ -386,9 +398,55 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     const player = playerRef.current
     if (!player || !signedVideoUrl) return
     
+    console.log(`[hiffi] Switching quality to: ${profile}`)
     isSwitchingQualityRef.current = true
     setCurrentProfile(profile)
     
+    // Try seamless HLS switching using VHS representations API
+    // This is much smoother as it doesn't flush the buffer or reload the source
+    try {
+      const tech = player.tech({ IWillNotUseThisInALoop: true })
+      if (tech && tech.vhs && typeof tech.vhs.representations === 'function') {
+        const representations = tech.vhs.representations()
+        if (representations && representations.length > 0) {
+          console.log(`[hiffi] Using seamless VHS switching for ${representations.length} representations`)
+          
+          if (profile === "auto") {
+            // Enable all representations for auto-adaptive bitrate
+            representations.forEach((rep: any) => rep.enabled(true))
+          } else {
+            const profileData = profiles[profile]
+            if (profileData) {
+              const targetHeight = profileData.height
+              
+              // Enable only the representation that matches the target height
+              // and disable others
+              let foundMatch = false
+              representations.forEach((rep: any) => {
+                const isMatch = rep.height === targetHeight
+                if (isMatch) foundMatch = true
+                rep.enabled(isMatch)
+              })
+              
+              // If no exact match found by height, try matching by bandwidth or just enable all as fallback
+              if (!foundMatch) {
+                console.warn(`[hiffi] No matching representation found for height ${targetHeight}, falling back to all enabled`)
+                representations.forEach((rep: any) => rep.enabled(true))
+              }
+            }
+          }
+          
+          // Successfully switched via VHS API
+          isSwitchingQualityRef.current = false
+          return
+        }
+      }
+    } catch (e) {
+      console.warn("[hiffi] Seamless switch failed, falling back to hard source switch", e)
+    }
+
+    // Fallback: Hard source switch (less smooth, clears buffer)
+    console.log("[hiffi] Falling back to hard source switch")
     // Store current state
     const currentTime = player.currentTime()
     const wasPaused = player.paused()
@@ -406,8 +464,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       }
       
       // Construct the URL for the specific profile
-      // signedVideoUrl is .../hls/master.m3u8
-      // We want .../hls/{profileData.path}
       const baseUrl = signedVideoUrl.replace(/master\.m3u8$/, "")
       const streamUrl = `${baseUrl}${profileData.path}`
       
@@ -470,7 +526,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     // Configure global VHS settings before player creation
     if (vjs.Vhs) {
-      vjs.Vhs.xhr.beforeRequest = (options: any) => {
+      vjs.Vhs.xhr.onRequest = (options: any) => {
         const apiKey = getWorkersApiKey()
         if (apiKey) {
           options.headers = options.headers || {}
@@ -519,6 +575,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     // Sync state listeners
     const handlePlay = () => {
       setIsPlaying(true)
+      setIsAutoplayInProgress(false)
       // Clear any pending autoplay timeout since play succeeded
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
@@ -846,6 +903,9 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const togglePlay = () => {
     const player = playerRef.current
     if (!player) return
+
+    // Clear autoplay progress on manual interaction
+    setIsAutoplayInProgress(false)
 
     // Reset ended state if user plays again
     if (hasEnded) {
@@ -1259,7 +1319,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       )}
 
       {/* Desktop Big Play Button (Hidden on Mobile) */}
-      {!isPlaying && !isBuffering && !hasEnded && (
+      {!isPlaying && !isBuffering && !hasEnded && !isAutoplayInProgress && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
           onClick={togglePlay}
@@ -1270,7 +1330,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         </div>
       )}
 
-      {isBuffering && !hasEnded && (
+      {(isBuffering || isAutoplayInProgress) && !hasEnded && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
         </div>
