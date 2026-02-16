@@ -148,11 +148,10 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
           // Mobile: fixed overlay, always w-64
           "fixed left-0 top-0 z-[70] h-screen w-64 shadow-lg transition-transform duration-300 ease-in-out",
           // Desktop: sticky positioning below navbar, can be hidden
-          // top-16 = 4rem = navbar height, h-[calc(100vh-4rem)] = viewport minus navbar
-          "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",
-          // Desktop overflow - only allow scrolling when open
-          isDesktopOpen && "lg:overflow-y-auto",
-          !isDesktopOpen && "lg:overflow-hidden",
+          // top-16 = 4rem = navbar height; use 100dvh to match app layout so footer isn't clipped
+          "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100dvh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",
+          // Desktop overflow - hidden so only inner nav scrolls; footer stays visible
+          "lg:overflow-hidden",
           // Mobile visibility
           !mobileOpen && "-translate-x-full",
           // Desktop visibility - hidden by default (no width, translated out), shown when isDesktopOpen is true
