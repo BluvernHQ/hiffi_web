@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Minimize, Settings, Check } from "lucide-react"
 import Script from "next/script"
+import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
   const isForcedMuteRef = useRef(false) // Track if browser forced a mute for autoplay
+  const [isForcedMute, setIsForcedMute] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   
@@ -139,7 +141,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         await result
       }
       // If we got here, unmuted play succeeded or was allowed
-      isForcedMuteRef.current = false
+      setForcedMute(false)
     } catch (err: any) {
       const errorName = err && (err.name || (err.constructor && err.constructor.name))
       if (errorName === 'NotAllowedError') {
@@ -148,7 +150,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         // Mute the player instance to allow video to start, but DO NOT update React state
         // This keeps the UI showing the user's intended state (e.g. unmuted).
         player.muted(true)
-        isForcedMuteRef.current = true
+        setForcedMute(true)
         
         try {
           const mutedResult = player.play()
@@ -181,6 +183,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     }, 3000)
   }
 
+  const setForcedMute = (value: boolean) => {
+    isForcedMuteRef.current = value
+    setIsForcedMute(value)
+  }
+
   // Unified wake function for mobile
   const wakePlayerMobile = () => {
     setIsPlayerAwake(true)
@@ -206,7 +213,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         console.log("[hiffi] User interacted, restoring audio preference:", { isMuted, volume })
         player.muted(isMuted)
         player.volume(volume)
-        isForcedMuteRef.current = false
+        setForcedMute(false)
       }
     }
 
@@ -575,7 +582,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     // Track forced mute from built-in autoplay
     player.on('autoplay-muted', () => {
       console.log("[hiffi] Browser forced muted autoplay")
-      isForcedMuteRef.current = true
+      setForcedMute(true)
     })
 
     // Sync state listeners
@@ -652,7 +659,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
               player.volume(volumeRef.current)
               // If unmuting succeeds, clear the forced mute flag
               if (!player.muted()) {
-                isForcedMuteRef.current = false
+                setForcedMute(false)
               }
             } catch (err) {
               console.log("[hiffi] Could not restore unmuted playback:", err)
@@ -672,11 +679,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
           return
         }
         setIsMuted(playerMuted)
-        isForcedMuteRef.current = false
+        setForcedMute(false)
       }
       if (Math.abs(playerVolume - volumeRef.current) > 0.01) {
         setVolume(playerVolume)
-        isForcedMuteRef.current = false
+        setForcedMute(false)
       }
     }
 
@@ -846,6 +853,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     // Clear autoplay progress on manual interaction
     setIsAutoplayInProgress(false)
+    setForcedMute(false)
 
     // Reset ended state if user plays again
     if (hasEnded) {
@@ -867,7 +875,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0]
     setVolume(newVolume)
-    isForcedMuteRef.current = false // User manual change clears forced flag
+    setForcedMute(false) // User manual change clears forced flag
     if (playerRef.current) {
       playerRef.current.volume(newVolume)
       // Only unmute if volume > 0
@@ -889,10 +897,20 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const toggleMute = () => {
     const player = playerRef.current
     if (player) {
+      // If we're in forced mute state, unmuting should match the player to the React state (which is already unmuted)
+      if (isForcedMute) {
+        player.muted(false)
+        player.volume(volume > 0 ? volume : 1)
+        if (volume === 0) setVolume(1)
+        setIsMuted(false)
+        setForcedMute(false)
+        return
+      }
+
       const newMuted = !isMuted
       setIsMuted(newMuted)
       player.muted(newMuted)
-      isForcedMuteRef.current = false // User manual change clears forced flag
+      setForcedMute(false) // User manual change clears forced flag
       
       // Persist muted preference
       if (typeof window !== "undefined") {
@@ -1125,7 +1143,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   }
 
   const getVolumeIcon = () => {
-    if (isMuted || volume === 0) {
+    if (isMuted || volume === 0 || isForcedMute) {
       return <VolumeX className="h-6 w-6" />
     } else if (volume <= 0.5) {
       // Low volume: 1-50% - show one sound line
@@ -1273,6 +1291,24 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       {(isBuffering || isAutoplayInProgress) && !hasEnded && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        </div>
+      )}
+
+      {/* Tap to Unmute Overlay (YouTube style) */}
+      {isForcedMute && isPlaying && !isAutoplayInProgress && (
+        <div className="absolute top-4 right-4 z-40">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="rounded-full bg-black/60 hover:bg-black/80 text-white border-white/10 gap-2 backdrop-blur-sm shadow-lg animate-in fade-in zoom-in duration-300"
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleMute()
+            }}
+          >
+            <VolumeX className="h-4 w-4" />
+            <span className="text-xs font-bold uppercase tracking-wider">Tap to unmute</span>
+          </Button>
         </div>
       )}
 
