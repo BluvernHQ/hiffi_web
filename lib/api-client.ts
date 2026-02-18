@@ -254,8 +254,16 @@ class ApiClient {
         
         // Only log errors if it's not a disabled account (to reduce console noise)
         if (!isDisabledAccount) {
-          console.error(`[API] ${method} ${url} - FAILED (${finalResponse.status})${retried ? ' after retry' : ''} in ${finalDuration}ms`)
-          console.error(`[API] Error response:`, errorText.substring(0, 200))
+          // For 401 unauthorised responses, log at warn level instead of error
+          // These are often expected when a user is logged out or a profile is private
+          const logMessage = `[API] ${method} ${url} - FAILED (${finalResponse.status})${retried ? ' after retry' : ''} in ${finalDuration}ms`
+          if (finalResponse.status === 401) {
+            console.warn(logMessage)
+            console.warn(`[API] Error response:`, errorText.substring(0, 200))
+          } else {
+            console.error(logMessage)
+            console.error(`[API] Error response:`, errorText.substring(0, 200))
+          }
         } else {
           // Log at info level for disabled accounts (less noisy)
           console.log(`[API] ${method} ${url} - Account disabled (403) in ${finalDuration}ms`)
@@ -685,7 +693,20 @@ class ApiClient {
           // If we can't parse the error body, continue to throw the original error
         }
       }
-      // Re-throw the error if it's not a disabled account case
+
+      // Gracefully handle 401 unauthorised when looking up users by username.
+      // This commonly happens for logged-out sessions or private/removed accounts.
+      if (error?.status === 401) {
+        console.warn(`[API] getUserByUsername(${username}) - unauthorized (401). Returning null user.`)
+        return {
+          success: false,
+          user: null,
+          following: false,
+          disabled: false,
+        }
+      }
+
+      // Re-throw the error if it's not a disabled or unauthorized account case
       throw error
     }
   }

@@ -45,7 +45,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
       : null)
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on links
+    // Don't navigate to watch page if clicking on profile link
     if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {
       return
     }
@@ -54,11 +54,15 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
 
   return (
     <div 
-      onClick={handleCardClick} 
+      onClick={handleCardClick}
       className="group cursor-pointer flex gap-2 hover:bg-muted/50 rounded-lg p-1 -mx-1 transition-colors"
     >
       {/* Thumbnail - YouTube style: smaller, on the left */}
-      <div className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted">
+      <Link
+        href={`/watch/${videoId}`}
+        className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
+        onClick={(e) => e.stopPropagation()}
+      >
         {thumbnailUrl ? (
           <AuthenticatedImage
             src={thumbnailUrl}
@@ -81,11 +85,17 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
             {(video as any).duration}
           </div>
         )}
-      </div>
+      </Link>
 
       <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
         <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight mb-1">
-          {title || "Untitled Video"}
+          <Link
+            href={`/watch/${videoId}`}
+            className="hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {title || "Untitled Video"}
+          </Link>
         </h3>
         <div className="flex items-center min-w-0 mb-0.5">
           <Link

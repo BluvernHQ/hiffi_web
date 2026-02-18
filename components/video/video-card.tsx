@@ -105,7 +105,11 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
     <div onClick={handleCardClick} className="group cursor-pointer w-full h-auto">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
         <CardContent className="p-0 flex flex-col h-auto gap-0.5 sm:gap-1 pb-0">
-          <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
+          <Link
+            href={`/watch/${videoId}`}
+            className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
+            onClick={(e) => e.stopPropagation()}
+          >
             {thumbnailUrl ? (
               <AuthenticatedImage
                 src={thumbnailUrl}
@@ -147,7 +151,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
                 </div>
               </>
             )}
-          </div>
+          </Link>
           <div className="flex gap-3 px-1 relative">
             <div className="flex-shrink-0">
               <ProfilePicture 
@@ -161,7 +165,13 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
             </div>
             <div className="flex-1 min-w-0 flex flex-col pr-6">
               <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
-                {title || "Untitled Video"}
+                <Link
+                  href={`/watch/${videoId}`}
+                  className="hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {title || "Untitled Video"}
+                </Link>
               </h3>
               <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal">
                 <Link
