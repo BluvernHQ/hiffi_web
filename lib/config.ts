@@ -22,8 +22,8 @@ const environments: Record<Environment, EnvironmentConfig> = {
     workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
   },
   beta: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
+    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.dev.hiffi.com',
+    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://prod.hiffi.workers.dev',
   },
   prod: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',

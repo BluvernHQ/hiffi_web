@@ -22,6 +22,15 @@ export function getWorkersApiKey(): string {
 export function getThumbnailUrl(thumbnailPath: string): string {
   if (!thumbnailPath) return ""
 
+  // If the path contains any .hiffi.workers.dev domain, normalize it to our WORKERS_BASE_URL
+  if (thumbnailPath.includes('.hiffi.workers.dev')) {
+    const parts = thumbnailPath.split('.hiffi.workers.dev')
+    const relativePart = parts.pop()?.replace(/^\//, '') || ""
+    if (relativePart) {
+      return `${WORKERS_BASE_URL}/${relativePart}`
+    }
+  }
+
   // If it's already a full Workers URL, return as is
   if (thumbnailPath.startsWith(`${WORKERS_BASE_URL}/`)) {
     return thumbnailPath
@@ -33,8 +42,7 @@ export function getThumbnailUrl(thumbnailPath: string): string {
   }
 
   // Construct Workers URL directly
-  // Format: https://black-paper-83cf.hiffi.workers.dev/{thumbnailPath}
-  return `${WORKERS_BASE_URL}/${thumbnailPath}`
+  return `${WORKERS_BASE_URL}/${thumbnailPath.replace(/^\//, '')}`
 }
 
 /**
@@ -44,6 +52,15 @@ export function getThumbnailUrl(thumbnailPath: string): string {
  */
 export function getVideoUrl(videoPath: string): string {
   if (!videoPath) return ""
+
+  // If the path contains any .hiffi.workers.dev domain, normalize it to our WORKERS_BASE_URL
+  if (videoPath.includes('.hiffi.workers.dev')) {
+    const parts = videoPath.split('.hiffi.workers.dev')
+    const relativePart = parts.pop()?.replace(/^\//, '') || ""
+    if (relativePart) {
+      return `${WORKERS_BASE_URL}/${relativePart}`
+    }
+  }
 
   // If it's already a full Workers URL, return as is
   if (videoPath.startsWith(`${WORKERS_BASE_URL}/`)) {
@@ -56,8 +73,7 @@ export function getVideoUrl(videoPath: string): string {
   }
 
   // Construct Workers URL directly
-  // Format: https://black-paper-83cf.hiffi.workers.dev/{videoPath}
-  return `${WORKERS_BASE_URL}/${videoPath}`
+  return `${WORKERS_BASE_URL}/${videoPath.replace(/^\//, '')}`
 }
 
 /**

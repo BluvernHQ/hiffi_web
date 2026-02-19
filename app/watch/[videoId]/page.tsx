@@ -625,6 +625,7 @@ export default function WatchPage() {
                 autoPlay 
                 suggestedVideos={playerSuggestedVideos}
                 onVideoEnd={handleVideoEnd}
+                availableProfiles={video.profiles}
               />
 
               <div className="space-y-4 min-w-0">

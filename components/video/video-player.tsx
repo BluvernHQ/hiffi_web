@@ -35,6 +35,7 @@ interface VideoPlayerProps {
   autoPlay?: boolean
   suggestedVideos?: any[]
   onVideoEnd?: () => void
+  availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
 }
 
 const STORAGE_KEYS = {
@@ -42,7 +43,23 @@ const STORAGE_KEYS = {
   MUTED: 'hiffi_player_muted'
 }
 
-export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideos, onVideoEnd }: VideoPlayerProps) {
+const STANDARD_PROFILES = [2160, 1440, 1080, 720, 480, 360] as const
+
+function getResolutionProfile(height: number): string {
+  for (const p of STANDARD_PROFILES) {
+    if (height >= p * 0.9) return `${p}p`
+  }
+  return `${height}p`
+}
+
+export function VideoPlayer({ 
+  videoUrl, 
+  poster, 
+  autoPlay = false, 
+  suggestedVideos, 
+  onVideoEnd,
+  availableProfiles = ["original"]
+}: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
@@ -102,8 +119,8 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   const [videoSourceType, setVideoSourceType] = useState<VideoSourceType | null>(null)
   const videoSourceTypeRef = useRef<VideoSourceType | null>(null)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
-  const [profiles, setProfiles] = useState<Record<string, { height: number; bitrate: number; path: string }>>({})
-  const [currentProfile, setCurrentProfile] = useState<string>("auto")
+  const [profiles, setProfiles] = useState<Record<string, { label: string; path: string }>>({})
+  const [currentProfile, setCurrentProfile] = useState<string>("original")
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const [urlError, setUrlError] = useState<string>("")
   const [isBuffering, setIsBuffering] = useState(false)
@@ -112,6 +129,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
   // Track if we've successfully resolved the URL at least once to reduce spinners on minor updates
   const [hasResolvedOnce, setHasResolvedOnce] = useState(false)
   
+  const baseUrlRef = useRef<string>("")
   const [hasEnded, setHasEnded] = useState(false)
   const [isAutoplayInProgress, setIsAutoplayInProgress] = useState(autoPlay)
   const [showNextUpOverlay, setShowNextUpOverlay] = useState(false)
@@ -355,6 +373,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
         videoSourceTypeRef.current = source.type
         setSignedVideoUrl(source.url)
         signedVideoUrlRef.current = source.url
+        baseUrlRef.current = source.baseUrl || ""
         setUrlError("")
         setHasResolvedOnce(true)
       } catch (error) {
@@ -368,128 +387,60 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     fetchUrl()
   }, [videoUrl])
 
-  // Fetch profiles.json when signedVideoUrl is available and source is HLS
+  // Build profiles map from availableProfiles prop when signedVideoUrl is available
   useEffect(() => {
-    if (!signedVideoUrl || videoSourceType !== 'hls') {
+    if (!signedVideoUrl || !availableProfiles) {
       setProfiles({})
       return
     }
 
-    const fetchProfiles = async () => {
-      // The signedVideoUrl is .../hls/master.m3u8
-      // We want .../hls/profiles.json
-      const profilesUrl = signedVideoUrl.replace(/master\.m3u8$/, "profiles.json")
-      
-      try {
-        const apiKey = getWorkersApiKey()
-        const headers: Record<string, string> = apiKey ? { "x-api-key": apiKey } : {}
-        
-        console.log(`[hiffi] Fetching profiles from: ${profilesUrl}`)
-        const response = await fetch(profilesUrl, { headers })
-        if (response.ok) {
-          const data = await response.json()
-          console.log("[hiffi] Profiles loaded:", Object.keys(data))
-          setProfiles(data)
-        } else {
-          console.warn(`[hiffi] Failed to load profiles.json: ${response.status} ${response.statusText}`)
-        }
-      } catch (error) {
-        console.error("[hiffi] Failed to fetch profiles.json:", error)
+    const profilesMap: Record<string, { label: string; path: string }> = {}
+    
+    availableProfiles.forEach(p => {
+      if (p === 'original') {
+        profilesMap[p] = { label: 'Original', path: 'original.mp4' }
+      } else {
+        // e.g. "720p" -> label "720p", path "720p.mp4"
+        profilesMap[p] = { label: p, path: `${p}.mp4` }
       }
-    }
-
-    fetchProfiles()
-  }, [signedVideoUrl])
+    })
+    
+    setProfiles(profilesMap)
+  }, [signedVideoUrl, availableProfiles])
 
   const switchQuality = (profile: string) => {
     const player = playerRef.current
-    if (!player || !signedVideoUrl) return
+    if (!player || !baseUrlRef.current) return
     
-    console.log(`[hiffi] Switching quality to: ${profile}`)
+    console.log(`[hiffi] Switching MP4 quality to: ${profile}`)
     isSwitchingQualityRef.current = true
     setCurrentProfile(profile)
-    
-    // Try seamless HLS switching using VHS representations API
-    // This is much smoother as it doesn't flush the buffer or reload the source
-    try {
-      const tech = player.tech({ IWillNotUseThisInALoop: true })
-      if (tech && tech.vhs && typeof tech.vhs.representations === 'function') {
-        const representations = tech.vhs.representations()
-        if (representations && representations.length > 0) {
-          console.log(`[hiffi] Using seamless VHS switching for ${representations.length} representations`)
-          
-          if (profile === "auto") {
-            // Enable all representations for auto-adaptive bitrate
-            representations.forEach((rep: any) => rep.enabled(true))
-          } else {
-            const profileData = profiles[profile]
-            if (profileData) {
-              const targetHeight = profileData.height
-              
-              // Enable only the representation that matches the target height
-              // and disable others
-              let foundMatch = false
-              representations.forEach((rep: any) => {
-                const isMatch = rep.height === targetHeight
-                if (isMatch) foundMatch = true
-                rep.enabled(isMatch)
-              })
-              
-              // If no exact match found by height, try matching by bandwidth or just enable all as fallback
-              if (!foundMatch) {
-                console.warn(`[hiffi] No matching representation found for height ${targetHeight}, falling back to all enabled`)
-                representations.forEach((rep: any) => rep.enabled(true))
-              }
-            }
-          }
-          
-          // Successfully switched via VHS API
-          isSwitchingQualityRef.current = false
-          return
-        }
-      }
-    } catch (e) {
-      console.warn("[hiffi] Seamless switch failed, falling back to hard source switch", e)
-    }
 
-    // Fallback: Hard source switch (less smooth, clears buffer)
-    console.log("[hiffi] Falling back to hard source switch")
-    // Store current state
     const currentTime = player.currentTime()
     const wasPaused = player.paused()
 
-    if (profile === "auto") {
-      player.src({
-        src: signedVideoUrl, // This is the master.m3u8
-        type: "application/x-mpegURL"
-      })
-    } else {
-      const profileData = profiles[profile]
-      if (!profileData) {
-        isSwitchingQualityRef.current = false
-        return
-      }
-      
-      // Construct the URL for the specific profile
-      const baseUrl = signedVideoUrl.replace(/master\.m3u8$/, "")
-      const streamUrl = `${baseUrl}${profileData.path}`
-      
-      player.src({
-        src: streamUrl,
-        type: "application/x-mpegURL"
-      })
-    }
+    // Progressive MP4 switching
+    const newSrc = profile === 'original' 
+      ? `${baseUrlRef.current}/original.mp4` 
+      : `${baseUrlRef.current}/${profile}.mp4`
+
+    player.src({ 
+      src: newSrc, 
+      type: "video/mp4" 
+    })
     
-    // Restore state after metadata loaded
+    // When changing sources, we should wait for the player to be ready
+    // before attempting to seek or play to avoid AbortError
     player.one("loadedmetadata", () => {
       player.currentTime(currentTime)
+      isSwitchingQualityRef.current = false
       if (!wasPaused) {
-        safePlay(player)
-      } else {
-        // Reset the flag if paused
-        setTimeout(() => {
-          isSwitchingQualityRef.current = false
-        }, 100)
+        player.play().catch((err: any) => {
+          const errorName = err && (err.name || (err.constructor && err.constructor.name));
+          if (errorName !== 'AbortError') {
+            console.error("[hiffi] Play failed after quality switch:", err)
+          }
+        })
       }
     })
   }
@@ -531,26 +482,6 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     isInitializingRef.current = true
 
-    // Configure global VHS settings before player creation
-    if (vjs.Vhs) {
-      vjs.Vhs.xhr.beforeRequest = (options: any) => {
-        const apiKey = getWorkersApiKey()
-        if (apiKey) {
-          options.headers = options.headers || {}
-          options.headers["x-api-key"] = apiKey
-        }
-
-        // Standardized path rewriting for segments
-        if (options.uri) {
-          const hlsSegmentPattern = /(\/videos\/[^\/]+\/hls\/[^\/]+\/)(seg_\d+\.ts|seg_\d+\.m4s)$/
-          if (hlsSegmentPattern.test(options.uri)) {
-            options.uri = options.uri.replace(hlsSegmentPattern, "$1segments/$2")
-          }
-        }
-        return options
-      }
-    }
-
     // Initialize player
     // Note: We set autoplay to false in VideoJS config to have full control
     // We handle autoplay manually with safePlay() to preserve user's mute preference
@@ -565,11 +496,11 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       preload: 'auto',
       html5: {
         vhs: {
-          enableLowInitialPlaylist: true,
-          fastQualityTeardown: true,
-          overrideNative: true,
-          useDevicePixelRatio: true,
-        }
+          enabled: false // Disable HLS tech
+        },
+        vjshls: false, // Additional flag to disable HLS tech
+        nativeAudioTracks: false,
+        nativeVideoTracks: false
       },
       userActions: {
         doubleClick: false,
@@ -629,6 +560,18 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       const newDuration = player.duration()
       setDuration(newDuration)
       durationRef.current = newDuration
+
+      // Identify "original" profile resolution for MP4
+      if (currentProfile === 'original') {
+        const height = player.videoHeight()
+        if (height > 0) {
+          const label = getResolutionProfile(height)
+          setProfiles(prev => ({
+            ...prev,
+            'original': { label: `Original (${label})`, path: 'original.mp4' }
+          }))
+        }
+      }
     }
     const handleEnded = () => {
       setIsPlaying(false)
@@ -749,7 +692,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
 
     // Load source
     player.ready(() => {
-      console.log(`[hiffi] Player ready, setting source: ${signedVideoUrl}`)
+      console.log(`[hiffi] Player ready, setting MP4 source: ${signedVideoUrl}`)
       
       // Track this as the last processed URL
       lastProcessedUrlRef.current = signedVideoUrl
@@ -760,7 +703,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
       
       player.src({
         src: signedVideoUrl,
-        type: "application/x-mpegURL"
+        type: "video/mp4"
       })
 
       // With autoplay: 'any', VideoJS will automatically attempt to play.
@@ -803,7 +746,7 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
     player.volume(volumeRef.current)
     player.src({
       src: signedVideoUrl,
-      type: "application/x-mpegURL"
+      type: "video/mp4"
     })
     
     // Safety timeout for source changes too
@@ -1400,14 +1343,10 @@ export function VideoPlayer({ videoUrl, poster, autoPlay = false, suggestedVideo
                   <DropdownMenuLabel className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Quality</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuRadioGroup value={currentProfile} onValueChange={switchQuality}>
-                    <DropdownMenuRadioItem value="auto" className="text-sm focus:bg-white/10 focus:text-white cursor-pointer">
-                      Auto (Adaptive)
-                    </DropdownMenuRadioItem>
                     {Object.entries(profiles)
-                      .sort((a, b) => b[1].height - a[1].height)
                       .map(([key, profile]) => (
                         <DropdownMenuRadioItem key={key} value={key} className="text-sm focus:bg-white/10 focus:text-white cursor-pointer">
-                          {profile.height}p
+                          {profile.label}
                         </DropdownMenuRadioItem>
                       ))}
                   </DropdownMenuRadioGroup>

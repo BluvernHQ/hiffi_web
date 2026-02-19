@@ -10,7 +10,6 @@
 //   - Beta: https://black-paper-83cf.hiffi.workers.dev (current)
 //   - Prod: https://workers.hiffi.workers.dev
 
-const WORKERS_BASE_URL = 'https://black-paper-83cf.hiffi.workers.dev'
 let API_KEY = 'gdwvvwwvdyvyvwevyvfwedfwerwf34rt3f3f3' // Default, will be updated via message
 
 self.addEventListener('install', (event) => {
@@ -32,8 +31,10 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   
-  // Only intercept requests to Workers video endpoint
-  if (url.origin === WORKERS_BASE_URL && url.pathname.startsWith('/videos/')) {
+  // Only intercept requests to Hiffi Workers video endpoints
+  const isWorkersVideo = url.hostname.endsWith('.hiffi.workers.dev') && url.pathname.startsWith('/videos/')
+  
+  if (isWorkersVideo) {
     // Clone the request to preserve headers
     const headers = new Headers(event.request.headers)
     headers.set('x-api-key', API_KEY)
