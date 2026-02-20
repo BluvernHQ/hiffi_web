@@ -19,7 +19,7 @@ interface EnvironmentConfig {
 const environments: Record<Environment, EnvironmentConfig> = {
   dev: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
+    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://prod.hiffi.workers.dev',
   },
   beta: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.dev.hiffi.com',
@@ -27,7 +27,7 @@ const environments: Record<Environment, EnvironmentConfig> = {
   },
   prod: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://black-paper-83cf.hiffi.workers.dev',
+    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://prod.hiffi.workers.dev',
   },
 }
 
