@@ -295,6 +295,7 @@ export default function WatchPage() {
       const isVideoSwitch = !!currentDisplayedVideoId && currentDisplayedVideoId !== videoId
       const isInitialVideoLoad = !video || !isVideoSwitch
       if (!isInitialVideoLoad) {
+        setIsLoading(true) // Set loading true immediately for video switch
         setIsPlayerReadyForPending(false)
         setPendingVideo({
           videoId,

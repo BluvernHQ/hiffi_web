@@ -141,6 +141,7 @@ export function VideoPlayer({
   const baseUrlRef = useRef<string>("")
   const [hasEnded, setHasEnded] = useState(false)
   const [isAutoplayInProgress, setIsAutoplayInProgress] = useState(autoPlay)
+  const isAutoplayInProgressRef = useRef(autoPlay)
   const [showNextUpOverlay, setShowNextUpOverlay] = useState(false)
   const [isPlayerAwake, setIsPlayerAwake] = useState(false)
   const awakeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -171,6 +172,11 @@ export function VideoPlayer({
     hasEndedRef.current = hasEnded
     showNextUpOverlayRef.current = showNextUpOverlay
   }, [hasEnded, showNextUpOverlay])
+
+  const setAutoplayInProgress = (value: boolean) => {
+    isAutoplayInProgressRef.current = value
+    setIsAutoplayInProgress(value)
+  }
 
   const stopOtherMediaElements = () => {
     if (typeof document === "undefined") return
@@ -209,8 +215,8 @@ export function VideoPlayer({
         
         // Mute the player instance to allow video to start, but DO NOT update React state
         // This keeps the UI showing the user's intended state (e.g. unmuted).
-        player.muted(true)
         setForcedMute(true)
+        player.muted(true)
         
         try {
           const mutedResult = player.play()
@@ -219,11 +225,11 @@ export function VideoPlayer({
           }
         } catch (mutedErr) {
           console.error("[hiffi] Muted autoplay also failed:", mutedErr)
-          setIsAutoplayInProgress(false)
+          setAutoplayInProgress(false)
         }
       } else if (errorName !== 'AbortError') {
         console.warn("[hiffi] Play failed:", err)
-        setIsAutoplayInProgress(false)
+        setAutoplayInProgress(false)
       }
     }
   }
@@ -264,7 +270,7 @@ export function VideoPlayer({
     }
 
     // Clear autoplay progress on any interaction
-    setIsAutoplayInProgress(false)
+    setAutoplayInProgress(false)
 
     // Clear forced-mute flag on any interaction and restore intended sound
     if (isForcedMuteRef.current) {
@@ -362,7 +368,7 @@ export function VideoPlayer({
     if (signedVideoUrl) {
       autoplayCanceledRef.current = false
       lastProcessedUrlRef.current = "" // Reset to allow processing of new URL
-      setIsAutoplayInProgress(autoPlay)
+      setAutoplayInProgress(autoPlay)
     }
   }, [signedVideoUrl, autoPlay])
 
@@ -390,15 +396,23 @@ export function VideoPlayer({
         try {
           player.pause()
           player.muted(true)
-        } catch {}
+          // Explicitly clear source to prevent the old frame from showing
+          // when the player is trying to load a new one
+          player.src({ src: '', type: '' })
+        } catch (err) {
+          console.log("[hiffi] Player cleanup failed:", err)
+        }
       }
       setIsPlaying(false)
       setIsBuffering(true)
       setIsLoadingUrl(true)
+      setCurrentTime(0) // Immediate UI reset
+      setDuration(0)   // Immediate UI reset
+      durationRef.current = 0
       setUrlError("")
       setHasEnded(false)
       setShowNextUpOverlay(false)
-      if (autoPlay) setIsAutoplayInProgress(true)
+      if (autoPlay) setAutoplayInProgress(true)
     }
   }, [videoId, autoPlay])
 
@@ -624,7 +638,7 @@ export function VideoPlayer({
     const handlePlay = () => {
       console.log("[hiffi] Video playing")
       setIsPlaying(true)
-      setIsAutoplayInProgress(false)
+      setAutoplayInProgress(false)
       // Clear any pending autoplay timeout since play succeeded
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
@@ -634,7 +648,7 @@ export function VideoPlayer({
     const handlePause = () => {
       setIsPlaying(false)
       // If we pause while autoplay is in progress, it means it failed or was stopped
-      setIsAutoplayInProgress(false)
+      setAutoplayInProgress(false)
       
       if (autoplayAttemptTimeoutRef.current) {
         console.log("[hiffi] Pause event during autoplay attempt")
@@ -729,15 +743,25 @@ export function VideoPlayer({
             try {
               player.muted(false)
               player.volume(volumeRef.current)
-              // If unmuting succeeds, clear the forced mute flag
-              if (!player.muted()) {
-                setForcedMute(false)
-              }
+              
+              // If unmuting succeeded and the player is still playing, we can clear the forced mute flag
+              // We check again after a tiny delay to see if the browser paused it in response to unmuting
+              setTimeout(() => {
+                if (player && !player.paused() && !player.muted()) {
+                  console.log("[hiffi] Successfully restored unmuted playback")
+                  setForcedMute(false)
+                } else if (player && player.paused()) {
+                  // Browser blocked unmuting and paused the video, revert to muted autoplay
+                  console.log("[hiffi] Unmuting blocked by browser, reverting to muted play")
+                  player.muted(true)
+                  player.play().catch(() => {})
+                }
+              }, 100)
             } catch (err) {
               console.log("[hiffi] Could not restore unmuted playback:", err)
             }
           }
-        }, 300)
+        }, 500)
       }
     }
     
@@ -747,7 +771,12 @@ export function VideoPlayer({
 
       if (playerMuted !== isMutedRef.current) {
         // Only sync a mute if it's not a forced autoplay block
-        if (isForcedMuteRef.current && playerMuted && !isMutedRef.current) {
+        // We check isForcedMuteRef OR if we are still in the initial autoplay attempt phase
+        if ((isForcedMuteRef.current || isAutoplayInProgressRef.current) && playerMuted && !isMutedRef.current) {
+          if (!isForcedMuteRef.current) {
+            console.log("[hiffi] Detected forced mute during autoplay, setting forced-mute flag")
+            setForcedMute(true)
+          }
           return
         }
         setIsMuted(playerMuted)
@@ -806,7 +835,7 @@ export function VideoPlayer({
     setDuration(0)
     durationRef.current = 0
     setHasEnded(false)
-    if (autoPlay) setIsAutoplayInProgress(true)
+    if (autoPlay) setAutoplayInProgress(true)
     
     // Update source
     player.pause()
@@ -825,7 +854,7 @@ export function VideoPlayer({
       autoplayAttemptTimeoutRef.current = setTimeout(() => {
         if (player && player.paused()) {
           console.log("[hiffi] Autoplay for new source failed or blocked, clearing loading state")
-          setIsAutoplayInProgress(false)
+          setAutoplayInProgress(false)
         }
         autoplayAttemptTimeoutRef.current = null
       }, 3000)
@@ -873,7 +902,7 @@ export function VideoPlayer({
     if (!player) return
 
     // Clear autoplay progress on manual interaction
-    setIsAutoplayInProgress(false)
+    setAutoplayInProgress(false)
     setForcedMute(false)
 
     // Reset ended state if user plays again
