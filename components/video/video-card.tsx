@@ -12,6 +12,7 @@ import { Play, MoreVertical, Trash2, Loader2, Clock } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
+import { useGlobalVideo } from "@/lib/video-context"
 import { useToast } from "@/hooks/use-toast"
 import { DeleteVideoDialog } from "./delete-video-dialog"
 import { AuthenticatedImage } from "./authenticated-image"
@@ -49,6 +50,7 @@ interface VideoCardProps {
 export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps) {
   const router = useRouter()
   const { user, userData } = useAuth()
+  const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
@@ -98,6 +100,10 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
       }
       return
     }
+    
+    // Set global video context for instant loading on the watch page
+    playVideo(video)
+    
     router.push(`/watch/${videoId}`)
   }
 

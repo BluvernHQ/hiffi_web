@@ -4,6 +4,7 @@ import type React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
+import { useGlobalVideo } from "@/lib/video-context"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { AuthenticatedImage } from "./authenticated-image"
@@ -29,6 +30,7 @@ interface CompactVideoCardProps {
 
 export function CompactVideoCard({ video }: CompactVideoCardProps) {
   const router = useRouter()
+  const { playVideo } = useGlobalVideo()
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
@@ -49,6 +51,8 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
     if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {
       return
     }
+    // Set global video context for instant loading on the watch page
+    playVideo(video)
     router.push(`/watch/${videoId}`)
   }
 

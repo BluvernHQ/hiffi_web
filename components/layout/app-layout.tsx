@@ -1,8 +1,9 @@
 "use client"
 
-import { ReactNode, useState, useEffect } from "react"
+import { ReactNode } from "react"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
+import { useSidebar } from "@/lib/sidebar-context"
 
 interface AppLayoutProps {
   children: ReactNode
@@ -19,41 +20,17 @@ interface AppLayoutProps {
  * - Gap: 0 (no gap between sidebar and content for seamless look)
  * - Height: Full viewport minus navbar (64px / h-16)
  * 
- * Sidebar can be toggled on both mobile and desktop via the menu button in the navbar.
+ * Sidebar state is managed by SidebarContext to persist across page navigations.
  */
-const SIDEBAR_STORAGE_KEY = 'hiffi_sidebar_desktop_open'
-
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
-  // Mobile sidebar state - always starts closed (no persistence needed)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  // Desktop sidebar state - initialize to false for SSR/Hydration
-  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    setMounted(true)
-    try {
-      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-      if (saved !== null) {
-        setIsDesktopSidebarOpen(saved === 'true')
-      }
-    } catch (error) {
-      console.debug('[hiffi] Failed to load sidebar state:', error)
-    }
-  }, [])
-
-  // Save desktop sidebar state to localStorage whenever it changes
-  useEffect(() => {
-    if (!mounted) return
-    try {
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isDesktopSidebarOpen))
-    } catch (error) {
-      // Ignore localStorage errors (e.g., in private browsing)
-      console.debug('[hiffi] Failed to save sidebar state:', error)
-    }
-  }, [isDesktopSidebarOpen, mounted])
+  const {
+    isSidebarOpen,
+    setIsSidebarOpen,
+    isDesktopSidebarOpen,
+    setIsDesktopSidebarOpen,
+    toggleDesktopSidebar,
+    toggleMobileSidebar
+  } = useSidebar()
 
   return (
     <div className="h-[100dvh] flex flex-col bg-background overflow-hidden relative">
@@ -62,9 +39,9 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         onMenuClick={() => {
           // Toggle mobile sidebar on mobile, desktop sidebar on desktop
           if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-            setIsDesktopSidebarOpen(!isDesktopSidebarOpen)
+            toggleDesktopSidebar()
           } else {
-            setIsSidebarOpen(!isSidebarOpen)
+            toggleMobileSidebar()
           }
         }}
         currentFilter={currentFilter}
@@ -77,7 +54,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
           isDesktopOpen={isDesktopSidebarOpen}
-          onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+          onDesktopToggle={() => toggleDesktopSidebar()}
           currentFilter={currentFilter}
           onFilterChange={onFilterChange}
         />

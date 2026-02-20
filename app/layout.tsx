@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
+import { SidebarProvider } from '@/lib/sidebar-context'
+import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
@@ -87,7 +89,11 @@ export default function RootLayout({
       </head>
       <body className={`font-sans antialiased`}>
         <AuthProvider>
-          {children}
+          <VideoProvider>
+            <SidebarProvider>
+              {children}
+            </SidebarProvider>
+          </VideoProvider>
         </AuthProvider>
         <Toaster />
         {/* Analytics */}
