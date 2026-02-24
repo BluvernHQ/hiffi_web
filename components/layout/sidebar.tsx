@@ -225,6 +225,13 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   Terms of Use
                 </Link>
                 <Link
+                  href="/payment-terms"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={closeSidebar}
+                >
+                  Payment Terms
+                </Link>
+                <Link
                   href="/privacy-policy"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   onClick={closeSidebar}

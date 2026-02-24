@@ -1,6 +1,7 @@
 "use client"
 
 import { AppLayout } from "@/components/layout/app-layout"
+import Link from "next/link"
 
 export default function PrivacyPolicyPage() {
   return (
@@ -9,17 +10,17 @@ export default function PrivacyPolicyPage() {
         <h1 className="text-3xl font-bold mb-8 text-foreground">Privacy Policy</h1>
         
         <div className="space-y-8 text-foreground/90">
-          <p className="text-muted-foreground italic">Effective Date: 10/02/2026</p>
+          <p className="text-muted-foreground italic">Effective Date: February 14, 2026</p>
           
           <section className="space-y-4">
             <p className="leading-relaxed">
               HIFFI (“we,” “our,” or “us”) values your privacy and is committed to safeguarding the personal information of our users, including both audience members and artists/creators. This Privacy Policy describes in detail the types of information we collect, how we use and share it, the measures we take to secure it, and the rights available to you under applicable laws.
             </p>
             <p className="leading-relaxed">
-              By accessing or using our website, mobile application, or any other services that form part of the HIFFI platform (collectively, the “Platform”), you agree to the terms of this Privacy Policy. If you do not agree with this Policy, you should refrain from using the Platform.
+              By accessing or using our website, mobile application, or any other services that form part of the HIFFI platform (collectively, the “Platform”), you agree to the terms of this Privacy Policy, our <Link href="/terms-of-use" className="text-primary hover:underline">Terms of Use</Link> and <Link href="/payment-terms" className="text-primary hover:underline">Payment Terms</Link>. If you do not agree with this Policy, you should refrain from using the Platform.
             </p>
             <p className="leading-relaxed">
-              This Privacy Policy was last updated on 12/02/2026 and is effective as of 14th February 2026. For users in California, this Policy serves as our Notice at Collection under the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA). For users in other US states with comprehensive privacy laws, this Policy fulfills our transparency obligations under applicable state privacy statutes.
+              This Privacy Policy was last updated on February 14, 2026. For users in California, this Policy serves as our Notice at Collection under the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA). For users in other US states with comprehensive privacy laws, this Policy fulfills our transparency obligations under applicable state privacy statutes.
             </p>
           </section>
 

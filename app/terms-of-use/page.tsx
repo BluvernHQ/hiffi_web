@@ -1,6 +1,7 @@
 "use client"
 
 import { AppLayout } from "@/components/layout/app-layout"
+import Link from "next/link"
 
 export default function TermsOfUsePage() {
   return (
@@ -9,14 +10,14 @@ export default function TermsOfUsePage() {
         <h1 className="text-3xl font-bold mb-8 text-foreground">Terms of Use</h1>
         
         <div className="space-y-8 text-foreground/90">
-          <p className="text-muted-foreground italic">Effective Date: 14/02/2026</p>
+          <p className="text-muted-foreground italic">Effective Date: February 14, 2026</p>
           
           <section className="space-y-4">
             <p className="leading-relaxed">
               Welcome to Hiffi! These Terms of Use (“Terms”) constitute a legally binding agreement between you and Kinimi Corporation (“we,” “our,” or “us”). These Terms govern your access to and use of our website, mobile application, and related services (collectively, the “Platform”).
             </p>
             <p className="leading-relaxed">
-              By using the Platform, you agree to comply with and be bound by these Terms. If you do not agree, please do not use the Platform. We reserve the right to modify these Terms at any time. Your continued use of the Platform following the posting of revised Terms means that you accept and agree to the changes.
+              By using the Platform, you agree to comply with and be bound by these Terms, along with our <Link href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link> and <Link href="/payment-terms" className="text-primary hover:underline">Payment Terms</Link>. If you do not agree, please do not use the Platform. We reserve the right to modify these Terms at any time. Your continued use of the Platform following the posting of revised Terms means that you accept and agree to the changes.
             </p>
           </section>
 
@@ -106,7 +107,7 @@ export default function TermsOfUsePage() {
                 <li><span className="font-semibold">Unlawful or Harmful Content:</span> Contains any material that is false, misleading, defamatory, libellous, obscene, pornographic, sexually explicit, or otherwise offensive in nature, including but not limited to content involving nudity, sexual acts, sexual exploitation, or depictions of sexual activity; involves, depicts, or encourages child sexual abuse or exploitation (CSAM/CSAE). ANY SUCH CONTENT WILL BE IMMEDIATELY REPORTED TO THE NATIONAL CENTER FOR MISSING & EXPLOITED CHILDREN (NCMEC) AND LAW ENFORCEMENT AUTHORITIES; constitutes harassment, bullying, cyberstalking, or threatening behavior toward any individual or group; incites violence, hatred, or discrimination based on protected characteristics including race, ethnicity, national origin, religion, caste, sexual orientation, gender identity, disability, or veteran status; or promotes self-harm, suicide, or eating disorders.</li>
                 <li><span className="font-semibold">Sexually Exploitative or Abusive Content:</span> Promotes, depicts, or facilitates sexual exploitation, non-consensual sexual acts, sexual violence, incest, bestiality, or any content that sexualises minors. Such content is illegal in most jurisdictions and is strictly forbidden on the Platform.</li>
                 <li><span className="font-semibold">Hate Speech and Threats:</span> Promotes hatred, discrimination, harassment, abuse, or violence against any person or group based on race, ethnicity, nationality, religion, disability, gender, gender identity, sexual orientation, or any other protected characteristic under applicable laws.</li>
-                <li><span className="font-semibold">Intellectual Property Infringement:</span> Uses copyrighted music, videos, images, or other protected content without proper licensing or fair use justification. You are solely responsible for obtaining all necessary licenses and permissions. Kinimi Private Limited will respond to DMCA notices by removing allegedly infringing content; or uses trademarks, brand names, or logos without authorization.</li>
+                <li><span className="font-semibold">Intellectual Property Infringement:</span> Uses copyrighted music, videos, images, or other protected content without proper licensing or fair use justification. You are solely responsible for obtaining all necessary licenses and permissions. Kinimi Corporation will respond to DMCA notices by removing allegedly infringing content; or uses trademarks, brand names, or logos without authorization.</li>
                 <li><span className="font-semibold">Privacy Violations:</span> Discloses personal or confidential information of any individual without their consent, including but not limited to names, contact details, identification numbers, or financial information.</li>
                 <li><span className="font-semibold">Fraudulent or Deceptive Practices:</span> Engages in scams, impersonation, misrepresentation, or any scheme intended to defraud users, artists, ours, or third parties.</li>
                 <li><span className="font-semibold">Malicious or Disruptive Behaviour:</span> Transmits viruses, malware, spyware, or any other harmful code; interferes with, disrupts, or degrades the performance or security of the Platform; engages in automated scrapers, bots, or any other method to access the Platform without authorization.</li>
@@ -171,7 +172,7 @@ export default function TermsOfUsePage() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">8. Privacy and Data Protection</h2>
             <p className="leading-relaxed">
-              Your use of the Platform is also governed by our <a href="/privacy-policy" className="text-primary hover:underline font-medium">Privacy Policy</a>, which describes our practices regarding the collection, use, and disclosure of your personal information. By using the Platform, you consent to the collection and use of your information as described in our Privacy Policy.
+              Your use of the Platform is also governed by our <Link href="/privacy-policy" className="text-primary hover:underline font-medium">Privacy Policy</Link>, which describes our practices regarding the collection, use, and disclosure of your personal information. By using the Platform, you consent to the collection and use of your information as described in our Privacy Policy.
             </p>
             <p className="leading-relaxed">
               Kinimi Corporation implements industry-standard security measures to protect user data, including encryption of payment information and secure authentication protocols. However, we do not guarantee absolute security and are not responsible for unauthorized access to your information resulting from circumstances beyond our control.
@@ -333,7 +334,7 @@ export default function TermsOfUsePage() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">18. Entire Agreement</h2>
             <p className="leading-relaxed">
-              These Terms, together with our Privacy Policy and any other policies referenced herein, constitute the entire agreement between you and Kinimi Corporation regarding your use of the Platform and supersede all prior and contemporaneous agreements, understandings, and negotiations, whether written or oral.
+              These Terms, together with our <Link href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>, <Link href="/payment-terms" className="text-primary hover:underline">Payment Terms</Link>, and any other policies referenced herein, constitute the entire agreement between you and Kinimi Corporation regarding your use of the Platform and supersede all prior and contemporaneous agreements, understandings, and negotiations, whether written or oral.
             </p>
           </section>
 
