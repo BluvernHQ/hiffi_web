@@ -164,6 +164,7 @@ export default function WatchPage() {
   const [isFollowing, setIsFollowing] = useState(() => persistedWatchUiState?.isFollowing ?? false)
   const [isCheckingFollow, setIsCheckingFollow] = useState(false)
   const [isFollowingAction, setIsFollowingAction] = useState(false)
+  const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null)
   const [isLiked, setIsLiked] = useState(() => persistedWatchUiState?.isLiked ?? false)
   const [isDisliked, setIsDisliked] = useState(() => persistedWatchUiState?.isDisliked ?? false)
   const [showFullDescription, setShowFullDescription] = useState(false)
@@ -524,6 +525,9 @@ export default function WatchPage() {
 
     if (!video) return
 
+    // Prevent toggling off an existing upvote by clicking twice
+    if (isLiked) return
+
     try {
       const videoId = video.video_id || video.videoId
       await apiClient.upvoteVideo(videoId)
@@ -597,6 +601,9 @@ export default function WatchPage() {
     }
 
     if (!video) return
+
+    // Prevent toggling off an existing downvote by clicking twice
+    if (isDisliked) return
 
     try {
       const videoId = video.video_id || video.videoId
@@ -677,6 +684,8 @@ export default function WatchPage() {
 
     // Store previous state for rollback
     const previousFollowingState = isFollowing
+    const actionType: "follow" | "unfollow" = previousFollowingState ? "unfollow" : "follow"
+    setFollowActionType(actionType)
     const previousFollowersCount = videoCreator?.followers || videoCreator?.user?.followers || 0
 
     try {
@@ -784,6 +793,7 @@ export default function WatchPage() {
       })
     } finally {
       setIsFollowingAction(false)
+      setFollowActionType(null)
     }
   }
 
@@ -929,7 +939,13 @@ export default function WatchPage() {
                         onClick={handleFollow}
                         disabled={isCheckingFollow || isFollowingAction}
                       >
-                        {isCheckingFollow ? "Checking..." : isFollowingAction ? (isFollowing ? "Unfollowing..." : "Following...") : isFollowing ? "Following" : "Follow"}
+                        {isCheckingFollow
+                          ? "Checking..."
+                          : isFollowingAction
+                            ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                            : isFollowing
+                              ? "Following"
+                              : "Follow"}
                       </Button>
                     )}
                   </div>

@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingAction, setIsFollowingAction] = useState(false);
+  const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null);
   const [profileUser, setProfileUser] = useState<any>(null);
   const [userVideos, setUserVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -457,6 +458,8 @@ export default function ProfilePage() {
 
     // Store previous state for rollback
     const previousFollowingState = isFollowing;
+    const actionType: "follow" | "unfollow" = previousFollowingState ? "unfollow" : "follow";
+    setFollowActionType(actionType);
     const previousFollowersCount = profileUser?.followers || profileUser?.user?.followers || 0;
 
     try {
@@ -565,6 +568,7 @@ export default function ProfilePage() {
       });
     } finally {
       setIsFollowingAction(false);
+      setFollowActionType(null);
     }
   };
 
@@ -979,7 +983,7 @@ export default function ProfilePage() {
                       {isFollowingAction ? (
                         <>
                           <UserPlus className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 animate-pulse" />
-                          <span className="hidden xs:inline">{isFollowing ? "Unfollowing..." : "Following..."}</span>
+                          <span className="hidden xs:inline">{followActionType === "unfollow" ? "Unfollowing..." : "Following..."}</span>
                           <span className="xs:hidden">...</span>
                         </>
                       ) : isFollowing ? (
