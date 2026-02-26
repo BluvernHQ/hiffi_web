@@ -238,6 +238,13 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 >
                   Privacy Policy
                 </Link>
+                <Link
+                  href="/support"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={closeSidebar}
+                >
+                  Support
+                </Link>
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 © 2026 Kinimi Corporation
