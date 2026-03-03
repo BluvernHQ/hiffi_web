@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Minimize, Settings, Check } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Minimize, Settings, Check, SkipBack, SkipForward } from "lucide-react"
 import Script from "next/script"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -40,6 +41,7 @@ interface VideoPlayerProps {
   onVideoEnd?: () => void
   onMediaReady?: (videoId: string) => void
   availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
+  isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
 }
 
 const STORAGE_KEYS = {
@@ -66,7 +68,9 @@ export function VideoPlayer({
   suggestedVideos, 
   onVideoEnd,
   onMediaReady,
-  availableProfiles = ["original"]
+  availableProfiles = ["original"],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isMini, // Currently unused but reserved for mini-player specific UI tweaks
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -75,6 +79,8 @@ export function VideoPlayer({
   const [isForcedMute, setIsForcedMute] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const router = useRouter()
   
   // Initialize state from localStorage immediately to avoid flash of muted/unmuted
   const [volume, setVolume] = useState<number>(() => {
@@ -236,8 +242,7 @@ export function VideoPlayer({
 
   const handleMouseMove = () => {
     // Only handle mouse movements on desktop
-    if (window.matchMedia("(max-width: 768px)").matches) return;
-
+    if (isMobile) return;
     setShowControls(true)
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current)
@@ -308,8 +313,6 @@ export function VideoPlayer({
     
     // Single tap behavior
     tapTimeoutRef.current = setTimeout(() => {
-      const isMobile = window.matchMedia("(max-width: 768px)").matches;
-      
       if (isMobile) {
         if (isPlaying) {
           if (!isPlayerAwake) {
@@ -339,8 +342,6 @@ export function VideoPlayer({
 
   // Auto-hide logic for center controls and bottom bar (Mobile-first sync)
   useEffect(() => {
-    const isMobile = window.matchMedia("(max-width: 768px)").matches;
-    
     if (isPlaying && isPlayerAwake) {
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current)
       awakeTimeoutRef.current = setTimeout(() => {
@@ -380,9 +381,9 @@ export function VideoPlayer({
     }
 
     const posterUrl = getThumbnailUrl(poster)
-    
+
     // Use the URL directly (Workers are now public for thumbnails)
-    setSignedPosterUrl(posterUrl)
+      setSignedPosterUrl(posterUrl)
   }, [poster])
 
   // Reset state when videoId changes to force loading state
@@ -426,13 +427,13 @@ export function VideoPlayer({
         if (requestId !== resolveRequestIdRef.current) return
         signedUrlVideoIdRef.current = ""
         if (!isLoading) {
-          setUrlError("No video URL provided")
+        setUrlError("No video URL provided")
         }
         setIsLoadingUrl(false)
         return
       }
 
-      try {
+        try {
         // Only show the big loading spinner on the first resolution or when videoId changes
         if (!hasResolvedOnce) {
           setIsLoadingUrl(true)
@@ -518,7 +519,7 @@ export function VideoPlayer({
     console.log(`[hiffi] Switching MP4 quality to: ${profile}`)
     isSwitchingQualityRef.current = true
     setCurrentProfile(profile)
-
+    
     const currentTime = player.currentTime()
     const wasPaused = player.paused()
 
@@ -526,11 +527,11 @@ export function VideoPlayer({
     const newSrc = profile === 'original' 
       ? `${baseUrlRef.current}/original.mp4` 
       : `${baseUrlRef.current}/${profile}.mp4`
-
-    player.src({ 
+      
+      player.src({
       src: newSrc, 
       type: "video/mp4" 
-    })
+      })
     
     // When changing sources, we should wait for the player to be ready
     // before attempting to seek or play to avoid AbortError
@@ -598,9 +599,9 @@ export function VideoPlayer({
       autoplay: autoPlay ? 'any' : false, // Use 'any' for robust autoplay (tries unmuted, falls back to muted)
       muted: isMutedRef.current,
       controls: false,
-      responsive: true,
+        responsive: true,
       fluid: false,
-      poster: signedPosterUrl || poster,
+        poster: signedPosterUrl || poster,
       preload: 'auto',
       html5: {
         vhs: {
@@ -610,11 +611,11 @@ export function VideoPlayer({
         nativeAudioTracks: false,
         nativeVideoTracks: false
       },
-      userActions: {
-        doubleClick: false,
-        hotkeys: false
-      }
-    })
+        userActions: {
+          doubleClick: false,
+          hotkeys: false
+        }
+      })
 
     playerRef.current = player
 
@@ -791,8 +792,38 @@ export function VideoPlayer({
     const handleError = () => {
       const error = player.error()
       if (!error) return
-      console.error(`[hiffi] VideoJS Error (Code ${error.code}):`, error.message)
-      setUrlError(`Playback error: ${error.message || "The video could not be loaded."}`)
+
+      const code = error.code
+      const message = error.message
+      console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+
+      // If the current source fails with MEDIA_ERR_SRC_NOT_SUPPORTED,
+      // aggressively fall back to the original MP4 using our known base URL.
+      if ((code === 4 || code === 3) && baseUrlRef.current) {
+        console.warn("[hiffi] HLS source not supported, falling back to original MP4...")
+        const fallbackUrl = `${baseUrlRef.current}/original.mp4`
+
+        // Update state and refs so the rest of the component is consistent
+        setVideoSourceType("mp4")
+        videoSourceTypeRef.current = "mp4"
+        setSignedVideoUrl(fallbackUrl)
+        signedVideoUrlRef.current = fallbackUrl
+        setUrlError("")
+
+        // Swap the source on the existing player instance
+        player.error(null)
+        player.src({ src: fallbackUrl, type: "video/mp4" })
+        player.load()
+        player
+          .play()
+          .catch((e: any) => {
+            console.error("[hiffi] Fallback MP4 playback failed:", e)
+            setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
+          })
+        return
+      }
+
+      setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
     }
 
     player.on('play', handlePlay)
@@ -1008,7 +1039,7 @@ export function VideoPlayer({
         setShowNextUpOverlay(false)
       }
     }
-    
+
     setIsBuffering(true)
     setCurrentTime(newTime)
     player.currentTime(newTime)
@@ -1192,6 +1223,24 @@ export function VideoPlayer({
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
   }
 
+  const handlePrevious = () => {
+    router.back()
+  }
+
+  const handleNext = () => {
+    if (!suggestedVideos || suggestedVideos.length === 0) return
+    const next = suggestedVideos[0]
+    const nextId = next.videoId || next.video_id
+    if (!nextId) return
+
+    // Allow parent/global context to update queue if needed
+    if (onVideoEnd) {
+      onVideoEnd()
+    }
+
+    router.push(`/watch/${nextId}`)
+  }
+
   const getVolumeIcon = () => {
     if (isMuted || volume === 0 || isForcedMute) {
       return <VolumeX className="h-6 w-6" />
@@ -1205,6 +1254,32 @@ export function VideoPlayer({
   }
 
   const isLoadingAny = isLoadingUrl || isLoading;
+
+  // Track mobile breakpoint safely (no window access during SSR)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(max-width: 768px)")
+
+    const update = (e: MediaQueryList | MediaQueryListEvent) => {
+      setIsMobile("matches" in e ? e.matches : (e as MediaQueryList).matches)
+    }
+
+    // Initial value
+    update(mq)
+
+    if (mq.addEventListener) {
+      mq.addEventListener("change", update)
+      return () => mq.removeEventListener("change", update)
+    } else {
+      // Safari fallback
+      // @ts-ignore
+      mq.addListener(update)
+      return () => {
+        // @ts-ignore
+        mq.removeListener(update)
+      }
+    }
+  }, [])
 
   return (
     <div
@@ -1393,12 +1468,42 @@ export function VideoPlayer({
 
         <div className="flex items-center justify-between text-white">
           <div className="flex items-center gap-4">
-            <button onClick={togglePlay} className="hover:text-primary transition-colors">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handlePrevious()
+              }}
+              className="hover:text-primary transition-colors"
+            >
+              <SkipBack className="h-5 w-5" />
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                togglePlay()
+              }}
+              className="hover:text-primary transition-colors"
+            >
               {isPlaying ? (
                 <Pause className="h-6 w-6" fill="currentColor" />
               ) : (
                 <Play className="h-6 w-6" fill="currentColor" />
               )}
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleNext()
+              }}
+              className={cn(
+                "hover:text-primary transition-colors",
+                (!suggestedVideos || suggestedVideos.length === 0) && "opacity-40 cursor-not-allowed"
+              )}
+              disabled={!suggestedVideos || suggestedVideos.length === 0}
+            >
+              <SkipForward className="h-5 w-5" />
             </button>
 
             <div className="flex items-center gap-2 group/volume">
@@ -1414,7 +1519,7 @@ export function VideoPlayer({
               <div className={cn(
                 "overflow-hidden transition-all duration-300 ease-in-out",
                 "w-0 md:group-hover/volume:w-24", // Desktop: hover to show
-                (window.matchMedia("(max-width: 768px)").matches && showControls) && "w-24" // Mobile: show when awake
+                isMobile && showControls && "w-24" // Mobile: show when awake
               )}>
                 <Slider
                   value={[isMuted ? 0 : volume]}
