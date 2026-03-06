@@ -56,7 +56,6 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
-  const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = video.status === "temp"
@@ -146,16 +145,11 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
             )}
 
             {!isEncoding && (
-              <>
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                    <Play className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground ml-0.5" fill="currentColor" />
-                  </div>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                  <Play className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground ml-0.5" fill="currentColor" />
                 </div>
-                <div className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded font-medium">
-                  {(views || 0).toLocaleString()}
-                </div>
-              </>
+              </div>
             )}
           </Link>
           <div className="flex gap-3 px-1 relative">
