@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AppLayout } from '@/components/layout/app-layout';
 import { VideoGrid } from '@/components/video/video-grid';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Edit, Share2, Calendar, UserPlus, UserCheck, Copy, Check, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
+import { shareUrl } from '@/lib/share';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialog';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -384,64 +384,32 @@ export default function ProfilePage() {
   }
 
   const handleShare = async () => {
-    // Ensure we're in a browser environment
-    if (typeof window === 'undefined') {
-      return
-    }
+    if (typeof window === 'undefined') return
 
     const profileUrl = `${window.location.origin}/profile/${username}`
-    const shareData = {
-      title: `${profileUser?.name || profileUser?.username || username}'s Profile`,
-      text: `Check out ${profileUser?.name || profileUser?.username || username}'s profile on Hiffi`,
-      url: profileUrl,
-    }
+    const displayName = profileUser?.name || profileUser?.username || username
+    const title = `${displayName}'s Profile`
+    const text = `Check out ${displayName}'s profile on Hiffi`
 
-    try {
-      // Check if Web Share API is available (mobile devices and modern browsers)
-      if (navigator.share) {
-        try {
-          // Check if we can share this data
-          if (navigator.canShare && !navigator.canShare(shareData)) {
-            // If canShare exists but returns false, the data format is not shareable
-            // Fall through to copy fallback
-            throw new Error('Cannot share this data format')
-          }
-          
-          // Attempt to share using Web Share API
-          await navigator.share(shareData)
-          toast({
-            title: "Shared!",
-            description: "Profile shared successfully",
-          })
-          return // Successfully shared, exit early
-        } catch (shareError: any) {
-          // If user cancelled the share dialog, don't show error or fallback
-          if (shareError.name === 'AbortError') {
-            return // User cancelled, exit silently
-          }
-          // For other share errors, fall through to copy fallback below
-          console.log("[hiffi] Web Share API failed, falling back to copy:", shareError)
-        }
-      }
-      
-      // Fallback: Copy to clipboard if Web Share API is not available or failed
-      // This happens on desktop browsers without share support
-      await navigator.clipboard.writeText(profileUrl)
+    const result = await shareUrl({ title, text, url: profileUrl })
+
+    if (result.success && result.method === 'share') {
+      toast({ title: "Shared!", description: "Profile shared successfully" })
+      return
+    }
+    if (result.success && result.method === 'clipboard') {
       setCopied(true)
       toast({
         title: "Link copied!",
         description: "Profile link copied to clipboard. Use the copy button to copy again.",
       })
-      
-      // Reset copied state after 2 seconds
-      setTimeout(() => {
-        setCopied(false)
-      }, 2000)
-    } catch (error: any) {
-      console.error("[hiffi] Share error:", error)
+      setTimeout(() => setCopied(false), 2000)
+      return
+    }
+    if (!result.success) {
       toast({
-        title: "Error",
-        description: "Failed to share profile. Please try copying the link instead.",
+        title: "Could not share",
+        description: "Try copying the URL from your browser address bar.",
         variant: "destructive",
       })
     }
@@ -574,20 +542,20 @@ export default function ProfilePage() {
 
   if (authLoading || isLoading) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center min-h-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p>Loading profile...</p>
           </div>
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   if (!isLoading && hasTriedFetch && !profileUser) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center min-h-full">
           <div className="text-center space-y-4 px-4 max-w-md">
             {isUnauthenticated ? (
@@ -617,7 +585,7 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-      </AppLayout>
+      </>
     );
   }
 
@@ -629,7 +597,7 @@ export default function ProfilePage() {
   // Show personal profile view for regular users viewing their own profile
   if (isRegularUser && isOwnProfile) {
     return (
-      <AppLayout>
+      <>
         <div className="bg-background w-full">
             {/* Cover Image / Banner */}
             <div className="h-32 sm:h-40 md:h-48 lg:h-64 w-full relative overflow-hidden">
@@ -873,13 +841,13 @@ export default function ProfilePage() {
             </>
           )}
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   // Show standard profile view for creators/admins or when viewing other users
   return (
-    <AppLayout>
+    <>
       <div className="bg-background w-full">
           {/* Cover Image / Banner */}
           <div className="h-32 sm:h-40 md:h-48 lg:h-64 w-full relative overflow-hidden">
@@ -1153,6 +1121,6 @@ export default function ProfilePage() {
             </>
           )}
         </div>
-      </AppLayout>
+      </>
     );
   }

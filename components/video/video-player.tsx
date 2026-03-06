@@ -154,6 +154,7 @@ export function VideoPlayer({
   const isSwitchingQualityRef = useRef(false)
   const durationRef = useRef(0)
   const autoplayCanceledRef = useRef(false) // Track if user canceled autoplay
+  const unmuteRestoreBlockedRef = useRef(false) // Once browser blocks unmute restore, don't retry until user interaction or new video
   const autoplayAttemptTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Track autoplay attempt timeout
   const lastReadyNotifiedSourceRef = useRef<string>("")
   const resolveRequestIdRef = useRef(0)
@@ -285,6 +286,7 @@ export function VideoPlayer({
         player.muted(isMuted)
         player.volume(volume)
         setForcedMute(false)
+        unmuteRestoreBlockedRef.current = false
       }
     }
 
@@ -414,6 +416,7 @@ export function VideoPlayer({
       setHasEnded(false)
       setShowNextUpOverlay(false)
       if (autoPlay) setAutoplayInProgress(true)
+      unmuteRestoreBlockedRef.current = false
     }
   }, [videoId, autoPlay])
 
@@ -735,31 +738,39 @@ export function VideoPlayer({
       notifyMediaReady()
       
       // If video was forced to mute for autoplay, try to restore user's preference after playback starts
-      // This gives the browser a chance to allow unmuted playback once playback has started
-      if (isForcedMuteRef.current && !isMutedRef.current && player.muted()) {
+      // This gives the browser a chance to allow unmuted playback once playback has started.
+      // Only try once per video; if the browser blocks unmute, don't retry on every playing event.
+      if (
+        !unmuteRestoreBlockedRef.current &&
+        isForcedMuteRef.current &&
+        !isMutedRef.current &&
+        player.muted()
+      ) {
         // Try to unmute after a short delay to ensure playback is stable
         setTimeout(() => {
-          if (player && !player.paused() && isForcedMuteRef.current && !isMutedRef.current) {
+          if (player && !player.paused() && isForcedMuteRef.current && !isMutedRef.current && !unmuteRestoreBlockedRef.current) {
             console.log("[hiffi] Attempting to restore unmuted playback after forced mute")
             try {
               player.muted(false)
               player.volume(volumeRef.current)
-              
-              // If unmuting succeeded and the player is still playing, we can clear the forced mute flag
-              // We check again after a tiny delay to see if the browser paused it in response to unmuting
+
+              // If unmuting succeeded and the player is still playing, we can clear the forced mute flag.
+              // If the browser blocked unmute and paused, revert to muted and stop retrying.
               setTimeout(() => {
                 if (player && !player.paused() && !player.muted()) {
                   console.log("[hiffi] Successfully restored unmuted playback")
                   setForcedMute(false)
                 } else if (player && player.paused()) {
-                  // Browser blocked unmuting and paused the video, revert to muted autoplay
+                  // Browser blocked unmuting and paused the video; revert to muted and don't retry again
                   console.log("[hiffi] Unmuting blocked by browser, reverting to muted play")
+                  unmuteRestoreBlockedRef.current = true
                   player.muted(true)
                   player.play().catch(() => {})
                 }
               }, 100)
             } catch (err) {
               console.log("[hiffi] Could not restore unmuted playback:", err)
+              unmuteRestoreBlockedRef.current = true
             }
           }
         }, 500)
@@ -795,34 +806,41 @@ export function VideoPlayer({
 
       const code = error.code
       const message = error.message
-      console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
 
-      // If the current source fails with MEDIA_ERR_SRC_NOT_SUPPORTED,
-      // aggressively fall back to the original MP4 using our known base URL.
-      if ((code === 4 || code === 3) && baseUrlRef.current) {
-        console.warn("[hiffi] HLS source not supported, falling back to original MP4...")
-        const fallbackUrl = `${baseUrlRef.current}/original.mp4`
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try fallback to original MP4
+      if (code === 4 || code === 3) {
+        let baseUrl = baseUrlRef.current
+        if (!baseUrl) {
+          const currentSrc = player.currentSrc() || signedVideoUrlRef.current || ""
+          if (currentSrc) {
+            baseUrl = currentSrc.replace(/\/[^/]+$/, "")
+          }
+        }
+        if (baseUrl) {
+          console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, message)
+          const fallbackUrl = `${baseUrl}/original.mp4`
 
-        // Update state and refs so the rest of the component is consistent
-        setVideoSourceType("mp4")
-        videoSourceTypeRef.current = "mp4"
-        setSignedVideoUrl(fallbackUrl)
-        signedVideoUrlRef.current = fallbackUrl
-        setUrlError("")
+          setVideoSourceType("mp4")
+          videoSourceTypeRef.current = "mp4"
+          baseUrlRef.current = baseUrl
+          setSignedVideoUrl(fallbackUrl)
+          signedVideoUrlRef.current = fallbackUrl
+          setUrlError("")
 
-        // Swap the source on the existing player instance
-        player.error(null)
-        player.src({ src: fallbackUrl, type: "video/mp4" })
-        player.load()
-        player
-          .play()
-          .catch((e: any) => {
-            console.error("[hiffi] Fallback MP4 playback failed:", e)
-            setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-          })
-        return
+          player.error(null)
+          player.src({ src: fallbackUrl, type: "video/mp4" })
+          player.load()
+          player
+            .play()
+            .catch((e: any) => {
+              console.error("[hiffi] Fallback MP4 playback failed:", e)
+              setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
+            })
+          return
+        }
       }
 
+      console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
       setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
     }
 

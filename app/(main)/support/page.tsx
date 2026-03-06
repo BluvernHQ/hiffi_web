@@ -1,11 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { AppLayout } from "@/components/layout/app-layout"
 
 export default function SupportPage() {
   return (
-    <AppLayout>
+    <>
       <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold mb-8 text-foreground">Hiffi Support</h1>
 
@@ -90,7 +89,7 @@ export default function SupportPage() {
           </section>
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }
 

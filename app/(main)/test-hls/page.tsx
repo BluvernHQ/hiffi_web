@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { WORKERS_BASE_URL } from "@/lib/config"
 import { getWorkersApiKey } from "@/lib/storage"
-import { AppLayout } from "@/components/layout/app-layout"
 
 export default function TestHLSPage() {
   const [baseUrl, setBaseUrl] = useState(WORKERS_BASE_URL)
@@ -30,7 +29,7 @@ export default function TestHLSPage() {
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="w-full px-4 py-6 md:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-8">
@@ -123,6 +122,6 @@ export default function TestHLSPage() {
           )}
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }

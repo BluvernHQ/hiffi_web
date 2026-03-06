@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Sparkles, Video, TrendingUp, Users, Zap, CheckCircle2 } from "lucide-react"
@@ -108,21 +107,21 @@ export default function BecomeCreatorPage() {
   // Show loading state while checking auth
   if (authLoading || isChecking) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
             <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
-      </AppLayout>
+      </>
     )
   }
 
   // If already a creator, show Hiffi Studio
   if (isCreator) {
     return (
-      <AppLayout>
+      <>
         <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
                 {/* Header */}
@@ -222,13 +221,13 @@ export default function BecomeCreatorPage() {
                 </Card>
               </div>
             </div>
-      </AppLayout>
+      </>
     )
   }
 
   // Show become creator page for non-creators
   return (
-    <AppLayout>
+    <>
       <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
               {/* Hero Section */}
@@ -325,6 +324,6 @@ export default function BecomeCreatorPage() {
               </Card>
             </div>
           </div>
-      </AppLayout>
+      </>
   )
 }

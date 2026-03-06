@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AppLayout } from '@/components/layout/app-layout';
 import { VideoGrid } from '@/components/video/video-grid';
 import { Search, Loader2, User, Video } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -106,8 +105,7 @@ function SearchPageContent() {
   }, [searchParams, currentQuery]);
 
   return (
-    <AppLayout>
-      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+    <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
         <div className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
@@ -228,7 +226,6 @@ function SearchPageContent() {
           )}
         </div>
       </div>
-    </AppLayout>
   );
 }
 
@@ -236,14 +233,12 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <AppLayout>
-          <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto text-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Loading search...</p>
-            </div>
+        <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto text-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading search...</p>
           </div>
-        </AppLayout>
+        </div>
       }
     >
       <SearchPageContent />

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { AppLayout } from '@/components/layout/app-layout'
 import { VideoGrid } from '@/components/video/video-grid'
 import { FollowingEmptyState } from '@/components/video/following-empty-state'
 import { useAuth } from '@/lib/auth-context'
@@ -132,15 +131,13 @@ export default function FollowingPage() {
   // Show loading state
   if (authLoading) {
     return (
-      <AppLayout currentFilter="following">
-        <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
-          <div className="w-full">
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="w-full">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         </div>
-      </AppLayout>
+      </div>
     )
   }
 
@@ -150,8 +147,7 @@ export default function FollowingPage() {
   }
 
   return (
-    <AppLayout currentFilter="following">
-      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+    <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
         <div className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
@@ -195,6 +191,5 @@ export default function FollowingPage() {
           )}
         </div>
       </div>
-    </AppLayout>
   )
 }

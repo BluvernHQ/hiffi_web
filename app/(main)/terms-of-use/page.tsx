@@ -1,11 +1,10 @@
 "use client"
 
-import { AppLayout } from "@/components/layout/app-layout"
 import Link from "next/link"
 
 export default function TermsOfUsePage() {
   return (
-    <AppLayout>
+    <>
       <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold mb-8 text-foreground">Terms of Use</h1>
         
@@ -344,6 +343,6 @@ export default function TermsOfUsePage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }

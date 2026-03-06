@@ -11,17 +11,19 @@ import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ThumbsUp, ThumbsDown, MoreVertical, Trash2 } from "lucide-react"
+import { ThumbsUp, ThumbsDown, MoreVertical, Trash2, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
 import Link from "next/link"
 import { cn, getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
+import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { getSeed } from "@/lib/seed-manager"
 import { DeleteVideoDialog } from "@/components/video/delete-video-dialog"
+import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
 import {
   DropdownMenu,
@@ -193,6 +195,7 @@ export default function WatchPage() {
   const [urlError, setUrlError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const lastFetchedRelatedIdRef = useRef<string | null | undefined>(null)
   const [pendingVideo, setPendingVideo] = useState<{
     videoId: string
@@ -842,23 +845,21 @@ export default function WatchPage() {
 
   if (urlError && !video) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-full p-4 lg:p-6">
-          <div className="text-center">
-            <div className="text-4xl mb-4">😕</div>
-            <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
-            <p className="text-muted-foreground mb-6">{urlError}</p>
-            <Button onClick={() => router.push("/")} variant="default">
-              Go to Home
-            </Button>
-          </div>
+      <div className="flex items-center justify-center min-h-full p-4 lg:p-6">
+        <div className="text-center">
+          <div className="text-4xl mb-4">😕</div>
+          <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
+          <p className="text-muted-foreground mb-6">{urlError}</p>
+          <Button onClick={() => router.push("/")} variant="default">
+            Go to Home
+          </Button>
         </div>
-      </AppLayout>
+      </div>
     )
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 lg:p-6 pb-0 lg:pb-6">
         <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
@@ -974,6 +975,17 @@ export default function WatchPage() {
                         {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
                       </Button>
                     </div>
+                    {!shouldShowMetadataSkeleton && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full px-3 hover:bg-muted"
+                        onClick={() => setShareDialogOpen(true)}
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share
+                      </Button>
+                    )}
                     {isOwner && !shouldShowMetadataSkeleton && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1082,6 +1094,18 @@ export default function WatchPage() {
         title="Sign in to follow creators"
         description="Create an account or sign in to follow creators and stay updated with their latest videos."
       />
-    </AppLayout>
+      <ShareVideoDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        url={
+          (() => {
+            const id = currentVideo?.video_id || currentVideo?.videoId || (Array.isArray(params.videoId) ? params.videoId[0] : params.videoId)
+            if (typeof window === "undefined" || !id) return ""
+            return `${window.location.origin}/watch/${id}`
+          })()
+        }
+        title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
+      />
+    </>
   )
 }
