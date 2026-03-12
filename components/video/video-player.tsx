@@ -258,6 +258,13 @@ export function VideoPlayer({
   const setForcedMute = (value: boolean) => {
     isForcedMuteRef.current = value
     setIsForcedMute(value)
+
+    // When the browser forces mute (autoplay policies), also reflect that in the UI
+    // so the user clearly sees the video as muted instead of looking "unmuted but silent".
+    if (value) {
+      setIsMuted(true)
+      setVolume(0)
+    }
   }
 
   // Unified wake function for mobile
