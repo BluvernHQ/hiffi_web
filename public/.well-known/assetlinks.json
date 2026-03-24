@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "com.hiffi.app",
       "sha256_cert_fingerprints": [
-        "85:DD:FC:62:7E:92:A5:DA:66:5D:EF:E8:4E:14:64:07:FA:51:9B:90:04:BC:48:CC:2C:3E:43:C5:EC:BD:B6:AB"
+        "85:DD:FC:62:7E:92:A5:DA:66:5D:EF:E8:4E:14:64:07:FA:51:9B:90:04:BC:48:CC:2C:3E:43:C5:EC:BD:B6:AB",
+        "62:5A:28:FF:9A:59:B0:12:C9:D6:FF:13:A8:DA:76:B6:70:D4:E3:C2:5F:60:55:41:12:45:AC:B1:59:C6:2B:E1"
       ]
     }
   }
