@@ -42,11 +42,15 @@ interface VideoPlayerProps {
   onMediaReady?: (videoId: string) => void
   availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
+  /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
+  onNext?: (nextId: string) => void
+  /** Called when the player's Previous button is pressed. When provided, no route navigation occurs. */
+  onPrevious?: () => void
 }
 
 const STORAGE_KEYS = {
   VOLUME: 'hiffi_player_volume',
-  MUTED: 'hiffi_player_muted'
+  MUTED: 'hiffi_player_muted',
 }
 
 const STANDARD_PROFILES = [2160, 1440, 1080, 720, 480, 360] as const
@@ -71,6 +75,8 @@ export function VideoPlayer({
   availableProfiles = ["original"],
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
+  onNext,
+  onPrevious,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -1249,20 +1255,31 @@ export function VideoPlayer({
   }
 
   const handlePrevious = () => {
+    if (onPrevious) {
+      onPrevious()
+      return
+    }
+    // Fallback: standard browser back when no in-place handler is provided
     router.back()
   }
 
   const handleNext = () => {
-    if (!suggestedVideos || suggestedVideos.length === 0) return
-    const next = suggestedVideos[0]
+    const currentSuggestedVideos = suggestedVideosRef.current
+    if (!currentSuggestedVideos || currentSuggestedVideos.length === 0) return
+    const next = currentSuggestedVideos[0]
     const nextId = next.videoId || next.video_id
     if (!nextId) return
 
-    // Allow parent/global context to update queue if needed
+    if (onNext) {
+      // In-place switch: parent handles URL + state; player stays mounted → fullscreen preserved
+      onNext(nextId)
+      return
+    }
+
+    // Fallback: route navigation when no in-place handler provided
     if (onVideoEnd) {
       onVideoEnd()
     }
-
     router.push(`/watch/${nextId}`)
   }
 
@@ -1305,6 +1322,7 @@ export function VideoPlayer({
       }
     }
   }, [])
+
 
   return (
     <div

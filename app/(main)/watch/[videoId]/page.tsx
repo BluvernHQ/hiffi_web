@@ -163,6 +163,53 @@ export default function WatchPage() {
   const { user, userData } = useAuth()
   const { activeVideo } = useGlobalVideo()
   const { toast } = useToast()
+
+  // Drives all fetches and the player source. Initialized from the URL param but updated
+  // in-place on next/previous so the VideoPlayer never unmounts (preserves fullscreen).
+  const [currentVideoId, setCurrentVideoId] = useState<string>(() => {
+    const p = params.videoId
+    return (Array.isArray(p) ? p[0] : p as string) || ""
+  })
+
+  // Sync currentVideoId when the URL param changes via real Next.js navigation
+  // (deep links, browser address bar, etc.) so those paths still work correctly.
+  useEffect(() => {
+    const p = params.videoId
+    const id = (Array.isArray(p) ? p[0] : p as string) || ""
+    if (id && id !== currentVideoId) {
+      setCurrentVideoId(id)
+      videoHistoryRef.current = [] // External navigation resets internal history
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.videoId])
+
+  // Stack of previously played video IDs for in-place back navigation.
+  const videoHistoryRef = useRef<string[]>([])
+
+  // Called by VideoPlayer's Next button. Swaps source in-place → player stays mounted.
+  const handlePlayerNext = (nextId: string) => {
+    if (!nextId || nextId === currentVideoId) return
+    videoHistoryRef.current.push(currentVideoId)
+    setCurrentVideoId(nextId)
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/watch/${nextId}`)
+    }
+  }
+
+  // Called by VideoPlayer's Previous button. Pops internal history stack first;
+  // falls back to browser history when stack is empty.
+  const handlePlayerPrevious = () => {
+    const prevId = videoHistoryRef.current.pop()
+    if (prevId) {
+      setCurrentVideoId(prevId)
+      if (typeof window !== "undefined") {
+        window.history.pushState({}, "", `/watch/${prevId}`)
+      }
+    } else {
+      router.back()
+    }
+  }
+
   const [isFollowing, setIsFollowing] = useState(() => persistedWatchUiState?.isFollowing ?? false)
   const [isCheckingFollow, setIsCheckingFollow] = useState(false)
   const [isFollowingAction, setIsFollowingAction] = useState(false)
@@ -281,9 +328,9 @@ export default function WatchPage() {
 
   useEffect(() => {
     async function fetchVideoData() {
-      if (!params.videoId) return
+      if (!currentVideoId) return
 
-      const videoId = Array.isArray(params.videoId) ? params.videoId[0] : params.videoId
+      const videoId = currentVideoId
 
       // Prevent duplicate calls - check synchronously before any async operations
       if (hasFetchedVideoRef.current === videoId || isFetchingRef.current) {
@@ -462,13 +509,12 @@ export default function WatchPage() {
     }
 
     fetchVideoData()
-  }, [params.videoId]) // Removed userData from dependencies - we'll handle it separately
+  }, [currentVideoId]) // currentVideoId drives all fetches; synced from params.videoId for external nav
 
   // Effect for related videos.
   useEffect(() => {
-    const routeVideoId = Array.isArray(params.videoId) ? params.videoId[0] : params.videoId
-    if (!routeVideoId || lastFetchedRelatedIdRef.current === routeVideoId) return
-    const videoId = routeVideoId
+    if (!currentVideoId || lastFetchedRelatedIdRef.current === currentVideoId) return
+    const videoId = currentVideoId
 
     async function fetchRelated() {
       const isInitialRelatedLoad = relatedVideos.length === 0
@@ -511,7 +557,7 @@ export default function WatchPage() {
     }
 
     fetchRelated()
-  }, [params.videoId])
+  }, [currentVideoId])
 
   // NOTE: Follow status is now primarily fetched from the getVideo API response
   // which includes the 'following' boolean field. This eliminates the need for 
@@ -812,7 +858,7 @@ export default function WatchPage() {
   
   // Check if current user owns this video
   const isOwner = userData?.username === (currentVideo?.userUsername || currentVideo?.user_username)
-  const videoId = currentVideo?.video_id || currentVideo?.videoId || ""
+  const videoId = currentVideo?.video_id || currentVideo?.videoId || currentVideoId || ""
   
   const handleVideoDeleted = () => {
     // Redirect to home after deletion
@@ -875,6 +921,8 @@ export default function WatchPage() {
                 onVideoEnd={handleVideoEnd}
                 onMediaReady={handlePlayerMediaReady}
                 availableProfiles={currentPlayerVideo?.profiles}
+                onNext={handlePlayerNext}
+                onPrevious={handlePlayerPrevious}
               />
 
               <div className={cn("space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
@@ -1049,7 +1097,7 @@ export default function WatchPage() {
 
                 <Separator className="my-6" />
 
-                {(videoId || params.videoId) && <CommentSection videoId={(videoId || params.videoId) as string} />}
+                {(videoId || currentVideoId) && <CommentSection videoId={(videoId || currentVideoId) as string} />}
               </div>
             </div>
 
@@ -1099,7 +1147,7 @@ export default function WatchPage() {
         onOpenChange={setShareDialogOpen}
         url={
           (() => {
-            const id = currentVideo?.video_id || currentVideo?.videoId || (Array.isArray(params.videoId) ? params.videoId[0] : params.videoId)
+            const id = currentVideo?.video_id || currentVideo?.videoId || currentVideoId
             if (typeof window === "undefined" || !id) return ""
             return `${window.location.origin}/watch/${id}`
           })()
