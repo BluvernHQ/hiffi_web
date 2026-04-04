@@ -177,3 +177,13 @@ export function blobToFile(blob: Blob, filename: string): File {
   return new File([blob], filename, { type: blob.type })
 }
 
+/** API marks encoding / not-yet-playable videos with this status. */
+export function isVideoProcessing(video: { status?: string } | null | undefined): boolean {
+  return video?.status === "temp"
+}
+
+/** Short toast when users try to open a video that is still processing. */
+export const PROCESSING_VIDEO_TOAST = {
+  title: "Still processing",
+  description: "This video will be playable when processing finishes.",
+} as const

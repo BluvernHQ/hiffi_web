@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { formatDistanceToNow } from "date-fns"
 import { Play, MoreVertical, Trash2, Loader2, Clock } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
+import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -58,7 +59,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   const title = video.videoTitle || video.video_title || ""
   const username = video.userUsername || video.user_username || ""
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
-  const isEncoding = video.status === "temp"
+  const isEncoding = isVideoProcessing(video)
 
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
   
@@ -92,10 +93,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
       (e.target as HTMLElement).closest('[role="menuitem"]')
     ) {
       if (isEncoding) {
-        toast({
-          title: "Video is processing",
-          description: "This video is currently being encoded. Please check back in a few minutes.",
-        })
+        toast(PROCESSING_VIDEO_TOAST)
       }
       return
     }
@@ -112,8 +110,17 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
         <CardContent className="p-0 flex flex-col h-auto gap-0.5 sm:gap-1 pb-0">
           <Link
             href={`/watch/${videoId}`}
+            prefetch={!isEncoding}
             className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isEncoding) {
+                e.preventDefault()
+                toast(PROCESSING_VIDEO_TOAST)
+              }
+            }}
+            aria-disabled={isEncoding}
+            tabIndex={isEncoding ? -1 : undefined}
           >
             {thumbnailUrl ? (
               <AuthenticatedImage
@@ -167,8 +174,17 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
               <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
                 <Link
                   href={`/watch/${videoId}`}
+                  prefetch={!isEncoding}
                   className="hover:underline"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (isEncoding) {
+                      e.preventDefault()
+                      toast(PROCESSING_VIDEO_TOAST)
+                    }
+                  }}
+                  aria-disabled={isEncoding}
+                  tabIndex={isEncoding ? -1 : undefined}
                 >
                   {title || "Untitled Video"}
                 </Link>

@@ -13,6 +13,8 @@ import { AuthenticatedImage } from '@/components/video/authenticated-image';
 import { useAuth } from '@/lib/auth-context';
 import { ProfilePicture } from '@/components/profile/profile-picture';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from '@/lib/video-utils';
 
 interface SearchResult {
   id: string;
@@ -22,6 +24,7 @@ interface SearchResult {
   username?: string;
   views?: number;
   user?: any; // Add user object for ProfilePicture
+  status?: string;
 }
 
 const TRENDING_SEARCHES = [
@@ -41,6 +44,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const resultItemRefs = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
   const router = useRouter();
+  const { toast } = useToast();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const previousBlobUrlsRef = useRef<Set<string>>(new Set()); // Track blob URLs for cleanup
 
@@ -135,6 +139,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 thumbnail: thumbnail,
                 username: video.user_username || video.userUsername || '',
                 views: video.video_views || video.videoViews || 0,
+                status: video.status,
               };
             });
             allSuggestions.push(...videoSuggestions);
@@ -346,6 +351,61 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                               <div className="space-y-1">
                                 {videos.map((result) => {
                                   const itemIndex = suggestions.indexOf(result);
+                                  const processing = isVideoProcessing(result);
+                                  const row = (
+                                    <div className={cn(
+                                      "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
+                                      selectedIndex === itemIndex && "bg-muted"
+                                    )}>
+                                      <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
+                                        {result.thumbnail ? (
+                                          <AuthenticatedImage
+                                            src={getThumbnailUrl(result.thumbnail)}
+                                            alt={result.title}
+                                            fill
+                                            className="object-cover"
+                                            authenticated={false}
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                                            <Video className="h-4 w-4 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
+                                          <Video className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium truncate mb-1">
+                                          {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
+                                            part.toLowerCase() === query.toLowerCase() ? (
+                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                            ) : (
+                                              <span key={i}>{part}</span>
+                                            )
+                                          )}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground truncate">
+                                          @{result.username}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                  if (processing) {
+                                    return (
+                                      <button
+                                        key={result.id}
+                                        type="button"
+                                        className="block w-full text-left"
+                                        onClick={() => toast(PROCESSING_VIDEO_TOAST)}
+                                        ref={(el) => {
+                                          if (el) resultItemRefs.current[itemIndex] = el;
+                                        }}
+                                      >
+                                        {row}
+                                      </button>
+                                    );
+                                  }
                                   return (
                                     <Link
                                       key={result.id}
@@ -356,43 +416,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                         if (el) resultItemRefs.current[itemIndex] = el;
                                       }}
                                     >
-                                      <div className={cn(
-                                        "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
-                                        selectedIndex === itemIndex && "bg-muted"
-                                      )}>
-                                        <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
-                                          {result.thumbnail ? (
-                                            <AuthenticatedImage
-                                              src={getThumbnailUrl(result.thumbnail)}
-                                              alt={result.title}
-                                              fill
-                                              className="object-cover"
-                                              authenticated={false}
-                                            />
-                                          ) : (
-                                            <div className="w-full h-full bg-muted flex items-center justify-center">
-                                              <Video className="h-4 w-4 text-muted-foreground" />
-                                            </div>
-                                          )}
-                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
-                                            <Video className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                          </div>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="font-medium truncate mb-1">
-                                            {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
-                                              part.toLowerCase() === query.toLowerCase() ? (
-                                                <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
-                                              ) : (
-                                                <span key={i}>{part}</span>
-                                              )
-                                            )}
-                                          </p>
-                                          <p className="text-sm text-muted-foreground truncate">
-                                            @{result.username}
-                                          </p>
-                                        </div>
-                                      </div>
+                                      {row}
                                     </Link>
                                   );
                                 })}

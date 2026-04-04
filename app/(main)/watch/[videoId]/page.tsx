@@ -21,6 +21,7 @@ import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
+import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed } from "@/lib/seed-manager"
 import { DeleteVideoDialog } from "@/components/video/delete-video-dialog"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
@@ -373,12 +374,24 @@ export default function WatchPage() {
           if (latestVideoRequestIdRef.current !== videoId) return
           console.log("[hiffi] Video response from API:", videoResponse)
           
+          // Use video object directly from API response (no need to search through lists)
+          const videoData = videoResponse.video
           if (!videoResponse.success || !videoResponse.video_url) {
+            if (videoResponse.success && isVideoProcessing(videoData)) {
+              videoResponseCache.delete(videoId)
+              hasFetchedVideoRef.current = null
+              isFetchingRef.current = false
+              toast(PROCESSING_VIDEO_TOAST)
+              router.replace("/")
+              setIsLoading(false)
+              setIsMetadataLoading(false)
+              setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
+              setIsPlayerReadyForPending(false)
+              return
+            }
             throw new Error("Failed to get video data")
           }
 
-          // Use video object directly from API response (no need to search through lists)
-          const videoData = videoResponse.video
           if (!videoData) {
             throw new Error("Video data not found in API response")
           }

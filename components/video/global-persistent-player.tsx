@@ -6,18 +6,24 @@ import { cn } from "@/lib/utils"
 import { X, Maximize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 
 export function GlobalPersistentPlayer() {
   const { activeVideo, mode, close, expand, videoBounds, suggestedVideos } = useGlobalVideo()
   const router = useRouter()
+  const { toast } = useToast()
 
   if (!activeVideo || mode === 'hidden') return null
 
   const handleExpand = () => {
-    if (activeVideo) {
-      router.push(`/watch/${activeVideo.videoId || activeVideo.video_id}`)
-      expand()
+    if (!activeVideo) return
+    if (isVideoProcessing(activeVideo)) {
+      toast(PROCESSING_VIDEO_TOAST)
+      return
     }
+    router.push(`/watch/${activeVideo.videoId || activeVideo.video_id}`)
+    expand()
   }
 
   // Calculate style for the floating player

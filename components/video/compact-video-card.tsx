@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 import { useGlobalVideo } from "@/lib/video-context"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
+import { useToast } from "@/hooks/use-toast"
+import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { AuthenticatedImage } from "./authenticated-image"
 
@@ -25,18 +27,21 @@ interface CompactVideoCardProps {
     user_username?: string
     createdAt?: string
     created_at?: string
+    status?: string
   }
 }
 
 export function CompactVideoCard({ video }: CompactVideoCardProps) {
   const router = useRouter()
   const { playVideo } = useGlobalVideo()
+  const { toast } = useToast()
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
+  const isEncoding = isVideoProcessing(video)
 
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
   
@@ -49,6 +54,10 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't navigate to watch page if clicking on profile link
     if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {
+      return
+    }
+    if (isEncoding) {
+      toast(PROCESSING_VIDEO_TOAST)
       return
     }
     // Set global video context for instant loading on the watch page
@@ -64,8 +73,17 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
       {/* Thumbnail - YouTube style: smaller, on the left */}
       <Link
         href={`/watch/${videoId}`}
+        prefetch={!isEncoding}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (isEncoding) {
+            e.preventDefault()
+            toast(PROCESSING_VIDEO_TOAST)
+          }
+        }}
+        aria-disabled={isEncoding}
+        tabIndex={isEncoding ? -1 : undefined}
       >
         {thumbnailUrl ? (
           <AuthenticatedImage
@@ -95,8 +113,17 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
         <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight mb-1">
           <Link
             href={`/watch/${videoId}`}
+            prefetch={!isEncoding}
             className="hover:underline"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isEncoding) {
+                e.preventDefault()
+                toast(PROCESSING_VIDEO_TOAST)
+              }
+            }}
+            aria-disabled={isEncoding}
+            tabIndex={isEncoding ? -1 : undefined}
           >
             {title || "Untitled Video"}
           </Link>
