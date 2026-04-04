@@ -2141,7 +2141,12 @@ class ApiClient {
   }
 
   // Binary file upload to pre-signed URL
-  async uploadFile(url: string, file: File, onProgress?: (progress: number) => void): Promise<void> {
+  async uploadFile(
+    url: string,
+    file: File,
+    onProgress?: (progress: number) => void,
+    onXhrReady?: (xhr: XMLHttpRequest) => void,
+  ): Promise<void> {
     // Log file upload start
     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2)
     const fileName = file.name || "unknown"
@@ -2202,6 +2207,7 @@ class ApiClient {
 
         try {
           xhr.open('PUT', url, true)
+          onXhrReady?.(xhr)
           // Send ArrayBuffer directly - no Content-Type header will be set
           // Pre-signed URL only has 'host' in signed headers, so no other headers allowed
           // ArrayBuffer doesn't have MIME type, preventing Content-Type header

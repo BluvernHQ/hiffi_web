@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { checkUploadNavigationGuard } from "@/lib/upload-navigation-guard"
 import { cn } from "@/lib/utils"
 import {
   Home,
@@ -104,6 +105,10 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     // Navigate to the proper route
     const handleClick = () => {
       if (item.href) {
+        const { shouldBlock, message } = checkUploadNavigationGuard()
+        if (shouldBlock && typeof window !== "undefined" && !window.confirm(message)) {
+          return
+        }
         router.push(item.href)
       } else if (isHomePage && onFilterChange) {
         // Fallback for home page filters
@@ -220,28 +225,72 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 <Link
                   href="/terms-of-use"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={closeSidebar}
+                  onClick={(e) => {
+                    const { shouldBlock, message } = checkUploadNavigationGuard()
+                    if (shouldBlock) {
+                      e.preventDefault()
+                      if (typeof window !== "undefined" && window.confirm(message)) {
+                        closeSidebar()
+                        router.push("/terms-of-use")
+                      }
+                    } else {
+                      closeSidebar()
+                    }
+                  }}
                 >
                   Terms of Use
                 </Link>
                 <Link
                   href="/payment-terms"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={closeSidebar}
+                  onClick={(e) => {
+                    const { shouldBlock, message } = checkUploadNavigationGuard()
+                    if (shouldBlock) {
+                      e.preventDefault()
+                      if (typeof window !== "undefined" && window.confirm(message)) {
+                        closeSidebar()
+                        router.push("/payment-terms")
+                      }
+                    } else {
+                      closeSidebar()
+                    }
+                  }}
                 >
                   Payment Terms
                 </Link>
                 <Link
                   href="/privacy-policy"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={closeSidebar}
+                  onClick={(e) => {
+                    const { shouldBlock, message } = checkUploadNavigationGuard()
+                    if (shouldBlock) {
+                      e.preventDefault()
+                      if (typeof window !== "undefined" && window.confirm(message)) {
+                        closeSidebar()
+                        router.push("/privacy-policy")
+                      }
+                    } else {
+                      closeSidebar()
+                    }
+                  }}
                 >
                   Privacy Policy
                 </Link>
                 <Link
                   href="/support"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={closeSidebar}
+                  onClick={(e) => {
+                    const { shouldBlock, message } = checkUploadNavigationGuard()
+                    if (shouldBlock) {
+                      e.preventDefault()
+                      if (typeof window !== "undefined" && window.confirm(message)) {
+                        closeSidebar()
+                        router.push("/support")
+                      }
+                    } else {
+                      closeSidebar()
+                    }
+                  }}
                 >
                   Support
                 </Link>

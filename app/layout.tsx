@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { SidebarProvider } from '@/lib/sidebar-context'
+import { VideoUploadQueueProvider } from '@/lib/video-upload-queue-context'
 import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
@@ -91,7 +92,7 @@ export default function RootLayout({
         <AuthProvider>
           <VideoProvider>
             <SidebarProvider>
-              {children}
+              <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
             </SidebarProvider>
           </VideoProvider>
         </AuthProvider>

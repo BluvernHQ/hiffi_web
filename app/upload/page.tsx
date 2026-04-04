@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
@@ -9,20 +9,51 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Upload, X, ImageIcon, Film, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Upload, ImageIcon, CheckCircle2, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { apiClient } from '@/lib/api-client';
+import { useSidebar } from '@/lib/sidebar-context';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import { extractVideoThumbnail, extractMultipleVideoThumbnails, blobToFile } from '@/lib/video-utils';
+import { extractMultipleVideoThumbnails, blobToFile } from '@/lib/video-utils';
+import { takePendingVideoFile } from '@/lib/upload-pending-video';
+import { registerUploadNavigationGuard } from '@/lib/upload-navigation-guard';
+import { useVideoUploadQueue } from '@/lib/video-upload-queue-context';
 
 export default function UploadPage() {
   const { user, userData, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { startUpload, jobs, isUploadRunning } = useVideoUploadQueue();
+  const {
+    isSidebarOpen,
+    setIsSidebarOpen,
+    isDesktopSidebarOpen,
+    toggleDesktopSidebar,
+    toggleMobileSidebar,
+  } = useSidebar();
+
+  const currentFilter = pathname === '/following' ? ('following' as const) : ('all' as const);
+  const onFilterChange = (filter: 'all' | 'following') => {
+    router.push(filter === 'following' ? '/following' : '/');
+  };
+
+  const handleMenuClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      toggleDesktopSidebar();
+    } else {
+      toggleMobileSidebar();
+    }
+  };
   const [file, setFile] = useState<File | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -32,9 +63,13 @@ export default function UploadPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [uploadStep, setUploadStep] = useState<'select' | 'details' | 'uploading' | 'success'>('select');
+  const [uploadStep, setUploadStep] = useState<
+    'select' | 'details' | 'uploading_background' | 'success'
+  >('select');
+  const [trackedJobId, setTrackedJobId] = useState<string | null>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [cancelSelectDialogOpen, setCancelSelectDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,46 +90,128 @@ export default function UploadPage() {
   // Show login prompt if not logged in instead of redirecting
   // Allow users to browse and choose to login when ready
 
+  const applySelectedVideoFile = useCallback(
+    async (selectedFile: File) => {
+      if (!selectedFile.type.startsWith('video/')) {
+        alert('Please select a valid video file');
+        return;
+      }
+      setFile(selectedFile);
+      setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''));
+      setThumbnail(null);
+      setThumbnailPreview(null);
+      setAutoThumbnails([]);
+      setUploadStep('details');
+
+      try {
+        setExtractingThumbnail(true);
+        const thumbnailBlobs = await extractMultipleVideoThumbnails(selectedFile, 3);
+        const previewUrls = thumbnailBlobs.map((blob) => URL.createObjectURL(blob));
+        setAutoThumbnails(previewUrls);
+        setAutoThumbnailBlobs(thumbnailBlobs);
+
+        if (thumbnailBlobs.length > 0) {
+          const firstThumbnail = blobToFile(thumbnailBlobs[0], 'thumbnail.jpg');
+          setThumbnail(firstThumbnail);
+          setThumbnailPreview(previewUrls[0]);
+        }
+      } catch (error) {
+        console.error('[Upload] Failed to extract thumbnails:', error);
+        toast({
+          title: 'Notice',
+          description:
+            'Could not extract thumbnail from video. You can upload one manually or the system will generate one automatically.',
+          variant: 'default',
+        });
+      } finally {
+        setExtractingThumbnail(false);
+      }
+    },
+    [toast],
+  );
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (selectedFile.type.startsWith('video/')) {
-        setFile(selectedFile);
-        setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
-        setThumbnail(null);
-        setThumbnailPreview(null);
-        setAutoThumbnails([]);
-        setUploadStep('details');
-        
-        // Automatically extract thumbnails from video
-        try {
-          setExtractingThumbnail(true);
-          const thumbnailBlobs = await extractMultipleVideoThumbnails(selectedFile, 3);
-          const previewUrls = thumbnailBlobs.map(blob => URL.createObjectURL(blob));
-          setAutoThumbnails(previewUrls);
-          setAutoThumbnailBlobs(thumbnailBlobs);
-          
-          // Set the first auto-generated thumbnail as default
-          if (thumbnailBlobs.length > 0) {
-            const firstThumbnail = blobToFile(thumbnailBlobs[0], 'thumbnail.jpg');
-            setThumbnail(firstThumbnail);
-            setThumbnailPreview(previewUrls[0]);
-          }
-        } catch (error) {
-          console.error('[Upload] Failed to extract thumbnails:', error);
-          toast({
-            title: "Notice",
-            description: "Could not extract thumbnail from video. You can upload one manually or the system will generate one automatically.",
-            variant: "default",
-          });
-        } finally {
-          setExtractingThumbnail(false);
-        }
-      } else {
-        alert('Please select a valid video file');
-      }
+      await applySelectedVideoFile(e.target.files[0]);
+      e.target.value = '';
     }
   };
+
+  // Video chosen from Hiffi Studio (file picker) → pending file → land here on details step
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || !userData) return;
+    const isCreatorUser = userData.role === 'creator' || userData.is_creator === true;
+    if (!isCreatorUser) return;
+
+    const pending = takePendingVideoFile();
+    if (!pending) return;
+
+    void applySelectedVideoFile(pending);
+  }, [authLoading, user, userData, applySelectedVideoFile]);
+
+  useEffect(() => {
+    registerUploadNavigationGuard(() => {
+      if (uploadStep === 'details' && file) {
+        return {
+          shouldBlock: true,
+          message:
+            'You have a video draft on this page. If you leave now, you will lose it unless you finish uploading.',
+        };
+      }
+      return { shouldBlock: false, message: '' };
+    });
+    return () => registerUploadNavigationGuard(null);
+  }, [uploadStep, file]);
+
+  useEffect(() => {
+    const hasDraft = uploadStep === 'details' && file;
+    if (!hasDraft && !isUploadRunning) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [uploadStep, file, isUploadRunning]);
+
+  useEffect(() => {
+    const draft = uploadStep === 'details' && file;
+    if (!draft) return;
+
+    const onDocClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const el = (e.target as HTMLElement).closest('a[href]');
+      if (!el) return;
+      const a = el as HTMLAnchorElement;
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#')) return;
+      if (!href.startsWith('/') || href.startsWith('//')) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingHref(href);
+      setLeaveDialogOpen(true);
+    };
+
+    document.addEventListener('click', onDocClick, true);
+    return () => document.removeEventListener('click', onDocClick, true);
+  }, [uploadStep, file]);
+
+  useEffect(() => {
+    if (!trackedJobId) return;
+    const job = jobs.find((j) => j.id === trackedJobId);
+    if (!job) return;
+    if (job.status === 'done') {
+      setUploadStep('success');
+      setTrackedJobId(null);
+    }
+    if (job.status === 'error') {
+      setUploadStep('details');
+      setTrackedJobId(null);
+    }
+  }, [jobs, trackedJobId]);
 
   const handleThumbnailSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -158,154 +275,67 @@ export default function UploadPage() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type.startsWith('video/')) {
-        setFile(droppedFile);
-        setTitle(droppedFile.name.replace(/\.[^/.]+$/, ""));
-        setThumbnail(null);
-        setThumbnailPreview(null);
-        setAutoThumbnails([]);
-        setUploadStep('details');
-        
-        // Automatically extract thumbnails from video
-        try {
-          setExtractingThumbnail(true);
-          const thumbnailBlobs = await extractMultipleVideoThumbnails(droppedFile, 3);
-          const previewUrls = thumbnailBlobs.map(blob => URL.createObjectURL(blob));
-          setAutoThumbnails(previewUrls);
-          setAutoThumbnailBlobs(thumbnailBlobs);
-          
-          // Set the first auto-generated thumbnail as default
-          if (thumbnailBlobs.length > 0) {
-            const firstThumbnail = blobToFile(thumbnailBlobs[0], 'thumbnail.jpg');
-            setThumbnail(firstThumbnail);
-            setThumbnailPreview(previewUrls[0]);
-          }
-        } catch (error) {
-          console.error('[Upload] Failed to extract thumbnails:', error);
-          toast({
-            title: "Notice",
-            description: "Could not extract thumbnail from video. You can upload one manually or the system will generate one automatically.",
-            variant: "default",
-          });
-        } finally {
-          setExtractingThumbnail(false);
-        }
-      }
+      await applySelectedVideoFile(e.dataTransfer.files[0]);
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!file || !title) return;
+    const id = startUpload({
+      file,
+      title,
+      description,
+      tags,
+      thumbnail,
+    });
+    setTrackedJobId(id);
+    setUploadStep('uploading_background');
+  };
 
-    try {
-      setUploading(true);
-      setUploadStep('uploading');
-      setProgress(0);
-
-      // Step 1: Create upload bridge
-      const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
-      console.log('[Upload] Creating upload bridge...', { title, description, tags: tagsArray });
-      const bridgeResponse = await apiClient.uploadVideo({
-        video_title: title,
-        video_description: description,
-        video_tags: tagsArray, // API expects array of strings
-      });
-
-      // Validate bridge response
-      if (!bridgeResponse.bridge_id || bridgeResponse.bridge_id.trim() === "") {
-        throw new Error("Failed to get bridge ID from upload response. Please try again.");
-      }
-      if (!bridgeResponse.gateway_url || bridgeResponse.gateway_url.trim() === "") {
-        throw new Error("Failed to get upload URL from upload response. Please try again.");
-      }
-
-      console.log('[Upload] Bridge created successfully:', {
-        bridge_id: bridgeResponse.bridge_id,
-        has_gateway_url: !!bridgeResponse.gateway_url,
-        has_thumbnail_url: !!bridgeResponse.gateway_url_thumbnail,
-      });
-
-      // Step 2: Upload video file to gateway_url with real-time progress
-      console.log('[Upload] Uploading video file...');
-      await apiClient.uploadFile(
-        bridgeResponse.gateway_url, 
-        file,
-        (p) => {
-          // Map 0-100% of file upload to 5-80% of total progress
-          const overallProgress = Math.round(5 + (p * 0.75));
-          setProgress(overallProgress);
-        }
-      );
-      console.log('[Upload] Video file uploaded successfully');
-      setProgress(80);
-
-      // Step 3: Upload thumbnail if provided to gateway_url_thumbnail
-      // Thumbnail is optional - video upload will proceed even without thumbnail
-      if (thumbnail && bridgeResponse.gateway_url_thumbnail) {
-        try {
-          console.log('[Upload] Starting thumbnail upload...')
-          await apiClient.uploadFile(
-            bridgeResponse.gateway_url_thumbnail, 
-            thumbnail,
-            (p) => {
-              // Map 0-100% of thumbnail upload to 80-95% of total progress
-              const overallProgress = Math.round(80 + (p * 0.15));
-              setProgress(overallProgress);
-            }
-          );
-          console.log('[Upload] Thumbnail uploaded successfully')
-          setProgress(95);
-        } catch (thumbnailError) {
-          console.error('[Upload] Thumbnail upload failed:', thumbnailError)
-          // Continue with upload even if thumbnail fails - video upload already succeeded
-          toast({
-            title: "Warning",
-            description: "Video uploaded but thumbnail upload failed. You can update the thumbnail later.",
-            variant: "default",
-          });
-          setProgress(95);
-        }
-      } else {
-        // No thumbnail provided - this is allowed, system will auto-generate one
-        console.log('[Upload] No thumbnail provided, skipping thumbnail upload. System will auto-generate thumbnail.')
-        setProgress(95);
-      }
-
-      // Step 4: Acknowledge upload with bridge_id
-      console.log('[Upload] Acknowledging upload with bridge_id:', bridgeResponse.bridge_id);
-      await apiClient.acknowledgeUpload(bridgeResponse.bridge_id);
-      console.log('[Upload] Upload acknowledged successfully');
-      setProgress(100);
-
-      setUploadStep('success');
-      toast({
-        title: "Success",
-        description: "Video uploaded successfully!",
-      });
-    } catch (error) {
-      console.error("[hiffi] Upload failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      toast({
-        title: "Upload failed",
-        description: errorMessage.length > 100 ? `${errorMessage.substring(0, 100)}...` : errorMessage,
-        variant: "destructive",
-      });
-      setUploadStep('details');
-      setUploading(false);
-      setProgress(0);
+  const confirmLeave = () => {
+    if (pendingHref) {
+      setLeaveDialogOpen(false);
+      router.push(pendingHref);
+      setPendingHref(null);
     }
+  };
+
+  const discardDraftAndGoToSelect = () => {
+    setCancelSelectDialogOpen(false);
+    autoThumbnails.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        /* ignore */
+      }
+    });
+    setFile(null);
+    setThumbnail(null);
+    setThumbnailPreview(null);
+    setAutoThumbnails([]);
+    setAutoThumbnailBlobs([]);
+    setTitle('');
+    setDescription('');
+    setTags('');
+    setUploadStep('select');
   };
 
   // Show loading state while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Navbar onMenuClick={handleMenuClick} currentFilter={currentFilter} />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
+          <Sidebar
+            isMobileOpen={isSidebarOpen}
+            onMobileClose={() => setIsSidebarOpen(false)}
+            isDesktopOpen={isDesktopSidebarOpen}
+            onDesktopToggle={() => toggleDesktopSidebar()}
+            currentFilter={currentFilter}
+            onFilterChange={onFilterChange}
+          />
           <main className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)] flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -321,9 +351,16 @@ export default function UploadPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Navbar onMenuClick={handleMenuClick} currentFilter={currentFilter} />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
+          <Sidebar
+            isMobileOpen={isSidebarOpen}
+            onMobileClose={() => setIsSidebarOpen(false)}
+            isDesktopOpen={isDesktopSidebarOpen}
+            onDesktopToggle={() => toggleDesktopSidebar()}
+            currentFilter={currentFilter}
+            onFilterChange={onFilterChange}
+          />
           <main className="flex-1 p-6 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
             <div className="max-w-3xl mx-auto">
               <Card className="mt-12">
@@ -357,9 +394,16 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <Navbar onMenuClick={handleMenuClick} currentFilter={currentFilter} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar isMobileOpen={isSidebarOpen} onMobileClose={() => setIsSidebarOpen(false)} />
+        <Sidebar
+          isMobileOpen={isSidebarOpen}
+          onMobileClose={() => setIsSidebarOpen(false)}
+          isDesktopOpen={isDesktopSidebarOpen}
+          onDesktopToggle={() => toggleDesktopSidebar()}
+          currentFilter={currentFilter}
+          onFilterChange={onFilterChange}
+        />
         <main className="flex-1 p-6 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
           <div className="max-w-3xl mx-auto">
             <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Upload Video</h1>
@@ -525,26 +569,39 @@ export default function UploadPage() {
                 </Card>
 
                 <div className="flex justify-end gap-4">
-                  <Button variant="outline" onClick={() => setUploadStep('select')}>Cancel</Button>
-                  <Button onClick={handleUpload} disabled={!title}>Upload Video</Button>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => {
+                      if (file) setCancelSelectDialogOpen(true);
+                      else setUploadStep('select');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={handleUpload} disabled={!title}>
+                    Upload Video
+                  </Button>
                 </div>
               </div>
             )}
 
-            {uploadStep === 'uploading' && (
+            {uploadStep === 'uploading_background' && (
               <Card>
-                <CardContent className="pt-6 text-center space-y-6">
-                  <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
+                <CardContent className="pt-6 text-center space-y-4 sm:space-y-6">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                     <Upload className="h-10 w-10 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold">Uploading video...</h3>
-                    <p className="text-muted-foreground mt-2">Please keep this page open until upload completes.</p>
+                    <h3 className="text-xl font-semibold">Upload in progress</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      You can browse the rest of Hiffi — progress appears in the bar at the bottom of the screen.
+                      Don&apos;t close this tab until the upload finishes.
+                    </p>
                   </div>
-                  <div className="space-y-2 max-w-md mx-auto">
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-sm text-muted-foreground text-right">{progress}%</p>
-                  </div>
+                  <Button type="button" variant="outline" asChild>
+                    <Link href="/">Go to Home</Link>
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -561,25 +618,75 @@ export default function UploadPage() {
                   </div>
                   <div className="flex justify-center gap-4 pt-4">
                     <Button variant="outline" onClick={() => router.push('/')}>Go to Home</Button>
-                    <Button onClick={() => {
-                      setFile(null);
-                      setThumbnail(null);
-                      setThumbnailPreview(null);
-                      // Clean up auto thumbnail URLs
-                      autoThumbnails.forEach(url => URL.revokeObjectURL(url));
-                      setAutoThumbnails([]);
-                      setAutoThumbnailBlobs([]);
-                      setTitle('');
-                      setDescription('');
-                      setTags('');
-                      setProgress(0);
-                      setUploadStep('select');
-                    }}>Upload Another</Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setFile(null);
+                        setThumbnail(null);
+                        setThumbnailPreview(null);
+                        autoThumbnails.forEach((url) => URL.revokeObjectURL(url));
+                        setAutoThumbnails([]);
+                        setAutoThumbnailBlobs([]);
+                        setTitle('');
+                        setDescription('');
+                        setTags('');
+                        setUploadStep('select');
+                      }}
+                    >
+                      Upload Another
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
           </div>
+
+          <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+            <DialogContent className="sm:max-w-md" overlayClassName="bg-black/40 backdrop-blur-sm">
+              <DialogHeader>
+                <DialogTitle>Leave this page?</DialogTitle>
+                <DialogDescription>
+                  You have a video draft. If you leave now, you will lose it unless you finish uploading from this
+                  page.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setLeaveDialogOpen(false);
+                    setPendingHref(null);
+                  }}
+                >
+                  Stay
+                </Button>
+                <Button type="button" variant="destructive" onClick={confirmLeave}>
+                  Leave anyway
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={cancelSelectDialogOpen} onOpenChange={setCancelSelectDialogOpen}>
+            <DialogContent className="sm:max-w-md" overlayClassName="bg-black/40 backdrop-blur-sm">
+              <DialogHeader>
+                <DialogTitle>Discard this video?</DialogTitle>
+                <DialogDescription>
+                  Your selected file and details will be cleared. This does not affect uploads already running in
+                  the background.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" onClick={() => setCancelSelectDialogOpen(false)}>
+                  Keep editing
+                </Button>
+                <Button type="button" variant="destructive" onClick={discardDraftAndGoToSelect}>
+                  Discard and go back
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>

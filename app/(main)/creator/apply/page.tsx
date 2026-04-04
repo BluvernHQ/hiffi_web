@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Loader2, Sparkles, Video, TrendingUp, User, Zap } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { setPendingVideoFile } from "@/lib/upload-pending-video"
 import Link from "next/link"
 
 export default function BecomeCreatorPage() {
@@ -17,6 +18,25 @@ export default function BecomeCreatorPage() {
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [isCreator, setIsCreator] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
+  const pickVideoInputRef = useRef<HTMLInputElement>(null)
+
+  const openStudioVideoPicker = () => pickVideoInputRef.current?.click()
+
+  const handleStudioVideoChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = e.target.files?.[0]
+    e.target.value = ""
+    if (!chosen) return
+    if (!chosen.type.startsWith("video/")) {
+      toast({
+        title: "Not a video file",
+        description: "Choose a file with a video format (MP4, MOV, etc.).",
+        variant: "destructive",
+      })
+      return
+    }
+    setPendingVideoFile(chosen)
+    router.push("/upload")
+  }
 
   useEffect(() => {
     const checkCreatorStatus = async () => {
@@ -223,15 +243,24 @@ export default function BecomeCreatorPage() {
                     </p>
                   </div>
                 </div>
+                <input
+                  ref={pickVideoInputRef}
+                  type="file"
+                  accept="video/*"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden
+                  onChange={handleStudioVideoChosen}
+                />
                 <Button
-                  asChild
+                  type="button"
                   size="lg"
                   className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:mt-auto lg:h-12"
+                  onClick={openStudioVideoPicker}
+                  aria-label="Choose a video file to upload"
                 >
-                  <Link href="/upload">
-                    <Video className="size-4 opacity-95" aria-hidden />
-                    Upload new video
-                  </Link>
+                  <Video className="size-4 opacity-95" aria-hidden />
+                  Upload new video
                 </Button>
               </div>
             </section>
