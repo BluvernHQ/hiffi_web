@@ -29,10 +29,28 @@ interface NavbarProps {
   currentFilter?: 'all' | 'following'
 }
 
+/** Radix Dialog + Dropdown can leave body pointer-events locked after close; confirm path already forces cleanup. */
+function restoreDocumentInteractionsAfterModalClose() {
+  if (typeof document === "undefined") return
+  const clearIfNoModalOpen = () => {
+    const openDialogOverlay = document.querySelector(
+      '[data-radix-dialog-overlay][data-state="open"], [data-radix-alert-dialog-overlay][data-state="open"]',
+    )
+    if (!openDialogOverlay) {
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+    }
+  }
+  requestAnimationFrame(() => requestAnimationFrame(clearIfNoModalOpen))
+  setTimeout(clearIfNoModalOpen, 0)
+  setTimeout(clearIfNoModalOpen, 200)
+}
+
 // Internal component that uses useSearchParams - wrapped in Suspense
 function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const { user, userData, logout } = useAuth()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
@@ -42,8 +60,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
 
-  const handleLogoutClick = () => {
-    setLogoutDialogOpen(true)
+  const closeLogoutDialog = () => {
+    setLogoutDialogOpen(false)
+    restoreDocumentInteractionsAfterModalClose()
+  }
+
+  const handleLogoutDialogOpenChange = (open: boolean) => {
+    setLogoutDialogOpen(open)
+    if (!open) restoreDocumentInteractionsAfterModalClose()
   }
 
   const handleLogoutConfirm = async () => {
@@ -161,13 +185,13 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                     )}
                   </>
                 )}
-                <DropdownMenu>
+                <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <ProfilePicture user={userData} size="sm" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{userData.name || userData.username}</p>
@@ -199,7 +223,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogoutClick} className="text-destructive focus:text-destructive">
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        setUserMenuOpen(false)
+                        setLogoutDialogOpen(true)
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>
                     </DropdownMenuItem>
@@ -220,7 +251,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
       {/* Logout Confirmation Dialog */}
-      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+      <Dialog open={logoutDialogOpen} onOpenChange={handleLogoutDialogOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
@@ -229,11 +260,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setLogoutDialogOpen(false)}
-              disabled={isLoggingOut}
-            >
+            <Button variant="outline" onClick={closeLogoutDialog} disabled={isLoggingOut}>
               Cancel
             </Button>
             <Button
