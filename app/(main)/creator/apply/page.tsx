@@ -4,10 +4,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Sparkles, Video, TrendingUp, Users, Zap, CheckCircle2 } from "lucide-react"
+import { Loader2, Sparkles, Video, TrendingUp, User, Zap } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 export default function BecomeCreatorPage() {
@@ -71,17 +71,12 @@ export default function BecomeCreatorPage() {
       
       if (verifiedRole === "creator" || responseRole === "creator") {
         toast({
-          title: "Congratulations! 🎉",
-          description: "You are now a Hiffi Creator! Start uploading your videos.",
+          title: "You’re a creator",
+          description: "Welcome to Hiffi Studio — upload or manage your profile when you’re ready.",
         })
-        
-        // Update local state
+
         setIsCreator(true)
-        
-        // Redirect to upload page after a short delay
-        setTimeout(() => {
-          router.push("/upload")
-        }, 1500)
+        setIsUnlocking(false)
       } else {
         console.error("[creator] Role verification failed. Expected 'creator', got:", verifiedRole)
         
@@ -118,212 +113,330 @@ export default function BecomeCreatorPage() {
     )
   }
 
-  // If already a creator, show Hiffi Studio
+  // Hiffi Studio: theme-aware surfaces; mobile = stacked, lg+ = wide grid + compact status bar
   if (isCreator) {
+    const profileHref = userData?.username ? `/profile/${userData.username}` : "/"
+
     return (
-      <>
-        <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h1 className="text-3xl font-bold">Hiffi Studio</h1>
-                      <p className="text-muted-foreground">Your creator dashboard</p>
-                    </div>
-                  </div>
+      <div
+        className={cn(
+          "min-h-[calc(100vh-4rem)] w-full antialiased selection:bg-primary/20",
+          "bg-zinc-100 text-foreground",
+          "dark:bg-zinc-900",
+        )}
+      >
+        <main
+          className={cn(
+            "mx-auto w-full pb-14 pt-6",
+            "max-w-lg px-4",
+            "sm:max-w-xl sm:px-5 sm:pt-8 sm:pb-16",
+            "lg:max-w-5xl lg:px-10 lg:pt-10",
+          )}
+        >
+          <header className="mb-6 text-left sm:mb-8 lg:mb-10">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Creator
+            </p>
+            <h1 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
+              Hiffi Studio
+            </h1>
+            <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+              Your space to publish, refine, and manage your presence on Hiffi.
+            </p>
+          </header>
+
+          {/* Status: padded card + left bar on mobile; desktop = strip with vertical accent */}
+          <section
+            className={cn(
+              "mb-5 flex overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm",
+              "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md",
+              "sm:mb-6 sm:rounded-2xl",
+              "lg:mb-8",
+            )}
+            aria-labelledby="studio-status-label"
+          >
+            <div
+              className="hidden w-1 shrink-0 bg-primary/85 lg:block"
+              aria-hidden
+            />
+            <div className="relative min-w-0 flex-1 px-4 py-4 pl-5 sm:px-6 sm:py-5 sm:pl-6 lg:py-4 lg:pl-6">
+              <div
+                className="absolute bottom-3 left-0 top-3 w-0.5 rounded-full bg-primary lg:hidden"
+                aria-hidden
+              />
+              <div className="pl-3 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:pl-0">
+                <div className="lg:flex lg:items-baseline lg:gap-3">
+                  <p
+                    id="studio-status-label"
+                    className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+                  >
+                    Creator status
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-primary lg:mt-0 lg:text-xl">
+                    Active
+                  </p>
                 </div>
-
-                {/* Quick Actions */}
-                <div className="grid gap-4 md:grid-cols-3 mb-8">
-                  <Link href="/upload" className="block">
-                    <Card className="cursor-pointer hover:border-primary/50 transition-colors">
-                      <CardHeader>
-                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                          <Video className="h-6 w-6 text-primary" />
-                        </div>
-                        <CardTitle className="text-lg">Upload Video</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          Share your latest content with your audience
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href={`/profile/${userData?.username}`} className="block">
-                    <Card className="cursor-pointer hover:border-primary/50 transition-colors">
-                      <CardHeader>
-                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                          <Users className="h-6 w-6 text-primary" />
-                        </div>
-                        <CardTitle className="text-lg">My Profile</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          View and manage your creator profile
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/" className="block">
-                    <Card className="cursor-pointer hover:border-primary/50 transition-colors">
-                      <CardHeader>
-                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                          <TrendingUp className="h-6 w-6 text-primary" />
-                        </div>
-                        <CardTitle className="text-lg">Analytics</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          Track your video performance and growth
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </div>
-
-                {/* Creator Status Card */}
-                <Card className="border-2 border-primary/20">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>Creator Status Active</CardTitle>
-                        <CardDescription>
-                          You're all set to create and share content on Hiffi
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-4">
-                      <Button asChild>
-                        <Link href="/upload">
-                          <Video className="mr-2 h-4 w-4" />
-                          Upload New Video
-                        </Link>
-                      </Button>
-                      <Button variant="outline" asChild>
-                        <Link href={`/profile/${userData?.username}`}>
-                          View Profile
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
+                  Your channel is active and ready to publish.
+                </p>
               </div>
             </div>
-      </>
+          </section>
+
+          {/* Mobile / tablet: stacked. lg: upload (wide) | profile (sidebar column) */}
+          <div
+            className={cn(
+              "flex flex-col gap-4",
+              "sm:gap-5",
+              "lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6",
+            )}
+          >
+            <section
+              aria-labelledby="upload-action-title"
+              className={cn(
+                "group rounded-xl border border-primary/25 bg-card p-5 shadow-sm",
+                "transition-[border-color,box-shadow,transform] duration-200",
+                "hover:border-primary/40 hover:shadow-md",
+                "motion-safe:hover:-translate-y-px",
+                "sm:rounded-2xl sm:p-7",
+                "lg:col-span-7 lg:flex lg:flex-col lg:p-8",
+                "xl:col-span-8",
+              )}
+            >
+              <div className="flex flex-1 flex-col gap-5 sm:gap-6 lg:flex-1">
+                <div className="flex items-start gap-4">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary/[0.14] sm:h-12 sm:w-12"
+                    aria-hidden
+                  >
+                    <Video className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <h2
+                      id="upload-action-title"
+                      className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
+                    >
+                      Upload a video
+                    </h2>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                      Share a new release with your audience.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:mt-auto lg:h-12"
+                >
+                  <Link href="/upload">
+                    <Video className="size-4 opacity-95" aria-hidden />
+                    Upload new video
+                  </Link>
+                </Button>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="profile-action-title"
+              className={cn(
+                "rounded-xl border border-border/80 bg-muted/30 p-5 shadow-sm",
+                "transition-[border-color,background-color,box-shadow] duration-200",
+                "hover:border-border hover:bg-muted/40 hover:shadow-sm",
+                "dark:bg-card/60 dark:hover:bg-card/80",
+                "sm:rounded-2xl sm:p-6",
+                "lg:col-span-5 lg:flex lg:flex-col lg:justify-between lg:p-6",
+                "xl:col-span-4",
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-muted-foreground dark:bg-background/50"
+                  aria-hidden
+                >
+                  <User className="size-[18px]" strokeWidth={1.65} />
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <h2
+                    id="profile-action-title"
+                    className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]"
+                  >
+                    Creator profile
+                  </h2>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+                    Update how viewers see you across Hiffi.
+                  </p>
+                </div>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="default"
+                className="mt-6 h-10 w-full rounded-xl border-border bg-background/90 text-[13px] font-medium motion-safe:active:scale-[0.99] hover:bg-muted/50 dark:bg-transparent dark:hover:bg-muted/30 lg:mt-6"
+              >
+                <Link href={profileHref}>Manage profile</Link>
+              </Button>
+            </section>
+          </div>
+        </main>
+      </div>
     )
   }
 
-  // Show become creator page for non-creators
+  // Become a creator — same shell + typography + card language as Hiffi Studio
+  const featureTile = cn(
+    "rounded-xl border border-border/80 bg-muted/30 p-5 shadow-sm",
+    "transition-[border-color,background-color,box-shadow,transform] duration-200",
+    "hover:border-border hover:bg-muted/40 hover:shadow-md",
+    "motion-safe:hover:-translate-y-px",
+    "dark:bg-card/60 dark:hover:bg-card/80",
+    "sm:rounded-2xl sm:p-6",
+    "lg:col-span-4",
+  )
+
+  const featureIconShell =
+    "mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary sm:h-11 sm:w-11"
+
   return (
-    <>
-      <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-              {/* Hero Section */}
-              <div className="text-center mb-8 mt-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
-                  <Sparkles className="h-10 w-10 text-primary" />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-                  Become a Hiffi Creator
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                  Unlock the power to upload videos, build your audience, and share your creativity with the world
+    <div
+      className={cn(
+        "min-h-[calc(100vh-4rem)] w-full antialiased selection:bg-primary/20",
+        "bg-zinc-100 text-foreground",
+        "dark:bg-zinc-900",
+      )}
+    >
+      <main
+        className={cn(
+          "mx-auto w-full pb-14 pt-6",
+          "max-w-lg px-4",
+          "sm:max-w-xl sm:px-5 sm:pt-8 sm:pb-16",
+          "lg:max-w-5xl lg:px-10 lg:pt-10",
+        )}
+      >
+        <header className="mb-6 text-left sm:mb-8 lg:mb-10">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Creator
+          </p>
+          <h1
+            id="become-creator-heading"
+            className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl"
+          >
+            Become a creator
+          </h1>
+          <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+            Unlock uploads and Hiffi Studio when you’re ready to publish.
+          </p>
+        </header>
+
+        <section
+          className={cn(
+            "group mb-5 rounded-xl border border-primary/25 bg-card p-5 shadow-sm",
+            "transition-[border-color,box-shadow,transform] duration-200",
+            "hover:border-primary/40 hover:shadow-md",
+            "motion-safe:hover:-translate-y-px",
+            "sm:mb-6 sm:rounded-2xl sm:p-7",
+            "lg:mb-8 lg:p-8",
+          )}
+          aria-labelledby="become-creator-cta-title"
+        >
+          <div className="flex flex-col gap-5 sm:gap-6">
+            <div className="flex items-start gap-4">
+              <div
+                className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary",
+                  "transition-colors duration-200 group-hover:bg-primary/[0.14] sm:h-12 sm:w-12",
+                )}
+                aria-hidden
+              >
+                <Sparkles className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <h2
+                  id="become-creator-cta-title"
+                  className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
+                >
+                  Ready to start creating?
+                </h2>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                  Confirm below to enable creator status and open uploads.
                 </p>
               </div>
-
-              {/* Benefits Grid */}
-              <div className="grid gap-4 md:grid-cols-3 mb-8">
-                <Card>
-                  <CardHeader>
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                      <Video className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg">Upload Videos</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Share your content, tutorials, music, and more with the Hiffi community
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                      <TrendingUp className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg">Grow Your Audience</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Build followers, get views, and engage with your community through comments and interactions
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                      <Zap className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg">Creator Features</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Access exclusive creator tools and features to enhance your content and reach
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Main CTA Card */}
-              <Card className="border-2 border-primary/20">
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">Ready to Start Creating?</CardTitle>
-                  <CardDescription className="text-base">
-                    Click the button below to unlock your creator status and start uploading videos
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col items-center gap-4">
-                    <Button
-                      size="lg"
-                      className="w-full sm:w-auto min-w-[200px]"
-                      onClick={handleBecomeCreator}
-                      disabled={isUnlocking}
-                    >
-                      {isUnlocking ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Unlocking...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Become a Creator
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center max-w-md">
-                      By becoming a creator, you agree to follow our community guidelines and terms of service
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
+            <Button
+              type="button"
+              size="lg"
+              className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:h-12"
+              onClick={handleBecomeCreator}
+              disabled={isUnlocking}
+            >
+              {isUnlocking ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  Unlocking...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="size-4" aria-hidden />
+                  Become a Creator
+                </>
+              )}
+            </Button>
+            <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+              By becoming a creator, you agree to our community guidelines and{" "}
+              <Link
+                href="/terms-of-use"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                terms of service
+              </Link>
+              .
+            </p>
           </div>
-      </>
+        </section>
+
+        <div
+          className={cn(
+            "grid gap-4",
+            "sm:gap-5",
+            "lg:grid-cols-12 lg:gap-6",
+          )}
+        >
+          <article className={featureTile}>
+            <div className={featureIconShell} aria-hidden>
+              <Video className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+            </div>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]">
+              Upload videos
+            </h2>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Share your content, tutorials, music, and more with the Hiffi community.
+            </p>
+          </article>
+
+          <article className={featureTile}>
+            <div className={featureIconShell} aria-hidden>
+              <TrendingUp className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+            </div>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]">
+              Grow your audience
+            </h2>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Build followers, get views, and engage through comments and interactions.
+            </p>
+          </article>
+
+          <article className={featureTile}>
+            <div className={featureIconShell} aria-hidden>
+              <Zap className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+            </div>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]">
+              Creator features
+            </h2>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Access tools that help you publish and refine your presence on Hiffi.
+            </p>
+          </article>
+        </div>
+      </main>
+    </div>
   )
 }

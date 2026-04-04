@@ -252,7 +252,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={handleLogoutDialogOpenChange}>
-        <DialogContent>
+        <DialogContent overlayClassName="bg-black/35 backdrop-blur-sm">
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>
