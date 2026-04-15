@@ -1483,12 +1483,13 @@ export function VideoPlayer({
 
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 py-4 transition-all duration-300 ease-out z-30 pb-[env(safe-area-inset-bottom,1rem)]",
+          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-3 pt-2 pb-3 md:px-4 md:pt-3 md:pb-4 transition-all duration-300 ease-out z-30",
           showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none",
         )}
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         {/* Combined progress bar with buffer indicator */}
-        <div className="mb-4 group/slider relative h-6 flex items-center">
+        <div className="mb-2 group/slider relative h-4 flex items-center">
           {/* Background track */}
           <div className="absolute left-0 right-0 h-1 bg-white/20 rounded-full pointer-events-none">
             {/* Buffer progress (lighter color) */}
@@ -1509,14 +1510,14 @@ export function VideoPlayer({
           />
         </div>
 
-        <div className="flex items-center justify-between text-white">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between text-white gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 handlePrevious()
               }}
-              className="hover:text-primary transition-colors"
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
             >
               <SkipBack className="h-5 w-5" />
             </button>
@@ -1526,12 +1527,12 @@ export function VideoPlayer({
                 e.stopPropagation()
                 togglePlay()
               }}
-              className="hover:text-primary transition-colors"
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
             >
               {isPlaying ? (
-                <Pause className="h-6 w-6" fill="currentColor" />
+                <Pause className="h-5 w-5" fill="currentColor" />
               ) : (
-                <Play className="h-6 w-6" fill="currentColor" />
+                <Play className="h-5 w-5" fill="currentColor" />
               )}
             </button>
 
@@ -1541,7 +1542,7 @@ export function VideoPlayer({
                 handleNext()
               }}
               className={cn(
-                "hover:text-primary transition-colors",
+                "h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors",
                 (!suggestedVideos || suggestedVideos.length === 0) && "opacity-40 cursor-not-allowed"
               )}
               disabled={!suggestedVideos || suggestedVideos.length === 0}
@@ -1549,13 +1550,13 @@ export function VideoPlayer({
               <SkipForward className="h-5 w-5" />
             </button>
 
-            <div className="flex items-center gap-2 group/volume">
+            <div className="flex items-center gap-2 group/volume shrink-0">
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleMute();
                 }} 
-                className="hover:text-primary transition-colors p-2 -m-2"
+                className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
               >
                 {getVolumeIcon()}
               </button>
@@ -1575,7 +1576,7 @@ export function VideoPlayer({
               </div>
             </div>
 
-            <div className="text-sm font-medium flex items-center gap-2">
+            <div className="text-sm font-medium flex items-center gap-2 whitespace-nowrap">
               <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
               {isBuffering && (
                 <span className="text-xs text-muted-foreground">Buffering...</span>
@@ -1583,11 +1584,11 @@ export function VideoPlayer({
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {Object.keys(profiles).length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="hover:text-primary transition-colors focus:outline-none">
+                  <button className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors focus:outline-none">
                     <Settings className="h-5 w-5" />
                   </button>
                 </DropdownMenuTrigger>
@@ -1609,11 +1610,11 @@ export function VideoPlayer({
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <button className="hover:text-primary transition-colors opacity-50 cursor-not-allowed">
+              <button className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors opacity-50 cursor-not-allowed">
                 <Settings className="h-5 w-5" />
               </button>
             )}
-            <button onClick={toggleFullscreen} className="hover:text-primary transition-colors">
+            <button onClick={toggleFullscreen} className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors">
               {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </button>
           </div>

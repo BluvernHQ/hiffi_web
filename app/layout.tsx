@@ -8,12 +8,14 @@ import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
+import { getSiteOrigin } from '@/lib/seo/site'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteOrigin()),
   title: 'Hiffi - Streaming Platform',
   description: 'Modern video streaming platform for creators',
   generator: 'hiffi.app',
