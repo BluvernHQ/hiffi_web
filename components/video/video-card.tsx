@@ -46,9 +46,10 @@ interface VideoCardProps {
   }
   priority?: boolean
   onDeleted?: () => void
+  hideTimestamp?: boolean
 }
 
-export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps) {
+export function VideoCard({ video, priority = false, onDeleted, hideTimestamp = false }: VideoCardProps) {
   const router = useRouter()
   const { user, userData } = useAuth()
   const { playVideo } = useGlobalVideo()
@@ -61,7 +62,7 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = isVideoProcessing(video)
 
-  const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+  const timeAgo = hideTimestamp ? "" : formatDistanceToNow(new Date(createdAt), { addSuffix: true })
   
   // Check if current user owns this video
   const isOwner = userData?.username === username
@@ -197,9 +198,11 @@ export function VideoCard({ video, priority = false, onDeleted }: VideoCardProps
                 >
                   @{username || "unknown"}
                 </Link>
-                <div className="flex items-center opacity-80">
-                  <span className="whitespace-nowrap flex-shrink-0">{timeAgo}</span>
-                </div>
+                {!hideTimestamp && (
+                  <div className="flex items-center opacity-80">
+                    <span className="whitespace-nowrap flex-shrink-0">{timeAgo}</span>
+                  </div>
+                )}
               </div>
             </div>
 

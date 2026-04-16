@@ -1033,6 +1033,164 @@ class ApiClient {
     }
   }
 
+  async getLikedVideos(data: { offset?: number; limit?: number }): Promise<{
+    success: boolean
+    videos: Array<Video & { upvoted_at?: string; liked_at?: string; user_profile_picture?: string }>
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const limit = data.limit || 20
+    const offset = data.offset !== undefined ? data.offset : 0
+
+    const params = new URLSearchParams()
+    params.append("offset", offset.toString())
+    params.append("limit", limit.toString())
+
+    const queryString = params.toString()
+    const url = `/videos/list/liked?${queryString}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: Array<{ video: any; following?: boolean; profile_picture?: string; upvoted_at?: string }>
+        limit?: number
+        offset?: number
+        count?: number
+      }
+    }>(
+      url,
+      {
+        method: "GET",
+      },
+      true,
+    )
+
+    const responseData = response.data
+    const videosArray = (responseData?.videos || []) as Array<{
+      video: any
+      following?: boolean
+      profile_picture?: string
+      upvoted_at?: string
+    }>
+
+    const videos = videosArray.map((item: any) => {
+      if (item.video) {
+        const videoData: any = {
+          ...item.video,
+          following: item.following || false,
+          upvoted_at: item.upvoted_at,
+          liked_at: item.upvoted_at,
+        }
+
+        if (item.profile_picture && item.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.profile_picture.trim()
+        }
+        if (item.user?.profile_picture && item.user.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.user.profile_picture.trim()
+        }
+        if (item.video.user?.profile_picture && item.video.user.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.video.user.profile_picture.trim()
+        }
+        if (item.video.profile_picture && item.video.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.video.profile_picture.trim()
+        }
+
+        return videoData
+      }
+
+      return item
+    })
+
+    return {
+      success: response.success !== false,
+      videos,
+      limit: responseData?.limit || limit,
+      offset: responseData?.offset || offset,
+      count: responseData?.count || videos.length,
+    }
+  }
+
+  async getHistoryVideos(data: { offset?: number; limit?: number }): Promise<{
+    success: boolean
+    videos: Array<Video & { viewed_at?: string; watched_at?: string; user_profile_picture?: string }>
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const limit = data.limit || 20
+    const offset = data.offset !== undefined ? data.offset : 0
+
+    const params = new URLSearchParams()
+    params.append("offset", offset.toString())
+    params.append("limit", limit.toString())
+
+    const queryString = params.toString()
+    const url = `/videos/list/history?${queryString}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: Array<{ video: any; following?: boolean; profile_picture?: string; viewed_at?: string }>
+        limit?: number
+        offset?: number
+        count?: number
+      }
+    }>(
+      url,
+      {
+        method: "GET",
+      },
+      true,
+    )
+
+    const responseData = response.data
+    const videosArray = (responseData?.videos || []) as Array<{
+      video: any
+      following?: boolean
+      profile_picture?: string
+      viewed_at?: string
+    }>
+
+    const videos = videosArray.map((item: any) => {
+      if (item.video) {
+        const videoData: any = {
+          ...item.video,
+          following: item.following || false,
+          viewed_at: item.viewed_at,
+          watched_at: item.viewed_at,
+        }
+
+        if (item.profile_picture && item.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.profile_picture.trim()
+        }
+        if (item.user?.profile_picture && item.user.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.user.profile_picture.trim()
+        }
+        if (item.video.user?.profile_picture && item.video.user.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.video.user.profile_picture.trim()
+        }
+        if (item.video.profile_picture && item.video.profile_picture.trim() !== "") {
+          videoData.user_profile_picture = item.video.profile_picture.trim()
+        }
+
+        return videoData
+      }
+
+      return item
+    })
+
+    return {
+      success: response.success !== false,
+      videos,
+      limit: responseData?.limit || limit,
+      offset: responseData?.offset || offset,
+      count: responseData?.count || videos.length,
+    }
+  }
+
   async getVideoList(data: { offset?: number; limit?: number; seed: string; page?: number }): Promise<{
     success: boolean
     videos: Video[]

@@ -165,6 +165,11 @@ export default function WatchPage() {
   const { activeVideo } = useGlobalVideo()
   const { toast } = useToast()
 
+  const routeVideoId = useMemo(() => {
+    const p = params.videoId
+    return (Array.isArray(p) ? p[0] : (p as string)) || ""
+  }, [params.videoId])
+
   // Drives all fetches and the player source. Initialized from the URL param but updated
   // in-place on next/previous so the VideoPlayer never unmounts (preserves fullscreen).
   const [currentVideoId, setCurrentVideoId] = useState<string>(() => {
@@ -186,10 +191,12 @@ export default function WatchPage() {
 
   // Stack of previously played video IDs for in-place back navigation.
   const videoHistoryRef = useRef<string[]>([])
+  const isInPlaceNavigationRef = useRef(false)
 
   // Called by VideoPlayer's Next button. Swaps source in-place → player stays mounted.
   const handlePlayerNext = (nextId: string) => {
     if (!nextId || nextId === currentVideoId) return
+    isInPlaceNavigationRef.current = true
     videoHistoryRef.current.push(currentVideoId)
     setCurrentVideoId(nextId)
     if (typeof window !== "undefined") {
@@ -202,6 +209,7 @@ export default function WatchPage() {
   const handlePlayerPrevious = () => {
     const prevId = videoHistoryRef.current.pop()
     if (prevId) {
+      isInPlaceNavigationRef.current = true
       setCurrentVideoId(prevId)
       if (typeof window !== "undefined") {
         window.history.pushState({}, "", `/watch/${prevId}`)
@@ -221,10 +229,11 @@ export default function WatchPage() {
   
   // currentVideo: what is currently rendered in title/description/channel UI.
   const [video, setVideo] = useState<any>(() => {
-    if (persistedWatchUiState?.video) {
-      return persistedWatchUiState.video
-    }
-    return null
+    const persistedVideo = persistedWatchUiState?.video
+    if (!persistedVideo) return null
+    const persistedId = persistedVideo.video_id || persistedVideo.videoId
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
+    return persistedId && routeId && persistedId === routeId ? persistedVideo : null
   })
   const [playerVideo, setPlayerVideo] = useState<any>(() => {
     if (activeVideo && (activeVideo.videoId === params.videoId || activeVideo.video_id === params.videoId)) {
@@ -233,8 +242,18 @@ export default function WatchPage() {
     return null
   })
   
-  const [videoCreator, setVideoCreator] = useState<any>(() => persistedWatchUiState?.videoCreator ?? null)
-  const [relatedVideos, setRelatedVideos] = useState<any[]>(() => persistedWatchUiState?.relatedVideos ?? [])
+  const [videoCreator, setVideoCreator] = useState<any>(() => {
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (!persistedId || persistedId !== routeVideoId) return null
+    return persistedWatchUiState?.videoCreator ?? null
+  })
+  const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (!persistedId || persistedId !== routeVideoId) return []
+    return persistedWatchUiState?.relatedVideos ?? []
+  })
   
   // Only show initial loading spinner if we don't even have context data
   const [isLoading, setIsLoading] = useState(!video)
@@ -287,6 +306,13 @@ export default function WatchPage() {
 
   useEffect(() => {
     if (!video) return
+    // Only persist when this page is showing the route's initial video.
+    // In-place navigation (Next/Previous/suggestions) should not overwrite persisted state,
+    // so returning to Home/History and opening a new video starts from a fresh state.
+    const currentId = video.video_id || video.videoId
+    if (!currentId || currentId !== routeVideoId) return
+    if (isInPlaceNavigationRef.current) return
+
     persistedWatchUiState = {
       video,
       videoCreator,
@@ -297,6 +323,11 @@ export default function WatchPage() {
       upvoteState,
     }
   }, [video, videoCreator, relatedVideos, isFollowing, isLiked, isDisliked, upvoteState])
+
+  useEffect(() => {
+    // Route changes (real Next navigation) are considered "fresh" for persistence.
+    isInPlaceNavigationRef.current = false
+  }, [routeVideoId])
 
   const handlePlayerMediaReady = (readyVideoId: string) => {
     setPendingVideo((pending) => {

@@ -26,7 +26,7 @@ import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/u
 
 interface NavbarProps {
   onMenuClick?: () => void
-  currentFilter?: 'all' | 'following'
+  currentFilter?: 'all' | 'following' | 'liked' | 'history'
 }
 
 /** Radix Dialog + Dropdown can leave body pointer-events locked after close; confirm path already forces cleanup. */

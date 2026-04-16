@@ -7,8 +7,8 @@ import { useSidebar } from "@/lib/sidebar-context"
 
 interface AppLayoutProps {
   children: ReactNode
-  currentFilter?: 'all' | 'following'
-  onFilterChange?: (filter: 'all' | 'following') => void
+  currentFilter?: 'all' | 'following' | 'liked' | 'history'
+  onFilterChange?: (filter: 'all' | 'following' | 'liked' | 'history') => void
 }
 
 /**

@@ -8,6 +8,8 @@ import { checkUploadNavigationGuard } from "@/lib/upload-navigation-guard"
 import { cn } from "@/lib/utils"
 import {
   Home,
+  History,
+  ThumbsUp,
   UserCheck,
   Video,
   X,
@@ -20,8 +22,8 @@ interface SidebarProps {
   onMobileClose?: () => void
   isDesktopOpen?: boolean
   onDesktopToggle?: () => void
-  currentFilter?: 'all' | 'following'
-  onFilterChange?: (filter: 'all' | 'following') => void
+  currentFilter?: 'all' | 'following' | 'liked' | 'history'
+  onFilterChange?: (filter: 'all' | 'following' | 'liked' | 'history') => void
 }
 
 export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange }: SidebarProps) {
@@ -43,19 +45,29 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     }
   }
 
-  // Removed mainNavItems - "All Videos" filter serves as the home navigation
-  const mainNavItems: Array<{ icon: typeof Home; label: string; href: string }> = []
+  type SidebarNavItem = {
+    icon: typeof Home
+    label: string
+    href: string
+    requireAuth?: boolean
+  }
 
-  const filterItems = [
+  type SidebarFilterItem = SidebarNavItem & {
+    value: "all" | "following" | "liked" | "history"
+  }
+
+  // Removed mainNavItems - "All Videos" filter serves as the home navigation
+  const mainNavItems: SidebarNavItem[] = []
+
+  const filterItems: SidebarFilterItem[] = [
     { icon: Home, label: "Home", value: "all" as const, href: "/" },
-    { icon: UserCheck, label: "Following", value: "following" as const, href: "/following", requireAuth: true },
   ]
 
-  // Commented out as requested
-  // const secondaryNavItems = [
-  //   { icon: History, label: "History", href: "/history" },
-  //   { icon: ThumbsUp, label: "Liked Videos", href: "/liked" },
-  // ]
+  const secondaryNavItems: SidebarNavItem[] = [
+    { icon: History, label: "History", href: "/history" },
+    { icon: ThumbsUp, label: "Liked Videos", href: "/liked" },
+    { icon: UserCheck, label: "Following", href: "/following", requireAuth: true },
+  ]
 
   /**
    * Determines if a navigation item is active based on the current pathname.
@@ -68,9 +80,11 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     return pathname?.startsWith(href)
   }
 
-  const NavLink = ({ item }: { item: typeof mainNavItems[0] }) => {
+  const NavLink = ({ item }: { item: SidebarNavItem }) => {
     const Icon = item.icon
     const itemIsActive = isActive(item.href)
+
+    if (item.requireAuth && !user) return null
 
     return (
       <Link
@@ -91,7 +105,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     )
   }
 
-  const FilterItem = ({ item }: { item: typeof filterItems[0] }) => {
+  const FilterItem = ({ item }: { item: SidebarFilterItem }) => {
     const Icon = item.icon
     const isDisabled = item.requireAuth && !user
 
@@ -202,8 +216,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </div>
               </div>
 
-              {/* Commented out as requested */}
-              {/* {user && secondaryNavItems.length > 0 && (
+              {user && secondaryNavItems.length > 0 && (
               <div className="pt-4">
                 <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Your Activity
@@ -214,7 +227,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   ))}
                 </div>
               </div>
-            )} */}
+            )}
             </nav>
           </div>
 

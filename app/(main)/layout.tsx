@@ -12,10 +12,25 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname()
   const router = useRouter()
 
-  const currentFilter = pathname === "/following" ? ("following" as const) : ("all" as const)
+  const currentFilter =
+    pathname === "/following"
+      ? ("following" as const)
+      : pathname === "/history"
+        ? ("history" as const)
+      : pathname === "/liked"
+        ? ("liked" as const)
+        : ("all" as const)
 
-  const onFilterChange = (filter: "all" | "following") => {
-    router.push(filter === "following" ? "/following" : "/")
+  const onFilterChange = (filter: "all" | "following" | "liked" | "history") => {
+    router.push(
+      filter === "following"
+        ? "/following"
+        : filter === "liked"
+          ? "/liked"
+          : filter === "history"
+            ? "/history"
+            : "/",
+    )
   }
 
   return (
