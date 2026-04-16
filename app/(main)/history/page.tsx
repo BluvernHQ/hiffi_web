@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format, isToday, isYesterday } from "date-fns"
-import { History, Loader2 } from "lucide-react"
+import { History } from "lucide-react"
 import { VideoCard } from "@/components/video/video-card"
+import { VideoCardSkeleton } from "@/components/video/video-card-skeleton"
 import { EmptyVideoState } from "@/components/video/empty-video-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
@@ -39,6 +40,39 @@ function getHistoryDateLabel(value?: string) {
   if (isYesterday(date)) return "Yesterday"
 
   return format(date, "MMMM d, yyyy")
+}
+
+function HistoryPageShimmer() {
+  return (
+    <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+      <div className="w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-md bg-muted animate-shimmer" />
+              <div className="h-8 w-48 sm:h-9 sm:w-56 rounded-md bg-muted animate-shimmer" />
+            </div>
+            <div className="h-4 w-64 max-w-full rounded-md bg-muted animate-shimmer" />
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {[0, 1].map((section) => (
+            <section key={section} className="space-y-4">
+              <div className="py-1">
+                <div className="h-6 w-40 rounded-md bg-muted animate-shimmer" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <VideoCardSkeleton key={`${section}-${i}`} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function HistoryPage() {
@@ -155,13 +189,7 @@ export default function HistoryPage() {
   }, [videos])
 
   if (authLoading) {
-    return (
-      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    )
+    return <HistoryPageShimmer />
   }
 
   if (!userData?.username) {
@@ -196,6 +224,21 @@ export default function HistoryPage() {
             description="Videos you watch will show up here so you can revisit them later."
             showUploadButton={false}
           />
+        ) : loading && videos.length === 0 ? (
+          <div className="space-y-8">
+            {[0, 1].map((section) => (
+              <section key={section} className="space-y-4">
+                <div className="sticky top-0 z-10 bg-background/95 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                  <div className="h-6 w-36 rounded-md bg-muted animate-shimmer" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <VideoCardSkeleton key={`initial-${section}-${i}`} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         ) : (
           <div className="space-y-8">
             {groupedVideos.map(([label, items]) => (
@@ -218,11 +261,10 @@ export default function HistoryPage() {
             ))}
 
             {loadingMore && (
-              <div className="flex items-center justify-center py-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span>Loading more history...</span>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <VideoCardSkeleton key={`more-${i}`} />
+                ))}
               </div>
             )}
 
