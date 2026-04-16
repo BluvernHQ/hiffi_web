@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { formatDistanceToNow } from "date-fns"
-import { Play, MoreVertical, Trash2, Loader2, Clock } from "lucide-react"
+import { format, formatDistanceToNow } from "date-fns"
+import { Play, MoreVertical, Trash2 } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
@@ -42,14 +42,27 @@ interface VideoCardProps {
     user_username?: string
     createdAt?: string
     created_at?: string
+    viewed_at?: string
+    watched_at?: string
     status?: string
   }
   priority?: boolean
   onDeleted?: () => void
   hideTimestamp?: boolean
+  /** When `watched`, the subtitle line uses `viewed_at` / `watched_at` (watch time) instead of upload `created_at`. */
+  timestampKind?: "uploaded" | "watched"
+  /** When `timestampKind` is `watched`, show wall-clock time (e.g. 2:30 PM) instead of relative time. */
+  watchedTimeFormat?: "relative" | "clock"
 }
 
-export function VideoCard({ video, priority = false, onDeleted, hideTimestamp = false }: VideoCardProps) {
+export function VideoCard({
+  video,
+  priority = false,
+  onDeleted,
+  hideTimestamp = false,
+  timestampKind = "uploaded",
+  watchedTimeFormat = "relative",
+}: VideoCardProps) {
   const router = useRouter()
   const { user, userData } = useAuth()
   const { playVideo } = useGlobalVideo()
@@ -60,9 +73,20 @@ export function VideoCard({ video, priority = false, onDeleted, hideTimestamp = 
   const title = video.videoTitle || video.video_title || ""
   const username = video.userUsername || video.user_username || ""
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
+  const watchedAt = video.viewed_at || video.watched_at
   const isEncoding = isVideoProcessing(video)
 
-  const timeAgo = hideTimestamp ? "" : formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+  const timestampIso = timestampKind === "watched" ? watchedAt : createdAt
+  const watchedClock =
+    timestampKind === "watched" && watchedAt && !Number.isNaN(new Date(watchedAt).getTime())
+      ? format(new Date(watchedAt), "p")
+      : ""
+  const timeAgo =
+    hideTimestamp ||
+    !timestampIso ||
+    (timestampKind === "watched" && watchedTimeFormat === "clock")
+      ? ""
+      : formatDistanceToNow(new Date(timestampIso), { addSuffix: true })
   
   // Check if current user owns this video
   const isOwner = userData?.username === username
@@ -191,17 +215,39 @@ export function VideoCard({ video, priority = false, onDeleted, hideTimestamp = 
                 </Link>
               </h3>
               <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal">
-                <Link
-                  href={`/profile/${username}`}
-                  className="hover:text-foreground truncate font-medium max-w-full block py-0.5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  @{username || "unknown"}
-                </Link>
-                {!hideTimestamp && (
-                  <div className="flex items-center opacity-80">
-                    <span className="whitespace-nowrap flex-shrink-0">{timeAgo}</span>
+                {timestampKind === "watched" && watchedTimeFormat === "clock" && watchedClock ? (
+                  <div className="flex items-center justify-between gap-2 min-w-0 py-0.5">
+                    <Link
+                      href={`/profile/${username}`}
+                      className="hover:text-foreground truncate font-medium min-w-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      @{username || "unknown"}
+                    </Link>
+                    {!hideTimestamp && (
+                      <span className="tabular-nums flex-shrink-0 opacity-90" title={watchedAt}>
+                        {watchedClock}
+                      </span>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    <Link
+                      href={`/profile/${username}`}
+                      className="hover:text-foreground truncate font-medium max-w-full block py-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      @{username || "unknown"}
+                    </Link>
+                    {!hideTimestamp && timeAgo && (
+                      <div className="flex items-center gap-1 opacity-80 min-w-0">
+                        {timestampKind === "watched" && (
+                          <span className="text-muted-foreground/90 flex-shrink-0">Watched</span>
+                        )}
+                        <span className="whitespace-nowrap flex-shrink-0 truncate">{timeAgo}</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

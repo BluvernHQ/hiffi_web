@@ -6,6 +6,7 @@ import { format, isToday, isYesterday } from "date-fns"
 import { History } from "lucide-react"
 import { VideoCard } from "@/components/video/video-card"
 import { VideoCardSkeleton } from "@/components/video/video-card-skeleton"
+import { HistoryVideoListRow, HistoryVideoListRowSkeleton } from "@/components/video/history-video-list-row"
 import { EmptyVideoState } from "@/components/video/empty-video-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
@@ -58,11 +59,16 @@ function HistoryPageShimmer() {
 
         <div className="space-y-8">
           {[0, 1].map((section) => (
-            <section key={section} className="space-y-4">
+            <section key={section} className="space-y-3">
               <div className="py-1">
                 <div className="h-6 w-40 rounded-md bg-muted animate-shimmer" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+              <div className="md:hidden divide-y divide-border/40 rounded-lg border border-border/40 overflow-hidden">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <HistoryVideoListRowSkeleton key={`${section}-m-${i}`} />
+                ))}
+              </div>
+              <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <VideoCardSkeleton key={`${section}-${i}`} />
                 ))}
@@ -227,11 +233,16 @@ export default function HistoryPage() {
         ) : loading && videos.length === 0 ? (
           <div className="space-y-8">
             {[0, 1].map((section) => (
-              <section key={section} className="space-y-4">
+              <section key={section} className="space-y-3">
                 <div className="sticky top-0 z-10 bg-background/95 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                   <div className="h-6 w-36 rounded-md bg-muted animate-shimmer" />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                <div className="md:hidden divide-y divide-border/40 rounded-lg border border-border/40 overflow-hidden">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <HistoryVideoListRowSkeleton key={`init-m-${section}-${i}`} />
+                  ))}
+                </div>
+                <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <VideoCardSkeleton key={`initial-${section}-${i}`} />
                   ))}
@@ -242,18 +253,28 @@ export default function HistoryPage() {
         ) : (
           <div className="space-y-8">
             {groupedVideos.map(([label, items]) => (
-              <section key={label} className="space-y-4">
+              <section key={label} className="space-y-3">
                 <div className="sticky top-0 z-10 bg-background/95 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                  <h2 className="text-base sm:text-lg font-semibold">{label}</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-primary">{label}</h2>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                <div className="md:hidden divide-y divide-border/40 rounded-lg border border-border/40 overflow-hidden bg-background">
                   {items.map((video, index) => (
-                    <VideoCard
+                    <HistoryVideoListRow
                       key={`${video.videoId || video.video_id}-${video.viewed_at || video.watched_at || index}`}
                       video={video}
+                    />
+                  ))}
+                </div>
+
+                <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                  {items.map((video, index) => (
+                    <VideoCard
+                      key={`${video.videoId || video.video_id}-${video.viewed_at || video.watched_at || index}-grid`}
+                      video={video}
                       priority={index < 4}
-                      hideTimestamp
+                      timestampKind="watched"
+                      watchedTimeFormat="clock"
                     />
                   ))}
                 </div>
@@ -261,11 +282,18 @@ export default function HistoryPage() {
             ))}
 
             {loadingMore && (
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <VideoCardSkeleton key={`more-${i}`} />
-                ))}
-              </div>
+              <>
+                <div className="md:hidden divide-y divide-border/40 rounded-lg border border-border/40 overflow-hidden">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <HistoryVideoListRowSkeleton key={`more-m-${i}`} />
+                  ))}
+                </div>
+                <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <VideoCardSkeleton key={`more-${i}`} />
+                  ))}
+                </div>
+              </>
             )}
 
             {!hasMore && videos.length > 0 && !loadingMore && (
