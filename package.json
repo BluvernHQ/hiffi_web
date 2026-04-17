@@ -9,7 +9,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start -p 3001"
+    "start": "next start -p 3001",
+    "start:standalone": "bash ./scripts/start-standalone.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
