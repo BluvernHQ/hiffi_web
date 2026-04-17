@@ -96,6 +96,46 @@ let persistedWatchUiState: {
 const videoResponseCache = new Map<string, any>()
 const inFlightVideoResponse = new Map<string, Promise<any>>()
 
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
+const URL_EXACT_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+)$/i
+
+function renderDescriptionWithClickableLinks(text?: string | null) {
+  if (!text) {
+    return null
+  }
+
+  const parts = text.split(URL_REGEX)
+
+  return parts.map((part, index) => {
+    const trimmedPart = part.trim()
+    const isUrl = URL_EXACT_REGEX.test(trimmedPart)
+
+    if (!isUrl) {
+      return <span key={`text-${index}`}>{part}</span>
+    }
+
+    // Keep punctuation outside the link to avoid malformed URLs.
+    const match = part.match(/^(.*?)([.,!?;:)]*)$/)
+    const urlText = match?.[1] ?? part
+    const trailingPunctuation = match?.[2] ?? ""
+    const href = urlText.startsWith("http://") || urlText.startsWith("https://") ? urlText : `https://${urlText}`
+
+    return (
+      <span key={`link-${index}`}>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline break-all"
+        >
+          {urlText}
+        </a>
+        {trailingPunctuation}
+      </span>
+    )
+  })
+}
+
 async function getVideoResponseOnce(videoId: string) {
   if (videoResponseCache.has(videoId)) {
     return videoResponseCache.get(videoId)
@@ -950,10 +990,10 @@ export default function WatchPage() {
 
   return (
     <>
-      <div className="p-4 lg:p-6 pb-0 lg:pb-6">
+      <div className="px-0 pt-0 pb-0 lg:p-6">
         <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-4 min-w-0">
+            <div className="lg:col-span-2 space-y-3 md:space-y-4 min-w-0">
               <VideoPlayer 
                 videoUrl={videoUrl} 
                 videoId={playerVideoId}
@@ -969,138 +1009,257 @@ export default function WatchPage() {
                 onPrevious={handlePlayerPrevious}
               />
 
-              <div className={cn("space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
+              <div className={cn("px-4 lg:px-0 space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
                 {shouldShowMetadataSkeleton ? (
                   <div className="h-8 bg-muted/40 rounded-md w-3/4 animate-pulse" />
                 ) : (
                   <h1 className="text-xl md:text-2xl font-bold break-words">{currentVideo?.videoTitle || currentVideo?.video_title}</h1>
                 )}
 
-                <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 flex-wrap">
-                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
-                    {user && currentVideo ? (
-                      <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
-                        <ProfilePicture 
-                          user={creatorUser} 
-                          size="md" 
-                        />
-                      </Link>
-                    ) : (
-                      <div className={cn(
-                        "h-10 w-10 rounded-full bg-muted/40",
-                        shouldShowMetadataSkeleton && "animate-pulse"
-                      )}>
-                        {!shouldShowMetadataSkeleton && currentVideo && (
-                          <ProfilePicture 
-                            user={creatorUser} 
-                            size="md" 
-                          />
+                <div className="space-y-3">
+                  {/* Mobile metadata layout */}
+                  <div className="md:hidden space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {user && currentVideo ? (
+                          <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
+                            <ProfilePicture user={creatorUser} size="md" />
+                          </Link>
+                        ) : (
+                          <div className={cn(
+                            "h-10 w-10 rounded-full bg-muted/40",
+                            shouldShowMetadataSkeleton && "animate-pulse"
+                          )}>
+                            {!shouldShowMetadataSkeleton && currentVideo && (
+                              <ProfilePicture user={creatorUser} size="md" />
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      {shouldShowMetadataSkeleton ? (
-                        <div className="space-y-2">
-                          <div className="h-4 bg-muted/40 rounded w-24 animate-pulse" />
-                          <div className="h-3 bg-muted/40 rounded w-16 animate-pulse" />
-                        </div>
-                      ) : (
-                        <>
-                          {user ? (
-                            <Link
-                              href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
-                              className="font-semibold hover:text-primary block truncate"
-                            >
-                              {currentVideo?.userUsername || currentVideo?.user_username}
-                            </Link>
+                        <div className="min-w-0">
+                          {shouldShowMetadataSkeleton ? (
+                            <div className="space-y-2">
+                              <div className="h-4 bg-muted/40 rounded w-24 animate-pulse" />
+                              <div className="h-3 bg-muted/40 rounded w-16 animate-pulse" />
+                            </div>
                           ) : (
-                            <span className="font-semibold block truncate">
-                              {currentVideo?.userUsername || currentVideo?.user_username}
-                            </span>
+                            <>
+                              {user ? (
+                                <Link
+                                  href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
+                                  className="font-semibold hover:text-primary block truncate"
+                                >
+                                  {currentVideo?.userUsername || currentVideo?.user_username}
+                                </Link>
+                              ) : (
+                                <span className="font-semibold block truncate">
+                                  {currentVideo?.userUsername || currentVideo?.user_username}
+                                </span>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {(videoCreator?.followers ?? 0).toLocaleString()} followers
+                              </span>
+                            </>
                           )}
-                          <span className="text-xs text-muted-foreground">
-                            {(videoCreator?.followers ?? 0).toLocaleString()} followers
-                          </span>
-                        </>
+                        </div>
+                      </div>
+
+                      {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && !shouldShowMetadataSkeleton && (
+                        <Button
+                          variant={isFollowing ? "secondary" : "default"}
+                          size="sm"
+                          className="rounded-full flex-shrink-0 px-4"
+                          onClick={handleFollow}
+                          disabled={isCheckingFollow || isFollowingAction}
+                        >
+                          {isCheckingFollow
+                            ? "Checking..."
+                            : isFollowingAction
+                              ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                              : isFollowing
+                                ? "Following"
+                                : "Follow"}
+                        </Button>
                       )}
                     </div>
-                    {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && !shouldShowMetadataSkeleton && (
-                      <Button
-                        variant={isFollowing ? "secondary" : "default"}
-                        size="sm"
-                        className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
-                        onClick={handleFollow}
-                        disabled={isCheckingFollow || isFollowingAction}
-                      >
-                        {isCheckingFollow
-                          ? "Checking..."
-                          : isFollowingAction
-                            ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
-                            : isFollowing
-                              ? "Following"
-                              : "Follow"}
-                      </Button>
-                    )}
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center bg-muted/50 rounded-full p-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn("rounded-l-full px-3 hover:bg-muted", isLiked && "text-primary")}
+                          onClick={handleLike}
+                          disabled={shouldShowMetadataSkeleton}
+                        >
+                          <ThumbsUp className={cn("mr-2 h-4 w-4", isLiked && "fill-current")} />
+                          {(currentVideo?.video_upvotes || currentVideo?.videoUpvotes || 0).toLocaleString()}
+                        </Button>
+                        <Separator orientation="vertical" className="h-6" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn("rounded-r-full px-3 hover:bg-muted", isDisliked && "text-destructive")}
+                          onClick={handleDislike}
+                          disabled={shouldShowMetadataSkeleton}
+                        >
+                          <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
+                          {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
+                        </Button>
+                      </div>
+                      {!shouldShowMetadataSkeleton && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-full px-3 hover:bg-muted"
+                          onClick={() => setShareDialogOpen(true)}
+                        >
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Share
+                        </Button>
+                      )}
+                      {isOwner && !shouldShowMetadataSkeleton && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="rounded-full ml-auto">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Video options</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteDialogOpen(true)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Video
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-auto sm:ml-0">
-                    <div className="flex items-center bg-muted/50 rounded-full p-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("rounded-l-full px-3 hover:bg-muted", isLiked && "text-primary")}
-                        onClick={handleLike}
-                        disabled={shouldShowMetadataSkeleton}
-                      >
-                        <ThumbsUp className={cn("mr-2 h-4 w-4", isLiked && "fill-current")} />
-                        {(currentVideo?.video_upvotes || currentVideo?.videoUpvotes || 0).toLocaleString()}
-                      </Button>
-                      <Separator orientation="vertical" className="h-6" />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("rounded-r-full px-3 hover:bg-muted", isDisliked && "text-destructive")}
-                        onClick={handleDislike}
-                        disabled={shouldShowMetadataSkeleton}
-                      >
-                        <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
-                        {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
-                      </Button>
+                  {/* Desktop/tablet metadata layout */}
+                  <div className="hidden md:flex flex-row items-center justify-between gap-2 sm:gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
+                      {user && currentVideo ? (
+                        <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
+                          <ProfilePicture user={creatorUser} size="md" />
+                        </Link>
+                      ) : (
+                        <div className={cn(
+                          "h-10 w-10 rounded-full bg-muted/40",
+                          shouldShowMetadataSkeleton && "animate-pulse"
+                        )}>
+                          {!shouldShowMetadataSkeleton && currentVideo && (
+                            <ProfilePicture user={creatorUser} size="md" />
+                          )}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        {shouldShowMetadataSkeleton ? (
+                          <div className="space-y-2">
+                            <div className="h-4 bg-muted/40 rounded w-24 animate-pulse" />
+                            <div className="h-3 bg-muted/40 rounded w-16 animate-pulse" />
+                          </div>
+                        ) : (
+                          <>
+                            {user ? (
+                              <Link
+                                href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
+                                className="font-semibold hover:text-primary block truncate"
+                              >
+                                {currentVideo?.userUsername || currentVideo?.user_username}
+                              </Link>
+                            ) : (
+                              <span className="font-semibold block truncate">
+                                {currentVideo?.userUsername || currentVideo?.user_username}
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {(videoCreator?.followers ?? 0).toLocaleString()} followers
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && !shouldShowMetadataSkeleton && (
+                        <Button
+                          variant={isFollowing ? "secondary" : "default"}
+                          size="sm"
+                          className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
+                          onClick={handleFollow}
+                          disabled={isCheckingFollow || isFollowingAction}
+                        >
+                          {isCheckingFollow
+                            ? "Checking..."
+                            : isFollowingAction
+                              ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                              : isFollowing
+                                ? "Following"
+                                : "Follow"}
+                        </Button>
+                      )}
                     </div>
-                    {!shouldShowMetadataSkeleton && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full px-3 hover:bg-muted"
-                        onClick={() => setShareDialogOpen(true)}
-                      >
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                      </Button>
-                    )}
-                    {isOwner && !shouldShowMetadataSkeleton && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="rounded-full">
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Video options</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteDialogOpen(true)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Video
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-auto sm:ml-0">
+                      <div className="flex items-center bg-muted/50 rounded-full p-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn("rounded-l-full px-3 hover:bg-muted", isLiked && "text-primary")}
+                          onClick={handleLike}
+                          disabled={shouldShowMetadataSkeleton}
+                        >
+                          <ThumbsUp className={cn("mr-2 h-4 w-4", isLiked && "fill-current")} />
+                          {(currentVideo?.video_upvotes || currentVideo?.videoUpvotes || 0).toLocaleString()}
+                        </Button>
+                        <Separator orientation="vertical" className="h-6" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn("rounded-r-full px-3 hover:bg-muted", isDisliked && "text-destructive")}
+                          onClick={handleDislike}
+                          disabled={shouldShowMetadataSkeleton}
+                        >
+                          <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
+                          {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
+                        </Button>
+                      </div>
+                      {!shouldShowMetadataSkeleton && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-full px-3 hover:bg-muted"
+                          onClick={() => setShareDialogOpen(true)}
+                        >
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Share
+                        </Button>
+                      )}
+                      {isOwner && !shouldShowMetadataSkeleton && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="rounded-full">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Video options</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteDialogOpen(true)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Video
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-muted/30 rounded-xl p-3 text-sm">
+                <div className="bg-muted/30 rounded-none sm:rounded-xl p-3 text-sm">
                   {shouldShowMetadataSkeleton ? (
                     <div className="space-y-2">
                       <div className="h-4 bg-muted/40 rounded w-1/3 animate-pulse" />
@@ -1117,7 +1276,7 @@ export default function WatchPage() {
                         </span>
                       </div>
                       <div className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}>
-                        {currentVideo?.videoDescription || currentVideo?.video_description}
+                        {renderDescriptionWithClickableLinks(currentVideo?.videoDescription || currentVideo?.video_description)}
                       </div>
                       <button
                         onClick={() => setShowFullDescription(!showFullDescription)}
@@ -1146,7 +1305,7 @@ export default function WatchPage() {
             </div>
 
               {/* Sidebar / Related Videos - YouTube Style */}
-             <div className="space-y-2">
+             <div className="space-y-2 px-4 lg:px-0 pb-4 lg:pb-0">
                <h3 className="font-semibold text-sm mb-3 px-1">Up Next</h3>
                <div className={cn("flex flex-col gap-1 transition-opacity duration-500", (isRelatedLoading && shouldShowRelatedSkeleton) ? "opacity-100" : (isRelatedLoading ? "opacity-60" : "opacity-100"))}>
                  {sidebarSuggestedVideos.length > 0 ? (

@@ -1327,7 +1327,7 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video bg-black rounded-xl overflow-hidden group select-none touch-manipulation"
+      className="relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
       tabIndex={0}
@@ -1335,7 +1335,7 @@ export function VideoPlayer({
     >
       {/* Loading Overlay */}
       {isLoadingAny && (
-        <div className="absolute inset-0 bg-[#090C10] rounded-xl overflow-hidden flex items-center justify-center border border-white/5 shadow-2xl z-[45]">
+        <div className="absolute inset-0 bg-[#090C10] rounded-none md:rounded-xl overflow-hidden flex items-center justify-center border border-white/5 shadow-2xl z-[45]">
           {/* Show poster if available for a smoother transition */}
           {signedPosterUrl ? (
             <div className="absolute inset-0 w-full h-full">
@@ -1389,7 +1389,7 @@ export function VideoPlayer({
         />
       </div>
 
-      {/* Center Play/Pause Indicator (Mobile-first UX) */}
+      {/* Center transport controls (Mobile-first UX) */}
       <div 
         className={cn(
           "absolute inset-0 flex items-center justify-center pointer-events-none z-20",
@@ -1398,15 +1398,45 @@ export function VideoPlayer({
       >
         <div 
           className={cn(
-            "h-20 w-20 rounded-full flex items-center justify-center transition-all duration-200 ease-out bg-black/35 backdrop-blur-[2px]",
+            "flex items-center gap-3 transition-all duration-200 ease-out pointer-events-auto",
             isPlayerAwake ? "opacity-100 scale-100" : "opacity-0 scale-90"
           )}
         >
-          {isPlaying ? (
-            <Pause className="h-10 w-10 text-white/85" fill="currentColor" />
-          ) : (
-            <Play className="h-10 w-10 text-white/85 ml-1" fill="currentColor" />
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handlePrevious()
+            }}
+            className="h-11 w-11 rounded-full bg-black/45 backdrop-blur-[2px] flex items-center justify-center text-white/90"
+          >
+            <SkipBack className="h-5 w-5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              togglePlay()
+            }}
+            className="h-14 w-14 rounded-full bg-black/55 backdrop-blur-[2px] flex items-center justify-center text-white"
+          >
+            {isPlaying ? (
+              <Pause className="h-7 w-7" fill="currentColor" />
+            ) : (
+              <Play className="h-7 w-7 ml-0.5" fill="currentColor" />
+            )}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleNext()
+            }}
+            className={cn(
+              "h-11 w-11 rounded-full bg-black/45 backdrop-blur-[2px] flex items-center justify-center text-white/90",
+              (!suggestedVideos || suggestedVideos.length === 0) && "opacity-40 cursor-not-allowed"
+            )}
+            disabled={!suggestedVideos || suggestedVideos.length === 0}
+          >
+            <SkipForward className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -1510,7 +1540,41 @@ export function VideoPlayer({
           />
         </div>
 
-        <div className="flex items-center justify-between text-white gap-3">
+        {/* Mobile controls: cleaner two-row layout */}
+        <div className="md:hidden space-y-2 text-white">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium flex items-center gap-2 whitespace-nowrap">
+              <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+              {isBuffering && (
+                <span className="text-[10px] text-muted-foreground">Buffering...</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleMute()
+                }}
+                className="h-9 w-9 flex items-center justify-center rounded-full hover:text-primary transition-colors"
+              >
+                {getVolumeIcon()}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleFullscreen()
+                }}
+                className="h-9 w-9 flex items-center justify-center rounded-full hover:text-primary transition-colors"
+              >
+                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Desktop/tablet controls: original full layout */}
+        <div className="hidden md:flex items-center justify-between text-white gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={(e) => {
@@ -1551,20 +1615,16 @@ export function VideoPlayer({
             </button>
 
             <div className="flex items-center gap-2 group/volume shrink-0">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleMute();
-                }} 
+                }}
                 className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
               >
                 {getVolumeIcon()}
               </button>
-              <div className={cn(
-                "overflow-hidden transition-all duration-300 ease-in-out",
-                "w-0 md:group-hover/volume:w-24", // Desktop: hover to show
-                isMobile && showControls && "w-24" // Mobile: show when awake
-              )}>
+              <div className="overflow-hidden transition-all duration-300 ease-in-out w-0 md:group-hover/volume:w-24">
                 <Slider
                   value={[isMuted ? 0 : volume]}
                   max={1}
