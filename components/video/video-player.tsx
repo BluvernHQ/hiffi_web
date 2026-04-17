@@ -236,6 +236,14 @@ export function VideoPlayer({
     const currentVideoId = videoIdRef.current
     if (!player || !currentVideoId || isReportingWatchRef.current) return
 
+    const token = apiClient.getAuthToken()
+    if (!token) {
+      if (force) {
+        resetWatchAccumulator()
+      }
+      return
+    }
+
     const watchedSeconds = accumulatedWatchSecondsRef.current
     if ((!force && watchedSeconds < WATCH_REPORT_INTERVAL_SECONDS) || watchedSeconds <= 0) {
       return
@@ -257,12 +265,14 @@ export function VideoPlayer({
         player: "web-videojs",
       })
       accumulatedWatchSecondsRef.current = 0
-      console.log("[hiffi] Watchhours reported:", {
-        video_id: currentVideoId,
-        position_seconds: Number((player.currentTime?.() || 0).toFixed(1)),
-        duration_seconds: totalDurationSeconds,
-        watched_seconds_chunk: watchedSecondsChunk,
-      })
+      if (process.env.NODE_ENV === "development") {
+        console.log("[hiffi] Watchhours reported:", {
+          video_id: currentVideoId,
+          position_seconds: Number((player.currentTime?.() || 0).toFixed(1)),
+          duration_seconds: totalDurationSeconds,
+          watched_seconds_chunk: watchedSecondsChunk,
+        })
+      }
     } catch (err) {
       console.warn("[hiffi] Failed to report watch telemetry:", err)
     } finally {
@@ -785,18 +795,23 @@ export function VideoPlayer({
         const currentTime = player.currentTime()
         setCurrentTime(currentTime)
 
-        const lastPosition = lastWatchPositionRef.current
-        if (lastPosition !== null && !player.paused() && !player.seeking()) {
-          const delta = currentTime - lastPosition
-          // Ignore seek jumps and noisy deltas; only count real watched progression.
-          if (delta > 0 && delta <= 2.5) {
-            accumulatedWatchSecondsRef.current += delta
-            if (accumulatedWatchSecondsRef.current >= WATCH_REPORT_INTERVAL_SECONDS) {
-              void reportWatchProgress(false)
+        if (!apiClient.getAuthToken()) {
+          lastWatchPositionRef.current = currentTime
+          accumulatedWatchSecondsRef.current = 0
+        } else {
+          const lastPosition = lastWatchPositionRef.current
+          if (lastPosition !== null && !player.paused() && !player.seeking()) {
+            const delta = currentTime - lastPosition
+            // Ignore seek jumps and noisy deltas; only count real watched progression.
+            if (delta > 0 && delta <= 2.5) {
+              accumulatedWatchSecondsRef.current += delta
+              if (accumulatedWatchSecondsRef.current >= WATCH_REPORT_INTERVAL_SECONDS) {
+                void reportWatchProgress(false)
+              }
             }
           }
+          lastWatchPositionRef.current = currentTime
         }
-        lastWatchPositionRef.current = currentTime
         
         // Show next up overlay when video is in last 10 seconds
         const currentSuggestedVideos = suggestedVideosRef.current

@@ -23,6 +23,8 @@ export type HistoryListVideo = {
   user_username?: string
   viewed_at?: string
   watched_at?: string
+  last_seen_unix?: number
+  position_seconds?: number
 }
 
 function formatWatchedClock(iso?: string) {

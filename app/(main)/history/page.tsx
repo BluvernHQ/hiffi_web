@@ -29,10 +29,31 @@ type HistoryVideo = {
   created_at?: string
   viewed_at?: string
   watched_at?: string
+  /** From API `last_seen_unix` (normalized to ISO in `viewed_at` as well) */
+  last_seen_unix?: number
+  /** Playback position when last watched */
+  position_seconds?: number
   user_profile_picture?: string
 }
 
-function getHistoryDateLabel(value?: string) {
+function historyVideoKey(video: HistoryVideo, index: number) {
+  const id = video.videoId || video.video_id || "unknown"
+  const ts =
+    video.last_seen_unix != null
+      ? String(video.last_seen_unix)
+      : (video.viewed_at || video.watched_at || String(index))
+  return `${id}-${ts}`
+}
+
+function getHistoryDateLabel(value?: string, lastSeenUnix?: number) {
+  if (lastSeenUnix != null && Number.isFinite(lastSeenUnix)) {
+    const date = new Date(lastSeenUnix * 1000)
+    if (!Number.isNaN(date.getTime())) {
+      if (isToday(date)) return "Today"
+      if (isYesterday(date)) return "Yesterday"
+      return format(date, "MMMM d, yyyy")
+    }
+  }
   if (!value) return "Unknown date"
 
   const date = new Date(value)
@@ -112,23 +133,26 @@ export default function HistoryPage() {
       })
 
       const historyVideos = response.videos || []
+      const totalCount = typeof response.count === "number" ? response.count : undefined
 
       if (currentOffset === 0) {
         setVideos(historyVideos)
       } else {
         setVideos((prev) => {
-          const existingIds = new Set(
-            prev.map((video, index) => `${video.videoId || video.video_id}-${video.viewed_at || video.watched_at || index}`),
-          )
+          const existingIds = new Set(prev.map((video, index) => historyVideoKey(video, index)))
           const nextItems = historyVideos.filter((video, index) => {
-            const key = `${video.videoId || video.video_id}-${video.viewed_at || video.watched_at || index}`
+            const key = historyVideoKey(video, index)
             return !existingIds.has(key)
           })
           return [...prev, ...nextItems]
         })
       }
 
-      setHasMore(historyVideos.length === VIDEOS_PER_PAGE)
+      if (totalCount !== undefined) {
+        setHasMore(currentOffset + historyVideos.length < totalCount)
+      } else {
+        setHasMore(historyVideos.length === VIDEOS_PER_PAGE)
+      }
     } catch (error) {
       console.error("[hiffi] Failed to fetch watch history:", error)
 
@@ -185,7 +209,7 @@ export default function HistoryPage() {
 
     for (const video of videos) {
       const viewedAt = video.viewed_at || video.watched_at
-      const label = getHistoryDateLabel(viewedAt)
+      const label = getHistoryDateLabel(viewedAt, video.last_seen_unix)
       const existing = groups.get(label) || []
       existing.push(video)
       groups.set(label, existing)
@@ -261,7 +285,7 @@ export default function HistoryPage() {
                 <div className="md:hidden divide-y divide-border/40 rounded-lg border border-border/40 overflow-hidden bg-background">
                   {items.map((video, index) => (
                     <HistoryVideoListRow
-                      key={`${video.videoId || video.video_id}-${video.viewed_at || video.watched_at || index}`}
+                      key={historyVideoKey(video, index)}
                       video={video}
                     />
                   ))}
@@ -270,7 +294,7 @@ export default function HistoryPage() {
                 <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
                   {items.map((video, index) => (
                     <VideoCard
-                      key={`${video.videoId || video.video_id}-${video.viewed_at || video.watched_at || index}-grid`}
+                      key={`${historyVideoKey(video, index)}-grid`}
                       video={video}
                       priority={index < 4}
                       timestampKind="watched"

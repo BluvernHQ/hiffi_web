@@ -1114,7 +1114,15 @@ class ApiClient {
 
   async getHistoryVideos(data: { offset?: number; limit?: number }): Promise<{
     success: boolean
-    videos: Array<Video & { viewed_at?: string; watched_at?: string; user_profile_picture?: string }>
+    videos: Array<
+      Video & {
+        viewed_at?: string
+        watched_at?: string
+        last_seen_unix?: number
+        position_seconds?: number
+        user_profile_picture?: string
+      }
+    >
     limit: number
     offset: number
     count: number
@@ -1133,7 +1141,17 @@ class ApiClient {
       success?: boolean
       status?: string
       data?: {
-        videos?: Array<{ video: any; following?: boolean; profile_picture?: string; viewed_at?: string }>
+        videos?: Array<{
+          video: any
+          following?: boolean
+          profile_picture?: string
+          /** Legacy */
+          viewed_at?: string
+          /** Watch time (Unix seconds) */
+          last_seen_unix?: number
+          /** Resume position in the video */
+          position_seconds?: number
+        }>
         limit?: number
         offset?: number
         count?: number
@@ -1152,15 +1170,25 @@ class ApiClient {
       following?: boolean
       profile_picture?: string
       viewed_at?: string
+      last_seen_unix?: number
+      position_seconds?: number
     }>
 
     const videos = videosArray.map((item: any) => {
       if (item.video) {
+        const watchedIsoFromUnix =
+          typeof item.last_seen_unix === "number" && Number.isFinite(item.last_seen_unix)
+            ? new Date(item.last_seen_unix * 1000).toISOString()
+            : undefined
+        const watchedAt = watchedIsoFromUnix || item.viewed_at
+
         const videoData: any = {
           ...item.video,
           following: item.following || false,
-          viewed_at: item.viewed_at,
-          watched_at: item.viewed_at,
+          viewed_at: watchedAt,
+          watched_at: watchedAt,
+          last_seen_unix: item.last_seen_unix,
+          position_seconds: typeof item.position_seconds === "number" ? item.position_seconds : undefined,
         }
 
         if (item.profile_picture && item.profile_picture.trim() !== "") {

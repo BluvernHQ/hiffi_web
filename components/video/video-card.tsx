@@ -44,6 +44,8 @@ interface VideoCardProps {
     created_at?: string
     viewed_at?: string
     watched_at?: string
+    last_seen_unix?: number
+    position_seconds?: number
     status?: string
   }
   priority?: boolean
