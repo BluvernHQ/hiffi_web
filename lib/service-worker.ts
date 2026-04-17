@@ -4,6 +4,8 @@
  */
 
 import { getWorkersApiKey } from './storage'
+import { apiClient } from './api-client'
+const TOKEN_KEY = "hiffi_auth_token"
 
 export function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
@@ -16,26 +18,27 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
     .then((registration) => {
       console.log('[hiffi] Service Worker registered:', registration.scope)
 
-      // Function to send API key to service worker
-      const sendAPIKey = (worker: ServiceWorker | null) => {
+      // Function to send auth headers to service worker
+      const sendAuthHeaders = (worker: ServiceWorker | null) => {
         if (worker) {
-          // Get API key using the same function as other parts of the app
           const apiKey = getWorkersApiKey()
+          const authToken = apiClient.getAuthToken() || ''
           worker.postMessage({
-            type: 'SET_API_KEY',
+            type: 'SET_AUTH_HEADERS',
             apiKey: apiKey,
+            authToken: authToken,
           })
-          console.log('[hiffi] Sent API key to Service Worker')
+          console.log('[hiffi] Sent auth headers to Service Worker')
         }
       }
 
       // Update the service worker with the API key
       if (registration.active) {
-        sendAPIKey(registration.active)
+        sendAuthHeaders(registration.active)
       } else if (registration.installing) {
         registration.installing.addEventListener('statechange', () => {
           if (registration.installing?.state === 'activated') {
-            sendAPIKey(registration.installing)
+            sendAuthHeaders(registration.installing)
           }
         })
       }
@@ -46,11 +49,29 @@ export function registerServiceWorker(): Promise<ServiceWorkerRegistration | nul
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'activated') {
-              sendAPIKey(newWorker)
+              sendAuthHeaders(newWorker)
             }
           })
         }
       })
+
+      // Keep Service Worker auth headers in sync after login/logout/token refresh.
+      if (typeof window !== 'undefined') {
+        const syncActiveWorker = () => {
+          const worker = registration.active || registration.waiting || registration.installing || null
+          sendAuthHeaders(worker)
+        }
+
+        // Token changes in same tab won't trigger "storage", so sync on focus/visibility too.
+        window.addEventListener('focus', syncActiveWorker)
+        document.addEventListener('visibilitychange', syncActiveWorker)
+
+        window.addEventListener('storage', (event) => {
+          if (event.key === TOKEN_KEY) {
+            syncActiveWorker()
+          }
+        })
+      }
 
       return registration
     })

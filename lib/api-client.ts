@@ -1514,6 +1514,27 @@ class ApiClient {
     return { video_url: response.video_url }
   }
 
+  // POST /signals/watchhours - Report watched playback telemetry
+  async reportWatchHours(data: {
+    video_id: string
+    position_seconds: number
+    duration_seconds: number
+    playback_rate: number
+    client_timestamp: number
+    device_id?: string
+    session_id?: string
+    player?: string
+  }): Promise<{ success?: boolean; status?: string; message?: string }> {
+    return this.request<{ success?: boolean; status?: string; message?: string }>(
+      "/signals/watchhours",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
+  }
+
   // DELETE /videos/{videoID} - Delete a video
   async deleteVideo(videoId: string): Promise<{ success: boolean; message: string }> {
     const response = await this.request<{

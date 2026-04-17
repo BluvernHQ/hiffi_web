@@ -51,15 +51,24 @@ interface VideoPlayerProps {
 const STORAGE_KEYS = {
   VOLUME: 'hiffi_player_volume',
   MUTED: 'hiffi_player_muted',
+  WATCH_DEVICE_ID: 'hiffi_watch_device_id',
 }
 
 const STANDARD_PROFILES = [2160, 1440, 1080, 720, 480, 360] as const
+const WATCH_REPORT_INTERVAL_SECONDS = 10
 
 function getResolutionProfile(height: number): string {
   for (const p of STANDARD_PROFILES) {
     if (height >= p * 0.9) return `${p}p`
   }
   return `${height}p`
+}
+
+function generateSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `watch-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 export function VideoPlayer({ 
@@ -168,6 +177,12 @@ export function VideoPlayer({
   const suggestedVideosRef = useRef<any[] | undefined>(suggestedVideos)
   const hasEndedRef = useRef(hasEnded)
   const showNextUpOverlayRef = useRef(showNextUpOverlay)
+  const videoIdRef = useRef(videoId)
+  const watchSessionIdRef = useRef(generateSessionId())
+  const watchDeviceIdRef = useRef("")
+  const lastWatchPositionRef = useRef<number | null>(null)
+  const accumulatedWatchSecondsRef = useRef(0)
+  const isReportingWatchRef = useRef(false)
   
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
@@ -186,9 +201,73 @@ export function VideoPlayer({
     showNextUpOverlayRef.current = showNextUpOverlay
   }, [hasEnded, showNextUpOverlay])
 
+  useEffect(() => {
+    videoIdRef.current = videoId
+  }, [videoId])
+
   const setAutoplayInProgress = (value: boolean) => {
     isAutoplayInProgressRef.current = value
     setIsAutoplayInProgress(value)
+  }
+
+  const getWatchDeviceId = () => {
+    if (watchDeviceIdRef.current) return watchDeviceIdRef.current
+    if (typeof window === "undefined") return ""
+
+    const existing = localStorage.getItem(STORAGE_KEYS.WATCH_DEVICE_ID)
+    if (existing) {
+      watchDeviceIdRef.current = existing
+      return existing
+    }
+
+    const created = generateSessionId()
+    localStorage.setItem(STORAGE_KEYS.WATCH_DEVICE_ID, created)
+    watchDeviceIdRef.current = created
+    return created
+  }
+
+  const resetWatchAccumulator = () => {
+    lastWatchPositionRef.current = null
+    accumulatedWatchSecondsRef.current = 0
+  }
+
+  const reportWatchProgress = async (force = false) => {
+    const player = playerRef.current
+    const currentVideoId = videoIdRef.current
+    if (!player || !currentVideoId || isReportingWatchRef.current) return
+
+    const watchedSeconds = accumulatedWatchSecondsRef.current
+    if ((!force && watchedSeconds < WATCH_REPORT_INTERVAL_SECONDS) || watchedSeconds <= 0) {
+      return
+    }
+
+    isReportingWatchRef.current = true
+    const watchedSecondsChunk = Number(watchedSeconds.toFixed(1))
+    const totalDurationSeconds = Number((player.duration?.() || durationRef.current || 0).toFixed(1))
+
+    try {
+      await apiClient.reportWatchHours({
+        video_id: currentVideoId,
+        position_seconds: Number((player.currentTime?.() || 0).toFixed(1)),
+        duration_seconds: totalDurationSeconds,
+        playback_rate: Number((player.playbackRate?.() || 1).toFixed(2)),
+        client_timestamp: Math.floor(Date.now() / 1000),
+        device_id: getWatchDeviceId() || undefined,
+        session_id: watchSessionIdRef.current,
+        player: "web-videojs",
+      })
+      accumulatedWatchSecondsRef.current = 0
+      console.log("[hiffi] Watchhours reported:", {
+        video_id: currentVideoId,
+        position_seconds: Number((player.currentTime?.() || 0).toFixed(1)),
+        duration_seconds: totalDurationSeconds,
+        watched_seconds_chunk: watchedSecondsChunk,
+      })
+    } catch (err) {
+      console.warn("[hiffi] Failed to report watch telemetry:", err)
+    } finally {
+      isReportingWatchRef.current = false
+    }
   }
 
   const stopOtherMediaElements = () => {
@@ -404,6 +483,7 @@ export function VideoPlayer({
   // Reset state when videoId changes to force loading state
   useEffect(() => {
     if (videoId) {
+      void reportWatchProgress(true)
       stopOtherMediaElements()
       const player = playerRef.current
       if (player) {
@@ -430,8 +510,31 @@ export function VideoPlayer({
       setShowNextUpOverlay(false)
       if (autoPlay) setAutoplayInProgress(true)
       unmuteRestoreBlockedRef.current = false
+      watchSessionIdRef.current = generateSessionId()
+      resetWatchAccumulator()
     }
   }, [videoId, autoPlay])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const flushOnBackground = () => {
+      if (document.visibilityState === "hidden") {
+        void reportWatchProgress(true)
+      }
+    }
+
+    const flushOnUnload = () => {
+      void reportWatchProgress(true)
+    }
+
+    document.addEventListener("visibilitychange", flushOnBackground)
+    window.addEventListener("beforeunload", flushOnUnload)
+    return () => {
+      document.removeEventListener("visibilitychange", flushOnBackground)
+      window.removeEventListener("beforeunload", flushOnUnload)
+    }
+  }, [videoId])
 
   useEffect(() => {
     const fetchUrl = async () => {
@@ -581,6 +684,7 @@ export function VideoPlayer({
   // Proper Cleanup on Unmount
   useEffect(() => {
     return () => {
+      void reportWatchProgress(true)
       stopOtherMediaElements()
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
@@ -595,6 +699,7 @@ export function VideoPlayer({
         playerRef.current.dispose()
         playerRef.current = null
       }
+      resetWatchAccumulator()
     }
   }, [])
 
@@ -656,6 +761,7 @@ export function VideoPlayer({
       console.log("[hiffi] Video playing")
       setIsPlaying(true)
       setAutoplayInProgress(false)
+      lastWatchPositionRef.current = player.currentTime()
       // Clear any pending autoplay timeout since play succeeded
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
@@ -666,6 +772,7 @@ export function VideoPlayer({
       setIsPlaying(false)
       // If we pause while autoplay is in progress, it means it failed or was stopped
       setAutoplayInProgress(false)
+      void reportWatchProgress(true)
       
       if (autoplayAttemptTimeoutRef.current) {
         console.log("[hiffi] Pause event during autoplay attempt")
@@ -677,6 +784,19 @@ export function VideoPlayer({
       if (!isSwitchingQualityRef.current) {
         const currentTime = player.currentTime()
         setCurrentTime(currentTime)
+
+        const lastPosition = lastWatchPositionRef.current
+        if (lastPosition !== null && !player.paused() && !player.seeking()) {
+          const delta = currentTime - lastPosition
+          // Ignore seek jumps and noisy deltas; only count real watched progression.
+          if (delta > 0 && delta <= 2.5) {
+            accumulatedWatchSecondsRef.current += delta
+            if (accumulatedWatchSecondsRef.current >= WATCH_REPORT_INTERVAL_SECONDS) {
+              void reportWatchProgress(false)
+            }
+          }
+        }
+        lastWatchPositionRef.current = currentTime
         
         // Show next up overlay when video is in last 10 seconds
         const currentSuggestedVideos = suggestedVideosRef.current
@@ -722,6 +842,7 @@ export function VideoPlayer({
       setIsPlaying(false)
       setHasEnded(true)
       setIsBuffering(false)
+      void reportWatchProgress(true)
       
       // Show next up overlay if not already showing and autoplay wasn't canceled
       const currentSuggestedVideos = suggestedVideosRef.current
@@ -737,6 +858,7 @@ export function VideoPlayer({
       // Ensure stale "ended" visual state never hides a freshly loaded source.
       setHasEnded(false)
       setShowNextUpOverlay(false)
+      lastWatchPositionRef.current = player.currentTime()
       // Keep lifecycle cleanup only; avoid forcing an audio-only overlay here.
     }
     const handleLoadedData = () => {
@@ -1074,6 +1196,7 @@ export function VideoPlayer({
     setIsBuffering(true)
     setCurrentTime(newTime)
     player.currentTime(newTime)
+    lastWatchPositionRef.current = newTime
     
     // If player was playing, ensure it continues playing after seek
     // Use a small delay to allow the seek to complete
