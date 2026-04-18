@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
@@ -56,7 +57,17 @@ export default async function RootPage() {
   return (
     <>
       {itemListJsonLd && <JsonLd data={itemListJsonLd} />}
-      <HomeFeedClient initialVideos={initialVideos} />
+      <Suspense
+        fallback={
+          <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-muted-foreground text-sm">Loading…</div>
+            </div>
+          </div>
+        }
+      >
+        <HomeFeedClient initialVideos={initialVideos} />
+      </Suspense>
     </>
   )
 }
