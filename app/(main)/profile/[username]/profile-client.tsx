@@ -789,6 +789,7 @@ export default function ProfilePage() {
                           videos={userVideos} 
                           loading={isLoading || loadingMore}
                           hasMore={hasMore}
+                          showDeleteOption={isOwnProfile}
                           onLoadMore={loadMoreVideos}
                           onVideoDeleted={(videoId) => {
                             // Remove deleted video from the list
@@ -1058,6 +1059,7 @@ export default function ProfilePage() {
                         videos={userVideos} 
                         loading={isLoading || loadingMore}
                         hasMore={hasMore}
+                        showDeleteOption={isOwnProfile}
                         onLoadMore={loadMoreVideos}
                         onVideoDeleted={(videoId) => {
                           // Remove deleted video from the list

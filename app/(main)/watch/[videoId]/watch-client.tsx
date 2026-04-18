@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
@@ -11,7 +11,13 @@ import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ThumbsUp, ThumbsDown, MoreVertical, Trash2, Share2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Heart, Share2, MoreVertical } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -23,15 +29,8 @@ import { getThumbnailUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed } from "@/lib/seed-manager"
-import { DeleteVideoDialog } from "@/components/video/delete-video-dialog"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 // Mock video data
 const MOCK_VIDEO = {
@@ -201,6 +200,14 @@ async function getRelatedVideosOnce(videoId: string) {
 export default function WatchPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // ?t=<seconds> — populated by Google SeekToAction deep-links in search results.
+  // Only applied on initial mount; stored in a ref so it never re-triggers on re-renders.
+  const _tParam = searchParams.get("t")
+  const _tParsed = _tParam ? parseFloat(_tParam) : NaN
+  const initialSeekSeconds = useRef<number | undefined>(isFinite(_tParsed) && _tParsed > 0 ? _tParsed : undefined)
+
   const { user, userData } = useAuth()
   const { activeVideo } = useGlobalVideo()
   const { toast } = useToast()
@@ -300,7 +307,6 @@ export default function WatchPage() {
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const lastFetchedRelatedIdRef = useRef<string | null | undefined>(null)
@@ -651,15 +657,12 @@ export default function WatchPage() {
     if (!user) {
       toast({
         title: "Sign in required",
-        description: "Please sign in to upvote videos",
+        description: "Sign in to save videos to your Liked library.",
       })
       return
     }
 
     if (!video) return
-
-    // Prevent toggling off an existing upvote by clicking twice
-    if (isLiked) return
 
     try {
       const videoId = video.video_id || video.videoId
@@ -711,14 +714,16 @@ export default function WatchPage() {
       }
 
       toast({
-        title: "Success",
-        description: wasLiked ? "Upvote removed" : "Video upvoted",
+        title: wasLiked ? "Removed from Liked" : "Saved to Liked",
+        description: wasLiked
+          ? "This video is no longer in your Liked library."
+          : "You can find it anytime under Liked videos.",
       })
     } catch (error) {
       console.error("[hiffi] Failed to upvote video:", error)
       toast({
         title: "Error",
-        description: "Failed to upvote video",
+        description: "Couldn’t update Liked videos. Try again.",
         variant: "destructive",
       })
     }
@@ -728,15 +733,12 @@ export default function WatchPage() {
     if (!user) {
       toast({
         title: "Sign in required",
-        description: "Please sign in to downvote videos",
+        description: "Sign in to give feedback on recommendations.",
       })
       return
     }
 
     if (!video) return
-
-    // Prevent toggling off an existing downvote by clicking twice
-    if (isDisliked) return
 
     try {
       const videoId = video.video_id || video.videoId
@@ -788,14 +790,16 @@ export default function WatchPage() {
       }
 
       toast({
-        title: "Success",
-        description: wasDisliked ? "Downvote removed" : "Video downvoted",
+        title: wasDisliked ? "Feedback removed" : "Thanks for the feedback",
+        description: wasDisliked
+          ? "We won’t tune recommendations from that signal anymore."
+          : "We’ll show you fewer recommendations like this one.",
       })
     } catch (error) {
       console.error("[hiffi] Failed to downvote video:", error)
       toast({
         title: "Error",
-        description: "Failed to downvote video",
+        description: "Couldn’t save that feedback. Try again.",
         variant: "destructive",
       })
     }
@@ -940,14 +944,7 @@ export default function WatchPage() {
   const videoUrl = currentPlayerVideo?.streaming_url || currentPlayerVideo?.video_url || currentPlayerVideo?.videoUrl || ""
   const thumbnailUrl = getThumbnailUrl(currentPlayerVideo?.video_thumbnail || currentPlayerVideo?.videoThumbnail || "")
   
-  // Check if current user owns this video
-  const isOwner = userData?.username === (currentVideo?.userUsername || currentVideo?.user_username)
   const videoId = currentVideo?.video_id || currentVideo?.videoId || currentVideoId || ""
-  
-  const handleVideoDeleted = () => {
-    // Redirect to home after deletion
-    router.push("/")
-  }
 
   const handleVideoEnd = () => {
     // Autoplay next video from suggested videos
@@ -1007,14 +1004,74 @@ export default function WatchPage() {
                 availableProfiles={currentPlayerVideo?.profiles}
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
+                initialSeekSeconds={initialSeekSeconds.current}
               />
 
               <div className={cn("px-4 lg:px-0 space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
-                {shouldShowMetadataSkeleton ? (
-                  <div className="h-8 bg-muted/40 rounded-md w-3/4 animate-pulse" />
-                ) : (
-                  <h1 className="text-xl md:text-2xl font-bold break-words">{currentVideo?.videoTitle || currentVideo?.video_title}</h1>
-                )}
+                <div className="flex items-start gap-2 sm:gap-3">
+                  {shouldShowMetadataSkeleton ? (
+                    <div className="h-9 flex-1 bg-muted/40 rounded-md max-w-2xl animate-pulse" />
+                  ) : (
+                    <h1 className="text-xl md:text-2xl font-bold break-words min-w-0 flex-1 pr-1">
+                      {currentVideo?.videoTitle || currentVideo?.video_title}
+                    </h1>
+                  )}
+                  {!shouldShowMetadataSkeleton && currentVideo && (
+                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 pt-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
+                          isLiked && "text-primary hover:text-primary",
+                        )}
+                        onClick={handleLike}
+                        aria-pressed={isLiked}
+                        aria-label={isLiked ? "Remove from Liked videos" : "Save to Liked videos"}
+                        title={isLiked ? "Remove from Liked" : "Save to Liked"}
+                      >
+                        <Heart className={cn("h-5 w-5", isLiked && "fill-primary text-primary")} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                        onClick={() => setShareDialogOpen(true)}
+                        aria-label="Share video"
+                        title="Share"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                      {user ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                              aria-label="More actions"
+                              title="More"
+                            >
+                              <MoreVertical className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onClick={() => void handleDislike()}
+                              disabled={shouldShowMetadataSkeleton}
+                              className={cn(isDisliked && "bg-accent")}
+                            >
+                              Less like this
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-3">
                   {/* Mobile metadata layout */}
@@ -1082,61 +1139,6 @@ export default function WatchPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center bg-muted/50 rounded-full p-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("rounded-l-full px-3 hover:bg-muted", isLiked && "text-primary")}
-                          onClick={handleLike}
-                          disabled={shouldShowMetadataSkeleton}
-                        >
-                          <ThumbsUp className={cn("mr-2 h-4 w-4", isLiked && "fill-current")} />
-                          {(currentVideo?.video_upvotes || currentVideo?.videoUpvotes || 0).toLocaleString()}
-                        </Button>
-                        <Separator orientation="vertical" className="h-6" />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("rounded-r-full px-3 hover:bg-muted", isDisliked && "text-destructive")}
-                          onClick={handleDislike}
-                          disabled={shouldShowMetadataSkeleton}
-                        >
-                          <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
-                          {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
-                        </Button>
-                      </div>
-                      {!shouldShowMetadataSkeleton && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-full px-3 hover:bg-muted"
-                          onClick={() => setShareDialogOpen(true)}
-                        >
-                          <Share2 className="mr-2 h-4 w-4" />
-                          Share
-                        </Button>
-                      )}
-                      {isOwner && !shouldShowMetadataSkeleton && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="rounded-full ml-auto">
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Video options</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteDialogOpen(true)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Video
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
                   </div>
 
                   {/* Desktop/tablet metadata layout */}
@@ -1198,62 +1200,6 @@ export default function WatchPage() {
                                 ? "Following"
                                 : "Follow"}
                         </Button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-auto sm:ml-0">
-                      <div className="flex items-center bg-muted/50 rounded-full p-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("rounded-l-full px-3 hover:bg-muted", isLiked && "text-primary")}
-                          onClick={handleLike}
-                          disabled={shouldShowMetadataSkeleton}
-                        >
-                          <ThumbsUp className={cn("mr-2 h-4 w-4", isLiked && "fill-current")} />
-                          {(currentVideo?.video_upvotes || currentVideo?.videoUpvotes || 0).toLocaleString()}
-                        </Button>
-                        <Separator orientation="vertical" className="h-6" />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn("rounded-r-full px-3 hover:bg-muted", isDisliked && "text-destructive")}
-                          onClick={handleDislike}
-                          disabled={shouldShowMetadataSkeleton}
-                        >
-                          <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
-                          {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
-                        </Button>
-                      </div>
-                      {!shouldShowMetadataSkeleton && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-full px-3 hover:bg-muted"
-                          onClick={() => setShareDialogOpen(true)}
-                        >
-                          <Share2 className="mr-2 h-4 w-4" />
-                          Share
-                        </Button>
-                      )}
-                      {isOwner && !shouldShowMetadataSkeleton && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="rounded-full">
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Video options</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteDialogOpen(true)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Video
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       )}
                     </div>
                   </div>
@@ -1330,15 +1276,6 @@ export default function WatchPage() {
           </div>
         </div>
       
-      {currentVideo && (
-        <DeleteVideoDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          videoId={videoId}
-          videoTitle={currentVideo.videoTitle || currentVideo.video_title}
-          onDeleted={handleVideoDeleted}
-        />
-      )}
       <AuthDialog
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -97,6 +97,27 @@ export function ShareVideoDialog({
 }: ShareVideoDialogProps) {
   const { toast } = useToast()
   const [copied, setCopied] = useState(false)
+
+  // Same Radix DropdownMenu→Dialog pointer-events cleanup as DeleteVideoDialog
+  useEffect(() => {
+    if (open) return
+    const restore = () => {
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+      document.body.removeAttribute("data-scroll-locked")
+    }
+    restore()
+    const timer = setTimeout(restore, 300)
+    return () => clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+      document.body.removeAttribute("data-scroll-locked")
+    }
+  }, [])
 
   const shareUrlWithTime =
     startAtSeconds != null && startAtSeconds > 0

@@ -46,6 +46,11 @@ interface VideoPlayerProps {
   onNext?: (nextId: string) => void
   /** Called when the player's Previous button is pressed. When provided, no route navigation occurs. */
   onPrevious?: () => void
+  /**
+   * If set, the player seeks to this position (in seconds) once the video metadata is loaded.
+   * Used to honour the `?t=` URL parameter from Google SeekToAction deep-links.
+   */
+  initialSeekSeconds?: number
 }
 
 const STORAGE_KEYS = {
@@ -86,6 +91,7 @@ export function VideoPlayer({
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
   onPrevious,
+  initialSeekSeconds,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -873,6 +879,12 @@ export function VideoPlayer({
       // Ensure stale "ended" visual state never hides a freshly loaded source.
       setHasEnded(false)
       setShowNextUpOverlay(false)
+      // Honour ?t= deep-link from Google SeekToAction (only on first load of this video).
+      if (initialSeekSeconds && initialSeekSeconds > 0) {
+        const dur = player.duration?.() ?? 0
+        const target = dur > 0 ? Math.min(initialSeekSeconds, dur - 1) : initialSeekSeconds
+        try { player.currentTime(target) } catch {}
+      }
       lastWatchPositionRef.current = player.currentTime()
       // Keep lifecycle cleanup only; avoid forcing an audio-only overlay here.
     }

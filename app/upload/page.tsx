@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -42,10 +42,26 @@ export default function UploadPage() {
     toggleMobileSidebar,
   } = useSidebar();
 
-  const currentFilter = pathname === '/following' ? ('following' as const) : ('all' as const);
-  const onFilterChange = (filter: 'all' | 'following') => {
-    router.push(filter === 'following' ? '/following' : '/');
-  };
+  const currentFilter =
+    pathname === "/following"
+      ? ("following" as const)
+      : pathname === "/history"
+        ? ("history" as const)
+        : pathname === "/liked"
+          ? ("liked" as const)
+          : ("all" as const)
+
+  const onFilterChange = (filter: "all" | "following" | "liked" | "history") => {
+    router.push(
+      filter === "following"
+        ? "/following"
+        : filter === "liked"
+          ? "/liked"
+          : filter === "history"
+            ? "/history"
+            : "/",
+    )
+  }
 
   const handleMenuClick = () => {
     if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
@@ -54,6 +70,7 @@ export default function UploadPage() {
       toggleMobileSidebar();
     }
   };
+
   const [file, setFile] = useState<File | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -67,11 +84,20 @@ export default function UploadPage() {
     'select' | 'details' | 'uploading_background' | 'success'
   >('select');
   const [trackedJobId, setTrackedJobId] = useState<string | null>(null);
+  /** Watch page id after last successful upload (API bridge_id). */
+  const [successVideoId, setSuccessVideoId] = useState<string | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [cancelSelectDialogOpen, setCancelSelectDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
+  /** While upload runs in background, video id appears on the job after ack — enables Watch Video on this screen. */
+  const uploadingWatchVideoId = useMemo(() => {
+    if (uploadStep !== "uploading_background" || !trackedJobId) return undefined
+    const id = jobs.find((j) => j.id === trackedJobId)?.videoId?.trim()
+    return id || undefined
+  }, [uploadStep, trackedJobId, jobs])
 
   // Check if user is a creator - MUST be before any conditional returns
   useEffect(() => {
@@ -204,6 +230,7 @@ export default function UploadPage() {
     const job = jobs.find((j) => j.id === trackedJobId);
     if (!job) return;
     if (job.status === 'done') {
+      setSuccessVideoId(job.videoId?.trim() || null);
       setUploadStep('success');
       setTrackedJobId(null);
     }
@@ -283,6 +310,7 @@ export default function UploadPage() {
 
   const handleUpload = () => {
     if (!file || !title) return;
+    setSuccessVideoId(null);
     const id = startUpload({
       file,
       title,
@@ -596,12 +624,27 @@ export default function UploadPage() {
                     <h3 className="text-xl font-semibold">Upload in progress</h3>
                     <p className="mt-2 text-sm text-muted-foreground">
                       You can browse the rest of Hiffi — progress appears in the bar at the bottom of the screen.
-                      Don&apos;t close this tab until the upload finishes.
+                      When the upload finishes, use <span className="font-medium text-foreground">Watch Video</span> here
+                      or in the bar at the bottom. Don&apos;t close this tab until the upload finishes.
                     </p>
                   </div>
-                  <Button type="button" variant="outline" asChild>
-                    <Link href="/">Go to Home</Link>
-                  </Button>
+                  <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap">
+                    {uploadingWatchVideoId ? (
+                      <Button type="button" asChild className="sm:min-w-[160px]">
+                        <Link href={`/watch/${encodeURIComponent(uploadingWatchVideoId)}`}>Watch Video</Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled
+                        className="sm:min-w-[160px]"
+                        title="Available when the upload finishes"
+                      >
+                        Watch Video
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -614,23 +657,33 @@ export default function UploadPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold">Upload Complete!</h3>
-                    <p className="text-muted-foreground mt-2">Your video has been uploaded successfully and is now processing.</p>
+                    <p className="text-muted-foreground mt-2">
+                      Your video has been uploaded and is processing. You can open it now — the watch page will show
+                      progress until playback is ready.
+                    </p>
                   </div>
-                  <div className="flex justify-center gap-4 pt-4">
-                    <Button variant="outline" onClick={() => router.push('/')}>Go to Home</Button>
+                  <div className="flex flex-col items-stretch gap-3 pt-4 sm:flex-row sm:flex-wrap sm:justify-center">
+                    {successVideoId ? (
+                      <Button type="button" asChild className="sm:min-w-[140px]">
+                        <Link href={`/watch/${encodeURIComponent(successVideoId)}`}>Watch Video</Link>
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
+                      variant="secondary"
+                      className="sm:min-w-[140px]"
                       onClick={() => {
+                        setSuccessVideoId(null);
                         setFile(null);
                         setThumbnail(null);
                         setThumbnailPreview(null);
                         autoThumbnails.forEach((url) => URL.revokeObjectURL(url));
                         setAutoThumbnails([]);
                         setAutoThumbnailBlobs([]);
-                        setTitle('');
-                        setDescription('');
-                        setTags('');
-                        setUploadStep('select');
+                        setTitle("");
+                        setDescription("");
+                        setTags("");
+                        setUploadStep("select");
                       }}
                     >
                       Upload Another

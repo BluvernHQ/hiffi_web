@@ -88,6 +88,8 @@ export type SeoVideo = {
   viewCount?: number
   upvotes?: number
   tags?: string[]
+  /** Total video duration in seconds. Used to build ISO 8601 duration for VideoObject schema. */
+  durationSeconds?: number
 }
 
 export type SeoProfile = {
@@ -133,6 +135,16 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     }
     const creator = (v.user_username || "").trim()
 
+    const raw = v as any
+    // duration: try video_duration (seconds, number) or video_duration_seconds
+    const durRaw = raw.video_duration ?? raw.video_duration_seconds ?? raw.duration_seconds ?? null
+    const durationSeconds =
+      typeof durRaw === "number" && durRaw > 0
+        ? durRaw
+        : typeof durRaw === "string" && parseFloat(durRaw) > 0
+        ? parseFloat(durRaw)
+        : undefined
+
     return {
       videoId: id,
       title,
@@ -142,9 +154,10 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       creatorUsername: creator,
       createdAt: v.created_at,
       updatedAt: v.updated_at,
-      viewCount: typeof (v as any).video_views === "number" ? (v as any).video_views : undefined,
-      upvotes: typeof (v as any).video_upvotes === "number" ? (v as any).video_upvotes : undefined,
-      tags: Array.isArray((v as any).video_tags) ? (v as any).video_tags : undefined,
+      viewCount: typeof raw.video_views === "number" ? raw.video_views : undefined,
+      upvotes: typeof raw.video_upvotes === "number" ? raw.video_upvotes : undefined,
+      tags: Array.isArray(raw.video_tags) ? raw.video_tags : undefined,
+      durationSeconds,
     }
   } catch {
     return null

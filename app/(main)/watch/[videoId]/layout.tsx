@@ -3,8 +3,8 @@ import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchVideoForSeo } from "@/lib/seo/fetch-public"
 import { truncateMetaDescription } from "@/lib/seo/meta"
-import { buildVideoJsonLd } from "@/lib/seo/schema"
-import { absoluteUrl } from "@/lib/seo/site"
+import { buildVideoJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/schema"
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 type RouteParams = { videoId: string }
 
@@ -68,9 +68,21 @@ export default async function WatchSegmentLayout({
   const { videoId } = await resolvedParams(params)
   const video = await fetchVideoForSeo(videoId)
 
+  const breadcrumb = video
+    ? buildBreadcrumbJsonLd([
+        { name: "Hiffi", url: getSiteOrigin() },
+        { name: "Discover", url: absoluteUrl("/") },
+        ...(video.creatorUsername
+          ? [{ name: video.creatorUsername, url: absoluteUrl(`/profile/${encodeURIComponent(video.creatorUsername)}`) }]
+          : []),
+        { name: video.title, url: absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`) },
+      ])
+    : null
+
   return (
     <>
       {video ? <JsonLd data={buildVideoJsonLd(video)} /> : null}
+      {breadcrumb ? <JsonLd data={breadcrumb} /> : null}
       {children}
     </>
   )

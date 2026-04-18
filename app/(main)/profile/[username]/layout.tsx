@@ -3,8 +3,8 @@ import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchUserForSeo } from "@/lib/seo/fetch-public"
 import { truncateMetaDescription } from "@/lib/seo/meta"
-import { buildProfileJsonLd } from "@/lib/seo/schema"
-import { absoluteUrl } from "@/lib/seo/site"
+import { buildProfileJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/schema"
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 type RouteParams = { username: string }
 
@@ -64,9 +64,17 @@ export default async function ProfileSegmentLayout({
   const username = rawUsername.trim()
   const profile = await fetchUserForSeo(username)
 
+  const displayName = (profile?.name || username).trim() || username
+  const breadcrumb = buildBreadcrumbJsonLd([
+    { name: "Hiffi", url: getSiteOrigin() },
+    { name: "Creators", url: absoluteUrl("/") },
+    { name: displayName, url: absoluteUrl(`/profile/${encodeURIComponent(username)}`) },
+  ])
+
   return (
     <>
       <JsonLd data={buildProfileJsonLd(username, profile)} />
+      <JsonLd data={breadcrumb} />
       {children}
     </>
   )

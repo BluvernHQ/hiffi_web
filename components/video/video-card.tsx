@@ -55,6 +55,8 @@ interface VideoCardProps {
   timestampKind?: "uploaded" | "watched"
   /** When `timestampKind` is `watched`, show wall-clock time (e.g. 2:30 PM) instead of relative time. */
   watchedTimeFormat?: "relative" | "clock"
+  /** Owner-only delete UI; only enabled from the profile page (not watch / discover / history). */
+  showDeleteOption?: boolean
 }
 
 export function VideoCard({
@@ -64,6 +66,7 @@ export function VideoCard({
   hideTimestamp = false,
   timestampKind = "uploaded",
   watchedTimeFormat = "relative",
+  showDeleteOption = false,
 }: VideoCardProps) {
   const router = useRouter()
   const { user, userData } = useAuth()
@@ -254,7 +257,7 @@ export function VideoCard({
               </div>
             </div>
 
-            {isOwner && !isEncoding && (
+            {showDeleteOption && isOwner && !isEncoding && (
               <div className="absolute right-0 top-0">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -283,14 +286,16 @@ export function VideoCard({
               </div>
             )}
           </div>
-          
-          <DeleteVideoDialog
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
-            videoId={videoId}
-            videoTitle={title}
-            onDeleted={onDeleted}
-          />
+
+          {showDeleteOption && isOwner && (
+            <DeleteVideoDialog
+              open={deleteDialogOpen}
+              onOpenChange={setDeleteDialogOpen}
+              videoId={videoId}
+              videoTitle={title}
+              onDeleted={onDeleted}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

@@ -9,7 +9,7 @@ export function getSiteOrigin(): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`
   }
-  return "https://hiffi.app"
+  return "https://hiffi.com"
 }
 
 export function absoluteUrl(path: string): string {

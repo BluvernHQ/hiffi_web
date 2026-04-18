@@ -32,17 +32,29 @@ export function DeleteVideoDialog({
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
 
-  // Safety cleanup: Ensure body styles are restored if the component is unmounted
-  // This is a fail-safe for when the parent unmounts this component during the closing animation
+  // Radix UI bug: opening a Dialog from inside a DropdownMenu leaves the body with
+  // `pointer-events: none` and `data-scroll-locked` after the dialog closes,
+  // making the entire page unresponsive. Radix's internal cleanup races with the
+  // dropdown's own cleanup and loses. Fix: unconditionally restore body state
+  // whenever this dialog transitions to closed.
+  useEffect(() => {
+    if (open) return
+    const restore = () => {
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+      document.body.removeAttribute("data-scroll-locked")
+    }
+    // Two passes: immediately after state change, and after close animation.
+    restore()
+    const timer = setTimeout(restore, 300)
+    return () => clearTimeout(timer)
+  }, [open])
+
   useEffect(() => {
     return () => {
-      // We only want to do this if this was the last dialog/overlay
-      // Radix usually handles this, but unmounting can skip its cleanup
-      const hasOtherOverlays = document.querySelectorAll('[data-radix-focus-guard]').length > 0
-      if (!hasOtherOverlays) {
-        document.body.style.pointerEvents = ""
-        document.body.style.overflow = ""
-      }
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+      document.body.removeAttribute("data-scroll-locked")
     }
   }, [])
 

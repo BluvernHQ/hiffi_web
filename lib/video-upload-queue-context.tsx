@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Upload, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 export type UploadJobStatus =
   | "preparing"
@@ -30,6 +31,8 @@ export type UploadJob = {
   progress: number
   status: UploadJobStatus
   errorMessage?: string
+  /** Set when upload + ack succeed — same as API `bridge_id` (watch URL). */
+  videoId?: string
 }
 
 type StartUploadParams = {
@@ -139,16 +142,23 @@ function GlobalUploadBar() {
                     Cancel
                   </Button>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0"
-                    onClick={() => dismissJob(job.id)}
-                    aria-label="Dismiss"
-                  >
-                    <X className="size-4" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {job.status === "done" && job.videoId ? (
+                      <Button type="button" variant="default" size="sm" className="h-7 px-2 text-xs" asChild>
+                        <Link href={`/watch/${encodeURIComponent(job.videoId)}`}>Watch Video</Link>
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => dismissJob(job.id)}
+                      aria-label="Dismiss"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -162,7 +172,7 @@ function GlobalUploadBar() {
 function updateJob(
   jobs: UploadJob[],
   id: string,
-  patch: Partial<Pick<UploadJob, "progress" | "status" | "errorMessage">>,
+  patch: Partial<Pick<UploadJob, "progress" | "status" | "errorMessage" | "videoId">>,
 ): UploadJob[] {
   return jobs.map((j) => (j.id === id ? { ...j, ...patch } : j))
 }
@@ -190,7 +200,10 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
 
   const startUpload = useCallback(
     (params: StartUploadParams) => {
-      const id = crypto.randomUUID()
+      const id =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
       const { file, title, description, tags, thumbnail } = params
 
       setJobs((prev) => [
@@ -298,18 +311,25 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
             return
           }
 
+          const videoId = bridgeResponse.bridge_id.trim()
+
           setJobs((prev) =>
-            updateJob(prev, id, { status: "done", progress: 100 }),
+            updateJob(prev, id, {
+              status: "done",
+              progress: 100,
+              videoId: videoId || undefined,
+            }),
           )
 
           toast({
             title: "Upload complete",
-            description: "Your video was uploaded and is processing.",
+            description: "Your video is processing. Open it with Watch Video below or on the upload page.",
           })
 
+          // Give time to tap Watch Video before auto-dismiss
           window.setTimeout(() => {
             setJobs((prev) => prev.filter((j) => j.id !== id))
-          }, 8000)
+          }, 60000)
         } catch (error) {
           if (isCancelled()) {
             clearCancelled()

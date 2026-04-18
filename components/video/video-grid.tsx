@@ -30,9 +30,11 @@ interface VideoGridProps {
   hasMore?: boolean
   onLoadMore?: () => void
   onVideoDeleted?: (videoId: string) => void
+  /** When true, owners see delete on each card (profile page only). */
+  showDeleteOption?: boolean
 }
 
-export function VideoGrid({ videos, loading, hasMore, onLoadMore, onVideoDeleted }: VideoGridProps) {
+export function VideoGrid({ videos, loading, hasMore, onLoadMore, onVideoDeleted, showDeleteOption = false }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const lastLoadTime = useRef<number>(0)
   const LOAD_THROTTLE_MS = 500 // Minimum time between loads
@@ -106,6 +108,7 @@ export function VideoGrid({ videos, loading, hasMore, onLoadMore, onVideoDeleted
                 <VideoCard 
                   video={video} 
                   priority={index < 4} // First 4 videos load eagerly for better LCP
+                  showDeleteOption={showDeleteOption}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id
                     if (deletedVideoId) {

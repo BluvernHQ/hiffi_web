@@ -69,35 +69,52 @@ export const metadata: Metadata = {
   },
 }
 
-const siteJsonLd = [
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${getSiteOrigin()}/#website`,
-    url: getSiteOrigin(),
-    name: SITE_NAME,
-    description: SITE_DESCRIPTION,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: { "@type": "EntryPoint", urlTemplate: `${getSiteOrigin()}/search?q={search_term_string}` },
-      "query-input": "required name=search_term_string",
+// Single @graph with cross-referenced @id nodes — the preferred pattern per schema.org spec.
+// WebSite.publisher → references Organization by @id (no data duplication).
+// Organization.logo must be ImageObject per Google's requirements.
+const siteJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${getSiteOrigin()}/#website`,
+      url: getSiteOrigin(),
+      name: SITE_NAME,
+      description: SITE_DESCRIPTION,
+      inLanguage: "en",
+      // publisher cross-references Organization by @id — no duplicate data
+      publisher: { "@id": `${getSiteOrigin()}/#organization` },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: `${getSiteOrigin()}/search?q={search_term_string}`,
+        },
+        "query-input": "required name=search_term_string",
+      },
     },
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": `${getSiteOrigin()}/#organization`,
-    name: SITE_NAME,
-    url: getSiteOrigin(),
-    logo: {
-      "@type": "ImageObject",
-      url: absoluteUrl("/hiffi_logo.png"),
-      width: 512,
-      height: 512,
+    {
+      "@type": "Organization",
+      "@id": `${getSiteOrigin()}/#organization`,
+      name: SITE_NAME,
+      url: getSiteOrigin(),
+      description: SITE_DESCRIPTION,
+      inLanguage: "en",
+      logo: {
+        "@type": "ImageObject",
+        "@id": `${getSiteOrigin()}/#logo`,
+        url: absoluteUrl("/hiffi_logo.png"),
+        width: 512,
+        height: 512,
+        caption: SITE_NAME,
+      },
+      image: { "@id": `${getSiteOrigin()}/#logo` },
+      // sameAs: add official social profile URLs here when available
+      // e.g. "https://twitter.com/hiffi", "https://instagram.com/hiffi"
+      sameAs: [],
     },
-    sameAs: [],
-  },
-]
+  ],
+}
 
 export default function RootLayout({
   children,
