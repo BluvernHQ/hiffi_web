@@ -85,6 +85,9 @@ export type SeoVideo = {
   creatorUsername: string
   createdAt?: string
   updatedAt?: string
+  viewCount?: number
+  upvotes?: number
+  tags?: string[]
 }
 
 export type SeoProfile = {
@@ -139,6 +142,9 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       creatorUsername: creator,
       createdAt: v.created_at,
       updatedAt: v.updated_at,
+      viewCount: typeof (v as any).video_views === "number" ? (v as any).video_views : undefined,
+      upvotes: typeof (v as any).video_upvotes === "number" ? (v as any).video_upvotes : undefined,
+      tags: Array.isArray((v as any).video_tags) ? (v as any).video_tags : undefined,
     }
   } catch {
     return null
@@ -177,6 +183,45 @@ export const fetchUserForSeo = cache(async (username: string): Promise<SeoProfil
     }
   } catch {
     return null
+  }
+})
+
+export type HomeFeedVideo = {
+  video_id: string
+  video_title: string
+  video_description: string
+  video_thumbnail: string
+  video_url: string
+  user_username: string
+  video_views: number
+  video_upvotes: number
+  video_downvotes: number
+  video_comments: number
+  video_tags: string[]
+  created_at: string
+  updated_at: string
+  [key: string]: unknown
+}
+
+/**
+ * Fetches the first page of public videos for the homepage.
+ * Used by the server component to provide initial HTML for crawlers.
+ * Revalidates every 5 minutes.
+ */
+export const fetchHomeFeedInitial = cache(async (limit = 10): Promise<HomeFeedVideo[]> => {
+  try {
+    const seed = "hiffi_home_ssr_v1"
+    const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
+    const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
+      headers: { "Content-Type": "application/json" },
+      next: { revalidate: 300 },
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    const { videos } = normalizeVideoListPayload(json)
+    return videos as HomeFeedVideo[]
+  } catch {
+    return []
   }
 })
 

@@ -15,6 +15,7 @@ export function buildVideoJsonLd(video: SeoVideo) {
   const node: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
+    "@id": `${pageUrl}#video`,
     name: video.title,
     url: pageUrl,
     embedUrl: pageUrl,
@@ -23,13 +24,28 @@ export function buildVideoJsonLd(video: SeoVideo) {
   if (video.description) node.description = video.description
   if (video.thumbnailUrl) node.thumbnailUrl = video.thumbnailUrl
   if (video.createdAt) node.uploadDate = video.createdAt
+  if (video.updatedAt) node.dateModified = video.updatedAt
   if (video.contentUrl) node.contentUrl = video.contentUrl
   if (author) node.author = author
+  if (video.tags?.length) node.keywords = video.tags.join(", ")
+
+  // interactionStatistic: tells Google (and LLMs) this video has real engagement
+  if (typeof video.viewCount === "number") {
+    node.interactionStatistic = {
+      "@type": "InteractionCounter",
+      interactionType: "https://schema.org/WatchAction",
+      userInteractionCount: video.viewCount,
+    }
+  }
 
   node.publisher = {
     "@type": "Organization",
     name: "Hiffi",
     url: absoluteUrl("/"),
+    logo: {
+      "@type": "ImageObject",
+      url: absoluteUrl("/hiffi_logo.png"),
+    },
   }
 
   return node
