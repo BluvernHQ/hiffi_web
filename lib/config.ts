@@ -23,7 +23,7 @@ const environments: Record<Environment, EnvironmentConfig> = {
   },
   beta: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.dev.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://prod.hiffi.workers.dev',
+    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://dev.hiffi.workers.dev',
   },
   prod: {
     apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',

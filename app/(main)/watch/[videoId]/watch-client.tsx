@@ -444,48 +444,9 @@ export default function WatchPage() {
             })
           }
 
-          // Fetch video creator data in parallel
-          if (videoCreatorUsername && user) {
-            apiClient.getUserByUsername(videoCreatorUsername).then(creatorResponse => {
-              const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse)
-              if (isInitialVideoLoad) {
-                setVideoCreator(creatorProfile)
-                if (creatorResponse?.following !== undefined) {
-                  setIsFollowing(creatorResponse.following)
-                }
-                return
-              }
-
-              setPendingVideo((pending) => {
-                if (!pending || pending.videoId !== videoId) return pending
-                return {
-                  ...pending,
-                  creator: creatorProfile,
-                  following: creatorResponse?.following !== undefined ? creatorResponse.following : pending.following,
-                }
-              })
-            }).catch(creatorError => {
-              if (creatorError?.status !== 401) console.warn("[hiffi] Failed to fetch creator data:", creatorError)
-              const fallbackProfile = {
-                username: videoCreatorUsername,
-                name: videoCreatorUsername,
-                profile_picture: videoResponse.profile_picture || "",
-              }
-
-              if (isInitialVideoLoad) {
-                setVideoCreator(fallbackProfile)
-                return
-              }
-
-              setPendingVideo((pending) => {
-                if (!pending || pending.videoId !== videoId) return pending
-                return {
-                  ...pending,
-                  creator: fallbackProfile,
-                }
-              })
-            })
-          } else if (videoCreatorUsername) {
+          // Logged-out: keep username + avatar only (no followers). Logged-in enrichment runs in a
+          // separate effect so it still runs when auth hydrates after the first fetch.
+          if (videoCreatorUsername && !user) {
             if (isInitialVideoLoad) {
               setVideoCreator(creatorFallback)
             } else {
@@ -523,6 +484,52 @@ export default function WatchPage() {
 
     fetchVideoData()
   }, [currentVideoId]) // currentVideoId drives all fetches; synced from params.videoId for external nav
+
+  // Load full creator profile (followers, following) when the viewer is authenticated. The main
+  // fetch only depends on currentVideoId and skips re-entry once cached — if `user` was still null
+  // during that fetch, creator never got enriched. Also wait until `video` matches the URL so we
+  // do not fetch the previous uploader during in-player switches.
+  useEffect(() => {
+    if (!user) return
+    const loadedVideoId = video?.video_id || video?.videoId
+    if (!loadedVideoId || loadedVideoId !== currentVideoId) return
+    const uname = (video?.user_username || video?.userUsername)?.toString().trim()
+    if (!uname) return
+
+    let cancelled = false
+    const requestVideoId = currentVideoId
+
+    apiClient
+      .getUserByUsername(uname)
+      .then((creatorResponse) => {
+        if (cancelled) return
+        if (currentVideoIdRef.current !== requestVideoId) return
+        const creatorProfile =
+          creatorResponse?.success && creatorResponse?.user
+            ? creatorResponse.user
+            : creatorResponse?.user
+        if (!creatorProfile || typeof creatorProfile !== "object") return
+
+        setVideoCreator((prev: any) => {
+          const prevU = (prev?.username || prev?.user_username || "").toString()
+          if (prevU && prevU.toLowerCase() !== uname.toLowerCase()) return prev
+          return { ...(prev || { username: uname }), ...creatorProfile }
+        })
+
+        if (creatorResponse?.following !== undefined) {
+          setIsFollowing(creatorResponse.following)
+        }
+      })
+      .catch((creatorError: any) => {
+        if (cancelled) return
+        if (creatorError?.status === 401) return
+        console.warn("[hiffi] Failed to fetch creator data:", creatorError)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, video, currentVideoId])
 
   // Effect for related videos.
   useEffect(() => {
