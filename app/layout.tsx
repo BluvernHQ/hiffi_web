@@ -8,6 +8,8 @@ import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
+import { JsonLd } from '@/components/seo/json-ld'
+import { buildSitewideJsonLd } from '@/lib/seo/org'
 import { getSiteOrigin } from '@/lib/seo/site'
 import './globals.css'
 
@@ -42,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <JsonLd data={buildSitewideJsonLd()} />
         {/* Microsoft Clarity - ID from env only, never in source */}
         {clarityId && (
           <Script
