@@ -9,6 +9,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 1,
     },
+    {
+      url: absoluteUrl("/what-is-hiffi"),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
   ]
 
   const entries = await fetchVideoEntriesForSitemap()

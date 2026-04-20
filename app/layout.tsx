@@ -18,8 +18,8 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteOrigin()),
-  title: 'Hiffi - Streaming Platform',
-  description: 'Modern video streaming platform for creators',
+  title: "Hiffi Streaming Platform",
+  description: "Hiffi Streaming Platform for creators and audiences.",
   generator: 'hiffi.app',
   icons: {
     icon: [

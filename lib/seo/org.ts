@@ -1,6 +1,8 @@
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 const DEFAULT_SITE_NAME = "Hiffi"
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.hiffi.app"
+const APP_STORE_URL = "https://apps.apple.com/us/app/hiffi/id6759672725"
 
 export function organizationSchemaId(): string {
   return `${getSiteOrigin()}/#organization`
@@ -15,6 +17,10 @@ function parseSameAsUrls(raw: string): string[] {
     .split(/[\s,]+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
+}
+
+function uniqueUrls(urls: string[]): string[] {
+  return [...new Set(urls.map((s) => s.trim()).filter((s) => s.length > 0))]
 }
 
 /**
@@ -48,10 +54,11 @@ export function buildOrganizationJsonLd(): Record<string, unknown> {
   if (legal) node.legalName = legal
 
   const sameAsRaw = process.env.NEXT_PUBLIC_ORG_SAME_AS?.trim()
-  if (sameAsRaw) {
-    const urls = parseSameAsUrls(sameAsRaw)
-    if (urls.length) node.sameAs = urls
-  }
+  const defaultProfiles = [PLAY_STORE_URL, APP_STORE_URL]
+  const sameAsUrls = sameAsRaw
+    ? uniqueUrls([...parseSameAsUrls(sameAsRaw), ...defaultProfiles])
+    : defaultProfiles
+  if (sameAsUrls.length) node.sameAs = sameAsUrls
 
   const street = process.env.NEXT_PUBLIC_ORG_ADDRESS_STREET?.trim()
   const locality = process.env.NEXT_PUBLIC_ORG_ADDRESS_LOCALITY?.trim()
@@ -109,8 +116,31 @@ export function buildWebSiteJsonLd(): Record<string, unknown> {
 }
 
 export function buildSitewideJsonLd(): Record<string, unknown> {
+  const orgId = organizationSchemaId()
+  const name = process.env.NEXT_PUBLIC_ORG_NAME?.trim() || DEFAULT_SITE_NAME
+
+  const androidAppNode: Record<string, unknown> = {
+    "@type": "MobileApplication",
+    "@id": `${PLAY_STORE_URL}#app`,
+    name,
+    operatingSystem: "Android",
+    applicationCategory: "EntertainmentApplication",
+    url: PLAY_STORE_URL,
+    publisher: { "@id": orgId },
+  }
+
+  const iosAppNode: Record<string, unknown> = {
+    "@type": "MobileApplication",
+    "@id": `${APP_STORE_URL}#app`,
+    name,
+    operatingSystem: "iOS",
+    applicationCategory: "EntertainmentApplication",
+    url: APP_STORE_URL,
+    publisher: { "@id": orgId },
+  }
+
   return {
     "@context": "https://schema.org",
-    "@graph": [buildOrganizationJsonLd(), buildWebSiteJsonLd()],
+    "@graph": [buildOrganizationJsonLd(), buildWebSiteJsonLd(), androidAppNode, iosAppNode],
   }
 }

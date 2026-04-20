@@ -277,6 +277,24 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   Privacy Policy
                 </Link>
                 <Link
+                  href="/what-is-hiffi"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={(e) => {
+                    const { shouldBlock, message } = checkUploadNavigationGuard()
+                    if (shouldBlock) {
+                      e.preventDefault()
+                      if (typeof window !== "undefined" && window.confirm(message)) {
+                        closeSidebar()
+                        router.push("/what-is-hiffi")
+                      }
+                    } else {
+                      closeSidebar()
+                    }
+                  }}
+                >
+                  What Is Hiffi?
+                </Link>
+                <Link
                   href="/support"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   onClick={(e) => {
