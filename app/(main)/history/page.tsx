@@ -34,6 +34,8 @@ type HistoryVideo = {
   /** Playback position when last watched */
   position_seconds?: number
   user_profile_picture?: string
+  updatedAt?: string
+  updated_at?: string
 }
 
 function historyVideoKey(video: HistoryVideo, index: number) {
@@ -62,6 +64,30 @@ function getHistoryDateLabel(value?: string, lastSeenUnix?: number) {
   if (isYesterday(date)) return "Yesterday"
 
   return format(date, "MMMM d, yyyy")
+}
+
+function getHistorySortTimestamp(video: HistoryVideo) {
+  if (typeof video.last_seen_unix === "number" && Number.isFinite(video.last_seen_unix)) {
+    return video.last_seen_unix * 1000
+  }
+
+  const watchedAt = video.viewed_at || video.watched_at
+  if (watchedAt) {
+    const watchedTime = new Date(watchedAt).getTime()
+    if (!Number.isNaN(watchedTime)) return watchedTime
+  }
+
+  const updatedAt = video.updated_at || video.updatedAt
+  if (updatedAt) {
+    const updatedTime = new Date(updatedAt).getTime()
+    if (!Number.isNaN(updatedTime)) return updatedTime
+  }
+
+  return 0
+}
+
+function sortHistoryVideosByRecent(videos: HistoryVideo[]) {
+  return [...videos].sort((a, b) => getHistorySortTimestamp(b) - getHistorySortTimestamp(a))
 }
 
 function HistoryPageShimmer() {
@@ -114,16 +140,21 @@ export default function HistoryPage() {
   const [hasMore, setHasMore] = useState(true)
   const [isFetching, setIsFetching] = useState(false)
 
-  const fetchVideos = useCallback(async (currentOffset: number, isInitialLoad = false) => {
+  const fetchVideos = useCallback(async (
+    currentOffset: number,
+    isInitialLoad = false,
+    options?: { silent?: boolean },
+  ) => {
     if (isFetchingRef.current) return
+    const silentRefresh = options?.silent === true
 
     try {
       isFetchingRef.current = true
       setIsFetching(true)
 
-      if (isInitialLoad) {
+      if (isInitialLoad && !silentRefresh) {
         setLoading(true)
-      } else {
+      } else if (!silentRefresh) {
         setLoadingMore(true)
       }
 
@@ -132,7 +163,7 @@ export default function HistoryPage() {
         limit: VIDEOS_PER_PAGE,
       })
 
-      const historyVideos = response.videos || []
+      const historyVideos = sortHistoryVideosByRecent(response.videos || [])
       const totalCount = typeof response.count === "number" ? response.count : undefined
 
       if (currentOffset === 0) {
@@ -144,7 +175,7 @@ export default function HistoryPage() {
             const key = historyVideoKey(video, index)
             return !existingIds.has(key)
           })
-          return [...prev, ...nextItems]
+          return sortHistoryVideosByRecent([...prev, ...nextItems])
         })
       }
 
@@ -156,23 +187,30 @@ export default function HistoryPage() {
     } catch (error) {
       console.error("[hiffi] Failed to fetch watch history:", error)
 
-      if (currentOffset === 0) {
+      if (currentOffset === 0 && !silentRefresh) {
         setVideos([])
         toast({
           title: "Error",
           description: "Failed to load watch history",
           variant: "destructive",
         })
-      } else {
+      } else if (!silentRefresh) {
         setHasMore(false)
       }
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      if (!silentRefresh) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
       setIsFetching(false)
       isFetchingRef.current = false
     }
   }, [toast])
+
+  const refreshHistory = useCallback(() => {
+    if (!userData?.username || isFetchingRef.current) return
+    fetchVideos(0, false, { silent: true })
+  }, [fetchVideos, userData?.username])
 
   useEffect(() => {
     if (!authLoading) {
@@ -186,6 +224,34 @@ export default function HistoryPage() {
       fetchVideos(0, true)
     }
   }, [authLoading, userData?.username, router, fetchVideos])
+
+  useEffect(() => {
+    if (!userData?.username) return
+
+    const handleHistoryUpdated = () => {
+      refreshHistory()
+    }
+
+    const handleWindowFocus = () => {
+      refreshHistory()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshHistory()
+      }
+    }
+
+    window.addEventListener("hiffi:watch-history-updated", handleHistoryUpdated)
+    window.addEventListener("focus", handleWindowFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("hiffi:watch-history-updated", handleHistoryUpdated)
+      window.removeEventListener("focus", handleWindowFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [refreshHistory, userData?.username])
 
   useEffect(() => {
     if (!observerTarget.current || !hasMore) return

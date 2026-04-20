@@ -189,6 +189,7 @@ export function VideoPlayer({
   const lastWatchPositionRef = useRef<number | null>(null)
   const accumulatedWatchSecondsRef = useRef(0)
   const isReportingWatchRef = useRef(false)
+  const pendingForcedReportRef = useRef(false)
   
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
@@ -240,7 +241,13 @@ export function VideoPlayer({
   const reportWatchProgress = async (force = false) => {
     const player = playerRef.current
     const currentVideoId = videoIdRef.current
-    if (!player || !currentVideoId || isReportingWatchRef.current) return
+    if (!player || !currentVideoId) return
+    if (isReportingWatchRef.current) {
+      // If a best-effort periodic report is in-flight, ensure a forced flush retries
+      // once it finishes so we don't miss the latest playback position on navigation.
+      if (force) pendingForcedReportRef.current = true
+      return
+    }
 
     const token = apiClient.getAuthToken()
     if (!token) {
@@ -251,7 +258,16 @@ export function VideoPlayer({
     }
 
     const watchedSeconds = accumulatedWatchSecondsRef.current
-    if ((!force && watchedSeconds < WATCH_REPORT_INTERVAL_SECONDS) || watchedSeconds <= 0) {
+    const currentPositionSeconds = Number((player.currentTime?.() || 0).toFixed(1))
+    if (!force && watchedSeconds < WATCH_REPORT_INTERVAL_SECONDS) {
+      return
+    }
+    if (!force && watchedSeconds <= 0) {
+      return
+    }
+    // Forced flush should still send current position if we have a valid playhead,
+    // even when the accumulated delta is tiny or zero.
+    if (force && watchedSeconds <= 0 && currentPositionSeconds <= 0) {
       return
     }
 
@@ -262,7 +278,7 @@ export function VideoPlayer({
     try {
       await apiClient.reportWatchHours({
         video_id: currentVideoId,
-        position_seconds: Number((player.currentTime?.() || 0).toFixed(1)),
+        position_seconds: currentPositionSeconds,
         duration_seconds: totalDurationSeconds,
         playback_rate: Number((player.playbackRate?.() || 1).toFixed(2)),
         client_timestamp: Math.floor(Date.now() / 1000),
@@ -270,6 +286,16 @@ export function VideoPlayer({
         session_id: watchSessionIdRef.current,
         player: "web-videojs",
       })
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("hiffi:watch-history-updated", {
+            detail: {
+              videoId: currentVideoId,
+              forced: force,
+            },
+          }),
+        )
+      }
       accumulatedWatchSecondsRef.current = 0
       if (process.env.NODE_ENV === "development") {
         console.log("[hiffi] Watchhours reported:", {
@@ -283,6 +309,10 @@ export function VideoPlayer({
       console.warn("[hiffi] Failed to report watch telemetry:", err)
     } finally {
       isReportingWatchRef.current = false
+      if (pendingForcedReportRef.current) {
+        pendingForcedReportRef.current = false
+        void reportWatchProgress(true)
+      }
     }
   }
 

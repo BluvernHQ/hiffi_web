@@ -98,6 +98,32 @@ const inFlightVideoResponse = new Map<string, Promise<any>>()
 const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
 const URL_EXACT_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+)$/i
 
+function resolveVoteState(
+  source: any,
+  fallback: { upvoted: boolean; downvoted: boolean } = { upvoted: false, downvoted: false },
+) {
+  if (!source) return fallback
+
+  if (typeof source.upvoted === "boolean" || typeof source.downvoted === "boolean") {
+    return {
+      upvoted: source.upvoted === true,
+      downvoted: source.downvoted === true,
+    }
+  }
+
+  const voteStatus = source.uservotestatus || source.user_vote_status
+  if (typeof voteStatus === "string") {
+    if (voteStatus === "upvoted") return { upvoted: true, downvoted: false }
+    if (voteStatus === "downvoted") return { upvoted: false, downvoted: true }
+  }
+
+  if (source.upvoted_at || source.liked_at) {
+    return { upvoted: true, downvoted: false }
+  }
+
+  return fallback
+}
+
 function renderDescriptionWithClickableLinks(text?: string | null) {
   if (!text) {
     return null
@@ -481,10 +507,10 @@ export default function WatchPage() {
             userUsername: videoData.user_username, // Alias for compatibility
             user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
-          const nextVoteState = {
-            upvoted: videoResponse.upvoted || false,
-            downvoted: videoResponse.downvoted || false,
-          }
+          const nextVoteState = resolveVoteState(
+            videoResponse,
+            resolveVoteState(videoData, resolveVoteState(video, upvoteState)),
+          )
           const followingStatus = videoResponse.following || false
           const videoCreatorUsername = videoData.user_username
           const creatorFallback = videoCreatorUsername
@@ -699,14 +725,10 @@ export default function WatchPage() {
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
           // So we keep the optimistic state unless the API provides it
-          if (updatedVideo.upvoted !== undefined || updatedVideo.downvoted !== undefined) {
-            setIsLiked(updatedVideo.upvoted || false)
-            setIsDisliked(updatedVideo.downvoted || false)
-            setUpvoteState({
-              upvoted: updatedVideo.upvoted || false,
-              downvoted: updatedVideo.downvoted || false,
-            })
-          }
+          const refreshedVoteState = resolveVoteState(updatedVideo, { upvoted: !wasLiked, downvoted: false })
+          setIsLiked(refreshedVoteState.upvoted)
+          setIsDisliked(refreshedVoteState.downvoted)
+          setUpvoteState(refreshedVoteState)
         }
       } catch (refreshError) {
         console.error("[hiffi] Failed to refresh video data:", refreshError)
@@ -775,14 +797,10 @@ export default function WatchPage() {
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
           // So we keep the optimistic state unless the API provides it
-          if (updatedVideo.upvoted !== undefined || updatedVideo.downvoted !== undefined) {
-            setIsLiked(updatedVideo.upvoted || false)
-            setIsDisliked(updatedVideo.downvoted || false)
-            setUpvoteState({
-              upvoted: updatedVideo.upvoted || false,
-              downvoted: updatedVideo.downvoted || false,
-            })
-          }
+          const refreshedVoteState = resolveVoteState(updatedVideo, { upvoted: false, downvoted: !wasDisliked })
+          setIsLiked(refreshedVoteState.upvoted)
+          setIsDisliked(refreshedVoteState.downvoted)
+          setUpvoteState(refreshedVoteState)
         }
       } catch (refreshError) {
         console.error("[hiffi] Failed to refresh video data:", refreshError)

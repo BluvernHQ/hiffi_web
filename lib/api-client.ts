@@ -1063,6 +1063,7 @@ class ApiClient {
       url,
       {
         method: "GET",
+        cache: "no-store",
       },
       true,
     )
