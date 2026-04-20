@@ -1,9 +1,9 @@
 import type { ReactNode } from "react"
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
-import { fetchUserForSeo } from "@/lib/seo/fetch-public"
+import { fetchProfileVideosForSeo, fetchUserForSeo } from "@/lib/seo/fetch-public"
 import { truncateMetaDescription } from "@/lib/seo/meta"
-import { buildProfileJsonLd } from "@/lib/seo/schema"
+import { buildProfileJsonLd, buildProfileVideoCollectionJsonLd } from "@/lib/seo/schema"
 import { absoluteUrl } from "@/lib/seo/site"
 
 type RouteParams = { username: string }
@@ -62,11 +62,17 @@ export default async function ProfileSegmentLayout({
 }) {
   const { username: rawUsername } = await resolvedParams(params)
   const username = rawUsername.trim()
-  const profile = await fetchUserForSeo(username)
+  const [profile, videos] = await Promise.all([
+    fetchUserForSeo(username),
+    fetchProfileVideosForSeo(username),
+  ])
 
   return (
     <>
       <JsonLd data={buildProfileJsonLd(username, profile)} />
+      {videos.length > 0 ? (
+        <JsonLd data={buildProfileVideoCollectionJsonLd(profile?.username || username, videos)} />
+      ) : null}
       {children}
     </>
   )

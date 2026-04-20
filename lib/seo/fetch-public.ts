@@ -10,6 +10,10 @@ type VideoRecord = {
   video_description?: string
   video_thumbnail?: string
   video_url?: string
+  video_duration?: number | string
+  duration?: number | string
+  duration_seconds?: number | string
+  length_seconds?: number | string
   user_username?: string
   created_at?: string
   updated_at?: string
@@ -61,6 +65,27 @@ function normalizeVideoListPayload(json: unknown): {
   return { videos, count }
 }
 
+function normalizeUserVideoListPayload(json: unknown): {
+  videos: VideoRecord[]
+} {
+  if (!json || typeof json !== "object") return { videos: [] }
+  const o = json as Record<string, unknown>
+  const ok = o.success === true || o.status === "success"
+  if (!ok) return { videos: [] }
+
+  const data = o.data as Record<string, unknown> | undefined
+  const raw = (data?.videos ?? o.videos) as unknown[] | undefined
+  if (!Array.isArray(raw)) return { videos: [] }
+
+  const videos: VideoRecord[] = raw.map((item) => {
+    if (item && typeof item === "object" && "video" in item) {
+      return (item as { video: VideoRecord }).video
+    }
+    return item as VideoRecord
+  })
+  return { videos }
+}
+
 function normalizeUserPayload(json: unknown): Record<string, unknown> | null {
   if (!json || typeof json !== "object") return null
   const o = json as Record<string, unknown>
@@ -83,6 +108,7 @@ export type SeoVideo = {
   thumbnailUrl: string
   contentUrl: string
   creatorUsername: string
+  durationSeconds?: number
   createdAt?: string
   updatedAt?: string
 }
@@ -104,6 +130,18 @@ function buildAuthHeaders(): Record<string, string> {
     headers.Authorization = `Bearer ${token}`
   }
   return headers
+}
+
+function normalizeVideoDurationSeconds(v: VideoRecord): number | undefined {
+  const possibleDurations = [v.video_duration, v.duration, v.duration_seconds, v.length_seconds]
+  for (const value of possibleDurations) {
+    if (value == null) continue
+    const asNumber = Number(value)
+    if (Number.isFinite(asNumber) && asNumber > 0) {
+      return Math.round(asNumber)
+    }
+  }
+  return undefined
 }
 
 export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
@@ -137,6 +175,7 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       thumbnailUrl: thumb,
       contentUrl,
       creatorUsername: creator,
+      durationSeconds: normalizeVideoDurationSeconds(v),
       createdAt: v.created_at,
       updatedAt: v.updated_at,
     }
@@ -144,6 +183,59 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     return null
   }
 })
+
+export const fetchProfileVideosForSeo = cache(
+  async (username: string, limit = 12): Promise<SeoVideo[]> => {
+    const u = (username || "").trim().toLowerCase()
+    if (!u) return []
+
+    try {
+      const qs = new URLSearchParams({
+        limit: String(limit),
+        offset: "0",
+      })
+      const res = await fetch(`${API_BASE_URL}/videos/list/${encodeURIComponent(u)}?${qs.toString()}`, {
+        headers: buildAuthHeaders(),
+        next: { revalidate: REVALIDATE_SECONDS },
+      })
+      if (!res.ok) return []
+
+      const json = await res.json()
+      const { videos } = normalizeUserVideoListPayload(json)
+      if (videos.length === 0) return []
+
+      return videos
+        .map((v): SeoVideo | null => {
+          const id = (v.video_id || "").trim()
+          if (!id) return null
+          const title = (v.video_title || "Video").trim() || "Video"
+          const description = (v.video_description || "").trim()
+          const thumbnailUrl = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
+          const rawContentUrl = (v.video_url || "").trim()
+          const contentUrl = rawContentUrl
+            ? rawContentUrl.startsWith("http")
+              ? rawContentUrl
+              : getVideoUrl(rawContentUrl)
+            : ""
+
+          return {
+            videoId: id,
+            title,
+            description,
+            thumbnailUrl,
+            contentUrl,
+            creatorUsername: (v.user_username || u).trim(),
+            durationSeconds: normalizeVideoDurationSeconds(v),
+            createdAt: v.created_at,
+            updatedAt: v.updated_at,
+          }
+        })
+        .filter((v): v is SeoVideo => v !== null)
+    } catch {
+      return []
+    }
+  },
+)
 
 export const fetchUserForSeo = cache(async (username: string): Promise<SeoProfile | null> => {
   const u = (username || "").trim().toLowerCase()

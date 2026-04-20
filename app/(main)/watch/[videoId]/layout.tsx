@@ -31,7 +31,7 @@ export async function generateMetadata({
   const description =
     video.description.length > 0
       ? truncateMetaDescription(video.description)
-      : `Watch ${video.title}${video.creatorUsername ? ` by ${video.creatorUsername}` : ""} on Hiffi.`
+      : `Watch ${video.title}${video.creatorUsername ? ` by ${video.creatorUsername}` : ""} on Hiffi streaming.`
 
   const canonical = absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`)
 
