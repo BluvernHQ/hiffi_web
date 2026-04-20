@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { useAuth } from "@/lib/auth-context"
@@ -262,13 +261,6 @@ function HomePageContent() {
             <div className="flex items-center justify-between mb-1 sm:justify-start">
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Hiffi Streaming Platform for creators and audiences.{" "}
-              <Link href="/what-is-hiffi" className="text-primary hover:underline">
-                Learn what Hiffi is
-              </Link>
-              .
-            </p>
           </div>
         </div>
         {videos.length > 0 && !loading && (
