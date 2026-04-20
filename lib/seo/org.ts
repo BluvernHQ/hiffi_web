@@ -37,7 +37,7 @@ export function buildOrganizationJsonLd(): Record<string, unknown> {
     ? logoPath.startsWith("http")
       ? logoPath
       : absoluteUrl(logoPath.startsWith("/") ? logoPath : `/${logoPath}`)
-    : absoluteUrl("/hiffi_logo.png")
+    : absoluteUrl("/icon.svg")
 
   const node: Record<string, unknown> = {
     "@type": "Organization",

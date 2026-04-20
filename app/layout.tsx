@@ -24,11 +24,12 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/hiffi_logo.png',
-        type: 'image/png',
+        url: "/icon.svg",
+        type: "image/svg+xml",
       },
     ],
-    apple: '/hiffi_logo.png',
+    shortcut: ["/icon.svg"],
+    apple: "/icon.svg",
   },
 }
 
