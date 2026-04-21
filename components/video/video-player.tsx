@@ -188,6 +188,7 @@ export function VideoPlayer({
   const watchDeviceIdRef = useRef("")
   const lastWatchPositionRef = useRef<number | null>(null)
   const accumulatedWatchSecondsRef = useRef(0)
+  const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
   const pendingForcedReportRef = useRef(false)
   
@@ -557,6 +558,7 @@ export function VideoPlayer({
       if (autoPlay) setAutoplayInProgress(true)
       unmuteRestoreBlockedRef.current = false
       watchSessionIdRef.current = generateSessionId()
+      hasSentInitialWatchReportRef.current = false
       resetWatchAccumulator()
     }
   }, [videoId, autoPlay])
@@ -835,6 +837,10 @@ export function VideoPlayer({
           lastWatchPositionRef.current = currentTime
           accumulatedWatchSecondsRef.current = 0
         } else {
+          if (!hasSentInitialWatchReportRef.current && currentTime >= 1) {
+            hasSentInitialWatchReportRef.current = true
+            void reportWatchProgress(true)
+          }
           const lastPosition = lastWatchPositionRef.current
           if (lastPosition !== null && !player.paused() && !player.seeking()) {
             const delta = currentTime - lastPosition
