@@ -692,14 +692,21 @@ export default function WatchPage() {
 
     try {
       const videoId = video.video_id || video.videoId
-      await apiClient.upvoteVideo(videoId)
-      
-      // Update state
       const wasLiked = isLiked
       const wasDisliked = isDisliked
-      setIsLiked(!wasLiked)
+      const isRemovingLike = wasLiked
+
+      if (isRemovingLike) {
+        // Product requirement: heart button must toggle using downvote endpoint when already upvoted.
+        await apiClient.downvoteVideo(videoId)
+      } else {
+        await apiClient.upvoteVideo(videoId)
+      }
+      
+      // Update state
+      setIsLiked(!isRemovingLike)
       setIsDisliked(false)
-      setUpvoteState({ upvoted: !wasLiked, downvoted: false })
+      setUpvoteState({ upvoted: !isRemovingLike, downvoted: false })
       
       // Update video counts optimistically while refreshing
       if (video) {
@@ -708,9 +715,10 @@ export default function WatchPage() {
         
         setVideo({
           ...video,
-          video_upvotes: wasLiked ? currentUpvotes - 1 : (wasDisliked ? currentUpvotes + 1 : currentUpvotes + 1),
-          video_downvotes: wasDisliked ? currentDownvotes - 1 : currentDownvotes,
-          uservotestatus: wasLiked ? null : "upvoted",
+          video_upvotes: isRemovingLike ? currentUpvotes - 1 : (wasDisliked ? currentUpvotes + 1 : currentUpvotes + 1),
+          // Keep dislike count unchanged for "remove liked" UX even though backend toggle uses downvote endpoint.
+          video_downvotes: isRemovingLike ? currentDownvotes : (wasDisliked ? currentDownvotes - 1 : currentDownvotes),
+          uservotestatus: isRemovingLike ? null : "upvoted",
         })
       }
 
@@ -725,7 +733,7 @@ export default function WatchPage() {
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
           // So we keep the optimistic state unless the API provides it
-          const refreshedVoteState = resolveVoteState(updatedVideo, { upvoted: !wasLiked, downvoted: false })
+          const refreshedVoteState = resolveVoteState(updatedVideo, { upvoted: !isRemovingLike, downvoted: false })
           setIsLiked(refreshedVoteState.upvoted)
           setIsDisliked(refreshedVoteState.downvoted)
           setUpvoteState(refreshedVoteState)
@@ -736,13 +744,13 @@ export default function WatchPage() {
       }
 
       toast({
-        title: wasLiked ? "Removed from Liked" : "Saved to Liked",
-        description: wasLiked
+        title: isRemovingLike ? "Removed from Liked" : "Saved to Liked",
+        description: isRemovingLike
           ? "This video is no longer in your Liked library."
           : "You can find it anytime under Liked videos.",
       })
     } catch (error) {
-      console.error("[hiffi] Failed to upvote video:", error)
+      console.error("[hiffi] Failed to toggle like for video:", error)
       toast({
         title: "Error",
         description: "Couldn’t update Liked videos. Try again.",
