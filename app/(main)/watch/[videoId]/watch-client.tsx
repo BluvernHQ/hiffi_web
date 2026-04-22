@@ -7,6 +7,7 @@ import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
 import { VideoCard } from "@/components/video/video-card"
 import { CompactVideoCard } from "@/components/video/compact-video-card"
+import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -15,9 +16,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Heart, Share2, MoreVertical } from "lucide-react"
+import { Heart, ListPlus, MoreVertical, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -26,11 +28,21 @@ import { cn, getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/l
 import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
+import { getPlaylistSession, setPlaylistSession } from "@/lib/playlist-session"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed } from "@/lib/seed-manager"
+import dynamic from "next/dynamic"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
+
+const AddToPlaylistDialog = dynamic(
+  () =>
+    import("@/components/video/add-to-playlist-dialog").then((m) => ({
+      default: m.AddToPlaylistDialog,
+    })),
+  { ssr: false },
+)
 
 // Mock video data
 const MOCK_VIDEO = {
@@ -124,6 +136,30 @@ function resolveVoteState(
   return fallback
 }
 
+function hasVoteMetadata(source: any): boolean {
+  if (!source) return false
+  if (typeof source.upvoted === "boolean" || typeof source.downvoted === "boolean") return true
+  if (typeof source.uservotestatus === "string" || typeof source.user_vote_status === "string") return true
+  if (source.upvoted_at || source.liked_at) return true
+  return false
+}
+
+function getSourceVideoId(source: any): string {
+  if (!source) return ""
+  return source.video_id || source.videoId || ""
+}
+
+function resolveVoteStateForVideo(
+  source: any,
+  expectedVideoId: string,
+  fallback: { upvoted: boolean; downvoted: boolean } = { upvoted: false, downvoted: false },
+) {
+  if (!source) return fallback
+  const sourceId = getSourceVideoId(source)
+  if (!sourceId || sourceId !== expectedVideoId) return fallback
+  return resolveVoteState(source, fallback)
+}
+
 function renderDescriptionWithClickableLinks(text?: string | null) {
   if (!text) {
     return null
@@ -161,12 +197,12 @@ function renderDescriptionWithClickableLinks(text?: string | null) {
   })
 }
 
-async function getVideoResponseOnce(videoId: string) {
-  if (videoResponseCache.has(videoId)) {
+async function getVideoResponseOnce(videoId: string, forceFresh = false) {
+  if (!forceFresh && videoResponseCache.has(videoId)) {
     return videoResponseCache.get(videoId)
   }
 
-  const inFlight = inFlightVideoResponse.get(videoId)
+  const inFlight = !forceFresh ? inFlightVideoResponse.get(videoId) : undefined
   if (inFlight) {
     return inFlight
   }
@@ -243,6 +279,11 @@ export default function WatchPage() {
     return (Array.isArray(p) ? p[0] : (p as string)) || ""
   }, [params.videoId])
 
+  const persistedRouteVideoId = persistedWatchUiState?.video
+    ? persistedWatchUiState.video.video_id || persistedWatchUiState.video.videoId
+    : null
+  const shouldUsePersistedUiState = !!persistedRouteVideoId && persistedRouteVideoId === routeVideoId
+
   // Drives all fetches and the player source. Initialized from the URL param but updated
   // in-place on next/previous so the VideoPlayer never unmounts (preserves fullscreen).
   const [currentVideoId, setCurrentVideoId] = useState<string>(() => {
@@ -265,21 +306,60 @@ export default function WatchPage() {
   // Stack of previously played video IDs for in-place back navigation.
   const videoHistoryRef = useRef<string[]>([])
   const isInPlaceNavigationRef = useRef(false)
+  const [playlistContext, setPlaylistContext] = useState<{
+    playlistId: string
+    title: string
+    videoIds: string[]
+    currentIndex: number
+    autoplay: boolean
+  } | null>(null)
+  const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, { title?: string; thumbnail?: string }>>({})
+
+  const navigateToVideo = (nextId: string, nextIndex?: number, pushHistory = true) => {
+    if (!nextId || nextId === currentVideoId) return
+    isInPlaceNavigationRef.current = true
+    if (pushHistory) {
+      videoHistoryRef.current.push(currentVideoId)
+    }
+    setCurrentVideoId(nextId)
+    if (typeof window !== "undefined") {
+      const url = nextIndex !== undefined && playlistContext
+        ? `/watch/${nextId}?playlist=${encodeURIComponent(playlistContext.playlistId)}&pindex=${nextIndex}`
+        : `/watch/${nextId}`
+      window.history.pushState({}, "", url)
+    }
+  }
 
   // Called by VideoPlayer's Next button. Swaps source in-place → player stays mounted.
   const handlePlayerNext = (nextId: string) => {
-    if (!nextId || nextId === currentVideoId) return
-    isInPlaceNavigationRef.current = true
-    videoHistoryRef.current.push(currentVideoId)
-    setCurrentVideoId(nextId)
-    if (typeof window !== "undefined") {
-      window.history.pushState({}, "", `/watch/${nextId}`)
+    if (playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
+      const nextIndex = playlistContext.currentIndex + 1
+      const playlistNextId = playlistContext.videoIds[nextIndex]
+      if (playlistNextId) {
+        const nextSession = { ...playlistContext, currentIndex: nextIndex }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+        navigateToVideo(playlistNextId, nextIndex)
+        return
+      }
     }
+    navigateToVideo(nextId)
   }
 
   // Called by VideoPlayer's Previous button. Pops internal history stack first;
   // falls back to browser history when stack is empty.
   const handlePlayerPrevious = () => {
+    if (playlistContext && playlistContext.currentIndex > 0) {
+      const prevIndex = playlistContext.currentIndex - 1
+      const prevId = playlistContext.videoIds[prevIndex]
+      if (prevId) {
+        const nextSession = { ...playlistContext, currentIndex: prevIndex }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+        navigateToVideo(prevId, prevIndex, false)
+        return
+      }
+    }
     const prevId = videoHistoryRef.current.pop()
     if (prevId) {
       isInPlaceNavigationRef.current = true
@@ -292,12 +372,23 @@ export default function WatchPage() {
     }
   }
 
-  const [isFollowing, setIsFollowing] = useState(() => persistedWatchUiState?.isFollowing ?? false)
+  const activeVideoMatchesRoute = !!activeVideo && (activeVideo.videoId || activeVideo.video_id) === routeVideoId
+  const activeVideoInitialVoteState = activeVideoMatchesRoute
+    ? resolveVoteState(activeVideo)
+    : { upvoted: false, downvoted: false }
+  const [isFollowing, setIsFollowing] = useState(() =>
+    shouldUsePersistedUiState ? (persistedWatchUiState?.isFollowing ?? false) : false,
+  )
   const [isCheckingFollow, setIsCheckingFollow] = useState(false)
   const [isFollowingAction, setIsFollowingAction] = useState(false)
   const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null)
-  const [isLiked, setIsLiked] = useState(() => persistedWatchUiState?.isLiked ?? false)
-  const [isDisliked, setIsDisliked] = useState(() => persistedWatchUiState?.isDisliked ?? false)
+  const [isLiked, setIsLiked] = useState(
+    () => (shouldUsePersistedUiState ? persistedWatchUiState?.isLiked : undefined) ?? activeVideoInitialVoteState.upvoted,
+  )
+  const [isDisliked, setIsDisliked] = useState(
+    () =>
+      (shouldUsePersistedUiState ? persistedWatchUiState?.isDisliked : undefined) ?? activeVideoInitialVoteState.downvoted,
+  )
   const [showFullDescription, setShowFullDescription] = useState(false)
   
   // currentVideo: what is currently rendered in title/description/channel UI.
@@ -335,6 +426,7 @@ export default function WatchPage() {
   const [urlError, setUrlError] = useState<string | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
   const lastFetchedRelatedIdRef = useRef<string | null | undefined>(null)
   const [pendingVideo, setPendingVideo] = useState<{
     videoId: string
@@ -346,11 +438,7 @@ export default function WatchPage() {
   } | null>(null)
   const [isPlayerReadyForPending, setIsPlayerReadyForPending] = useState(false)
   const [upvoteState, setUpvoteState] = useState<{ upvoted: boolean; downvoted: boolean }>(
-    () =>
-      persistedWatchUiState?.upvoteState ?? {
-        upvoted: false,
-        downvoted: false,
-      },
+    () => (shouldUsePersistedUiState ? persistedWatchUiState?.upvoteState : undefined) ?? activeVideoInitialVoteState,
   )
   const hasFetchedVideoRef = useRef<string | null>(null)
   const isFetchingRef = useRef<boolean>(false)
@@ -366,7 +454,27 @@ export default function WatchPage() {
   // when toggling description or other UI states.
   // Show more videos in YouTube-style compact layout
   const sidebarSuggestedVideos = useMemo(() => visibleRelatedVideos.slice(0, 20), [visibleRelatedVideos])
-  const playerSuggestedVideos = useMemo(() => visibleRelatedVideos.slice(0, 8), [visibleRelatedVideos])
+  const playerSuggestedVideos = useMemo(() => {
+    const playlistQueue =
+      playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1
+        ? playlistContext.videoIds
+            .slice(playlistContext.currentIndex + 1)
+            .map((id, idx) => ({
+              videoId: id,
+              video_id: id,
+              videoTitle: playlistVideoMeta[id]?.title || `Video ${playlistContext.currentIndex + idx + 2}`,
+              video_title: playlistVideoMeta[id]?.title || `Video ${playlistContext.currentIndex + idx + 2}`,
+              videoThumbnail: playlistVideoMeta[id]?.thumbnail || "",
+              video_thumbnail: playlistVideoMeta[id]?.thumbnail || "",
+            }))
+        : []
+
+    if (playlistQueue.length > 0) {
+      return playlistQueue
+    }
+
+    return visibleRelatedVideos.slice(0, 8)
+  }, [playlistContext, playlistVideoMeta, visibleRelatedVideos])
 
   useEffect(() => {
     currentVideoIdRef.current = video ? (video.video_id || video.videoId) : null
@@ -400,6 +508,122 @@ export default function WatchPage() {
     // Route changes (real Next navigation) are considered "fresh" for persistence.
     isInPlaceNavigationRef.current = false
   }, [routeVideoId])
+
+  useEffect(() => {
+    // When opening from lists (e.g. Liked Videos), apply immediate vote hint from activeVideo
+    // so the heart state doesn't wait for a later API refresh cycle.
+    if (!routeVideoId) return
+    if (!activeVideo) return
+    const activeId = activeVideo.videoId || activeVideo.video_id
+    if (!activeId || activeId !== routeVideoId) return
+    if (!hasVoteMetadata(activeVideo)) return
+
+    const hintedVote = resolveVoteState(activeVideo)
+    setUpvoteState(hintedVote)
+    setIsLiked(hintedVote.upvoted)
+    setIsDisliked(hintedVote.downvoted)
+  }, [routeVideoId, activeVideo])
+
+  useEffect(() => {
+    const playlistId = searchParams.get("playlist")
+    const pIndex = Number(searchParams.get("pindex") || "0")
+    if (!playlistId) {
+      setPlaylistContext(null)
+      return
+    }
+
+    const stored = getPlaylistSession()
+    if (stored && stored.playlistId === playlistId && stored.videoIds.length > 0) {
+      const indexFromVideo = stored.videoIds.indexOf(currentVideoId)
+      const resolvedIndex = indexFromVideo >= 0 ? indexFromVideo : Math.max(0, Math.min(stored.videoIds.length - 1, pIndex))
+      const nextSession = {
+        playlistId,
+        title: stored.title || "Playlist",
+        videoIds: stored.videoIds,
+        currentIndex: resolvedIndex,
+        autoplay: stored.autoplay !== false,
+      }
+      setPlaylistContext(nextSession)
+      setPlaylistSession(nextSession)
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await apiClient.getPlaylist(playlistId)
+        if (cancelled || !res.success || !res.playlist || !Array.isArray(res.items)) return
+        const ordered = [...res.items].sort((a, b) => a.position - b.position).map((it) => it.video_id).filter(Boolean)
+        if (!ordered.length) return
+        const currentIndex = Math.max(0, ordered.indexOf(currentVideoId))
+        const nextSession = {
+          playlistId,
+          title: res.playlist.title || "Playlist",
+          videoIds: ordered,
+          currentIndex: currentIndex >= 0 ? currentIndex : 0,
+          autoplay: true,
+        }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+      } catch {
+        // no-op; keep watch page usable without playlist context
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, currentVideoId])
+
+  useEffect(() => {
+    if (!playlistContext) return
+    const indexFromCurrent = playlistContext.videoIds.indexOf(currentVideoId)
+    if (indexFromCurrent < 0 || indexFromCurrent === playlistContext.currentIndex) return
+    const nextSession = { ...playlistContext, currentIndex: indexFromCurrent }
+    setPlaylistContext(nextSession)
+    setPlaylistSession(nextSession)
+  }, [currentVideoId, playlistContext])
+
+  useEffect(() => {
+    if (!playlistContext?.videoIds?.length) return
+    const pendingIds = playlistContext.videoIds.slice(
+      Math.max(0, playlistContext.currentIndex),
+      Math.max(0, playlistContext.currentIndex) + 6,
+    )
+    const idsToFetch = pendingIds.filter((id) => !playlistVideoMeta[id])
+    if (!idsToFetch.length) return
+
+    let cancelled = false
+    ;(async () => {
+      const entries = await Promise.all(
+        idsToFetch.map(async (id) => {
+          try {
+            const res = await apiClient.getVideo(id)
+            if (!res.success) return [id, {}] as const
+            return [
+              id,
+              {
+                title: res.video?.video_title || res.video?.videoTitle,
+                thumbnail: getThumbnailUrl(res.video?.video_thumbnail || res.video?.videoThumbnail || ""),
+              },
+            ] as const
+          } catch {
+            return [id, {}] as const
+          }
+        }),
+      )
+      if (cancelled) return
+      setPlaylistVideoMeta((prev) => {
+        const next = { ...prev }
+        for (const [id, meta] of entries) next[id] = meta
+        return next
+      })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [playlistContext, playlistVideoMeta])
 
   const handlePlayerMediaReady = (readyVideoId: string) => {
     setPendingVideo((pending) => {
@@ -473,7 +697,19 @@ export default function WatchPage() {
         // Call GET /videos/{videoID} directly - this returns full video object with metadata
         let videoResponse: any
         try {
-          videoResponse = await getVideoResponseOnce(videoId)
+          const activeVoteHint =
+            activeVideoMatchesRoute && hasVoteMetadata(activeVideo) ? resolveVoteState(activeVideo) : null
+          const cachedVote = videoResponseCache.get(videoId)
+          const cachedVoteMismatch =
+            !!activeVoteHint &&
+            !!cachedVote &&
+            hasVoteMetadata(cachedVote) &&
+            (resolveVoteState(cachedVote).upvoted !== activeVoteHint.upvoted ||
+              resolveVoteState(cachedVote).downvoted !== activeVoteHint.downvoted)
+          const shouldForceFreshVoteFetch =
+            (activeVideoMatchesRoute && hasVoteMetadata(activeVideo) && !hasVoteMetadata(videoResponseCache.get(videoId))) ||
+            cachedVoteMismatch
+          videoResponse = await getVideoResponseOnce(videoId, shouldForceFreshVoteFetch)
           if (latestVideoRequestIdRef.current !== videoId) return
           console.log("[hiffi] Video response from API:", videoResponse)
           
@@ -507,9 +743,21 @@ export default function WatchPage() {
             userUsername: videoData.user_username, // Alias for compatibility
             user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
+          const voteFallbackFromCurrentContext = resolveVoteStateForVideo(
+            activeVideo,
+            videoId,
+            resolveVoteStateForVideo(
+              playerVideo,
+              videoId,
+              resolveVoteStateForVideo(video, videoId, upvoteState),
+            ),
+          )
           const nextVoteState = resolveVoteState(
             videoResponse,
-            resolveVoteState(videoData, resolveVoteState(video, upvoteState)),
+            resolveVoteState(
+              videoData,
+              voteFallbackFromCurrentContext,
+            ),
           )
           const followingStatus = videoResponse.following || false
           const videoCreatorUsername = videoData.user_username
@@ -973,6 +1221,18 @@ export default function WatchPage() {
   const videoId = currentVideo?.video_id || currentVideo?.videoId || currentVideoId || ""
 
   const handleVideoEnd = () => {
+    if (playlistContext?.autoplay && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
+      const nextIndex = playlistContext.currentIndex + 1
+      const nextId = playlistContext.videoIds[nextIndex]
+      if (nextId) {
+        const nextSession = { ...playlistContext, currentIndex: nextIndex }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+        navigateToVideo(nextId, nextIndex)
+        return
+      }
+    }
+
     // Autoplay next video from suggested videos
     if (sidebarSuggestedVideos && sidebarSuggestedVideos.length > 0) {
       const nextVideo = sidebarSuggestedVideos[0]
@@ -1071,29 +1331,50 @@ export default function WatchPage() {
                         <Share2 className="h-5 w-5" />
                       </Button>
                       {user ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                              aria-label="More actions"
-                              title="More"
-                            >
-                              <MoreVertical className="h-5 w-5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                              onClick={() => void handleDislike()}
-                              disabled={shouldShowMetadataSkeleton}
-                              className={cn(isDisliked && "bg-accent")}
-                            >
-                              Less like this
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                            onClick={() => setAddToPlaylistOpen(true)}
+                            aria-label="Add to playlist"
+                            title="Add to playlist"
+                          >
+                            <ListPlus className="h-5 w-5" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                                aria-label="More actions"
+                                title="More"
+                              >
+                                <MoreVertical className="h-5 w-5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem
+                                onClick={() => setAddToPlaylistOpen(true)}
+                                disabled={shouldShowMetadataSkeleton}
+                              >
+                                <ListPlus className="mr-2 h-4 w-4" />
+                                Add to playlist…
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => void handleDislike()}
+                                disabled={shouldShowMetadataSkeleton}
+                                className={cn(isDisliked && "bg-accent")}
+                              >
+                                Less like this
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </>
                       ) : null}
                     </div>
                   )}
@@ -1278,6 +1559,61 @@ export default function WatchPage() {
 
               {/* Sidebar / Related Videos - YouTube Style */}
              <div className="space-y-2 px-4 lg:px-0 pb-4 lg:pb-0">
+               {playlistContext && (
+                 <div className="mb-3 rounded-xl border border-primary/25 bg-primary/5 p-2.5 md:mb-4 md:p-3">
+                   <div className="flex items-center justify-between gap-2">
+                     <div>
+                       <p className="text-[10px] font-semibold uppercase tracking-wide text-primary/90 md:text-[11px]">Active playlist</p>
+                       <p className="line-clamp-1 text-xs font-semibold md:text-sm">{playlistContext.title}</p>
+                     </div>
+                     <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground md:text-xs">
+                       {playlistContext.currentIndex + 1}/{playlistContext.videoIds.length}
+                     </span>
+                   </div>
+                   <div className="mt-2 space-y-1.5 md:mt-2.5">
+                     {playlistContext.videoIds.map((id, absoluteIndex) => {
+                         const isActive = absoluteIndex === playlistContext.currentIndex
+                         const isPlayed = absoluteIndex < playlistContext.currentIndex
+                         const meta = playlistVideoMeta[id]
+                         return (
+                           <button
+                             key={id}
+                             type="button"
+                             className={cn(
+                               "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors md:px-2 md:py-1.5",
+                               isActive
+                                 ? "border-primary/35 bg-primary/10"
+                                 : isPlayed
+                                   ? "border-border/45 bg-background/55 hover:bg-accent/30"
+                                   : "border-border/60 bg-background/80 hover:bg-accent/40",
+                             )}
+                             onClick={() => {
+                               if (isActive) return
+                               const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
+                               setPlaylistContext(nextSession)
+                               setPlaylistSession(nextSession)
+                               navigateToVideo(id, absoluteIndex)
+                             }}
+                           >
+                             <div className="relative h-8 w-12 shrink-0 overflow-hidden rounded-md bg-muted md:h-10 md:w-16">
+                               {meta?.thumbnail ? (
+                                 <AuthenticatedImage src={meta.thumbnail} alt="" fill className="object-cover" />
+                               ) : null}
+                             </div>
+                             <div className="min-w-0 flex-1">
+                               <p className={cn("line-clamp-1 text-[11px] md:text-xs", isActive ? "font-semibold" : "text-muted-foreground")}>
+                                 {meta?.title || `Video ${absoluteIndex + 1}`}
+                               </p>
+                               <p className="text-[10px] text-muted-foreground md:text-[11px]">
+                                 {isActive ? "Now playing" : isPlayed ? "Played" : "Up next"}
+                               </p>
+                             </div>
+                           </button>
+                         )
+                       })}
+                   </div>
+                 </div>
+               )}
                <h3 className="font-semibold text-sm mb-3 px-1">Up Next</h3>
                <div className={cn("flex flex-col gap-1 transition-opacity duration-500", (isRelatedLoading && shouldShowRelatedSkeleton) ? "opacity-100" : (isRelatedLoading ? "opacity-60" : "opacity-100"))}>
                  {sidebarSuggestedVideos.length > 0 ? (
@@ -1319,6 +1655,13 @@ export default function WatchPage() {
           })()
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
+      />
+      <AddToPlaylistDialog
+        open={addToPlaylistOpen}
+        onOpenChange={setAddToPlaylistOpen}
+        videoId={String(playerVideoId || currentVideoId || "")}
+        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+        thumbnailUrl={thumbnailUrl || undefined}
       />
     </>
   )

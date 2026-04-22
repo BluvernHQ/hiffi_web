@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils"
 import {
   Home,
   History,
+  ListMusic,
   ThumbsUp,
   UserCheck,
-  Video,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -66,6 +66,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const secondaryNavItems: SidebarNavItem[] = [
     { icon: History, label: "History", href: "/history" },
     { icon: ThumbsUp, label: "Liked Videos", href: "/liked" },
+    { icon: ListMusic, label: "Playlists", href: "/playlists", requireAuth: true },
     { icon: UserCheck, label: "Following", href: "/following", requireAuth: true },
   ]
 

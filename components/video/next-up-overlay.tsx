@@ -191,7 +191,8 @@ export function NextUpOverlay({
     <div 
       className={cn(
         "absolute bottom-0 right-0 z-[35] flex items-end justify-end",
-        "pb-20 pr-4", // Extra padding to avoid controls overlap (controls are z-30)
+        "pb-20 pr-4", // Desktop spacing for controls overlap
+        "max-md:pb-14 max-md:pr-2.5",
         "animate-in slide-in-from-bottom-4 fade-in duration-300",
         "supports-[prefers-reduced-motion]:animate-none",
         "pointer-events-none" // Allow clicks to pass through to video controls
@@ -204,38 +205,39 @@ export function NextUpOverlay({
         className={cn(
           "bg-background/95 backdrop-blur-md rounded-lg shadow-2xl border border-border/50",
           "overflow-hidden w-full max-w-[320px]",
+          "max-md:max-w-[285px]",
           "animate-in slide-in-from-bottom-4 fade-in duration-300",
           "supports-[prefers-reduced-motion]:animate-none",
           "pointer-events-auto" // Re-enable pointer events on the card itself
         )}
       >
         {/* Header with cancel button */}
-        <div className="flex items-center justify-between p-3 border-b border-border/50">
-          <p className="text-sm font-medium text-muted-foreground">Playing next</p>
+        <div className="flex items-center justify-between border-b border-border/50 p-3 max-md:p-2.5">
+          <p className="text-sm font-medium text-muted-foreground max-md:text-xs">Playing next</p>
           {onCancel && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 max-md:h-6 max-md:w-6"
               onClick={handleCancel}
               aria-label="Cancel autoplay"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4 max-md:h-3.5 max-md:w-3.5" />
             </Button>
           )}
         </div>
 
         {/* Compact Content */}
-        <div className="p-3 flex gap-3 items-center">
+        <div className="flex items-center gap-3 p-3 max-md:gap-2.5 max-md:p-2.5">
           {/* Small Thumbnail */}
-          <div className="relative flex-shrink-0 w-[120px] h-[68px] rounded overflow-hidden bg-muted">
+          <div className="relative h-[68px] w-[120px] flex-shrink-0 overflow-hidden rounded bg-muted max-md:h-[56px] max-md:w-[96px]">
             {thumbnailUrl ? (
               <AuthenticatedImage
                 src={thumbnailUrl}
                 alt={title}
                   fill
                   className="object-cover"
-                  sizes="120px"
+                  sizes="(max-width: 768px) 96px, 120px"
                   authenticated={false}
                 />
               ) : (
@@ -249,18 +251,18 @@ export function NextUpOverlay({
           <div className="flex-1 min-w-0 flex flex-col gap-2">
             {/* Title */}
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground mb-0.5">Playing next</p>
-              <h4 className="text-xs font-semibold line-clamp-1 leading-tight">
+              <p className="mb-0.5 text-xs text-muted-foreground max-md:text-[11px]">Playing next</p>
+              <h4 className="line-clamp-1 text-xs font-semibold leading-tight max-md:text-[11px]">
                 {title}
               </h4>
             </div>
 
             {/* Play Button with Circular Progress */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-md:gap-1.5">
               <button
                 onClick={handlePlayClick}
                 className={cn(
-                  "relative flex-shrink-0 h-9 w-9 rounded-full",
+                  "relative h-9 w-9 flex-shrink-0 rounded-full max-md:h-8 max-md:w-8",
                   "bg-primary hover:bg-primary/90 transition-colors",
                   "flex items-center justify-center",
                   "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
@@ -270,7 +272,7 @@ export function NextUpOverlay({
               >
                 {/* Circular Progress Ring */}
                 <svg 
-                  className="absolute inset-0 w-9 h-9 transform -rotate-90" 
+                  className="absolute inset-0 h-9 w-9 -rotate-90 transform max-md:h-8 max-md:w-8" 
                   viewBox="0 0 36 36"
                   aria-hidden="true"
                 >
@@ -302,7 +304,7 @@ export function NextUpOverlay({
                   />
                 </svg>
                 {/* Play Icon */}
-                <Play className="h-4 w-4 text-primary-foreground ml-0.5 relative z-10" fill="currentColor" />
+                <Play className="relative z-10 ml-0.5 h-4 w-4 text-primary-foreground max-md:h-3.5 max-md:w-3.5" fill="currentColor" />
               </button>
 
               {/* Countdown Text */}

@@ -3,12 +3,12 @@
 import type React from "react"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { format, formatDistanceToNow } from "date-fns"
-import { Play, MoreVertical, Trash2 } from "lucide-react"
+import { Play, MoreVertical, Trash2, ListPlus } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
@@ -23,6 +23,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+const AddToPlaylistDialog = dynamic(
+  () =>
+    import("@/components/video/add-to-playlist-dialog").then((m) => ({
+      default: m.AddToPlaylistDialog,
+    })),
+  { ssr: false },
+)
 
 interface VideoCardProps {
   video: {
@@ -68,11 +76,11 @@ export function VideoCard({
   watchedTimeFormat = "relative",
   showDeleteOption = false,
 }: VideoCardProps) {
-  const router = useRouter()
   const { user, userData } = useAuth()
   const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
@@ -114,28 +122,8 @@ export function VideoCard({
     })
   }
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on action buttons, links, or if video is still encoding
-    if (
-      isEncoding ||
-      (e.target as HTMLElement).closest('a[href^="/profile"]') ||
-      (e.target as HTMLElement).closest('button') ||
-      (e.target as HTMLElement).closest('[role="menuitem"]')
-    ) {
-      if (isEncoding) {
-        toast(PROCESSING_VIDEO_TOAST)
-      }
-      return
-    }
-    
-    // Set global video context for instant loading on the watch page
-    playVideo(video)
-    
-    router.push(`/watch/${videoId}`)
-  }
-
   return (
-    <div onClick={handleCardClick} className="group cursor-pointer w-full h-auto">
+    <div className="group w-full h-auto">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
         <CardContent className="p-0 flex flex-col h-auto gap-0.5 sm:gap-1 pb-0">
           <Link
@@ -143,11 +131,13 @@ export function VideoCard({
             prefetch={!isEncoding}
             className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
             onClick={(e) => {
-              e.stopPropagation()
               if (isEncoding) {
                 e.preventDefault()
                 toast(PROCESSING_VIDEO_TOAST)
+                return
               }
+              // Preserve instant-load behavior without making the whole card clickable.
+              playVideo(video)
             }}
             aria-disabled={isEncoding}
             tabIndex={isEncoding ? -1 : undefined}
@@ -201,24 +191,43 @@ export function VideoCard({
               />
             </div>
             <div className="flex-1 min-w-0 flex flex-col pr-6">
-              <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
+              <div className="flex items-start gap-1.5">
+                <h3 className="min-w-0 flex-1 font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
                 <Link
                   href={`/watch/${videoId}`}
                   prefetch={!isEncoding}
                   className="hover:underline"
                   onClick={(e) => {
-                    e.stopPropagation()
                     if (isEncoding) {
                       e.preventDefault()
                       toast(PROCESSING_VIDEO_TOAST)
+                      return
                     }
+                    playVideo(video)
                   }}
                   aria-disabled={isEncoding}
                   tabIndex={isEncoding ? -1 : undefined}
                 >
                   {title || "Untitled Video"}
                 </Link>
-              </h3>
+                </h3>
+                {user && !isEncoding && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAddToPlaylistOpen(true)
+                    }}
+                    aria-label="Add to playlist"
+                    title="Add to playlist"
+                  >
+                    <ListPlus className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal">
                 {timestampKind === "watched" && watchedTimeFormat === "clock" && watchedClock ? (
                   <div className="flex items-center justify-between gap-2 min-w-0 py-0.5">
@@ -294,6 +303,15 @@ export function VideoCard({
               videoId={videoId}
               videoTitle={title}
               onDeleted={onDeleted}
+            />
+          )}
+          {user && !isEncoding && (
+            <AddToPlaylistDialog
+              open={addToPlaylistOpen}
+              onOpenChange={setAddToPlaylistOpen}
+              videoId={videoId}
+              videoTitle={title || "Untitled Video"}
+              thumbnailUrl={thumbnailUrl || undefined}
             />
           )}
         </CardContent>

@@ -2,13 +2,11 @@
 
 import type React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 import { useGlobalVideo } from "@/lib/video-context"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
-import { ProfilePicture } from "@/components/profile/profile-picture"
 import { AuthenticatedImage } from "./authenticated-image"
 
 interface CompactVideoCardProps {
@@ -32,7 +30,6 @@ interface CompactVideoCardProps {
 }
 
 export function CompactVideoCard({ video }: CompactVideoCardProps) {
-  const router = useRouter()
   const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
   const videoId = video.videoId || video.video_id || ""
@@ -51,36 +48,20 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
       ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
       : null)
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate to watch page if clicking on profile link
-    if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {
-      return
-    }
-    if (isEncoding) {
-      toast(PROCESSING_VIDEO_TOAST)
-      return
-    }
-    // Set global video context for instant loading on the watch page
-    playVideo(video)
-    router.push(`/watch/${videoId}`)
-  }
-
   return (
-    <div 
-      onClick={handleCardClick}
-      className="group cursor-pointer flex gap-2 hover:bg-muted/50 rounded-lg p-1 -mx-1 transition-colors"
-    >
+    <div className="group flex gap-2 hover:bg-muted/50 rounded-lg p-1 -mx-1 transition-colors">
       {/* Thumbnail - YouTube style: smaller, on the left */}
       <Link
         href={`/watch/${videoId}`}
         prefetch={!isEncoding}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
         onClick={(e) => {
-          e.stopPropagation()
           if (isEncoding) {
             e.preventDefault()
             toast(PROCESSING_VIDEO_TOAST)
+            return
           }
+          playVideo(video)
         }}
         aria-disabled={isEncoding}
         tabIndex={isEncoding ? -1 : undefined}
@@ -110,29 +91,31 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
       </Link>
 
       <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
-        <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight mb-1">
-          <Link
-            href={`/watch/${videoId}`}
-            prefetch={!isEncoding}
-            className="hover:underline"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (isEncoding) {
-                e.preventDefault()
-                toast(PROCESSING_VIDEO_TOAST)
-              }
-            }}
-            aria-disabled={isEncoding}
-            tabIndex={isEncoding ? -1 : undefined}
-          >
-            {title || "Untitled Video"}
-          </Link>
-        </h3>
+        <div className="mb-1 flex items-start gap-1.5">
+          <h3 className="min-w-0 flex-1 font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+            <Link
+              href={`/watch/${videoId}`}
+              prefetch={!isEncoding}
+              className="hover:underline"
+              onClick={(e) => {
+                if (isEncoding) {
+                  e.preventDefault()
+                  toast(PROCESSING_VIDEO_TOAST)
+                  return
+                }
+                playVideo(video)
+              }}
+              aria-disabled={isEncoding}
+              tabIndex={isEncoding ? -1 : undefined}
+            >
+              {title || "Untitled Video"}
+            </Link>
+          </h3>
+        </div>
         <div className="flex items-center min-w-0 mb-0.5">
           <Link
             href={`/profile/${username}`}
             className="text-xs text-muted-foreground hover:text-foreground truncate font-medium min-w-0 flex-shrink"
-            onClick={(e) => e.stopPropagation()}
           >
             @{username || "unknown"}
           </Link>

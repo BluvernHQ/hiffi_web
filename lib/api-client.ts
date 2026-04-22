@@ -32,6 +32,25 @@ export interface Video {
   userUsername?: string // Alias for user_username (for compatibility)
 }
 
+/** Owner playlist row from GET /playlists/list/self */
+export interface PlaylistSummary {
+  playlist_id: string
+  owner_uid?: string
+  title: string
+  description?: string
+  created_at?: string
+  updated_at?: string
+  /** Present when API includes it; otherwise derive from detail load */
+  item_count?: number
+}
+
+/** Ordered item from GET /playlists/{id} */
+export interface PlaylistItem {
+  video_id: string
+  position: number
+  added_at?: string
+}
+
 // API response wrapper for video list items
 export interface VideoListItem {
   video: Video
@@ -1503,9 +1522,9 @@ class ApiClient {
           success: true,
           video_url: response.data.video_url || "",
           video: response.data.video,
-          upvoted: response.data.upvoted ?? false,
-          downvoted: response.data.downvoted ?? false,
-          following: response.data.following ?? false,
+          upvoted: response.data.upvoted,
+          downvoted: response.data.downvoted,
+          following: response.data.following,
           profile_picture: response.data.profile_picture || "",
           put_view_error: response.data.put_view_error,
         }
@@ -1516,9 +1535,9 @@ class ApiClient {
         success: true,
         video_url: response.video_url || "",
         video: response.video,
-        upvoted: response.upvoted ?? false,
-        downvoted: response.downvoted ?? false,
-        following: response.following ?? false,
+        upvoted: response.upvoted,
+        downvoted: response.downvoted,
+        following: response.following,
         profile_picture: response.profile_picture || "",
         put_view_error: response.put_view_error,
       }
@@ -1527,9 +1546,6 @@ class ApiClient {
     return {
       success: false,
       video_url: "",
-      upvoted: false,
-      downvoted: false,
-      following: false,
     }
   }
 
@@ -1876,6 +1892,178 @@ class ApiClient {
       success: isSuccess,
       message: message,
     }
+  }
+
+  // --- Playlists (owner-only, /playlists) ---
+  async listMyPlaylists(): Promise<{ success: boolean; playlists: PlaylistSummary[] }> {
+    type PlaylistListRow = PlaylistSummary & { total_videos?: number }
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?:
+        | PlaylistListRow[]
+        | {
+            playlists?: PlaylistListRow[]
+            items?: PlaylistListRow[]
+            data?: PlaylistListRow[]
+            count?: number
+            limit?: number
+            offset?: number
+          }
+      playlists?: PlaylistListRow[]
+    }>("/playlists/list/self", { method: "GET" }, true)
+
+    const raw = response.data
+    let list: PlaylistListRow[] = []
+    if (Array.isArray(raw)) {
+      list = raw
+    } else if (raw && typeof raw === "object") {
+      const obj = raw as { playlists?: PlaylistListRow[]; items?: PlaylistListRow[]; data?: PlaylistListRow[] }
+      if (Array.isArray(obj.playlists)) {
+        list = obj.playlists
+      } else if (Array.isArray(obj.items)) {
+        list = obj.items
+      } else if (Array.isArray(obj.data)) {
+        list = obj.data
+      }
+    } else if (Array.isArray(response.playlists)) {
+      list = response.playlists
+    }
+
+    const normalized: PlaylistSummary[] = list.map((p) => ({
+      ...p,
+      item_count: typeof p.total_videos === "number" ? p.total_videos : p.item_count,
+    }))
+
+    // Some API paths omit explicit success/status but still return valid list data.
+    const hasDataKey = Object.prototype.hasOwnProperty.call(response as object, "data")
+    const ok = response.success === true || response.status === "success" || hasDataKey
+    return { success: ok, playlists: normalized }
+  }
+
+  async getPlaylist(playlistId: string): Promise<{
+    success: boolean
+    playlist?: PlaylistSummary
+    items?: PlaylistItem[]
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        playlist?: PlaylistSummary
+        items?: PlaylistItem[]
+      }
+    }>(`/playlists/${encodeURIComponent(playlistId)}`, { method: "GET" }, true)
+    const ok = response.success === true || response.status === "success"
+    if (!ok || !response.data?.playlist) {
+      return { success: false }
+    }
+    return {
+      success: true,
+      playlist: response.data.playlist,
+      items: Array.isArray(response.data.items) ? response.data.items : [],
+    }
+  }
+
+  async createPlaylist(body: {
+    title: string
+    description?: string
+    video_id: string
+  }): Promise<{ success: boolean; playlist_id?: string; message?: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: {
+        playlist_id?: string
+        title?: string
+        description?: string
+        video_id?: string
+      }
+    }>(
+      "/playlists/create",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title: body.title.trim(),
+          ...(body.description?.trim() ? { description: body.description.trim() } : {}),
+          video_id: body.video_id.trim(),
+        }),
+      },
+      true,
+    )
+    const ok = response.success === true || response.status === "success"
+    const pid = response.data?.playlist_id
+    return {
+      success: ok,
+      playlist_id: pid,
+      message: response.message,
+    }
+  }
+
+  async updatePlaylistMetadata(
+    playlistId: string,
+    body: { title?: string; description?: string },
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: { updated?: boolean }
+    }>(
+      `/playlists/${encodeURIComponent(playlistId)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+      true,
+    )
+    const ok = response.success === true || response.status === "success"
+    return { success: ok, message: response.message }
+  }
+
+  async deletePlaylist(playlistId: string): Promise<{ success: boolean; message?: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: { deleted?: boolean }
+    }>(`/playlists/${encodeURIComponent(playlistId)}`, { method: "DELETE" }, true)
+    const ok = response.success === true || response.status === "success"
+    return { success: ok, message: response.message }
+  }
+
+  async addPlaylistItem(playlistId: string, video_id: string): Promise<{ success: boolean; message?: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: { added?: boolean }
+    }>(
+      `/playlists/${encodeURIComponent(playlistId)}/items/add`,
+      {
+        method: "POST",
+        body: JSON.stringify({ video_id: video_id.trim() }),
+      },
+      true,
+    )
+    const ok = response.success === true || response.status === "success"
+    return { success: ok, message: response.message }
+  }
+
+  async removePlaylistItem(playlistId: string, videoId: string): Promise<{ success: boolean; message?: string }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      message?: string
+      data?: { removed?: boolean }
+    }>(
+      `/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(videoId)}`,
+      { method: "DELETE" },
+      true,
+    )
+    const ok = response.success === true || response.status === "success"
+    return { success: ok, message: response.message }
   }
 
   // POST /social/videos/comment/{videoID} - Comment on a video

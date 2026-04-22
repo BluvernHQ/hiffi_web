@@ -46,8 +46,10 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, activeVideo])
 
   const playVideo = (video: any, suggested?: any[]) => {
+    const activeId = activeVideo ? (activeVideo.video_id || activeVideo.videoId || "") : ""
+    const nextId = video ? (video.video_id || video.videoId || "") : ""
     // If it's the same video, don't restart
-    if (activeVideo && (activeVideo.video_id === video.video_id || activeVideo.videoId === video.videoId)) {
+    if (activeId && nextId && activeId === nextId) {
       if (window.location.pathname.startsWith('/watch/')) {
         setMode('expanded')
       } else {
