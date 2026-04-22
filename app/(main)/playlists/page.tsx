@@ -769,7 +769,7 @@ function PlaylistsPageContent() {
         </div>
       ) : (
         <>
-          <div className="relative z-10 shrink-0 border-b border-border/70 px-4 pt-4 pb-5 sm:px-6 sm:pt-5 sm:pb-6">
+          <div className="relative z-10 shrink-0 border-b border-border/70 px-4 pt-3.5 pb-4 sm:px-6 sm:pt-5 sm:pb-6">
             <div className="mb-3">
               <button
                 type="button"
@@ -780,7 +780,7 @@ function PlaylistsPageContent() {
                 Back to playlists
               </button>
             </div>
-            <div className="group relative overflow-hidden rounded-2xl border border-border/65 p-4 shadow-sm transition-all duration-500 hover:shadow-md sm:p-5">
+            <div className="group relative overflow-hidden rounded-2xl border border-border/65 p-3.5 shadow-sm transition-all duration-500 hover:shadow-md sm:p-5">
               <div aria-hidden className="absolute inset-0" style={artwork.base} />
               <div aria-hidden className="absolute inset-0" style={artwork.glowOne} />
               <div aria-hidden className="absolute inset-0" style={artwork.glowTwo} />
@@ -809,15 +809,15 @@ function PlaylistsPageContent() {
                 aria-hidden
                 className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.22)_0%,rgba(2,6,23,0.56)_100%)]"
               />
-              <div className="relative z-10 flex min-h-[220px] min-w-0 flex-col justify-between gap-4 sm:min-h-[240px]">
+              <div className="relative z-10 flex min-h-[176px] min-w-0 flex-col justify-between gap-3 sm:min-h-[240px] sm:gap-4">
                 <div className="min-w-0">
                   <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                     {detailPlaylist?.title || titleEdit}
                   </h2>
-                  <p className="mt-2 max-w-2xl text-sm text-white/85">
+                  <p className="mt-1.5 max-w-2xl text-sm text-white/85 sm:mt-2">
                     {detailPlaylist?.description?.trim() || "A curated sequence ready to play through."}
                   </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-white/80 sm:mt-3">
                     <span className="rounded-full border border-white/25 bg-white/15 px-2.5 py-1 font-semibold text-white">
                       {items.length} video{items.length === 1 ? "" : "s"}
                     </span>
@@ -826,7 +826,7 @@ function PlaylistsPageContent() {
                     ) : null}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <Button
                     type="button"
                     className="rounded-full bg-white px-5 text-foreground shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-white/90 active:scale-[0.98]"
