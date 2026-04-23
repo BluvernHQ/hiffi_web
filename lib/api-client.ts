@@ -51,6 +51,15 @@ export interface PlaylistItem {
   added_at?: string
 }
 
+type PlaylistItemApiRow = {
+  video_id?: string
+  position?: number
+  added_at?: string
+  video?: {
+    video_id?: string
+  }
+}
+
 // API response wrapper for video list items
 export interface VideoListItem {
   video: Video
@@ -1950,18 +1959,45 @@ class ApiClient {
       success?: boolean
       status?: string
       data?: {
-        playlist?: PlaylistSummary
-        items?: PlaylistItem[]
+        playlist?: (PlaylistSummary & { total_videos?: number }) | null
+        items?: PlaylistItemApiRow[]
+        count?: number
+        limit?: number
+        offset?: number
       }
     }>(`/playlists/${encodeURIComponent(playlistId)}`, { method: "GET" }, true)
     const ok = response.success === true || response.status === "success"
-    if (!ok || !response.data?.playlist) {
+    const rawPlaylist = response.data?.playlist
+    if (!ok || !rawPlaylist) {
       return { success: false }
     }
+
+    const playlist: PlaylistSummary = {
+      ...rawPlaylist,
+      item_count:
+        typeof rawPlaylist.total_videos === "number"
+          ? rawPlaylist.total_videos
+          : rawPlaylist.item_count,
+    }
+
+    const items: PlaylistItem[] = Array.isArray(response.data?.items)
+      ? response.data.items
+          .map((item, index) => {
+            const videoId = item.video_id || item.video?.video_id || ""
+            if (!videoId) return null
+            return {
+              video_id: videoId,
+              position: typeof item.position === "number" ? item.position : index + 1,
+              added_at: item.added_at,
+            }
+          })
+          .filter((item): item is PlaylistItem => Boolean(item))
+      : []
+
     return {
       success: true,
-      playlist: response.data.playlist,
-      items: Array.isArray(response.data.items) ? response.data.items : [],
+      playlist,
+      items,
     }
   }
 
