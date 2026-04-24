@@ -229,6 +229,7 @@ function PlaylistsPageContent() {
   const [editOpen, setEditOpen] = useState(false)
 
   const [deletePlaylistOpen, setDeletePlaylistOpen] = useState(false)
+  const [playlistActionsOpen, setPlaylistActionsOpen] = useState(false)
   const [removingItemId, setRemovingItemId] = useState<string | null>(null)
   const [thumbnailTones, setThumbnailTones] = useState<ArtworkTone[] | null>(null)
 
@@ -542,6 +543,21 @@ function PlaylistsPageContent() {
     setEditOpen(false)
   }
 
+  const resetEditDraft = useCallback(() => {
+    setTitleEdit(detailPlaylist?.title || "")
+    setDescEdit(detailPlaylist?.description || "")
+  }, [detailPlaylist])
+
+  const handleEditOpenChange = useCallback(
+    (open: boolean) => {
+      setEditOpen(open)
+      if (!open) {
+        resetEditDraft()
+      }
+    },
+    [resetEditDraft],
+  )
+
   const handleRemoveItemFromPlaylist = async (videoId: string) => {
     if (!selectedId || !videoId || removingItemId) return
     setRemovingItemId(videoId)
@@ -846,7 +862,7 @@ function PlaylistsPageContent() {
                   >
                     Edit playlist
                   </Button>
-                  <DropdownMenu>
+                  <DropdownMenu open={playlistActionsOpen} onOpenChange={setPlaylistActionsOpen}>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
@@ -858,7 +874,18 @@ function PlaylistsPageContent() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletePlaylistOpen(true)}>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onSelect={(event) => {
+                          // Prevent Radix from handling selection/open transitions simultaneously.
+                          // Close the menu first, then open the dialog on the next frame to avoid stuck pointer lock.
+                          event.preventDefault()
+                          setPlaylistActionsOpen(false)
+                          requestAnimationFrame(() => {
+                            setDeletePlaylistOpen(true)
+                          })
+                        }}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete playlist
                       </DropdownMenuItem>
@@ -986,7 +1013,7 @@ function PlaylistsPageContent() {
         </>
       )}
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit playlist</DialogTitle>
@@ -1019,7 +1046,7 @@ function PlaylistsPageContent() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => setEditOpen(false)}>
+            <Button variant="outline" type="button" onClick={() => handleEditOpenChange(false)}>
               Cancel
             </Button>
             <Button type="button" disabled={metaSaving} onClick={() => void handleSaveEdit()}>
