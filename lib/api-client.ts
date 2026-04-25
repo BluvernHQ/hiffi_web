@@ -1109,6 +1109,10 @@ class ApiClient {
         const videoData: any = {
           ...item.video,
           following: item.following || false,
+          // By definition this endpoint returns only liked (upvoted) videos.
+          // Set explicit vote flags so downstream UI can render immediately.
+          upvoted: true,
+          downvoted: false,
           upvoted_at: item.upvoted_at,
           liked_at: item.upvoted_at,
         }

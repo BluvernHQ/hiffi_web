@@ -707,6 +707,7 @@ export default function WatchPage() {
             (resolveVoteState(cachedVote).upvoted !== activeVoteHint.upvoted ||
               resolveVoteState(cachedVote).downvoted !== activeVoteHint.downvoted)
           const shouldForceFreshVoteFetch =
+            !!user ||
             (activeVideoMatchesRoute && hasVoteMetadata(activeVideo) && !hasVoteMetadata(videoResponseCache.get(videoId))) ||
             cachedVoteMismatch
           videoResponse = await getVideoResponseOnce(videoId, shouldForceFreshVoteFetch)
@@ -950,6 +951,8 @@ export default function WatchPage() {
       } else {
         await apiClient.upvoteVideo(videoId)
       }
+      // Invalidate cached vote payload so subsequent opens don't reuse stale vote state.
+      videoResponseCache.delete(videoId)
       
       // Update state
       setIsLiked(!isRemovingLike)
@@ -1021,6 +1024,8 @@ export default function WatchPage() {
     try {
       const videoId = video.video_id || video.videoId
       await apiClient.downvoteVideo(videoId)
+      // Invalidate cached vote payload so subsequent opens don't reuse stale vote state.
+      videoResponseCache.delete(videoId)
       
       // Update state
       const wasDisliked = isDisliked

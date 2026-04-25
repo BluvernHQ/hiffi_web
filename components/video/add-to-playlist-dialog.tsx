@@ -76,16 +76,14 @@ function PlaylistVirtualList({
   playlists,
   layout,
   listBusy,
-  addingPlaylistId,
-  justAddedId,
+  pendingPlaylistIds,
   onAdd,
   filterKey,
 }: {
   playlists: PlaylistSummary[]
   layout: "sheet" | "desktop"
   listBusy: boolean
-  addingPlaylistId: string | null
-  justAddedId: string | null
+  pendingPlaylistIds: Set<string>
   onAdd: (playlistId: string) => void
   /** Bumps scroll to top when the debounced search filter changes. */
   filterKey: string
@@ -116,8 +114,7 @@ function PlaylistVirtualList({
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((vi) => {
           const p = playlists[vi.index]
-          const busy = addingPlaylistId === p.playlist_id
-          const done = justAddedId === p.playlist_id
+          const done = pendingPlaylistIds.has(p.playlist_id)
           return (
             <div
               key={p.playlist_id}
@@ -140,7 +137,7 @@ function PlaylistVirtualList({
                     ? "border border-transparent px-3 py-0 hover:bg-muted/60 active:bg-muted/80"
                     : "border border-border/60 px-3 hover:border-primary/25 hover:bg-muted/40",
                   done && "border-primary/30 bg-primary/[0.06]",
-                  listBusy && !busy && "pointer-events-none opacity-45",
+                  listBusy && "pointer-events-none opacity-45",
                 )}
               >
                 <div className="min-w-0 flex-1">
@@ -157,7 +154,7 @@ function PlaylistVirtualList({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center justify-end">
-                  {busy ? (
+                  {listBusy ? (
                     <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden />
                   ) : done ? (
                     isSheet ? (
@@ -214,8 +211,8 @@ export function AddToPlaylistDialog({
   const [playlistSearchInput, setPlaylistSearchInput] = useState("")
   const [playlistQuery, setPlaylistQuery] = useState("")
   const [listLoading, setListLoading] = useState(false)
-  const [addingPlaylistId, setAddingPlaylistId] = useState<string | null>(null)
-  const [justAddedId, setJustAddedId] = useState<string | null>(null)
+  const [pendingPlaylistIds, setPendingPlaylistIds] = useState<Set<string>>(new Set())
+  const [savingAdds, setSavingAdds] = useState(false)
 
   const [createTitle, setCreateTitle] = useState("")
   const [createDescription, setCreateDescription] = useState("")
@@ -258,8 +255,8 @@ export function AddToPlaylistDialog({
   useEffect(() => {
     if (!open) return
     setStep("pick")
-    setJustAddedId(null)
-    setAddingPlaylistId(null)
+    setPendingPlaylistIds(new Set())
+    setSavingAdds(false)
     setPlaylistSearchInput("")
     setPlaylistQuery("")
     setCreateTitle("")
@@ -275,31 +272,67 @@ export function AddToPlaylistDialog({
     return playlists.filter((p) => p.title.toLowerCase().includes(q))
   }, [playlists, playlistQuery])
 
-  const handleAddToPlaylist = async (playlistId: string) => {
+  const handleAddToPlaylist = (playlistId: string) => {
+    setPendingPlaylistIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(playlistId)) {
+        next.delete(playlistId)
+      } else {
+        next.add(playlistId)
+      }
+      return next
+    })
+  }
+
+  const closeAndDiscard = useCallback(() => {
+    setPendingPlaylistIds(new Set())
+    onOpenChange(false)
+  }, [onOpenChange])
+
+  const handleConfirmAdds = useCallback(async () => {
     const vid = videoId.trim()
     if (!vid) return
-    setAddingPlaylistId(playlistId)
-    setJustAddedId(null)
-    try {
-      const res = await apiClient.addPlaylistItem(playlistId, vid)
-      if (!res.success) throw new Error(res.message || "Could not add video")
-      setJustAddedId(playlistId)
-      toast({
-        title: "Saved to playlist",
-        description: "Remove or manage anytime in Playlists.",
-      })
-      setTimeout(() => setJustAddedId(null), 2200)
-    } catch (e) {
-      const err = parseApiError(e)
-      toast({
-        title: "Couldn’t add video",
-        description: err?.message || (e as Error).message,
-        variant: "destructive",
-      })
-    } finally {
-      setAddingPlaylistId(null)
+    if (pendingPlaylistIds.size === 0) {
+      onOpenChange(false)
+      return
     }
-  }
+
+    const ids = Array.from(pendingPlaylistIds)
+    setSavingAdds(true)
+    let successCount = 0
+    let failureCount = 0
+
+    await Promise.all(
+      ids.map(async (playlistId) => {
+        try {
+          const res = await apiClient.addPlaylistItem(playlistId, vid)
+          if (!res.success) throw new Error(res.message || "Could not add video")
+          successCount += 1
+        } catch {
+          failureCount += 1
+        }
+      }),
+    )
+
+    setSavingAdds(false)
+
+    if (successCount > 0) {
+      toast({
+        title: successCount === 1 ? "Saved to playlist" : `Saved to ${successCount} playlists`,
+        description:
+          failureCount > 0 ? `${failureCount} playlist update${failureCount === 1 ? "" : "s"} failed.` : undefined,
+      })
+      setPendingPlaylistIds(new Set())
+      onOpenChange(false)
+      return
+    }
+
+    toast({
+      title: "Couldn’t add video",
+      description: "No playlist updates were saved.",
+      variant: "destructive",
+    })
+  }, [onOpenChange, pendingPlaylistIds, toast, videoId])
 
   const handleCreate = async () => {
     const title = createTitle.trim()
@@ -332,7 +365,8 @@ export function AddToPlaylistDialog({
 
   const displayTitle = (videoTitle || "This video").trim() || "This video"
   const createValid = createTitle.trim().length > 0
-  const listBusy = addingPlaylistId !== null
+  const listBusy = savingAdds
+  const doneLabel = pendingPlaylistIds.size > 0 ? `Done (${pendingPlaylistIds.size})` : "Done"
 
   const renderListStates = (layout: "sheet" | "desktop") => {
     if (listLoading) {
@@ -370,8 +404,7 @@ export function AddToPlaylistDialog({
         playlists={filteredPlaylists}
         layout={layout}
         listBusy={listBusy}
-        addingPlaylistId={addingPlaylistId}
-        justAddedId={justAddedId}
+        pendingPlaylistIds={pendingPlaylistIds}
         onAdd={handleAddToPlaylist}
         filterKey={playlistQuery}
       />
@@ -425,12 +458,13 @@ export function AddToPlaylistDialog({
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 bg-muted/20 px-4 py-3">
         <Button variant="ghost" className="min-h-11 shrink-0 text-muted-foreground" asChild>
-          <Link href="/playlists" onClick={() => onOpenChange(false)}>
+          <Link href="/playlists" onClick={closeAndDiscard}>
             Manage playlists
           </Link>
         </Button>
-        <Button type="button" className="min-h-11 shrink-0 px-6" onClick={() => onOpenChange(false)}>
-          Done
+        <Button type="button" className="min-h-11 shrink-0 px-6" onClick={() => void handleConfirmAdds()} disabled={listBusy}>
+          {listBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {doneLabel}
         </Button>
       </div>
     </>
@@ -512,13 +546,13 @@ export function AddToPlaylistDialog({
 
       {variant === "drawer" ? (
         <div className="flex shrink-0 justify-end border-t border-border/60 px-4 py-3">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={closeAndDiscard}>
             Cancel
           </Button>
         </div>
       ) : (
         <DialogFooter className="border-t border-border/60 px-6 py-4 sm:justify-end">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="ghost" onClick={closeAndDiscard}>
             Cancel
           </Button>
         </DialogFooter>
@@ -528,7 +562,16 @@ export function AddToPlaylistDialog({
 
   if (!isMdUp) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
+      <Drawer
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeAndDiscard()
+            return
+          }
+          onOpenChange(nextOpen)
+        }}
+      >
         <DrawerContent
           showCloseButton
           className="flex max-h-[min(85dvh,880px)] flex-col gap-0 p-0"
@@ -540,7 +583,16 @@ export function AddToPlaylistDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          closeAndDiscard()
+          return
+        }
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent
         overlayClassName="bg-black/50 backdrop-blur-[2px]"
         closeButtonClassName={cn(
@@ -617,16 +669,17 @@ export function AddToPlaylistDialog({
 
             <DialogFooter className="shrink-0 gap-2 border-t border-border/60 bg-muted/20 px-6 py-4 sm:justify-between">
               <Button variant="ghost" className="text-muted-foreground" asChild>
-                <Link href="/playlists" onClick={() => onOpenChange(false)}>
+                <Link href="/playlists" onClick={closeAndDiscard}>
                   Manage playlists
                 </Link>
               </Button>
               <div className="flex gap-2 sm:ml-auto">
-                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                <Button type="button" variant="ghost" onClick={closeAndDiscard}>
                   Cancel
                 </Button>
-                <Button type="button" onClick={() => onOpenChange(false)}>
-                  Done
+                <Button type="button" onClick={() => void handleConfirmAdds()} disabled={listBusy}>
+                  {listBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {doneLabel}
                 </Button>
               </div>
             </DialogFooter>
