@@ -76,15 +76,15 @@ function PlaylistVirtualList({
   playlists,
   layout,
   listBusy,
-  pendingPlaylistIds,
-  onAdd,
+  isPlaylistAdded,
+  onToggle,
   filterKey,
 }: {
   playlists: PlaylistSummary[]
   layout: "sheet" | "desktop"
   listBusy: boolean
-  pendingPlaylistIds: Set<string>
-  onAdd: (playlistId: string) => void
+  isPlaylistAdded: (playlistId: string) => boolean
+  onToggle: (playlistId: string) => void
   /** Bumps scroll to top when the debounced search filter changes. */
   filterKey: string
 }) {
@@ -114,7 +114,7 @@ function PlaylistVirtualList({
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((vi) => {
           const p = playlists[vi.index]
-          const done = pendingPlaylistIds.has(p.playlist_id)
+          const done = isPlaylistAdded(p.playlist_id)
           return (
             <div
               key={p.playlist_id}
@@ -129,7 +129,7 @@ function PlaylistVirtualList({
                 type="button"
                 disabled={listBusy}
                 aria-label={done ? `Added to ${p.title}` : `Add to ${p.title}`}
-                onClick={() => void onAdd(p.playlist_id)}
+                onClick={() => void onToggle(p.playlist_id)}
                 className={cn(
                   "flex h-full w-full items-center justify-between gap-3 rounded-xl text-left transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -211,8 +211,10 @@ export function AddToPlaylistDialog({
   const [playlistSearchInput, setPlaylistSearchInput] = useState("")
   const [playlistQuery, setPlaylistQuery] = useState("")
   const [listLoading, setListLoading] = useState(false)
-  const [pendingPlaylistIds, setPendingPlaylistIds] = useState<Set<string>>(new Set())
-  const [savingAdds, setSavingAdds] = useState(false)
+  const [basePlaylistIds, setBasePlaylistIds] = useState<Set<string>>(new Set())
+  const [pendingAddPlaylistIds, setPendingAddPlaylistIds] = useState<Set<string>>(new Set())
+  const [pendingRemovePlaylistIds, setPendingRemovePlaylistIds] = useState<Set<string>>(new Set())
+  const [savingChanges, setSavingChanges] = useState(false)
 
   const [createTitle, setCreateTitle] = useState("")
   const [createDescription, setCreateDescription] = useState("")
@@ -226,27 +228,29 @@ export function AddToPlaylistDialog({
     return () => window.clearTimeout(t)
   }, [open, playlistSearchInput])
 
-  const loadPlaylists = useCallback(async () => {
+  const loadPlaylists = useCallback(async (): Promise<PlaylistSummary[]> => {
     setListLoading(true)
     try {
       const res = await apiClient.listMyPlaylists()
       if (!res.success) {
         setPlaylists([])
-        return
+        return []
       }
       setPlaylists(res.playlists)
+      return res.playlists
     } catch (e) {
       const err = parseApiError(e)
       if (err?.status === 401) {
         toast({ title: "Sign in required", description: "Log in to use playlists.", variant: "destructive" })
         onOpenChange(false)
-        return
+        return []
       }
       toast({
         title: "Couldn’t load playlists",
         description: err?.message,
         variant: "destructive",
       })
+      return []
     } finally {
       setListLoading(false)
     }
@@ -254,15 +258,52 @@ export function AddToPlaylistDialog({
 
   useEffect(() => {
     if (!open) return
+
+    const vid = videoId.trim()
     setStep("pick")
-    setPendingPlaylistIds(new Set())
-    setSavingAdds(false)
+    setBasePlaylistIds(new Set())
+    setPendingAddPlaylistIds(new Set())
+    setPendingRemovePlaylistIds(new Set())
+    setSavingChanges(false)
     setPlaylistSearchInput("")
     setPlaylistQuery("")
     setCreateTitle("")
     setCreateDescription("")
-    if (videoId.trim()) {
-      void loadPlaylists()
+
+    if (!vid) return
+
+    let cancelled = false
+    ;(async () => {
+      const loadedPlaylists = await loadPlaylists()
+      if (cancelled || loadedPlaylists.length === 0) return
+
+      const existing = new Set<string>()
+      const chunkSize = 4
+      for (let i = 0; i < loadedPlaylists.length; i += chunkSize) {
+        const chunk = loadedPlaylists.slice(i, i + chunkSize)
+        const results = await Promise.all(
+          chunk.map(async (playlist) => {
+            try {
+              const res = await apiClient.getPlaylist(playlist.playlist_id)
+              if (!res.success || !Array.isArray(res.items)) return null
+              return res.items.some((item) => item.video_id === vid) ? playlist.playlist_id : null
+            } catch {
+              return null
+            }
+          }),
+        )
+        results.forEach((id) => {
+          if (id) existing.add(id)
+        })
+      }
+
+      if (!cancelled) {
+        setBasePlaylistIds(existing)
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [open, videoId, loadPlaylists])
 
@@ -272,8 +313,46 @@ export function AddToPlaylistDialog({
     return playlists.filter((p) => p.title.toLowerCase().includes(q))
   }, [playlists, playlistQuery])
 
-  const handleAddToPlaylist = (playlistId: string) => {
-    setPendingPlaylistIds((prev) => {
+  const isPlaylistAdded = useCallback(
+    (playlistId: string) => {
+      const inBase = basePlaylistIds.has(playlistId)
+      const willBeRemoved = pendingRemovePlaylistIds.has(playlistId)
+      const willBeAdded = pendingAddPlaylistIds.has(playlistId)
+      if (inBase && !willBeRemoved) return true
+      if (!inBase && willBeAdded) return true
+      return false
+    },
+    [basePlaylistIds, pendingAddPlaylistIds, pendingRemovePlaylistIds],
+  )
+
+  const handleTogglePlaylist = (playlistId: string) => {
+    const inBase = basePlaylistIds.has(playlistId)
+    if (inBase) {
+      setPendingAddPlaylistIds((prev) => {
+        if (!prev.has(playlistId)) return prev
+        const next = new Set(prev)
+        next.delete(playlistId)
+        return next
+      })
+      setPendingRemovePlaylistIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(playlistId)) {
+          next.delete(playlistId)
+        } else {
+          next.add(playlistId)
+        }
+        return next
+      })
+      return
+    }
+
+    setPendingRemovePlaylistIds((prev) => {
+      if (!prev.has(playlistId)) return prev
+      const next = new Set(prev)
+      next.delete(playlistId)
+      return next
+    })
+    setPendingAddPlaylistIds((prev) => {
       const next = new Set(prev)
       if (next.has(playlistId)) {
         next.delete(playlistId)
@@ -285,44 +364,65 @@ export function AddToPlaylistDialog({
   }
 
   const closeAndDiscard = useCallback(() => {
-    setPendingPlaylistIds(new Set())
+    setBasePlaylistIds(new Set())
+    setPendingAddPlaylistIds(new Set())
+    setPendingRemovePlaylistIds(new Set())
     onOpenChange(false)
   }, [onOpenChange])
 
   const handleConfirmAdds = useCallback(async () => {
     const vid = videoId.trim()
     if (!vid) return
-    if (pendingPlaylistIds.size === 0) {
+    if (pendingAddPlaylistIds.size === 0 && pendingRemovePlaylistIds.size === 0) {
       onOpenChange(false)
       return
     }
 
-    const ids = Array.from(pendingPlaylistIds)
-    setSavingAdds(true)
-    let successCount = 0
+    const addIds = Array.from(pendingAddPlaylistIds)
+    const removeIds = Array.from(pendingRemovePlaylistIds)
+    setSavingChanges(true)
+    let addSuccessCount = 0
+    let removeSuccessCount = 0
     let failureCount = 0
 
     await Promise.all(
-      ids.map(async (playlistId) => {
+      addIds.map(async (playlistId) => {
         try {
           const res = await apiClient.addPlaylistItem(playlistId, vid)
           if (!res.success) throw new Error(res.message || "Could not add video")
-          successCount += 1
+          addSuccessCount += 1
         } catch {
           failureCount += 1
         }
       }),
     )
 
-    setSavingAdds(false)
+    await Promise.all(
+      removeIds.map(async (playlistId) => {
+        try {
+          const res = await apiClient.removePlaylistItem(playlistId, vid)
+          if (!res.success) throw new Error(res.message || "Could not remove video")
+          removeSuccessCount += 1
+        } catch {
+          failureCount += 1
+        }
+      }),
+    )
 
+    setSavingChanges(false)
+
+    const successCount = addSuccessCount + removeSuccessCount
     if (successCount > 0) {
+      const actionSummary = [addSuccessCount > 0 ? `added to ${addSuccessCount}` : "", removeSuccessCount > 0 ? `removed from ${removeSuccessCount}` : ""]
+        .filter(Boolean)
+        .join(", ")
       toast({
-        title: successCount === 1 ? "Saved to playlist" : `Saved to ${successCount} playlists`,
+        title: `Playlist updates saved (${actionSummary})`,
         description:
           failureCount > 0 ? `${failureCount} playlist update${failureCount === 1 ? "" : "s"} failed.` : undefined,
       })
-      setPendingPlaylistIds(new Set())
+      setPendingAddPlaylistIds(new Set())
+      setPendingRemovePlaylistIds(new Set())
       onOpenChange(false)
       return
     }
@@ -332,7 +432,7 @@ export function AddToPlaylistDialog({
       description: "No playlist updates were saved.",
       variant: "destructive",
     })
-  }, [onOpenChange, pendingPlaylistIds, toast, videoId])
+  }, [onOpenChange, pendingAddPlaylistIds, pendingRemovePlaylistIds, toast, videoId])
 
   const handleCreate = async () => {
     const title = createTitle.trim()
@@ -350,7 +450,27 @@ export function AddToPlaylistDialog({
         title: "Playlist created",
         description: "This video was added as the first item.",
       })
-      onOpenChange(false)
+      setBasePlaylistIds((prev) => {
+        const next = new Set(prev)
+        next.add(res.playlist_id)
+        return next
+      })
+      setPendingAddPlaylistIds((prev) => {
+        if (!prev.has(res.playlist_id)) return prev
+        const next = new Set(prev)
+        next.delete(res.playlist_id)
+        return next
+      })
+      setPendingRemovePlaylistIds((prev) => {
+        if (!prev.has(res.playlist_id)) return prev
+        const next = new Set(prev)
+        next.delete(res.playlist_id)
+        return next
+      })
+      setCreateTitle("")
+      setCreateDescription("")
+      setStep("pick")
+      await loadPlaylists()
     } catch (e) {
       const err = parseApiError(e)
       toast({
@@ -365,8 +485,9 @@ export function AddToPlaylistDialog({
 
   const displayTitle = (videoTitle || "This video").trim() || "This video"
   const createValid = createTitle.trim().length > 0
-  const listBusy = savingAdds
-  const doneLabel = pendingPlaylistIds.size > 0 ? `Done (${pendingPlaylistIds.size})` : "Done"
+  const listBusy = savingChanges
+  const pendingChangeCount = pendingAddPlaylistIds.size + pendingRemovePlaylistIds.size
+  const doneLabel = pendingChangeCount > 0 ? `Done (${pendingChangeCount})` : "Done"
 
   const renderListStates = (layout: "sheet" | "desktop") => {
     if (listLoading) {
@@ -404,8 +525,8 @@ export function AddToPlaylistDialog({
         playlists={filteredPlaylists}
         layout={layout}
         listBusy={listBusy}
-        pendingPlaylistIds={pendingPlaylistIds}
-        onAdd={handleAddToPlaylist}
+        isPlaylistAdded={isPlaylistAdded}
+        onToggle={handleTogglePlaylist}
         filterKey={playlistQuery}
       />
     )
