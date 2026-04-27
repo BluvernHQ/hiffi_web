@@ -12,14 +12,8 @@ import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Heart, ListPlus, MoreVertical, Share2 } from "lucide-react"
+import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import { ChevronRight, Heart, ListPlus, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -427,6 +421,19 @@ export default function WatchPage() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
+  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false)
+  const [commentsPreviewLoading, setCommentsPreviewLoading] = useState(false)
+  const [commentsCount, setCommentsCount] = useState(0)
+  const [commentsPreviewProfiles, setCommentsPreviewProfiles] = useState<Record<string, any>>({})
+  const [latestComment, setLatestComment] = useState<{
+    comment_id: string
+    comment_by_username: string
+    comment: string
+    commented_at: string
+    comment_by_avatar?: string
+    profile_picture?: string
+    comment_by_name?: string
+  } | null>(null)
   const lastFetchedRelatedIdRef = useRef<string | null | undefined>(null)
   const [pendingVideo, setPendingVideo] = useState<{
     videoId: string
@@ -586,17 +593,15 @@ export default function WatchPage() {
 
   useEffect(() => {
     if (!playlistContext?.videoIds?.length) return
-    const pendingIds = playlistContext.videoIds.slice(
-      Math.max(0, playlistContext.currentIndex),
-      Math.max(0, playlistContext.currentIndex) + 6,
-    )
-    const idsToFetch = pendingIds.filter((id) => !playlistVideoMeta[id])
+    const startIndex = Math.max(0, playlistContext.currentIndex)
+    const orderedIds = playlistContext.videoIds.slice(startIndex)
+    const idsToFetch = orderedIds.filter((id) => !playlistVideoMeta[id])
     if (!idsToFetch.length) return
 
     let cancelled = false
-    ;(async () => {
-      const entries = await Promise.all(
-        idsToFetch.map(async (id) => {
+    const fetchMetaEntries = async (ids: string[]) =>
+      Promise.all(
+        ids.map(async (id) => {
           try {
             const res = await apiClient.getVideo(id)
             if (!res.success) return [id, {}] as const
@@ -612,18 +617,98 @@ export default function WatchPage() {
           }
         }),
       )
-      if (cancelled) return
-      setPlaylistVideoMeta((prev) => {
-        const next = { ...prev }
-        for (const [id, meta] of entries) next[id] = meta
-        return next
-      })
+
+    ;(async () => {
+      // Prioritize the first visible set, then progressively hydrate the rest.
+      const immediateIds = idsToFetch.slice(0, 6)
+      const remainingIds = idsToFetch.slice(6)
+
+      const pushEntries = (entries: Array<readonly [string, { title?: string; thumbnail?: string }]>) => {
+        if (cancelled || entries.length === 0) return
+        setPlaylistVideoMeta((prev) => {
+          const next = { ...prev }
+          for (const [id, meta] of entries) next[id] = meta
+          return next
+        })
+      }
+
+      const immediateEntries = await fetchMetaEntries(immediateIds)
+      pushEntries(immediateEntries)
+
+      const batchSize = 4
+      for (let i = 0; i < remainingIds.length && !cancelled; i += batchSize) {
+        const batch = remainingIds.slice(i, i + batchSize)
+        const batchEntries = await fetchMetaEntries(batch)
+        pushEntries(batchEntries)
+        if (!cancelled && i + batchSize < remainingIds.length) {
+          await new Promise((resolve) => setTimeout(resolve, 120))
+        }
+      }
     })()
 
     return () => {
       cancelled = true
     }
   }, [playlistContext, playlistVideoMeta])
+
+  useEffect(() => {
+    if (!currentVideoId) {
+      setCommentsCount(0)
+      setLatestComment(null)
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        setCommentsPreviewLoading(true)
+        const response = await apiClient.getComments(currentVideoId, 1, 1)
+        if (cancelled) return
+        if (!response.success) {
+          setCommentsCount(0)
+          setLatestComment(null)
+          return
+        }
+
+        const fetched = response.comments || []
+        setCommentsCount(typeof response.count === "number" ? response.count : fetched.length)
+        setLatestComment(fetched[0] || null)
+      } catch {
+        if (cancelled) return
+        setCommentsCount(0)
+        setLatestComment(null)
+      } finally {
+        if (!cancelled) {
+          setCommentsPreviewLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentVideoId, commentsSheetOpen])
+
+  useEffect(() => {
+    if (!latestComment?.comment_by_username) return
+    const username = latestComment.comment_by_username
+    if (commentsPreviewProfiles[username]) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const response = await apiClient.getUserByUsername(username)
+        if (cancelled || !response.success || !response.user) return
+        setCommentsPreviewProfiles((prev) => ({ ...prev, [username]: response.user }))
+      } catch {
+        // no-op: fallback avatar/initials will render
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [latestComment?.comment_by_username, commentsPreviewProfiles])
 
   const handlePlayerMediaReady = (readyVideoId: string) => {
     setPendingVideo((pending) => {
@@ -1303,12 +1388,12 @@ export default function WatchPage() {
                   {shouldShowMetadataSkeleton ? (
                     <div className="h-9 flex-1 bg-muted/40 rounded-md max-w-2xl animate-pulse" />
                   ) : (
-                    <h1 className="text-xl md:text-2xl font-bold break-words min-w-0 flex-1 pr-1">
+                    <h1 className="line-clamp-2 text-xl md:text-2xl font-bold break-words min-w-0 flex-1 pr-1">
                       {currentVideo?.videoTitle || currentVideo?.video_title}
                     </h1>
                   )}
                   {!shouldShowMetadataSkeleton && currentVideo && (
-                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 pt-0.5">
+                    <div className="hidden shrink-0 items-center gap-0.5 pt-0.5 md:flex">
                       <Button
                         type="button"
                         variant="ghost"
@@ -1336,50 +1421,17 @@ export default function WatchPage() {
                         <Share2 className="h-5 w-5" />
                       </Button>
                       {user ? (
-                        <>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                            onClick={() => setAddToPlaylistOpen(true)}
-                            aria-label="Add to playlist"
-                            title="Add to playlist"
-                          >
-                            <ListPlus className="h-5 w-5" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                                aria-label="More actions"
-                                title="More"
-                              >
-                                <MoreVertical className="h-5 w-5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuItem
-                                onClick={() => setAddToPlaylistOpen(true)}
-                                disabled={shouldShowMetadataSkeleton}
-                              >
-                                <ListPlus className="mr-2 h-4 w-4" />
-                                Add to playlist…
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => void handleDislike()}
-                                disabled={shouldShowMetadataSkeleton}
-                                className={cn(isDisliked && "bg-accent")}
-                              >
-                                Less like this
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={() => setAddToPlaylistOpen(true)}
+                          aria-label="Add to playlist"
+                          title="Add to playlist"
+                        >
+                          <ListPlus className="h-5 w-5" />
+                        </Button>
                       ) : null}
                     </div>
                   )}
@@ -1432,22 +1484,65 @@ export default function WatchPage() {
                         </div>
                       </div>
 
-                      {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && !shouldShowMetadataSkeleton && (
-                        <Button
-                          variant={isFollowing ? "secondary" : "default"}
-                          size="sm"
-                          className="rounded-full flex-shrink-0 px-4"
-                          onClick={handleFollow}
-                          disabled={isCheckingFollow || isFollowingAction}
-                        >
-                          {isCheckingFollow
-                            ? "Checking..."
-                            : isFollowingAction
-                              ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
-                              : isFollowing
-                                ? "Following"
-                                : "Follow"}
-                        </Button>
+                      {!shouldShowMetadataSkeleton && currentVideo && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
+                              isLiked && "text-primary hover:text-primary",
+                            )}
+                            onClick={handleLike}
+                            aria-pressed={isLiked}
+                            aria-label={isLiked ? "Remove from Liked videos" : "Save to Liked videos"}
+                            title={isLiked ? "Remove from Liked" : "Save to Liked"}
+                          >
+                            <Heart className={cn("h-5 w-5", isLiked && "fill-primary text-primary")} />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                            onClick={() => setShareDialogOpen(true)}
+                            aria-label="Share video"
+                            title="Share"
+                          >
+                            <Share2 className="h-5 w-5" />
+                          </Button>
+                          {user ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                              onClick={() => setAddToPlaylistOpen(true)}
+                              aria-label="Add to playlist"
+                              title="Add to playlist"
+                            >
+                              <ListPlus className="h-5 w-5" />
+                            </Button>
+                          ) : null}
+                          {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) ? (
+                            <Button
+                              variant={isFollowing ? "secondary" : "default"}
+                              size="sm"
+                              className="rounded-full flex-shrink-0 px-4"
+                              onClick={handleFollow}
+                              disabled={isCheckingFollow || isFollowingAction}
+                            >
+                              {isCheckingFollow
+                                ? "Checking..."
+                                : isFollowingAction
+                                  ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                                  : isFollowing
+                                    ? "Following"
+                                    : "Follow"}
+                            </Button>
+                          ) : null}
+                        </div>
                       )}
                     </div>
 
@@ -1556,16 +1651,153 @@ export default function WatchPage() {
                   )}
                 </div>
 
+                {playlistContext && (
+                  <div className="md:hidden rounded-xl border border-primary/25 bg-primary/5 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-primary/90">Active playlist</p>
+                        <p className="line-clamp-1 text-xs font-semibold">{playlistContext.title}</p>
+                      </div>
+                      <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {playlistContext.currentIndex + 1}/{playlistContext.videoIds.length}
+                      </span>
+                    </div>
+                    <div className="mt-2 max-h-[14.5rem] space-y-1.5 overflow-y-auto pr-1">
+                      {playlistContext.videoIds.map((id, absoluteIndex) => {
+                        const isActive = absoluteIndex === playlistContext.currentIndex
+                        const isPlayed = absoluteIndex < playlistContext.currentIndex
+                        const meta = playlistVideoMeta[id]
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors",
+                              isActive
+                                ? "border-primary/35 bg-primary/10"
+                                : isPlayed
+                                  ? "border-border/45 bg-background/55 hover:bg-accent/30"
+                                  : "border-border/60 bg-background/80 hover:bg-accent/40",
+                            )}
+                            onClick={() => {
+                              if (isActive) return
+                              const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
+                              setPlaylistContext(nextSession)
+                              setPlaylistSession(nextSession)
+                              navigateToVideo(id, absoluteIndex)
+                            }}
+                          >
+                            <div className="relative h-8 w-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                              {meta?.thumbnail ? <AuthenticatedImage src={meta.thumbnail} alt="" fill className="object-cover" /> : null}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={cn("line-clamp-1 text-[11px]", isActive ? "font-semibold" : "text-muted-foreground")}>
+                                {meta?.title || `Video ${absoluteIndex + 1}`}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {isActive ? "Now playing" : absoluteIndex === playlistContext.currentIndex + 1 ? "Up next" : ""}
+                              </p>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <Separator className="my-6" />
 
-                {(videoId || currentVideoId) && <CommentSection videoId={(videoId || currentVideoId) as string} />}
+                {(videoId || currentVideoId) && (
+                  <>
+                    <div className="hidden md:block">
+                      <CommentSection videoId={(videoId || currentVideoId) as string} />
+                    </div>
+                    <div className="md:hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCommentsSheetOpen(true)}
+                        className="w-full rounded-2xl border border-border bg-card p-4 text-left shadow-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                            <h3 className="text-lg font-semibold">Comments</h3>
+                            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-sm text-muted-foreground">
+                              {commentsCount}
+                            </span>
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {commentsCount > 0
+                            ? "Preview below. Tap to read the full thread."
+                            : "Start the conversation - add a comment below."}
+                        </p>
+
+                        <div className="mt-3 rounded-xl border border-border/60 bg-background p-3">
+                          {commentsPreviewLoading ? (
+                            <div className="space-y-2">
+                              <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+                              <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                            </div>
+                          ) : latestComment ? (
+                            <div className="flex items-start gap-3">
+                              <ProfilePicture
+                                user={
+                                  commentsPreviewProfiles[latestComment.comment_by_username] || {
+                                    username: latestComment.comment_by_username,
+                                    name: latestComment.comment_by_name,
+                                    profile_picture: latestComment.profile_picture || latestComment.comment_by_avatar,
+                                  }
+                                }
+                                size="sm"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate text-base font-semibold">{latestComment.comment_by_username}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {formatDistanceToNow(new Date(latestComment.commented_at), { addSuffix: true })}
+                                  </span>
+                                </div>
+                                <p className="mt-1 line-clamp-2 text-base">{latestComment.comment}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">No comments yet. Be the first to share what you think.</div>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3">
+                          <ProfilePicture user={userData || { username: "U" }} size="sm" />
+                          <div className="flex-1 rounded-full border border-primary/30 px-4 py-2 text-sm text-muted-foreground">
+                            Add a comment...
+                          </div>
+                          <SendHorizontal className="h-5 w-5 text-primary" />
+                        </div>
+                      </button>
+
+                      <Drawer open={commentsSheetOpen} onOpenChange={setCommentsSheetOpen}>
+                        <DrawerContent className="max-h-[90dvh]">
+                          <DrawerHandle className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted" />
+                          <DrawerHeader className="px-4 pb-2 pt-3">
+                            <DrawerTitle>Comments</DrawerTitle>
+                            <DrawerDescription>Read the thread and add your comment.</DrawerDescription>
+                          </DrawerHeader>
+                          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+                            <CommentSection videoId={(videoId || currentVideoId) as string} />
+                          </div>
+                        </DrawerContent>
+                      </Drawer>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
               {/* Sidebar / Related Videos - YouTube Style */}
              <div className="space-y-2 px-4 lg:px-0 pb-4 lg:pb-0">
                {playlistContext && (
-                 <div className="mb-3 rounded-xl border border-primary/25 bg-primary/5 p-2.5 md:mb-4 md:p-3">
+                 <div className="mb-3 hidden rounded-xl border border-primary/25 bg-primary/5 p-2.5 md:mb-4 md:block md:p-3">
                    <div className="flex items-center justify-between gap-2">
                      <div>
                        <p className="text-[10px] font-semibold uppercase tracking-wide text-primary/90 md:text-[11px]">Active playlist</p>
@@ -1575,7 +1807,7 @@ export default function WatchPage() {
                        {playlistContext.currentIndex + 1}/{playlistContext.videoIds.length}
                      </span>
                    </div>
-                   <div className="mt-2 space-y-1.5 md:mt-2.5">
+                  <div className="mt-2 max-h-[14.5rem] space-y-1.5 overflow-y-auto pr-1 md:mt-2.5 md:max-h-[24rem]">
                      {playlistContext.videoIds.map((id, absoluteIndex) => {
                          const isActive = absoluteIndex === playlistContext.currentIndex
                          const isPlayed = absoluteIndex < playlistContext.currentIndex
@@ -1609,9 +1841,9 @@ export default function WatchPage() {
                                <p className={cn("line-clamp-1 text-[11px] md:text-xs", isActive ? "font-semibold" : "text-muted-foreground")}>
                                  {meta?.title || `Video ${absoluteIndex + 1}`}
                                </p>
-                               <p className="text-[10px] text-muted-foreground md:text-[11px]">
-                                 {isActive ? "Now playing" : isPlayed ? "Played" : "Up next"}
-                               </p>
+                              <p className="text-[10px] text-muted-foreground md:text-[11px]">
+                                {isActive ? "Now playing" : absoluteIndex === playlistContext.currentIndex + 1 ? "Up next" : ""}
+                              </p>
                              </div>
                            </button>
                          )

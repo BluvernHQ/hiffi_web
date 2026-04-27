@@ -47,6 +47,27 @@ export default function ProfilePage() {
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
   const isRegularUser = profileUser?.role === "user" || profileUser?.role === undefined;
+
+  const getVideoUpdatedTimestamp = useCallback((video: any): number => {
+    const updatedCandidate =
+      video?.updated_at ??
+      video?.updatedAt ??
+      video?.video_updated_at ??
+      video?.videoUpdatedAt ??
+      video?.created_at ??
+      video?.createdAt ??
+      video?.createdat;
+
+    if (!updatedCandidate) return 0;
+    const timestamp = new Date(updatedCandidate).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  }, []);
+
+  const sortVideosByUpdatedDate = useCallback(
+    (videos: any[]) =>
+      [...videos].sort((a, b) => getVideoUpdatedTimestamp(b) - getVideoUpdatedTimestamp(a)),
+    [getVideoUpdatedTimestamp],
+  );
   
   // Debug: Log current user data to check if it's interfering
   console.log("[hiffi] Current user data (auth context):", {
@@ -265,18 +286,19 @@ export default function ProfilePage() {
         
         return video;
       });
+      const sortedEnhancedVideos = sortVideosByUpdatedDate(enhancedVideos);
 
       if (currentOffset === 0) {
         // Initial load - replace videos
-        setUserVideos(enhancedVideos);
+        setUserVideos(sortedEnhancedVideos);
         setOffset(0);
       } else {
         // Append new videos to existing ones
         setUserVideos((prev) => {
           // Prevent duplicates by checking video IDs
           const existingIds = new Set(prev.map(v => (v as any).videoId || (v as any).video_id));
-          const newVideos = enhancedVideos.filter(v => !existingIds.has((v as any).videoId || (v as any).video_id));
-          const updatedVideos = [...prev, ...newVideos];
+          const newVideos = sortedEnhancedVideos.filter(v => !existingIds.has((v as any).videoId || (v as any).video_id));
+          const updatedVideos = sortVideosByUpdatedDate([...prev, ...newVideos]);
           const newOffset = prev.length + newVideos.length;
           setOffset(newOffset);
           return updatedVideos;
@@ -284,10 +306,10 @@ export default function ProfilePage() {
       }
 
       // If we got fewer videos than requested, there are no more pages
-      setHasMore(enhancedVideos.length === VIDEOS_PER_PAGE);
+      setHasMore(sortedEnhancedVideos.length === VIDEOS_PER_PAGE);
       
-      if (enhancedVideos.length < VIDEOS_PER_PAGE) {
-        console.log(`[hiffi] Reached end of pagination. Got ${enhancedVideos.length} videos, expected ${VIDEOS_PER_PAGE}`);
+      if (sortedEnhancedVideos.length < VIDEOS_PER_PAGE) {
+        console.log(`[hiffi] Reached end of pagination. Got ${sortedEnhancedVideos.length} videos, expected ${VIDEOS_PER_PAGE}`);
       }
     } catch (error) {
       console.error("[hiffi] Failed to fetch user videos:", error);
@@ -308,7 +330,7 @@ export default function ProfilePage() {
       setLoadingMore(false);
       setIsFetching(false);
     }
-  }, [username, isFetching, profileUser, currentUserData, isOwnProfile]);
+  }, [username, isFetching, profileUser, currentUserData, isOwnProfile, sortVideosByUpdatedDate]);
 
   const loadMoreVideos = useCallback(() => {
     // Only load more if:
