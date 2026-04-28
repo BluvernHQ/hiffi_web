@@ -39,6 +39,7 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
   const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
+  const watchPath = `/watch/${videoId}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = isVideoProcessing(video)
 
@@ -50,11 +51,24 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
       ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
       : null)
 
+  const trackVideoOpen = () => {
+    if (typeof window === "undefined") return
+    const destinationUrl = `${window.location.origin}${watchPath}`
+    ;(window as any).HifiAnalytics?.capture("opened-video", {
+      element_ui_name: openVideoUiName,
+      video_id: videoId,
+      video_title: title || "Untitled Video",
+      url: destinationUrl,
+      path: watchPath,
+      source_path: window.location.pathname,
+    })
+  }
+
   return (
     <div className="group flex gap-2 hover:bg-muted/50 rounded-lg p-1 -mx-1 transition-colors">
       {/* Thumbnail - YouTube style: smaller, on the left */}
       <Link
-        href={`/watch/${videoId}`}
+        href={watchPath}
         prefetch={!isEncoding}
         data-analytics-name={openVideoUiName}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
@@ -64,6 +78,7 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
             toast(PROCESSING_VIDEO_TOAST)
             return
           }
+          trackVideoOpen()
           playVideo(video)
         }}
         aria-disabled={isEncoding}
@@ -98,7 +113,7 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
         <div className="mb-1 flex items-start gap-1.5">
           <h3 className="min-w-0 flex-1 font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
             <Link
-              href={`/watch/${videoId}`}
+              href={watchPath}
               prefetch={!isEncoding}
               className="hover:underline"
               onClick={(e) => {
@@ -107,6 +122,7 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
                   toast(PROCESSING_VIDEO_TOAST)
                   return
                 }
+                trackVideoOpen()
                 playVideo(video)
               }}
               aria-disabled={isEncoding}

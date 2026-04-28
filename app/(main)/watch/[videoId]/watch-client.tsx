@@ -25,7 +25,7 @@ import { getThumbnailUrl } from "@/lib/storage"
 import { getPlaylistSession, setPlaylistSession } from "@/lib/playlist-session"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
-import { getSeed } from "@/lib/seed-manager"
+import { getSeed, resetSeed } from "@/lib/seed-manager"
 import dynamic from "next/dynamic"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
@@ -326,6 +326,8 @@ export default function WatchPage() {
 
   // Called by VideoPlayer's Next button. Swaps source in-place → player stays mounted.
   const handlePlayerNext = (nextId: string) => {
+    // Use a fresh recommendation seed whenever the user advances to next.
+    resetSeed()
     if (playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
       const nextIndex = playlistContext.currentIndex + 1
       const playlistNextId = playlistContext.videoIds[nextIndex]
@@ -1315,6 +1317,7 @@ export default function WatchPage() {
       const nextIndex = playlistContext.currentIndex + 1
       const nextId = playlistContext.videoIds[nextIndex]
       if (nextId) {
+        resetSeed()
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
@@ -1328,6 +1331,7 @@ export default function WatchPage() {
       const nextVideo = sidebarSuggestedVideos[0]
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
+        resetSeed()
         console.log("[hiffi] Autoplaying next video:", nextVideoId)
         router.push(`/watch/${nextVideoId}`)
       }

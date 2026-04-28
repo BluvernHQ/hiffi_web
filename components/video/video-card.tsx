@@ -89,9 +89,23 @@ export function VideoCard({
   const title = video.videoTitle || video.video_title || ""
   const username = video.userUsername || video.user_username || ""
   const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
+  const watchPath = `/watch/${videoId}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const watchedAt = video.viewed_at || video.watched_at
   const isEncoding = isVideoProcessing(video)
+
+  const trackVideoOpen = () => {
+    if (typeof window === "undefined") return
+    const destinationUrl = `${window.location.origin}${watchPath}`
+    ;(window as any).HifiAnalytics?.capture("opened-video", {
+      element_ui_name: openVideoUiName,
+      video_id: videoId,
+      video_title: title || "Untitled Video",
+      url: destinationUrl,
+      path: watchPath,
+      source_path: window.location.pathname,
+    })
+  }
 
   const timestampIso = timestampKind === "watched" ? watchedAt : createdAt
   const watchedClock =
@@ -131,7 +145,7 @@ export function VideoCard({
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
         <CardContent className="p-0 flex flex-col h-auto gap-0.5 sm:gap-1 pb-0">
           <Link
-            href={`/watch/${videoId}`}
+            href={watchPath}
             prefetch={!isEncoding}
             data-analytics-name={openVideoUiName}
             className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
@@ -141,6 +155,7 @@ export function VideoCard({
                 toast(PROCESSING_VIDEO_TOAST)
                 return
               }
+              trackVideoOpen()
               // Preserve instant-load behavior without making the whole card clickable.
               playVideo(video)
             }}
@@ -200,7 +215,7 @@ export function VideoCard({
               <div className="flex items-start gap-1.5">
                 <h3 className="min-w-0 flex-1 font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
                 <Link
-                  href={`/watch/${videoId}`}
+                  href={watchPath}
                   prefetch={!isEncoding}
                   className="hover:underline"
                   onClick={(e) => {
@@ -209,6 +224,7 @@ export function VideoCard({
                       toast(PROCESSING_VIDEO_TOAST)
                       return
                     }
+                    trackVideoOpen()
                     playVideo(video)
                   }}
                   aria-disabled={isEncoding}
