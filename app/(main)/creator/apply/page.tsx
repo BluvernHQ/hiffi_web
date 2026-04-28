@@ -255,6 +255,7 @@ export default function BecomeCreatorPage() {
                 <Button
                   type="button"
                   size="lg"
+                  data-analytics-name="creator-studio-upload-new-video-button"
                   className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:mt-auto lg:h-12"
                   onClick={openStudioVideoPicker}
                   aria-label="Choose a video file to upload"
@@ -300,6 +301,7 @@ export default function BecomeCreatorPage() {
                 asChild
                 variant="outline"
                 size="default"
+                data-analytics-name="creator-studio-manage-profile-button"
                 className="mt-6 h-10 w-full rounded-xl border-border bg-background/90 text-[13px] font-medium motion-safe:active:scale-[0.99] hover:bg-muted/50 dark:bg-transparent dark:hover:bg-muted/30 lg:mt-6"
               >
                 <Link href={profileHref}>Manage profile</Link>
@@ -393,6 +395,7 @@ export default function BecomeCreatorPage() {
             <Button
               type="button"
               size="lg"
+              data-analytics-name="creator-become-creator-button"
               className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:h-12"
               onClick={handleBecomeCreator}
               disabled={isUnlocking}

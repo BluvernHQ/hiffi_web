@@ -137,7 +137,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3" data-analytics-name="navbar-home-logo-link">
               <Image
                 src="/appbarlogo.png"
                 alt="Hiffi Logo"
@@ -153,6 +153,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
               <div
                 onClick={() => setIsSearchOpen(true)}
+                data-analytics-name="navbar-open-search-button"
                 className="group relative flex items-center w-full h-9 rounded-full bg-muted/50 border border-input hover:bg-muted hover:border-primary/30 transition-all cursor-pointer overflow-hidden"
               >
                 <Search className="absolute left-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -169,14 +170,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 {showUploadButton && (
                   <>
                     {userData.role === "creator" ? (
-                      <Button variant="ghost" size="icon" asChild className="hidden md:flex">
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
                         <Link href="/creator/apply">
                           <Upload className="h-5 w-5" />
                           <span className="sr-only">Hiffi Studio</span>
                         </Link>
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="icon" asChild className="hidden md:flex">
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-become-creator-button">
                         <Link href="/creator/apply">
                           <Sparkles className="h-5 w-5" />
                           <span className="sr-only">Become Creator</span>
@@ -200,7 +201,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/profile/${userData.username}`}>
+                      <Link href={`/profile/${userData.username}`} data-analytics-name="navbar-profile-link">
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
@@ -208,7 +209,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                     {userData.role === "creator" ? (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link href="/creator/apply">
+                          <Link href="/creator/apply" data-analytics-name="navbar-user-menu-hiffi-studio-link">
                             <Video className="mr-2 h-4 w-4" />
                             <span>Hiffi Studio</span>
                           </Link>
@@ -216,7 +217,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       </>
                     ) : (
                       <DropdownMenuItem asChild>
-                        <Link href="/creator/apply">
+                        <Link href="/creator/apply" data-analytics-name="navbar-user-menu-become-creator-link">
                           <Sparkles className="mr-2 h-4 w-4" />
                           <span>Become a Creator</span>
                         </Link>
@@ -239,7 +240,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <Button asChild className="rounded-full px-6">
+                <Button asChild className="rounded-full px-6" data-analytics-name="navbar-login-button">
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>
                 </Button>
               </div>
@@ -267,6 +268,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               variant="destructive"
               onClick={handleLogoutConfirm}
               disabled={isLoggingOut}
+              data-analytics-name="navbar-logout-confirm-button"
             >
               {isLoggingOut ? (
                 <>

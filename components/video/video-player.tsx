@@ -1589,6 +1589,7 @@ export function VideoPlayer({
           )}
         >
           <button
+            data-analytics-name="backward"
             onClick={(e) => {
               e.stopPropagation()
               handlePrevious()
@@ -1598,6 +1599,7 @@ export function VideoPlayer({
             <SkipBack className="h-5 w-5" />
           </button>
           <button
+            data-analytics-name={isPlaying ? "paused_video" : "played_video"}
             onClick={(e) => {
               e.stopPropagation()
               togglePlay()
@@ -1611,6 +1613,7 @@ export function VideoPlayer({
             )}
           </button>
           <button
+            data-analytics-name="fast-forward"
             onClick={(e) => {
               e.stopPropagation()
               handleNext()
@@ -1653,6 +1656,7 @@ export function VideoPlayer({
       {hasEnded && !showNextUpOverlay && (
         <div 
           className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
+          data-analytics-name="played-video"
           onClick={togglePlay}
         >
           <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -1665,6 +1669,7 @@ export function VideoPlayer({
       {!isPlaying && !isBuffering && !hasEnded && !isAutoplayInProgress && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
+          data-analytics-name="played-video"
           onClick={togglePlay}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -1685,6 +1690,7 @@ export function VideoPlayer({
           <Button
             variant="secondary"
             size="sm"
+            data-analytics-name="unmuted-video"
             className="rounded-full bg-black/60 hover:bg-black/80 text-white border-white/10 gap-2 backdrop-blur-sm shadow-lg animate-in fade-in zoom-in duration-300"
             onClick={(e) => {
               e.stopPropagation()
@@ -1737,6 +1743,7 @@ export function VideoPlayer({
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
+                data-analytics-name={isMuted || isForcedMute ? "unmuted_video" : "muted_video"}
                 onClick={(e) => {
                   e.stopPropagation()
                   toggleMute()
@@ -1746,6 +1753,7 @@ export function VideoPlayer({
                 {getVolumeIcon()}
               </button>
               <button
+                data-analytics-name={isFullscreen ? "exited_fullscreen" : "entered_fullscreen"}
                 onClick={(e) => {
                   e.stopPropagation()
                   toggleFullscreen()
@@ -1763,6 +1771,7 @@ export function VideoPlayer({
         <div className="hidden md:flex items-center justify-between text-white gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
+              data-analytics-name="backward"
               onClick={(e) => {
                 e.stopPropagation()
                 handlePrevious()
@@ -1773,6 +1782,7 @@ export function VideoPlayer({
             </button>
 
             <button
+              data-analytics-name={isPlaying ? "paused_video" : "played_video"}
               onClick={(e) => {
                 e.stopPropagation()
                 togglePlay()
@@ -1787,6 +1797,7 @@ export function VideoPlayer({
             </button>
 
             <button
+              data-analytics-name="fast-forward"
               onClick={(e) => {
                 e.stopPropagation()
                 handleNext()
@@ -1802,6 +1813,7 @@ export function VideoPlayer({
 
             <div className="flex items-center gap-2 group/volume shrink-0">
               <button
+                data-analytics-name={isMuted || isForcedMute ? "unmuted_video" : "muted_video"}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleMute();
@@ -1834,7 +1846,7 @@ export function VideoPlayer({
             {Object.keys(profiles).length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors focus:outline-none">
+                  <button data-analytics-name="opened-quality-settings" className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors focus:outline-none">
                     <Settings className="h-5 w-5" />
                   </button>
                 </DropdownMenuTrigger>
@@ -1860,7 +1872,7 @@ export function VideoPlayer({
                 <Settings className="h-5 w-5" />
               </button>
             )}
-            <button onClick={toggleFullscreen} className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors">
+            <button data-analytics-name={isFullscreen ? "exited_fullscreen" : "entered_fullscreen"} onClick={toggleFullscreen} className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors">
               {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </button>
           </div>

@@ -72,6 +72,7 @@ export function GlobalPersistentPlayer() {
           <Button 
             size="icon" 
             variant="secondary" 
+            data-analytics-name="global-player-expand-button"
             className="h-8 w-8 rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background" 
             onClick={handleExpand}
           >

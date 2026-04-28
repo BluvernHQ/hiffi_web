@@ -361,6 +361,7 @@ function SignupForm() {
               <Button 
                 type="submit" 
                 className="w-full" 
+                data-analytics-name="signup-verify-otp-button"
                 disabled={isVerifying || otp.length !== 6}
               >
                 {isVerifying ? (
@@ -382,6 +383,7 @@ function SignupForm() {
                   ) : (
                     <button
                       type="button"
+                      data-analytics-name="signup-resend-otp-button"
                       onClick={handleResendOtp}
                       disabled={isResending}
                       className="text-primary hover:underline font-medium disabled:opacity-50"
@@ -394,6 +396,7 @@ function SignupForm() {
                   type="button"
                   variant="ghost"
                   size="sm"
+                  data-analytics-name="signup-back-to-registration-button"
                   onClick={() => {
                     setRegistrationId(null)
                     setOtp("")
@@ -422,6 +425,7 @@ function SignupForm() {
               type="button"
               variant="ghost"
               size="sm"
+              data-analytics-name="signup-skip-button"
               onClick={handleSkip}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -534,6 +538,7 @@ function SignupForm() {
                 />
                 <button
                   type="button"
+                  data-analytics-name="signup-toggle-password-visibility-button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -550,6 +555,7 @@ function SignupForm() {
             <Button 
               type="submit" 
               className="w-full" 
+              data-analytics-name="signup-create-account-button"
               disabled={
                 isLoading || 
                 checkingUsername || 

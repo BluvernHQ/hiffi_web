@@ -176,6 +176,7 @@ export default function LikedVideosPage() {
             videos={videos}
             loading={isLoadingVideos}
             hasMore={shouldShowLoadMore}
+            openVideoUiName="opened-video-from-liked"
             onLoadMore={loadMoreVideos}
             onVideoDeleted={(videoId) => {
               setVideos((prev) =>

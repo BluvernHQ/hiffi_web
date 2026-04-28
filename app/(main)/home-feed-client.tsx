@@ -195,6 +195,7 @@ export function HomeFeedClient({ initialVideos }: HomeFeedClientProps) {
           videos={videos}
           loading={loading || loadingMore}
           hasMore={hasMore}
+          openVideoUiName="opened-video-from-home"
           onLoadMore={loadMore}
           onVideoDeleted={(videoId) =>
             setVideos((prev) => prev.filter((v: any) => (v.videoId || v.video_id) !== videoId))

@@ -266,6 +266,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       <button
                         key={search}
                         onClick={() => handleSearch(search)}
+                        data-analytics-name="search-overlay-trending-search-button"
                         className={cn(
                           "w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors",
                           selectedIndex === index && "bg-muted"
@@ -310,6 +311,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                     <Link
                                       key={result.id}
                                       href={`/profile/${result.username}`}
+                                      data-analytics-name="search-overlay-user-result-link"
                                       onClick={onClose}
                                       className="block"
                                       ref={(el) => {
@@ -396,6 +398,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       <button
                                         key={result.id}
                                         type="button"
+                                        data-analytics-name="search-overlay-processing-video-result-button"
                                         className="block w-full text-left"
                                         onClick={() => toast(PROCESSING_VIDEO_TOAST)}
                                         ref={(el) => {
@@ -410,6 +413,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                     <Link
                                       key={result.id}
                                       href={`/watch/${result.id}`}
+                                      data-analytics-name="search-overlay-video-result-link"
                                       onClick={onClose}
                                       className="block"
                                       ref={(el) => {
@@ -432,6 +436,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         "w-full mt-4 border-t pt-4",
                         selectedIndex === suggestions.length && "bg-muted"
                       )}
+                      data-analytics-name="search-overlay-view-all-results-button"
                       onClick={() => handleSearch(query)}
                       ref={(el) => {
                         if (el) resultItemRefs.current[suggestions.length] = el;

@@ -27,9 +27,10 @@ interface CompactVideoCardProps {
     created_at?: string
     status?: string
   }
+  openVideoUiName?: string
 }
 
-export function CompactVideoCard({ video }: CompactVideoCardProps) {
+export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: CompactVideoCardProps) {
   const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
   const videoId = video.videoId || video.video_id || ""
@@ -37,6 +38,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
   const title = video.videoTitle || video.video_title || ""
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
+  const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = isVideoProcessing(video)
 
@@ -54,6 +56,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
       <Link
         href={`/watch/${videoId}`}
         prefetch={!isEncoding}
+        data-analytics-name={openVideoUiName}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
         onClick={(e) => {
           if (isEncoding) {
@@ -88,6 +91,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
             {(video as any).duration}
           </div>
         )}
+        <span className="sr-only">{title || "Untitled Video"}</span>
       </Link>
 
       <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
@@ -115,6 +119,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
         <div className="flex items-center min-w-0 mb-0.5">
           <Link
             href={`/profile/${username}`}
+            data-analytics-name={profileOpenUiName}
             className="text-xs text-muted-foreground hover:text-foreground truncate font-medium min-w-0 flex-shrink"
           >
             @{username || "unknown"}

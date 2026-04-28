@@ -65,6 +65,8 @@ interface VideoCardProps {
   watchedTimeFormat?: "relative" | "clock"
   /** Owner-only delete UI; only enabled from the profile page (not watch / discover / history). */
   showDeleteOption?: boolean
+  /** Analytics label for opening a video from this card context. */
+  openVideoUiName?: string
 }
 
 export function VideoCard({
@@ -75,6 +77,7 @@ export function VideoCard({
   timestampKind = "uploaded",
   watchedTimeFormat = "relative",
   showDeleteOption = false,
+  openVideoUiName = "opened-video",
 }: VideoCardProps) {
   const { user, userData } = useAuth()
   const { playVideo } = useGlobalVideo()
@@ -85,6 +88,7 @@ export function VideoCard({
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
   const username = video.userUsername || video.user_username || ""
+  const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const watchedAt = video.viewed_at || video.watched_at
   const isEncoding = isVideoProcessing(video)
@@ -129,6 +133,7 @@ export function VideoCard({
           <Link
             href={`/watch/${videoId}`}
             prefetch={!isEncoding}
+            data-analytics-name={openVideoUiName}
             className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
             onClick={(e) => {
               if (isEncoding) {
@@ -178,6 +183,7 @@ export function VideoCard({
                 </div>
               </div>
             )}
+            <span className="sr-only">{title || "Untitled Video"}</span>
           </Link>
           <div className="flex gap-3 px-1 relative">
             <div className="flex-shrink-0">
@@ -216,6 +222,7 @@ export function VideoCard({
                     type="button"
                     variant="ghost"
                     size="icon"
+                    data-analytics-name="video-card-add-to-playlist-button"
                     className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
                     onClick={(e) => {
                       e.stopPropagation()
@@ -233,6 +240,7 @@ export function VideoCard({
                   <div className="flex items-center justify-between gap-2 min-w-0 py-0.5">
                     <Link
                       href={`/profile/${username}`}
+                      data-analytics-name={profileOpenUiName}
                       className="hover:text-foreground truncate font-medium min-w-0"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -248,6 +256,7 @@ export function VideoCard({
                   <>
                     <Link
                       href={`/profile/${username}`}
+                      data-analytics-name={profileOpenUiName}
                       className="hover:text-foreground truncate font-medium max-w-full block py-0.5"
                       onClick={(e) => e.stopPropagation()}
                     >

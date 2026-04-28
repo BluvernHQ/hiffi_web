@@ -734,6 +734,7 @@ function PlaylistsPageContent() {
                           <Button
                             type="button"
                             size="icon"
+                            data-analytics-name="opened-video-from-playlist"
                             className="h-10 w-10 shrink-0 rounded-full opacity-100 transition-all duration-200 md:translate-y-1 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-within:translate-y-0 md:group-focus-within:opacity-100"
                             aria-label={`Play playlist ${p.title}`}
                             onClick={(e) => {
@@ -845,6 +846,7 @@ function PlaylistsPageContent() {
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <Button
                     type="button"
+                    data-analytics-name="opened-video-from-playlist"
                     className="rounded-full bg-white px-5 text-foreground shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-white/90 active:scale-[0.98]"
                     onClick={() => {
                       if (!selectedId) return
@@ -916,6 +918,7 @@ function PlaylistsPageContent() {
                     <div className="flex items-center gap-3.5 p-3 sm:p-3.5">
                       <button
                         type="button"
+                        data-analytics-name="opened-video-from-playlist"
                         className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
                         onClick={() => {
                           if (!selectedId) return
@@ -947,6 +950,7 @@ function PlaylistsPageContent() {
                         <Button
                           type="button"
                           size="sm"
+                          data-analytics-name="opened-video-from-playlist"
                           className="h-8 rounded-full px-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                           onClick={() => {
                             if (!selectedId) return

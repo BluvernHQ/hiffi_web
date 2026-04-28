@@ -8,8 +8,10 @@ import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
+import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
+import { API_BASE_URL } from '@/lib/config'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -124,6 +126,13 @@ export default function RootLayout({
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
   const gaId = process.env.NEXT_PUBLIC_GA_ID
   const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const apiAnalyticsEnabled =
+    process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
+  const apiAnalyticsSrc = apiAnalyticsEnabled
+    ? `${API_BASE_URL.replace(/\/$/, "")}/tracker.js`
+    : null
+  const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
+  const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
 
   return (
     <html lang="en">
@@ -174,6 +183,15 @@ export default function RootLayout({
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
             strategy="afterInteractive"
+          />
+        )}
+        {/* First-party analytics script from API (same base as NEXT_PUBLIC_API_URL) */}
+        {apiAnalyticsSrc && (
+          <ApiAnalyticsTracker
+            src={apiAnalyticsSrc}
+            baseUrl={API_BASE_URL}
+            ingestKey={analyticsIngestKey}
+            appVersion={analyticsAppVersion}
           />
         )}
       </head>

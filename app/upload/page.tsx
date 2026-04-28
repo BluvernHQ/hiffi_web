@@ -401,10 +401,10 @@ export default function UploadPage() {
                     <p className="text-muted-foreground">Please sign in to your account to upload videos.</p>
                   </div>
                   <div className="flex gap-4 justify-center pt-4">
-                    <Button asChild>
+                    <Button asChild data-analytics-name="upload-login-prompt-signin-button">
                       <Link href="/login">Sign in</Link>
                     </Button>
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild data-analytics-name="upload-login-prompt-signup-button">
                       <Link href="/signup">Sign up</Link>
                     </Button>
                     <Button variant="ghost" asChild>
@@ -451,7 +451,7 @@ export default function UploadPage() {
                     <h3 className="text-xl font-semibold">Drag and drop video files to upload</h3>
                     <p className="text-muted-foreground mt-2">Your videos will be private until you publish them.</p>
                   </div>
-                  <Button size="lg" className="mt-4">Select Files</Button>
+                  <Button size="lg" className="mt-4" data-analytics-name="upload-select-files-button">Select Files</Button>
                   <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -566,6 +566,7 @@ export default function UploadPage() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                data-analytics-name="upload-custom-thumbnail-button"
                                 onClick={() => thumbnailInputRef.current?.click()}
                               >
                                 <ImageIcon className="h-4 w-4 mr-2" />
@@ -576,6 +577,7 @@ export default function UploadPage() {
                                   type="button"
                                   variant="ghost"
                                   size="sm"
+                                  data-analytics-name="upload-remove-thumbnail-button"
                                   onClick={handleRemoveThumbnail}
                                 >
                                   Remove
@@ -600,6 +602,7 @@ export default function UploadPage() {
                   <Button
                     variant="outline"
                     type="button"
+                    data-analytics-name="upload-cancel-draft-button"
                     onClick={() => {
                       if (file) setCancelSelectDialogOpen(true);
                       else setUploadStep('select');
@@ -607,7 +610,7 @@ export default function UploadPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="button" onClick={handleUpload} disabled={!title}>
+                  <Button type="button" onClick={handleUpload} disabled={!title} data-analytics-name="upload-submit-video-button">
                     Upload Video
                   </Button>
                 </div>
@@ -630,7 +633,7 @@ export default function UploadPage() {
                   </div>
                   <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap">
                     {uploadingWatchVideoId ? (
-                      <Button type="button" asChild className="sm:min-w-[160px]">
+                      <Button type="button" asChild className="sm:min-w-[160px]" data-analytics-name="upload-progress-watch-video-button">
                         <Link href={`/watch/${encodeURIComponent(uploadingWatchVideoId)}`}>Watch Video</Link>
                       </Button>
                     ) : (
@@ -664,7 +667,7 @@ export default function UploadPage() {
                   </div>
                   <div className="flex flex-col items-stretch gap-3 pt-4 sm:flex-row sm:flex-wrap sm:justify-center">
                     {successVideoId ? (
-                      <Button type="button" asChild className="sm:min-w-[140px]">
+                      <Button type="button" asChild className="sm:min-w-[140px]" data-analytics-name="upload-success-watch-video-button">
                         <Link href={`/watch/${encodeURIComponent(successVideoId)}`}>Watch Video</Link>
                       </Button>
                     ) : null}
@@ -672,6 +675,7 @@ export default function UploadPage() {
                       type="button"
                       variant="secondary"
                       className="sm:min-w-[140px]"
+                      data-analytics-name="upload-another-video-button"
                       onClick={() => {
                         setSuccessVideoId(null);
                         setFile(null);

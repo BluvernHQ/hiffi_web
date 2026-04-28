@@ -90,6 +90,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     return (
       <Link
         href={item.href}
+        data-analytics-name={`sidebar_${item.label.toLowerCase().replace(/\s+/g, "_")}_link`}
         className={cn(
           // Standardized spacing and sizing - matches FilterItem exactly
           "flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
@@ -135,6 +136,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     return (
       <button
         onClick={handleClick}
+        data-analytics-name={`sidebar_${item.label.toLowerCase().replace(/\s+/g, "_")}_button`}
         className={cn(
           // Standardized spacing and sizing - never changes
           "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors text-left",

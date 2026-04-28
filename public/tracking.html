@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HifiAnalytics — tracker.js test</title>
+    <style>
+        :root {
+            --bg: #0b0d12;
+            --card: #151922;
+            --border: #2a3142;
+            --text: #e8eaef;
+            --muted: #8b93a7;
+            --red: #ed1b2e;
+            --teal: #14b8a6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        .wrap { max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 1.35rem; margin: 0 0 8px; }
+        .sub { color: var(--muted); font-size: 0.875rem; margin-bottom: 24px; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 16px;
+        }
+        .card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--teal); margin: 0 0 12px; }
+        label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #0f131a;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+        .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+        button {
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--red), #b81422 50%, var(--teal));
+            color: #fff;
+        }
+        button.secondary {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        button.demo {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            color: #cbd5e1;
+        }
+        #log {
+            font-family: ui-monospace, monospace;
+            font-size: 0.75rem;
+            background: #0a0c10;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 220px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #94a3b8;
+        }
+        .warn {
+            background: rgba(237, 27, 46, 0.12);
+            border: 1px solid rgba(237, 27, 46, 0.35);
+            color: #fca5a5;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>HifiAnalytics test</h1>
+        <p class="sub">Open this page from your running API (e.g. <code>http://localhost:5002/webStatic/tracker-test.html</code>) so <code>/webStatic/tracker.js</code> and <code>POST /analytics/events/batch</code> share the same origin.</p>
+
+        <div class="warn">If <code>ANALYTICS_INGEST_KEY</code> is set on the server, paste the same value below before capturing.</div>
+
+        <div class="card">
+            <h2>Config</h2>
+            <label for="baseUrl">API base URL (empty = current origin)</label>
+            <input type="text" id="baseUrl" placeholder="https://api.example.com" autocomplete="off">
+            <label for="ingestKey">Ingest key (optional)</label>
+            <input type="password" id="ingestKey" placeholder="X-Analytics-Ingest-Key if required" autocomplete="off">
+            <div class="row">
+                <button type="button" id="btnInit">Init tracker</button>
+                <button type="button" class="secondary" id="btnStatus">Log config</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Actions</h2>
+            <div class="row">
+                <button type="button" id="btnCapture">Capture <code>tracker_test_manual</code></button>
+                <button type="button" class="secondary" id="btnFlush">Flush queue now</button>
+                <button type="button" class="secondary" id="btnBeacon">Flush (beacon)</button>
+            </div>
+            <label for="identifyId">Identify distinct_id</label>
+            <input type="text" id="identifyId" placeholder="logged-in-user-id" autocomplete="off">
+            <div class="row">
+                <button type="button" id="btnIdentify">Identify</button>
+                <button type="button" class="secondary" id="btnResetIdentify">Clear identify (anonymous)</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Autocapture ($click)</h2>
+            <p style="font-size:0.85rem;color:var(--muted);margin:0 0 10px;">With default <code>autocapture: true</code>, clicks are captured as <code>$click</code>.</p>
+            <div class="row">
+                <button type="button" class="demo" id="demoA">Demo button A</button>
+                <button type="button" class="demo" id="demoB">Demo button B</button>
+                <a href="#" class="demo" id="demoLink" style="display:inline-block;padding:10px 16px;border-radius:8px;text-decoration:none;color:#cbd5e1;border:1px solid var(--border);">Demo link</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script src="/tracker.js"></script>
+    <script>
+        (function () {
+            var logEl = document.getElementById('log');
+            function log(msg) {
+                var t = new Date().toISOString().slice(11, 23);
+                logEl.textContent = '[' + t + '] ' + msg + '\n' + logEl.textContent;
+            }
+
+            function getBaseUrl() {
+                var v = document.getElementById('baseUrl').value.trim();
+                return v || window.location.origin;
+            }
+
+            function getIngestKey() {
+                return document.getElementById('ingestKey').value.trim() || null;
+            }
+
+            document.getElementById('btnInit').addEventListener('click', function () {
+                if (!window.HifiAnalytics) {
+                    log('ERROR: HifiAnalytics not loaded (check script path / server).');
+                    return;
+                }
+                HifiAnalytics.init({
+                    baseUrl: getBaseUrl(),
+                    ingestKey: getIngestKey(),
+                    appVersion: 'tracker-test-page',
+                    autocapture: true,
+                    flushIntervalMs: 4000,
+                    maxBatch: 5,
+                });
+                log('init ok baseUrl=' + getBaseUrl() + ' ingestKey=' + (getIngestKey() ? '(set)' : '(none)'));
+            });
+
+            document.getElementById('btnStatus').addEventListener('click', function () {
+                if (!window.HifiAnalytics) {
+                    log('HifiAnalytics missing');
+                    return;
+                }
+                log('capture / flush / identify available on HifiAnalytics');
+            });
+
+            document.getElementById('btnCapture').addEventListener('click', function () {
+                if (!window.HifiAnalytics) return log('init first');
+                HifiAnalytics.capture('tracker_test_manual', {
+                    source: 'tracker-test.html',
+                    ts: Date.now(),
+                });
+                log('capture tracker_test_manual');
+            });
+
+            document.getElementById('btnFlush').addEventListener('click', function () {
+                if (!window.HifiAnalytics) return log('init first');
+                HifiAnalytics.flush();
+                log('flush()');
+            });
+
+            document.getElementById('btnBeacon').addEventListener('click', function () {
+                if (!window.HifiAnalytics) return log('init first');
+                HifiAnalytics.flushBeacon();
+                log('flushBeacon()');
+            });
+
+            document.getElementById('btnIdentify').addEventListener('click', function () {
+                if (!window.HifiAnalytics) return log('init first');
+                var id = document.getElementById('identifyId').value.trim();
+                if (!id) return log('enter distinct_id');
+                HifiAnalytics.identify(id);
+                log('identify ' + id);
+            });
+
+            document.getElementById('btnResetIdentify').addEventListener('click', function () {
+                if (!window.HifiAnalytics) return log('init first');
+                HifiAnalytics.identify(null);
+                document.getElementById('identifyId').value = '';
+                log('identify cleared');
+            });
+
+            document.getElementById('demoLink').addEventListener('click', function (e) {
+                e.preventDefault();
+            });
+
+            log('Click "Init tracker", then use actions. Watch DevTools → Network for POST /analytics/events/batch');
+        })();
+    </script>
+</body>
+</html>

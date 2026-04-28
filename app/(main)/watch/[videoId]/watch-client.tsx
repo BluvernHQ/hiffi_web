@@ -1398,6 +1398,7 @@ export default function WatchPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        data-analytics-name={isLiked ? "unliked" : "liked"}
                         className={cn(
                           "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                           isLiked && "text-primary hover:text-primary",
@@ -1413,6 +1414,7 @@ export default function WatchPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        data-analytics-name="shared-video"
                         className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                         onClick={() => setShareDialogOpen(true)}
                         aria-label="Share video"
@@ -1425,6 +1427,7 @@ export default function WatchPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          data-analytics-name="added-to-playlist"
                           className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                           onClick={() => setAddToPlaylistOpen(true)}
                           aria-label="Add to playlist"
@@ -1490,6 +1493,7 @@ export default function WatchPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
+                            data-analytics-name={isLiked ? "unliked" : "liked"}
                             className={cn(
                               "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                               isLiked && "text-primary hover:text-primary",
@@ -1505,6 +1509,7 @@ export default function WatchPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
+                            data-analytics-name="shared-video"
                             className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                             onClick={() => setShareDialogOpen(true)}
                             aria-label="Share video"
@@ -1517,6 +1522,7 @@ export default function WatchPage() {
                               type="button"
                               variant="ghost"
                               size="icon"
+                              data-analytics-name="added-to-playlist"
                               className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                               onClick={() => setAddToPlaylistOpen(true)}
                               aria-label="Add to playlist"
@@ -1529,6 +1535,7 @@ export default function WatchPage() {
                             <Button
                               variant={isFollowing ? "secondary" : "default"}
                               size="sm"
+                              data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
                               className="rounded-full flex-shrink-0 px-4"
                               onClick={handleFollow}
                               disabled={isCheckingFollow || isFollowingAction}
@@ -1595,6 +1602,7 @@ export default function WatchPage() {
                         <Button
                           variant={isFollowing ? "secondary" : "default"}
                           size="sm"
+                          data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
                           className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
                           onClick={handleFollow}
                           disabled={isCheckingFollow || isFollowingAction}
@@ -1715,6 +1723,7 @@ export default function WatchPage() {
                     <div className="md:hidden">
                       <button
                         type="button"
+                        data-analytics-name="opened-comments"
                         onClick={() => setCommentsSheetOpen(true)}
                         className="w-full rounded-2xl border border-border bg-card p-4 text-left shadow-sm"
                       >
@@ -1855,7 +1864,11 @@ export default function WatchPage() {
                <div className={cn("flex flex-col gap-1 transition-opacity duration-500", (isRelatedLoading && shouldShowRelatedSkeleton) ? "opacity-100" : (isRelatedLoading ? "opacity-60" : "opacity-100"))}>
                  {sidebarSuggestedVideos.length > 0 ? (
                    sidebarSuggestedVideos.map((v) => (
-                     <CompactVideoCard key={v.videoId || v.video_id} video={v} />
+                    <CompactVideoCard
+                      key={v.videoId || v.video_id}
+                      video={v}
+                      openVideoUiName="opened-video-from-recommended"
+                    />
                    ))
                  ) : (
                    shouldShowRelatedSkeleton ? <div className="space-y-4">

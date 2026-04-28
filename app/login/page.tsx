@@ -91,6 +91,7 @@ function LoginForm() {
               type="button"
               variant="ghost"
               size="sm"
+              data-analytics-name="login-skip-button"
               onClick={handleSkip}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -131,6 +132,7 @@ function LoginForm() {
                 />
                 <button
                   type="button"
+                  data-analytics-name="login-toggle-password-visibility-button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -152,7 +154,7 @@ function LoginForm() {
               </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading} data-analytics-name="login-submit-button">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

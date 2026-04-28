@@ -35,6 +35,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  const identifyAnalyticsUser = (username: string | null) => {
+    if (typeof window === "undefined") return
+
+    const tryIdentify = () => {
+      const analytics = (window as any).HifiAnalytics
+      if (!analytics || typeof analytics.identify !== "function") return false
+      analytics.identify(username)
+      return true
+    }
+
+    if (tryIdentify()) return
+
+    // Tracker can load after auth resolves; retry briefly to avoid losing early identified events.
+    let attempts = 0
+    const maxAttempts = 20
+    const intervalId = window.setInterval(() => {
+      attempts += 1
+      if (tryIdentify() || attempts >= maxAttempts) {
+        window.clearInterval(intervalId)
+      }
+    }, 250)
+  }
+
+  useEffect(() => {
+    identifyAnalyticsUser(user?.username ?? null)
+  }, [user?.username])
+
   const refreshUserData = async (forceRefresh = false): Promise<any | null> => {
     const token = apiClient.getAuthToken()
     if (!token) {
@@ -260,6 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set initial user data from login response
       setUser(response.data.user)
       setUserData(response.data.user)
+      identifyAnalyticsUser(response.data.user.username || null)
 
       // Cache the user data
       if (typeof window !== "undefined") {
@@ -401,6 +429,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set user data from response
       setUser(response.data.user)
       setUserData(response.data.user)
+      identifyAnalyticsUser(response.data.user.username || null)
 
       // Cache the user data
       if (typeof window !== "undefined") {
@@ -432,6 +461,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       apiClient.clearAuthToken()
       setUser(null)
       setUserData(null)
+      identifyAnalyticsUser(null)
 
       const errorMessage = error.message || "OTP verification failed. Please try again."
       throw new Error(errorMessage)
