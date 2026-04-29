@@ -109,7 +109,7 @@ export default function AdminLoginPage() {
       // Note: The login function will redirect admin users automatically, but we still
       // need to verify the role here in case the redirect doesn't happen (e.g., in dev)
       try {
-        await login(username, password)
+        await login(username, password, null, { forceAdminDashboardRedirect: true })
       } catch (loginError: any) {
         // If login throws an error (e.g., disabled account), handle it
         if (loginError.message?.includes("disabled")) {

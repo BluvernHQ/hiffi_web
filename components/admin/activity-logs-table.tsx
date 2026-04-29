@@ -346,14 +346,23 @@ export function AdminActivityLogsTable() {
 
       <div className="rounded-lg border bg-background shadow-sm">
         <div className="hidden md:block overflow-auto">
-          <table className="w-full min-w-[1000px]">
+          <table className="w-full min-w-[860px] table-fixed">
+            <colgroup>
+              <col className="w-[19%]" />
+              <col className="w-[10%]" />
+              <col className="w-[33%]" />
+              <col className="w-[22%]" />
+              <col className="w-[16%]" />
+            </colgroup>
             <thead className="sticky top-0 z-10 bg-muted/50">
               <tr className="border-b">
                 <th className="h-11 px-3 text-left text-sm font-semibold">User</th>
                 <th className="h-11 px-3 text-left text-sm font-semibold">IP</th>
                 <th className="h-11 px-3 text-left text-sm font-semibold">Activity</th>
                 <th className="h-11 px-3 text-left text-sm font-semibold">Data</th>
-                <th className="h-11 px-3 text-left text-sm font-semibold">Activity Date</th>
+                <th className="sticky right-0 z-20 h-11 px-3 text-left text-sm font-semibold bg-muted/50 border-l">
+                  Activity Date
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -375,15 +384,15 @@ export function AdminActivityLogsTable() {
                   return (
                     <tr key={`${item.session_id || "session"}-${item.timestamp}-${idx}`} className="border-b hover:bg-muted/40">
                       <td className="px-3 py-3 align-top text-sm">
-                        <div className="font-medium">{item.distinct_id || "Anonymous"}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">Session: {item.session_id || "N/A"}</div>
+                        <div className="font-medium truncate">{item.distinct_id || "Anonymous"}</div>
+                        <div className="mt-1 text-xs text-muted-foreground truncate">Session: {item.session_id || "N/A"}</div>
                       </td>
                       <td className="px-3 py-3 align-top text-sm">
                         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                           {ipAddress}
                         </span>
                       </td>
-                      <td className="px-3 py-3 align-top text-sm">
+                      <td className="px-3 py-3 align-top text-sm min-w-0">
                         <div className="font-medium">{human.title}</div>
                         {!hideWatchPath && (
                           <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{human.detail}</div>
@@ -404,7 +413,7 @@ export function AdminActivityLogsTable() {
                           </Link>
                         )}
                       </td>
-                      <td className="px-3 py-3 align-top text-sm">
+                      <td className="px-3 py-3 align-top text-sm min-w-0">
                         {!hideWatchPath && (
                           <div className="text-xs text-muted-foreground line-clamp-1">Path: {pathText}</div>
                         )}
@@ -415,9 +424,13 @@ export function AdminActivityLogsTable() {
                           <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.platform || "web"}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-3 align-top text-sm">
-                        <div className="font-medium">{format(new Date(item.timestamp), "MMM d, yyyy")}</div>
-                        <div className="text-muted-foreground">{format(new Date(item.timestamp), "h:mm:ss a")}</div>
+                      <td className="sticky right-0 z-10 px-3 py-3 align-top text-sm bg-background border-l">
+                        <div className="font-medium whitespace-nowrap">
+                          {format(new Date(item.timestamp), "MMM d, yyyy")}
+                        </div>
+                        <div className="text-muted-foreground whitespace-nowrap">
+                          {format(new Date(item.timestamp), "h:mm:ss a")}
+                        </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
                         </div>

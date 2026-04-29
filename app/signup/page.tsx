@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { validateRedirect, buildLoginUrl } from "@/lib/auth-utils"
+import { clearReferralRedirectProfile } from "@/lib/referral-cookie"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -317,6 +318,8 @@ function SignupForm() {
   }
 
   const handleSkip = () => {
+    // User explicitly skipped signup, so do not auto-redirect to a referral profile later.
+    clearReferralRedirectProfile()
     // If there's a valid redirect, go there; otherwise go home
     const destination = redirectPath || "/"
     router.replace(destination)

@@ -381,7 +381,7 @@ export default function ProfilePage() {
       return
     }
 
-    const profileUrl = `${window.location.origin}/profile/${username}`
+    const profileUrl = `${window.location.origin}/referrar/${username}`
 
     try {
       await navigator.clipboard.writeText(profileUrl)
@@ -408,7 +408,7 @@ export default function ProfilePage() {
   const handleShare = async () => {
     if (typeof window === 'undefined') return
 
-    const profileUrl = `${window.location.origin}/profile/${username}`
+    const profileUrl = `${window.location.origin}/referrar/${username}`
     const displayName = profileUser?.name || profileUser?.username || username
     const title = `${displayName}'s Profile`
     const text = `Check out ${displayName}'s profile on Hiffi`
@@ -428,7 +428,7 @@ export default function ProfilePage() {
       setTimeout(() => setCopied(false), 2000)
       return
     }
-    if (!result.success) {
+    if (!result.success && !result.cancelled) {
       toast({
         title: "Could not share",
         description: "Try copying the URL from your browser address bar.",

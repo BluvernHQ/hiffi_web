@@ -5,6 +5,12 @@ import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { apiClient } from "./api-client"
 import { toast } from "@/hooks/use-toast"
+import {
+  clearReferralCode,
+  clearReferralRedirectProfile,
+  getReferralCode,
+  getReferralRedirectProfile,
+} from "./referral-cookie"
 
 interface User {
   name: string
@@ -16,7 +22,12 @@ interface AuthContextType {
   user: User | null
   userData: any | null
   loading: boolean
-  login: (identifier: string, password: string, redirectPath?: string | null) => Promise<void>
+  login: (
+    identifier: string,
+    password: string,
+    redirectPath?: string | null,
+    options?: { forceAdminDashboardRedirect?: boolean },
+  ) => Promise<void>
   signup: (username: string, password: string, name: string, email: string) => Promise<{ success: boolean; registrationId?: string; error?: string }>
   verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
   logout: () => Promise<void>
@@ -266,7 +277,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (identifier: string, password: string, redirectPath?: string | null) => {
+  const login = async (
+    identifier: string,
+    password: string,
+    redirectPath?: string | null,
+    options?: { forceAdminDashboardRedirect?: boolean },
+  ) => {
     try {
       console.log("[hiffi] Attempting login for:", identifier)
 
@@ -368,9 +384,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("[hiffi] User data set after login")
 
-      // Check if user is admin and redirect to admin dashboard, otherwise use redirect path or home
+      // Only force admin dashboard redirect for explicit admin-login flows.
       const userRole = String(finalUserData?.role || "").toLowerCase().trim()
-      if (userRole === "admin") {
+      const shouldForceAdminDashboard =
+        options?.forceAdminDashboardRedirect === true && userRole === "admin"
+
+      if (shouldForceAdminDashboard) {
         console.log("[hiffi] User is admin, redirecting to admin dashboard")
         router.replace("/admin/dashboard")
       } else {
@@ -415,9 +434,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyOtp = async (registrationId: string, otp: string, redirectPath?: string | null) => {
     try {
       console.log("[hiffi] Verifying OTP for registration ID:", registrationId)
+      const referralCode = getReferralCode()
 
       // Verify OTP with backend
-      const response = await apiClient.verifyOtp({ id: registrationId, otp })
+      const response = await apiClient.verifyOtp({
+        id: registrationId,
+        otp,
+        ...(referralCode ? { referral_code: referralCode } : {}),
+      })
 
       if (!response.success || !response.data) {
         const errorMessage = response.error || "OTP verification failed. Please try again."
@@ -450,8 +474,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("[hiffi] Failed to refresh user data after OTP verification, using verification response data:", refreshError)
       }
 
-      // User is authenticated and data is loaded, navigate based on redirect path
-      const destination = redirectPath || "/"
+      // Clear referral cookies after successful registration.
+      clearReferralCode()
+
+      const referralRedirectProfile = getReferralRedirectProfile()
+      clearReferralRedirectProfile()
+
+      // User is authenticated and data is loaded, navigate based on referral intent or redirect path.
+      const destination = referralRedirectProfile
+        ? `/profile/${encodeURIComponent(referralRedirectProfile)}`
+        : redirectPath || "/"
       console.log("[hiffi] OTP verification complete, redirecting to:", destination)
       router.replace(destination)
     } catch (error: any) {

@@ -165,7 +165,7 @@ export function ShareVideoDialog({
       onOpenChange(false)
     } else if (result.success && result.method === "clipboard") {
       toast({ title: "Link copied!", description: "Video link copied to clipboard." })
-    } else if (!result.success) {
+    } else if (!result.success && !result.cancelled) {
       toast({
         title: "Could not share",
         description: "Try copying the link below instead.",
@@ -200,7 +200,7 @@ export function ShareVideoDialog({
                 </a>
               ))}
               {/* Native share (opens system sheet on mobile) */}
-              {typeof navigator !== "undefined" && navigator.share && (
+              {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
                 <button
                   type="button"
                   onClick={handleNativeShare}
