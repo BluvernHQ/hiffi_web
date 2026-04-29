@@ -1908,6 +1908,131 @@ class ApiClient {
   }
 
   // --- Playlists (owner-only, /playlists) ---
+  async listCuratedPlaylists(params: { limit?: number; offset?: number } = {}): Promise<{
+    success: boolean
+    playlists: PlaylistSummary[]
+  }> {
+    const limit = params.limit ?? 20
+    const offset = params.offset ?? 0
+
+    const queryParams = new URLSearchParams()
+    if (limit !== 20) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+
+    const qs = queryParams.toString()
+    const endpoint = `/playlists/curated${qs ? `?${qs}` : ""}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: any
+      playlists?: PlaylistSummary[]
+    }>(endpoint, { method: "GET" }, false)
+
+    const ok = response.success === true || response.status === "success"
+
+    const rawPlaylists: any[] =
+      response.playlists ||
+      response.data?.playlists ||
+      response.data?.items ||
+      response.data?.data ||
+      []
+
+    const playlists: PlaylistSummary[] = Array.isArray(rawPlaylists)
+      ? rawPlaylists.map((p: any) => ({
+          playlist_id: String(p.playlist_id || p.playlistId || ""),
+          owner_uid: p.owner_uid,
+          title: String(p.title || p.playlist_title || ""),
+          description: p.description,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+          item_count: p.total_videos ?? p.item_count,
+        }))
+      : []
+
+    const nonEmpty = playlists.filter((p) => p.playlist_id && p.title)
+    return {
+      success: ok || nonEmpty.length > 0,
+      playlists: nonEmpty,
+    }
+  }
+
+  async getCuratedPlaylist(
+    playlistId: string,
+    itemsParams: { limit?: number; offset?: number } = {},
+  ): Promise<{
+    success: boolean
+    playlist?: PlaylistSummary
+    items?: PlaylistItem[]
+  }> {
+    if (!playlistId || playlistId.trim() === "") {
+      return { success: false, items: [] }
+    }
+
+    const limit = itemsParams.limit ?? 100
+    const offset = itemsParams.offset ?? 0
+
+    const queryParams = new URLSearchParams()
+    if (limit !== 100) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+
+    const qs = queryParams.toString()
+    const endpoint = `/playlists/curated/${encodeURIComponent(playlistId)}${qs ? `?${qs}` : ""}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: any
+      playlist?: any
+      items?: any[]
+    }>(endpoint, { method: "GET" }, false)
+
+    const ok = response.success === true || response.status === "success"
+
+    const rawPlaylist = response.data?.playlist ?? response.playlist
+    if (!ok || !rawPlaylist) {
+      return { success: false, items: [] }
+    }
+
+    const playlist: PlaylistSummary = {
+      ...rawPlaylist,
+      playlist_id: String(rawPlaylist.playlist_id || rawPlaylist.playlistId || playlistId),
+      title: String(rawPlaylist.title || rawPlaylist.playlist_title || ""),
+      item_count: rawPlaylist.total_videos ?? rawPlaylist.item_count,
+      description: rawPlaylist.description,
+      created_at: rawPlaylist.created_at,
+      updated_at: rawPlaylist.updated_at,
+    }
+
+    const rawItems: any[] = response.data?.items || response.items || []
+
+    const items: PlaylistItem[] = Array.isArray(rawItems)
+      ? rawItems
+          .map((item: any, index: number): PlaylistItem | undefined => {
+            const videoId = item.video_id || item.video?.video_id || item.videoId || ""
+            if (!videoId) return undefined
+
+            const addedAt = item.added_at ?? item.addedAt
+            const added_at = typeof addedAt === "string" && addedAt.trim().length > 0 ? addedAt : undefined
+
+            return {
+              video_id: String(videoId),
+              position: typeof item.position === "number" ? item.position : index + 1,
+              ...(added_at ? { added_at } : {}),
+            }
+          })
+          .filter((it): it is PlaylistItem => it !== undefined)
+      : []
+
+    const ordered = items
+
+    return {
+      success: true,
+      playlist,
+      items: ordered,
+    }
+  }
+
   async listMyPlaylists(): Promise<{ success: boolean; playlists: PlaylistSummary[] }> {
     type PlaylistListRow = PlaylistSummary & { total_videos?: number }
     const response = await this.request<{
@@ -1986,16 +2111,19 @@ class ApiClient {
 
     const items: PlaylistItem[] = Array.isArray(response.data?.items)
       ? response.data.items
-          .map((item, index) => {
+          .map((item, index): PlaylistItem | undefined => {
             const videoId = item.video_id || item.video?.video_id || ""
-            if (!videoId) return null
+            if (!videoId) return undefined
+
+            const added_at = typeof item.added_at === "string" && item.added_at.trim().length > 0 ? item.added_at : undefined
+
             return {
               video_id: videoId,
               position: typeof item.position === "number" ? item.position : index + 1,
-              added_at: item.added_at,
+              ...(added_at ? { added_at } : {}),
             }
           })
-          .filter((item): item is PlaylistItem => Boolean(item))
+          .filter((item): item is PlaylistItem => item !== undefined)
       : []
 
     return {

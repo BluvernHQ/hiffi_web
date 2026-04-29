@@ -559,21 +559,48 @@ export default function WatchPage() {
 
     let cancelled = false
     ;(async () => {
-      try {
-        const res = await apiClient.getPlaylist(playlistId)
-        if (cancelled || !res.success || !res.playlist || !Array.isArray(res.items)) return
-        const ordered = [...res.items].sort((a, b) => a.position - b.position).map((it) => it.video_id).filter(Boolean)
-        if (!ordered.length) return
-        const currentIndex = Math.max(0, ordered.indexOf(currentVideoId))
-        const nextSession = {
+      const buildSession = (res: {
+        success: boolean
+        playlist?: { title?: string }
+        items?: Array<{ position: number; video_id: string }>
+      }) => {
+        if (cancelled || !res.success || !res.playlist || !Array.isArray(res.items)) return null
+        const ordered = [...res.items]
+          .sort((a, b) => a.position - b.position)
+          .map((it) => it.video_id)
+          .filter(Boolean)
+        if (!ordered.length) return null
+
+        const indexFromVideo = ordered.indexOf(currentVideoId)
+        const resolvedIndex = indexFromVideo >= 0 ? indexFromVideo : Math.max(0, Math.min(ordered.length - 1, pIndex))
+        return {
           playlistId,
           title: res.playlist.title || "Playlist",
           videoIds: ordered,
-          currentIndex: currentIndex >= 0 ? currentIndex : 0,
+          currentIndex: resolvedIndex,
           autoplay: true,
         }
-        setPlaylistContext(nextSession)
-        setPlaylistSession(nextSession)
+      }
+
+      try {
+        const res = await apiClient.getPlaylist(playlistId)
+        const nextSession = buildSession(res as any)
+        if (nextSession) {
+          setPlaylistContext(nextSession)
+          setPlaylistSession(nextSession)
+          return
+        }
+      } catch {
+        // fall through to curated playlist fallback
+      }
+
+      try {
+        const curated = await apiClient.getCuratedPlaylist(playlistId, { limit: 100, offset: 0 })
+        const nextSession = buildSession(curated as any)
+        if (nextSession) {
+          setPlaylistContext(nextSession)
+          setPlaylistSession(nextSession)
+        }
       } catch {
         // no-op; keep watch page usable without playlist context
       }

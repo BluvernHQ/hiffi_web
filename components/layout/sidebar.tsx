@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { checkUploadNavigationGuard } from "@/lib/upload-navigation-guard"
 import { cn } from "@/lib/utils"
@@ -12,9 +12,14 @@ import {
   ListMusic,
   ThumbsUp,
   UserCheck,
+  Loader2,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { apiClient } from "@/lib/api-client"
+import { setPlaylistSession } from "@/lib/playlist-session"
+import { getThumbnailUrl } from "@/lib/storage"
+import { PlaylistThumbnailStack } from "@/components/video/playlist-thumbnail-stack"
 
 interface SidebarProps {
   className?: string
@@ -29,9 +34,29 @@ interface SidebarProps {
 export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange }: SidebarProps) {
   const { user, userData } = useAuth()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const [internalMobileOpen, setInternalMobileOpen] = useState(false)
   const isHomePage = pathname === "/"
+
+  const activeCuratedPlaylistId =
+    pathname?.startsWith("/watch/") && typeof searchParams?.get === "function"
+      ? searchParams.get("playlist")
+      : null
+
+  type CuratedPlaylistSummary = {
+    playlistId: string
+    title: string
+    description?: string
+    item_count?: number
+  }
+
+  const [curatedPlaylists, setCuratedPlaylists] = useState<CuratedPlaylistSummary[]>([])
+  const [curatedLoading, setCuratedLoading] = useState(true)
+  const [curatedActionLoadingId, setCuratedActionLoadingId] = useState<string | null>(null)
+  const [curatedThumbnailsById, setCuratedThumbnailsById] = useState<
+    Record<string, { thumbnails: Array<{ src?: string; alt?: string }>; totalVideos: number }>
+  >({})
 
   // Use external state if provided, otherwise use internal state
   const mobileOpen = isMobileOpen !== undefined ? isMobileOpen : internalMobileOpen
@@ -44,6 +69,91 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
       setInternalMobileOpen(false)
     }
   }
+
+  // Load the latest curated/admin mix for all users.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        setCuratedLoading(true)
+
+        const listRes = await apiClient.listCuratedPlaylists({ limit: 3, offset: 0 })
+        const next = (listRes.playlists || [])
+          .filter((p) => Boolean(p.playlist_id) && Boolean(p.title))
+          .map((p) => ({
+            playlistId: p.playlist_id,
+            title: p.title,
+            description: p.description,
+            item_count: p.item_count,
+          }))
+
+        if (cancelled) return
+        setCuratedPlaylists(next)
+      } catch {
+        // no-op; curated mix is optional
+      } finally {
+        if (!cancelled) setCuratedLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Enrich the curated playlist list with stacked thumbnails (first 3 items).
+  useEffect(() => {
+    if (!curatedPlaylists.length) return
+    let cancelled = false
+
+    const fetchPreviews = async () => {
+      const next: Record<string, { thumbnails: Array<{ src?: string; alt?: string }>; totalVideos: number }> = {}
+      await Promise.all(
+        curatedPlaylists.map(async (p) => {
+          try {
+            const detail = await apiClient.getCuratedPlaylist(p.playlistId, { limit: 3, offset: 0 })
+            const items = detail.items || []
+            const videoIds = items.map((it) => it.video_id).filter(Boolean)
+            if (!videoIds.length) return
+
+            const metas = await Promise.all(
+              videoIds.map(async (id) => {
+                try {
+                  const r = await apiClient.getVideo(id)
+                  const video = r.video || {}
+                  const thumbPath =
+                    video.video_thumbnail ||
+                    video.videoThumbnail ||
+                    video.video_thumbnail_path ||
+                    video.thumbnail ||
+                    ""
+                  const src = thumbPath ? getThumbnailUrl(String(thumbPath)) : undefined
+                  return { src, alt: String(video.video_title || video.videoTitle || id) }
+                } catch {
+                  return { src: undefined, alt: id }
+                }
+              }),
+            )
+
+            next[p.playlistId] = {
+              thumbnails: metas,
+              totalVideos: typeof p.item_count === "number" ? p.item_count : videoIds.length,
+            }
+          } catch {
+            // ignore preview errors
+          }
+        }),
+      )
+
+      if (cancelled) return
+      setCuratedThumbnailsById(next)
+    }
+
+    void fetchPreviews()
+    return () => {
+      cancelled = true
+    }
+  }, [curatedPlaylists])
 
   type SidebarNavItem = {
     icon: typeof Home
@@ -218,6 +328,87 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   ))}
                 </div>
               </div>
+
+              {(curatedLoading || curatedPlaylists.length > 0) && (
+                <div className="pt-4">
+                  <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Curated Mix
+                  </div>
+
+                  {curatedLoading ? (
+                    <div className="space-y-1 px-4">
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="h-14 rounded-xl border border-border/60 bg-muted/40 animate-shimmer"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-1 px-4">
+                      {curatedPlaylists.map((p) => {
+                        const isLoading = curatedActionLoadingId === p.playlistId
+                        const isSelected = activeCuratedPlaylistId === p.playlistId
+                        return (
+                          <button
+                            key={p.playlistId}
+                            type="button"
+                            onClick={async () => {
+                              setCuratedActionLoadingId(p.playlistId)
+                              try {
+                                const detail = await apiClient.getCuratedPlaylist(p.playlistId, { limit: 100, offset: 0 })
+                                const videoIds = (detail.items || []).map((it) => it.video_id).filter(Boolean)
+                                if (!videoIds.length) return
+
+                                setPlaylistSession({
+                                  playlistId: p.playlistId,
+                                  title: detail.playlist?.title || p.title || "Curated Mix",
+                                  videoIds,
+                                  currentIndex: 0,
+                                  autoplay: true,
+                                })
+
+                                closeSidebar()
+                                router.push(
+                                  `/watch/${encodeURIComponent(videoIds[0])}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`,
+                                )
+                              } catch {
+                                // no-op
+                              } finally {
+                                setCuratedActionLoadingId(null)
+                              }
+                            }}
+                            className={cn(
+                              "w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left",
+                              "bg-background/40 border border-border/70 hover:bg-muted/50 hover:border-border/90 hover:shadow-sm",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                              isSelected && "border-primary/35 bg-primary/5",
+                              isLoading && "opacity-70 pointer-events-none",
+                            )}
+                          >
+                            <div className="flex-shrink-0">
+                              <PlaylistThumbnailStack
+                                thumbnails={curatedThumbnailsById[p.playlistId]?.thumbnails || []}
+                                totalVideos={curatedThumbnailsById[p.playlistId]?.totalVideos || 0}
+                                className="rounded-lg w-[4.25rem] sm:w-[5rem]"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-semibold tracking-tight">{p.title}</div>
+                              {p.description ? (
+                                <div className="truncate text-[11px] leading-tight text-muted-foreground mt-0.5 line-clamp-1">
+                                  {p.description}
+                                </div>
+                              ) : null}
+                            </div>
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" /> : null}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {user && secondaryNavItems.length > 0 && (
               <div className="pt-4">
