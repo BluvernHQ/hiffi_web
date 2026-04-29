@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { apiClient } from "./api-client"
 import { toast } from "@/hooks/use-toast"
+import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
 import {
   clearReferralCode,
   clearReferralRedirectProfile,
@@ -484,6 +485,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const destination = referralRedirectProfile
         ? `/profile/${encodeURIComponent(referralRedirectProfile)}`
         : redirectPath || "/"
+      const signupSource = normalizeConversionSource(
+        referralRedirectProfile ? "profile" : redirectPath || "/signup",
+      )
+      captureConversionEvent("conversion_signup_completed", {
+        username: response.data.user.username,
+        source: signupSource,
+        has_referral_code: Boolean(referralCode),
+        redirected_to: destination,
+      })
       console.log("[hiffi] OTP verification complete, redirecting to:", destination)
       router.replace(destination)
     } catch (error: any) {

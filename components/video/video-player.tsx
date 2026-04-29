@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, WORKERS_BASE_URL } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
+import { captureConversionEvent } from "@/lib/conversion-tracking"
 import { NextUpOverlay } from "./next-up-overlay"
 import { AuthenticatedImage } from "./authenticated-image"
 
@@ -187,6 +188,7 @@ export function VideoPlayer({
   const watchSessionIdRef = useRef(generateSessionId())
   const watchDeviceIdRef = useRef("")
   const lastWatchPositionRef = useRef<number | null>(null)
+  const trackedPlayVideoIdsRef = useRef<Set<string>>(new Set())
   const accumulatedWatchSecondsRef = useRef(0)
   const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
@@ -810,6 +812,19 @@ export function VideoPlayer({
       setIsPlaying(true)
       setAutoplayInProgress(false)
       lastWatchPositionRef.current = player.currentTime()
+      const currentTrackedVideoId = String(signedUrlVideoIdRef.current || videoId || "").trim()
+      if (currentTrackedVideoId && !trackedPlayVideoIdsRef.current.has(currentTrackedVideoId)) {
+        trackedPlayVideoIdsRef.current.add(currentTrackedVideoId)
+        const source =
+          typeof window !== "undefined" && new URLSearchParams(window.location.search).get("playlist")
+            ? "playlist"
+            : "recommended"
+        captureConversionEvent("conversion_play_started", {
+          video_id: currentTrackedVideoId,
+          source,
+          is_autoplay: Boolean(autoPlay),
+        })
+      }
       // Clear any pending autoplay timeout since play succeeded
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)

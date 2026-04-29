@@ -28,6 +28,7 @@ type VideoMeta = {
 
 const HOUR_OPTIONS = [1, 6, 12, 24, 48, 72, 168]
 const LIMIT_OPTIONS = [25, 50, 100, 200]
+type ConversionFilter = "all" | "play" | "next" | "like" | "signup"
 
 function toTitleCase(value: string): string {
   return value
@@ -85,6 +86,41 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
   const elementTag = String((item as any).element_tag || item.properties?.element_tag || "").trim()
   const elementChain = String((item as any).element_chain || item.properties?.element_chain || "").trim()
 
+  if (eventName === "conversion_play_started") {
+    return {
+      title: "Started playback",
+      detail: targetPath || "Playback started",
+    }
+  }
+
+  if (eventName === "opened-video") {
+    return {
+      title: "Opened video (play intent)",
+      detail: targetPath || "Video opened from feed",
+    }
+  }
+
+  if (eventName === "conversion_next_clicked") {
+    return {
+      title: "Played next video",
+      detail: targetPath || "Next video clicked",
+    }
+  }
+
+  if (eventName === "conversion_like_success") {
+    return {
+      title: "Liked video",
+      detail: targetPath || "Video liked successfully",
+    }
+  }
+
+  if (eventName === "conversion_signup_completed") {
+    return {
+      title: "Completed signup",
+      detail: targetPath || "Signup completed",
+    }
+  }
+
   if (eventName === "$pageview") {
     return {
       title: "Viewed page",
@@ -104,6 +140,31 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
     title: toTitleCase(clean),
     detail: targetPath || titleFromPage || "User activity event",
   }
+}
+
+function matchesConversionFilter(item: AnalyticsEvent, filter: ConversionFilter): boolean {
+  if (filter === "all") return true
+  const eventName = String(item.event || "").toLowerCase()
+  const uiName = String((item as any).element_ui_name || item.properties?.element_ui_name || "").toLowerCase()
+
+  if (filter === "play") {
+    return (
+      eventName === "conversion_play_started" ||
+      eventName === "opened-video" ||
+      uiName === "played_video" ||
+      uiName === "played-video"
+    )
+  }
+  if (filter === "next") {
+    return eventName === "conversion_next_clicked" || uiName === "fast-forward" || uiName === "next"
+  }
+  if (filter === "like") {
+    return eventName === "conversion_like_success" || uiName === "liked" || uiName === "like"
+  }
+  if (filter === "signup") {
+    return eventName === "conversion_signup_completed" || uiName.includes("signup")
+  }
+  return true
 }
 
 function safePathFromUrl(url?: string): string {
@@ -176,6 +237,7 @@ export function AdminActivityLogsTable() {
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
   const [query, setQuery] = useState("")
+  const [conversionFilter, setConversionFilter] = useState<ConversionFilter>("all")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
 
   const fetchEvents = async (isRefresh = false) => {
@@ -252,8 +314,9 @@ export function AdminActivityLogsTable() {
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return events
     return events.filter((item) => {
+      if (!matchesConversionFilter(item, conversionFilter)) return false
+      if (!q) return true
       const ip = String(item.properties?._ingest_ip || "").toLowerCase()
       const title = String(item.properties?.title || "").toLowerCase()
       const composed = [
@@ -272,7 +335,7 @@ export function AdminActivityLogsTable() {
         .toLowerCase()
       return composed.includes(q)
     })
-  }, [events, query])
+  }, [events, query, conversionFilter])
 
   const canGoPrev = offset > 0
   const canGoNext = events.length === limit
@@ -300,6 +363,18 @@ export function AdminActivityLogsTable() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={conversionFilter}
+              onChange={(e) => setConversionFilter(e.target.value as ConversionFilter)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">All events</option>
+              <option value="play">Play</option>
+              <option value="next">Next</option>
+              <option value="like">Like</option>
+              <option value="signup">Signup</option>
+            </select>
+
             <select
               value={hours}
               onChange={(e) => {
@@ -384,8 +459,18 @@ export function AdminActivityLogsTable() {
                   return (
                     <tr key={`${item.session_id || "session"}-${item.timestamp}-${idx}`} className="border-b hover:bg-muted/40">
                       <td className="px-3 py-3 align-top text-sm">
-                        <div className="font-medium truncate">{item.distinct_id || "Anonymous"}</div>
-                        <div className="mt-1 text-xs text-muted-foreground truncate">Session: {item.session_id || "N/A"}</div>
+                        <div
+                          className="font-medium break-all"
+                          title={String(item.distinct_id || "Anonymous")}
+                        >
+                          {item.distinct_id || "Anonymous"}
+                        </div>
+                        <div
+                          className="mt-1 text-xs text-muted-foreground break-all"
+                          title={`Session: ${String(item.session_id || "N/A")}`}
+                        >
+                          Session: {item.session_id || "N/A"}
+                        </div>
                       </td>
                       <td className="px-3 py-3 align-top text-sm">
                         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -393,9 +478,16 @@ export function AdminActivityLogsTable() {
                         </span>
                       </td>
                       <td className="px-3 py-3 align-top text-sm min-w-0">
-                        <div className="font-medium">{human.title}</div>
+                        <div className="font-medium break-words" title={human.title}>
+                          {human.title}
+                        </div>
                         {!hideWatchPath && (
-                          <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{human.detail}</div>
+                          <div
+                            className="mt-1 text-xs text-muted-foreground break-words whitespace-normal"
+                            title={human.detail}
+                          >
+                            {human.detail}
+                          </div>
                         )}
                         {videoId && (
                           <Link
@@ -404,10 +496,10 @@ export function AdminActivityLogsTable() {
                             rel="noopener noreferrer"
                             className="mt-2 block rounded-md border border-border/70 bg-muted/30 px-2.5 py-1.5 text-xs hover:bg-primary/10 hover:border-primary/40 transition-colors"
                           >
-                            <div className="font-medium text-foreground">
+                            <div className="font-medium text-foreground break-words" title={videoMeta?.title || `Video ${videoId}`}>
                               {videoMeta?.title || `Video ${videoId}`}
                             </div>
-                            <div className="text-muted-foreground">
+                            <div className="text-muted-foreground break-all" title={`by @${videoMeta?.creator || "unknown"}`}>
                               by @{videoMeta?.creator || "unknown"}
                             </div>
                           </Link>
@@ -415,13 +507,31 @@ export function AdminActivityLogsTable() {
                       </td>
                       <td className="px-3 py-3 align-top text-sm min-w-0">
                         {!hideWatchPath && (
-                          <div className="text-xs text-muted-foreground line-clamp-1">Path: {pathText}</div>
+                          <div
+                            className="text-xs text-muted-foreground break-all whitespace-normal"
+                            title={`Path: ${pathText}`}
+                          >
+                            Path: {pathText}
+                          </div>
                         )}
                         <div className="mt-1 flex flex-wrap gap-1">
-                          <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.event}</span>
-                          {uiName && <span className="rounded bg-muted px-2 py-0.5 text-xs">{uiName}</span>}
-                          <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.device_type || "unknown-device"}</span>
-                          <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.platform || "web"}</span>
+                          <span className="max-w-full rounded bg-muted px-2 py-0.5 text-xs break-all" title={item.event}>
+                            {item.event}
+                          </span>
+                          {uiName && (
+                            <span className="max-w-full rounded bg-muted px-2 py-0.5 text-xs break-all" title={uiName}>
+                              {uiName}
+                            </span>
+                          )}
+                          <span
+                            className="max-w-full rounded bg-muted px-2 py-0.5 text-xs break-all"
+                            title={item.device_type || "unknown-device"}
+                          >
+                            {item.device_type || "unknown-device"}
+                          </span>
+                          <span className="max-w-full rounded bg-muted px-2 py-0.5 text-xs break-all" title={item.platform || "web"}>
+                            {item.platform || "web"}
+                          </span>
                         </div>
                       </td>
                       <td className="sticky right-0 z-10 px-3 py-3 align-top text-sm bg-background border-l">

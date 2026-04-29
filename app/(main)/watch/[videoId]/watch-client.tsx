@@ -26,6 +26,7 @@ import { getPlaylistSession, setPlaylistSession } from "@/lib/playlist-session"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
+import { captureConversionEvent } from "@/lib/conversion-tracking"
 import dynamic from "next/dynamic"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
@@ -332,6 +333,13 @@ export default function WatchPage() {
       const nextIndex = playlistContext.currentIndex + 1
       const playlistNextId = playlistContext.videoIds[nextIndex]
       if (playlistNextId) {
+        captureConversionEvent("conversion_next_clicked", {
+          video_id: currentVideoId,
+          next_video_id: playlistNextId,
+          source: "playlist",
+          playlist_id: playlistContext.playlistId,
+          is_autoplay: false,
+        })
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
@@ -339,6 +347,12 @@ export default function WatchPage() {
         return
       }
     }
+    captureConversionEvent("conversion_next_clicked", {
+      video_id: currentVideoId,
+      next_video_id: nextId,
+      source: "recommended",
+      is_autoplay: false,
+    })
     navigateToVideo(nextId)
   }
 
@@ -1114,6 +1128,13 @@ export default function WatchPage() {
           ? "This video is no longer in your Liked library."
           : "You can find it anytime under Liked videos.",
       })
+      if (!isRemovingLike) {
+        captureConversionEvent("conversion_like_success", {
+          video_id: videoId,
+          source: playlistContext ? "playlist" : "recommended",
+          playlist_id: playlistContext?.playlistId,
+        })
+      }
     } catch (error) {
       console.error("[hiffi] Failed to toggle like for video:", error)
       toast({

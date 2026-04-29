@@ -31,6 +31,7 @@ export function ApiAnalyticsTracker({ src, baseUrl, ingestKey, appVersion }: Api
           ingestKey,
           appVersion,
           autocapture: true,
+          flushIntervalMs: 5000,
           maxBatch: 100,
           captureNameAttributes: ["data-analytics-name", "data-track"],
         })
