@@ -3250,6 +3250,78 @@ class ApiClient {
 
   // Admin endpoints - Delete User
   // DELETE /admin/users/{username} - Delete a user account by username
+  async adminGetAnalyticsEvents(params: {
+    hours?: number
+    limit?: number
+    offset?: number
+  } = {}): Promise<{
+    count: number
+    events: Array<{
+      timestamp: string
+      event: string
+      distinct_id?: string
+      session_id?: string
+      platform?: string
+      url?: string
+      path?: string
+      properties?: Record<string, any>
+      device_type?: string
+    }>
+    hours: number
+    limit: number
+    offset: number
+  }> {
+    const hours = params.hours ?? 24
+    const limit = params.limit ?? 100
+    const offset = params.offset ?? 0
+
+    const query = new URLSearchParams({
+      hours: String(hours),
+      limit: String(limit),
+      offset: String(offset),
+    })
+
+    const response = await this.request<{
+      count?: number
+      events?: Array<{
+        timestamp: string
+        event: string
+        distinct_id?: string
+        session_id?: string
+        platform?: string
+        url?: string
+        path?: string
+        properties?: Record<string, any>
+        device_type?: string
+      }>
+      data?: {
+        count?: number
+        events?: Array<{
+          timestamp: string
+          event: string
+          distinct_id?: string
+          session_id?: string
+          platform?: string
+          url?: string
+          path?: string
+          properties?: Record<string, any>
+          device_type?: string
+        }>
+      }
+    }>(`/analytics/events?${query.toString()}`, { method: "GET" }, true)
+
+    const payload = response.data ?? response
+    return {
+      count: payload.count || 0,
+      events: payload.events || [],
+      hours,
+      limit,
+      offset,
+    }
+  }
+
+  // Admin endpoints - Delete User
+  // DELETE /admin/users/{username} - Delete a user account by username
   async deleteUserByUsername(username: string): Promise<{
     status: string
     message: string

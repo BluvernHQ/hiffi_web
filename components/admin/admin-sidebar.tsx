@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3,
+  Activity,
   Users,
   Video,
   MessageSquare,
@@ -49,6 +50,11 @@ const navItems = [
     icon: Reply,
     label: "Replies",
     value: "replies",
+  },
+  {
+    icon: Activity,
+    label: "Activity Logs",
+    value: "activity",
   },
 ]
 

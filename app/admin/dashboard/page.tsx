@@ -20,6 +20,7 @@ import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
+import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
@@ -292,6 +293,18 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showContent ? <AdminRepliesTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {section === "activity" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Activity Logs</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Meaningful user activity logs from analytics events
+                    </p>
+                  </div>
+                  {showContent ? <AdminActivityLogsTable /> : <TableSkeleton />}
                 </div>
               )}
             </div>
