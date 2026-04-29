@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { checkUploadNavigationGuard } from "@/lib/upload-navigation-guard"
 import { cn } from "@/lib/utils"
@@ -34,15 +34,20 @@ interface SidebarProps {
 export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange }: SidebarProps) {
   const { user, userData } = useAuth()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const router = useRouter()
   const [internalMobileOpen, setInternalMobileOpen] = useState(false)
   const isHomePage = pathname === "/"
+  const [activeCuratedPlaylistId, setActiveCuratedPlaylistId] = useState<string | null>(null)
 
-  const activeCuratedPlaylistId =
-    pathname?.startsWith("/watch/") && typeof searchParams?.get === "function"
-      ? searchParams.get("playlist")
-      : null
+  useEffect(() => {
+    if (typeof window === "undefined" || !pathname?.startsWith("/watch/")) {
+      setActiveCuratedPlaylistId(null)
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    setActiveCuratedPlaylistId(params.get("playlist"))
+  }, [pathname])
 
   type CuratedPlaylistSummary = {
     playlistId: string
