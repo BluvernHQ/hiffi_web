@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -10,6 +10,7 @@ import {
   Home,
   History,
   ListMusic,
+  Sparkles,
   ThumbsUp,
   UserCheck,
   Loader2,
@@ -18,8 +19,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api-client"
 import { setPlaylistSession } from "@/lib/playlist-session"
-import { getThumbnailUrl } from "@/lib/storage"
-import { PlaylistThumbnailStack } from "@/components/video/playlist-thumbnail-stack"
 
 interface SidebarProps {
   className?: string
@@ -59,9 +58,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const [curatedPlaylists, setCuratedPlaylists] = useState<CuratedPlaylistSummary[]>([])
   const [curatedLoading, setCuratedLoading] = useState(true)
   const [curatedActionLoadingId, setCuratedActionLoadingId] = useState<string | null>(null)
-  const [curatedThumbnailsById, setCuratedThumbnailsById] = useState<
-    Record<string, { thumbnails: Array<{ src?: string; alt?: string }>; totalVideos: number }>
-  >({})
+  const [curatedFirstVideoById, setCuratedFirstVideoById] = useState<Record<string, string>>({})
+  const curatedClickRequestSeqRef = useRef(0)
 
   // Use external state if provided, otherwise use internal state
   const mobileOpen = isMobileOpen !== undefined ? isMobileOpen : internalMobileOpen
@@ -106,55 +104,34 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     }
   }, [])
 
-  // Enrich the curated playlist list with stacked thumbnails (first 3 items).
+  // Prefetch the first playable video id per curated playlist so clicks can navigate instantly.
   useEffect(() => {
-    if (!curatedPlaylists.length) return
+    if (!curatedPlaylists.length) {
+      setCuratedFirstVideoById({})
+      return
+    }
+
     let cancelled = false
+    ;(async () => {
+      const next: Record<string, string> = {}
 
-    const fetchPreviews = async () => {
-      const next: Record<string, { thumbnails: Array<{ src?: string; alt?: string }>; totalVideos: number }> = {}
       await Promise.all(
-        curatedPlaylists.map(async (p) => {
+        curatedPlaylists.map(async (playlist) => {
           try {
-            const detail = await apiClient.getCuratedPlaylist(p.playlistId, { limit: 3, offset: 0 })
-            const items = detail.items || []
-            const videoIds = items.map((it) => it.video_id).filter(Boolean)
-            if (!videoIds.length) return
-
-            const metas = await Promise.all(
-              videoIds.map(async (id) => {
-                try {
-                  const r = await apiClient.getVideo(id)
-                  const video = r.video || {}
-                  const thumbPath =
-                    video.video_thumbnail ||
-                    video.videoThumbnail ||
-                    video.video_thumbnail_path ||
-                    video.thumbnail ||
-                    ""
-                  const src = thumbPath ? getThumbnailUrl(String(thumbPath)) : undefined
-                  return { src, alt: String(video.video_title || video.videoTitle || id) }
-                } catch {
-                  return { src: undefined, alt: id }
-                }
-              }),
-            )
-
-            next[p.playlistId] = {
-              thumbnails: metas,
-              totalVideos: typeof p.item_count === "number" ? p.item_count : videoIds.length,
+            const detail = await apiClient.getCuratedPlaylist(playlist.playlistId, { limit: 1, offset: 0 })
+            const firstVideoId = (detail.items || []).map((it) => it.video_id).find(Boolean)
+            if (firstVideoId) {
+              next[playlist.playlistId] = firstVideoId
             }
           } catch {
-            // ignore preview errors
+            // ignore prefetch failures; click flow has fallback handling
           }
         }),
       )
 
-      if (cancelled) return
-      setCuratedThumbnailsById(next)
-    }
+      if (!cancelled) setCuratedFirstVideoById(next)
+    })()
 
-    void fetchPreviews()
     return () => {
       cancelled = true
     }
@@ -345,12 +322,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                       {[0, 1, 2].map((i) => (
                         <div
                           key={i}
-                          className="h-14 rounded-xl border border-border/60 bg-muted/40 animate-shimmer"
+                          className="h-[3.25rem] rounded-xl border border-border/60 bg-muted/40 animate-shimmer"
                         />
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-1 px-4">
+                    <div className="space-y-1.5 px-4">
                       {curatedPlaylists.map((p) => {
                         const isLoading = curatedActionLoadingId === p.playlistId
                         const isSelected = activeCuratedPlaylistId === p.playlistId
@@ -359,54 +336,123 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                             key={p.playlistId}
                             type="button"
                             onClick={async () => {
+                              const requestSeq = ++curatedClickRequestSeqRef.current
+                              setActiveCuratedPlaylistId(p.playlistId)
                               setCuratedActionLoadingId(p.playlistId)
                               try {
-                                const detail = await apiClient.getCuratedPlaylist(p.playlistId, { limit: 100, offset: 0 })
-                                const videoIds = (detail.items || []).map((it) => it.video_id).filter(Boolean)
-                                if (!videoIds.length) return
+                                const timeoutMs = 7000
+                                const detail = await Promise.race([
+                                  apiClient.getCuratedPlaylist(p.playlistId, { limit: 100, offset: 0 }),
+                                  new Promise<null>((resolve) => {
+                                    setTimeout(() => resolve(null), timeoutMs)
+                                  }),
+                                ])
+
+                                const fetchedVideoIds =
+                                  detail && detail.items ? detail.items.map((it) => it.video_id).filter(Boolean) : []
+                                const fallbackFirstVideoId = curatedFirstVideoById[p.playlistId]
+                                let firstVideoId: string | undefined = fetchedVideoIds[0] || fallbackFirstVideoId
+
+                                // If full fetch timed out and cache is cold, do a small targeted fetch for first playable item.
+                                if (!firstVideoId) {
+                                  const firstDetail = await Promise.race([
+                                    apiClient.getCuratedPlaylist(p.playlistId, { limit: 1, offset: 0 }),
+                                    new Promise<null>((resolve) => {
+                                      setTimeout(() => resolve(null), 3500)
+                                    }),
+                                  ])
+                                  firstVideoId =
+                                    firstDetail && firstDetail.items
+                                      ? firstDetail.items.map((it) => it.video_id).find(Boolean)
+                                      : undefined
+                                }
+
+                                if (!firstVideoId) return
+                                const ensuredFirstVideoId = firstVideoId
+
+                                const sessionVideoIds = fetchedVideoIds.length ? fetchedVideoIds : [ensuredFirstVideoId]
+                                if (requestSeq !== curatedClickRequestSeqRef.current) return
 
                                 setPlaylistSession({
                                   playlistId: p.playlistId,
-                                  title: detail.playlist?.title || p.title || "Curated Mix",
-                                  videoIds,
+                                  title: detail?.playlist?.title || p.title || "Curated Mix",
+                                  videoIds: sessionVideoIds,
                                   currentIndex: 0,
                                   autoplay: true,
                                 })
 
                                 closeSidebar()
                                 router.push(
-                                  `/watch/${encodeURIComponent(videoIds[0])}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`,
+                                  `/watch/${encodeURIComponent(ensuredFirstVideoId)}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`,
                                 )
                               } catch {
-                                // no-op
+                                const fallbackFirstVideoId = curatedFirstVideoById[p.playlistId]
+                                if (fallbackFirstVideoId) {
+                                  if (requestSeq !== curatedClickRequestSeqRef.current) return
+                                  setActiveCuratedPlaylistId(p.playlistId)
+                                  setPlaylistSession({
+                                    playlistId: p.playlistId,
+                                    title: p.title || "Curated Mix",
+                                    videoIds: [fallbackFirstVideoId],
+                                    currentIndex: 0,
+                                    autoplay: true,
+                                  })
+                                  closeSidebar()
+                                  router.push(
+                                    `/watch/${encodeURIComponent(fallbackFirstVideoId)}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`,
+                                  )
+                                }
                               } finally {
-                                setCuratedActionLoadingId(null)
+                                if (requestSeq === curatedClickRequestSeqRef.current) {
+                                  setCuratedActionLoadingId(null)
+                                }
                               }
                             }}
                             className={cn(
-                              "w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left",
-                              "bg-background/40 border border-border/70 hover:bg-muted/50 hover:border-border/90 hover:shadow-sm",
+                              "group relative w-full flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all",
+                              "bg-background/95 border border-border/80 hover:bg-muted/45 hover:border-border hover:shadow-sm",
                               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                              isSelected && "border-primary/35 bg-primary/5",
+                              isSelected && "border-primary/35 bg-primary/[0.05]",
                               isLoading && "opacity-70 pointer-events-none",
                             )}
                           >
-                            <div className="flex-shrink-0">
-                              <PlaylistThumbnailStack
-                                thumbnails={curatedThumbnailsById[p.playlistId]?.thumbnails || []}
-                                totalVideos={curatedThumbnailsById[p.playlistId]?.totalVideos || 0}
-                                className="rounded-lg w-[4.25rem] sm:w-[5rem]"
-                              />
-                            </div>
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "absolute left-0 top-1.5 bottom-1.5 w-px rounded-full bg-transparent transition-colors",
+                                isSelected ? "bg-primary/70" : "group-hover:bg-border",
+                              )}
+                            />
                             <div className="min-w-0 flex-1">
-                              <div className="truncate font-semibold tracking-tight">{p.title}</div>
+                              <div className="relative truncate pl-5 text-sm font-semibold tracking-tight">
+                                <Sparkles
+                                  aria-hidden="true"
+                                  className={cn(
+                                    "absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary/30 transition-colors",
+                                    isSelected && "text-primary/55",
+                                  )}
+                                />
+                                {p.title}
+                              </div>
                               {p.description ? (
-                                <div className="truncate text-[11px] leading-tight text-muted-foreground mt-0.5 line-clamp-1">
+                                <div className="mt-0.5 line-clamp-1 text-[11px] leading-4 text-muted-foreground/90">
                                   {p.description}
                                 </div>
                               ) : null}
                             </div>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" /> : null}
+                            <div
+                              className={cn(
+                                "flex-shrink-0 text-muted-foreground/80 transition-all duration-200",
+                                !isLoading && "group-hover:text-foreground group-hover:translate-x-0.5",
+                                isSelected && "text-primary",
+                              )}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <span className="text-base leading-none">{isSelected ? "●" : "→"}</span>
+                              )}
+                            </div>
                           </button>
                         )
                       })}
