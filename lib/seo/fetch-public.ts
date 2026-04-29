@@ -221,13 +221,12 @@ export type HomeFeedVideo = {
  * Used by the server component to provide initial HTML for crawlers.
  * Revalidates every 5 minutes.
  */
-export const fetchHomeFeedInitial = cache(async (limit = 10): Promise<HomeFeedVideo[]> => {
+export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
   try {
-    const seed = "hiffi_home_ssr_v1"
     const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
     const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
       headers: { "Content-Type": "application/json" },
-      next: { revalidate: 300 },
+      cache: "no-store",
     })
     if (!res.ok) return []
     const json = await res.json()
@@ -236,7 +235,7 @@ export const fetchHomeFeedInitial = cache(async (limit = 10): Promise<HomeFeedVi
   } catch {
     return []
   }
-})
+}
 
 export type SitemapVideoEntry = {
   videoId: string

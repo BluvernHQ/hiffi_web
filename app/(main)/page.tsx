@@ -1,12 +1,14 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
+import { randomBytes } from "crypto"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
 import { getThumbnailUrl } from "@/lib/storage"
 import { HomeFeedClient } from "./home-feed-client"
 
-export const revalidate = 300 // ISR: regenerate page at most every 5 minutes
+// Disable ISR so the homepage can reshuffle immediately on refresh.
+export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "Discover — High-Fidelity Videos & Music",
@@ -32,7 +34,8 @@ export const metadata: Metadata = {
 
 export default async function RootPage() {
   // Fetch first page server-side so crawlers & LLMs see real content, not "Loading..."
-  const initialVideos = await fetchHomeFeedInitial(10)
+  const seed = randomBytes(16).toString("hex")
+  const initialVideos = await fetchHomeFeedInitial(10, seed)
 
   // Build ItemList JSON-LD from the server-fetched videos (visible to crawlers immediately)
   const itemListJsonLd =
@@ -66,7 +69,7 @@ export default async function RootPage() {
           </div>
         }
       >
-        <HomeFeedClient initialVideos={initialVideos} />
+        <HomeFeedClient initialVideos={initialVideos} seed={seed} />
       </Suspense>
     </>
   )

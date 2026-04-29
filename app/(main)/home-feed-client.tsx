@@ -4,30 +4,29 @@ import { useState, useEffect } from "react"
 import { VideoGrid } from "@/components/video/video-grid"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
-import { getSeed } from "@/lib/seed-manager"
 
 const VIDEOS_PER_PAGE = 10
 const STORAGE_KEY = "hiffi_home_state"
 const SCROLL_KEY = "hiffi_home_scroll"
 
-function saveStateToStorage(videos: any[], offset: number, hasMore: boolean) {
+function saveStateToStorage(videos: any[], offset: number, hasMore: boolean, seed: string) {
   if (typeof window === "undefined") return
   try {
     sessionStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ videos, offset, hasMore, seed: getSeed(), timestamp: Date.now() }),
+      JSON.stringify({ videos, offset, hasMore, seed, timestamp: Date.now() }),
     )
   } catch {}
 }
 
-function loadStateFromStorage(): { videos: any[]; offset: number; hasMore: boolean } | null {
+function loadStateFromStorage(seed: string): { videos: any[]; offset: number; hasMore: boolean } | null {
   if (typeof window === "undefined") return null
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY)
     if (!stored) return null
     const state = JSON.parse(stored)
     const age = Date.now() - (state.timestamp || 0)
-    if (state.seed === getSeed() && age < 5 * 60 * 1000) {
+    if (state.seed === seed && age < 5 * 60 * 1000) {
       return { videos: state.videos || [], offset: state.offset || 0, hasMore: state.hasMore ?? true }
     }
   } catch {}
@@ -61,9 +60,11 @@ function restoreScrollPosition() {
 export interface HomeFeedClientProps {
   /** First page of videos pre-fetched on the server (may be empty on error). */
   initialVideos: any[]
+  /** Seed used by SSR; keeps the client from reshuffling after hydration. */
+  seed: string
 }
 
-export function HomeFeedClient({ initialVideos }: HomeFeedClientProps) {
+export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const { userData } = useAuth()
   const [videos, setVideos] = useState<any[]>(() => initialVideos)
   const [loading, setLoading] = useState(false)
@@ -96,7 +97,6 @@ export function HomeFeedClient({ initialVideos }: HomeFeedClientProps) {
       if (isInitialLoad) setLoading(true)
       else setLoadingMore(true)
 
-      const seed = getSeed()
       const response = await apiClient.getVideoList({ offset: currentOffset, limit: VIDEOS_PER_PAGE, seed })
       const videosArray = response.videos || []
       const enhanced = videosArray.map((video: any) => {
@@ -111,7 +111,7 @@ export function HomeFeedClient({ initialVideos }: HomeFeedClientProps) {
       if (currentOffset === 0) {
         setVideos(enhanced)
         setOffset(enhanced.length)
-        setTimeout(() => saveStateToStorage(enhanced, enhanced.length, enhanced.length === VIDEOS_PER_PAGE), 0)
+        setTimeout(() => saveStateToStorage(enhanced, enhanced.length, enhanced.length === VIDEOS_PER_PAGE, seed), 0)
       } else {
         setVideos((prev) => {
           const seen = new Set(prev.map((v: any) => v.videoId || v.video_id))
@@ -119,7 +119,7 @@ export function HomeFeedClient({ initialVideos }: HomeFeedClientProps) {
           const merged = [...prev, ...fresh]
           const newOff = merged.length
           setOffset(newOff)
-          setTimeout(() => saveStateToStorage(merged, newOff, videosArray.length === VIDEOS_PER_PAGE), 0)
+          setTimeout(() => saveStateToStorage(merged, newOff, videosArray.length === VIDEOS_PER_PAGE, seed), 0)
           return merged
         })
       }
@@ -139,14 +139,14 @@ export function HomeFeedClient({ initialVideos }: HomeFeedClientProps) {
   useEffect(() => {
     if (hydrated) return
     setHydrated(true)
-    const restored = loadStateFromStorage()
+    const restored = loadStateFromStorage(seed)
     if (restored) {
       setVideos(restored.videos)
       setOffset(restored.offset)
       setHasMore(restored.hasMore)
       setTimeout(restoreScrollPosition, 100)
     } else if (initialVideos.length === 0) {
-      // SSR returned nothing (API error), retry on the client
+      // SSR returned nothing (API error), retry on the client.
       fetchVideos(0, true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
