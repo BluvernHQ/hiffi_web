@@ -3281,11 +3281,9 @@ class ApiClient {
         message: response.message || "User deleted successfully",
       }
     }
-    
-    return {
-      status: "error",
-      message: response.message || "Failed to delete user",
-    }
+
+    const errMsg = response.message || "Failed to delete user"
+    throw new Error(errMsg)
   }
 
   // Admin endpoints - Disable User
