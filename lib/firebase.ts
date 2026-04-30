@@ -19,7 +19,10 @@ const auth = getAuth(app)
 // Only initialize analytics on client side
 let analytics
 if (typeof window !== "undefined") {
-  analytics = getAnalytics(app)
+  const isProdEnv = (process.env.NEXT_PUBLIC_ENV || "beta").toLowerCase() === "prod"
+  if (isProdEnv) {
+    analytics = getAnalytics(app)
+  }
 }
 
 export { app, auth, analytics }

@@ -20,6 +20,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
   "Hiffi is a creator-first, high-fidelity video and lossless audio streaming platform for independent artists. Discover, stream, and support creators without algorithmic interference."
+const IS_PROD_ENV = (process.env.NEXT_PUBLIC_ENV || "beta").toLowerCase() === "prod"
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteOrigin()),
@@ -43,9 +44,9 @@ export const metadata: Metadata = {
   generator: "Next.js",
   referrer: "origin-when-cross-origin",
   robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    index: IS_PROD_ENV,
+    follow: IS_PROD_ENV,
+    googleBot: { index: IS_PROD_ENV, follow: IS_PROD_ENV, "max-image-preview": "large" },
   },
   alternates: {
     canonical: getSiteOrigin(),
@@ -123,11 +124,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
-  const gaId = process.env.NEXT_PUBLIC_GA_ID
-  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const analyticsEnabled = IS_PROD_ENV
+  const clarityId = analyticsEnabled ? process.env.NEXT_PUBLIC_CLARITY_ID : null
+  const gaId = analyticsEnabled ? process.env.NEXT_PUBLIC_GA_ID : null
+  const umamiWebsiteId = analyticsEnabled ? process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID : null
   const apiAnalyticsEnabled =
-    process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
+    analyticsEnabled &&
+    (process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1")
   const apiAnalyticsSrc = apiAnalyticsEnabled
     ? `${API_BASE_URL.replace(/\/$/, "")}/tracker.js`
     : null

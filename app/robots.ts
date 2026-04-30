@@ -3,6 +3,17 @@ import { getSiteOrigin } from "@/lib/seo/site"
 
 export default function robots(): MetadataRoute.Robots {
   const origin = getSiteOrigin()
+  const isProdEnv = (process.env.NEXT_PUBLIC_ENV || "beta").toLowerCase() === "prod"
+
+  if (!isProdEnv) {
+    return {
+      rules: {
+        userAgent: "*",
+        disallow: "/",
+      },
+    }
+  }
+
   return {
     rules: [
       {
