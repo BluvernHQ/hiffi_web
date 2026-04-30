@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { apiClient, type ApiError, type PlaylistSummary } from "@/lib/api-client"
+import { notifyCuratedPlaylistsUpdated } from "@/lib/curated-playlists-events"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import {
@@ -214,6 +215,7 @@ export function AddToPlaylistDialog({
   const [basePlaylistIds, setBasePlaylistIds] = useState<Set<string>>(new Set())
   const [pendingAddPlaylistIds, setPendingAddPlaylistIds] = useState<Set<string>>(new Set())
   const [pendingRemovePlaylistIds, setPendingRemovePlaylistIds] = useState<Set<string>>(new Set())
+  const [deferredCreatedPlaylistIds, setDeferredCreatedPlaylistIds] = useState<Set<string>>(new Set())
   const [savingChanges, setSavingChanges] = useState(false)
 
   const [createTitle, setCreateTitle] = useState("")
@@ -264,6 +266,7 @@ export function AddToPlaylistDialog({
     setBasePlaylistIds(new Set())
     setPendingAddPlaylistIds(new Set())
     setPendingRemovePlaylistIds(new Set())
+    setDeferredCreatedPlaylistIds(new Set())
     setSavingChanges(false)
     setPlaylistSearchInput("")
     setPlaylistQuery("")
@@ -315,18 +318,18 @@ export function AddToPlaylistDialog({
 
   const isPlaylistAdded = useCallback(
     (playlistId: string) => {
-      const inBase = basePlaylistIds.has(playlistId)
+      const inBase = basePlaylistIds.has(playlistId) && !deferredCreatedPlaylistIds.has(playlistId)
       const willBeRemoved = pendingRemovePlaylistIds.has(playlistId)
       const willBeAdded = pendingAddPlaylistIds.has(playlistId)
       if (inBase && !willBeRemoved) return true
       if (!inBase && willBeAdded) return true
       return false
     },
-    [basePlaylistIds, pendingAddPlaylistIds, pendingRemovePlaylistIds],
+    [basePlaylistIds, deferredCreatedPlaylistIds, pendingAddPlaylistIds, pendingRemovePlaylistIds],
   )
 
   const handleTogglePlaylist = (playlistId: string) => {
-    const inBase = basePlaylistIds.has(playlistId)
+    const inBase = basePlaylistIds.has(playlistId) && !deferredCreatedPlaylistIds.has(playlistId)
     if (inBase) {
       setPendingAddPlaylistIds((prev) => {
         if (!prev.has(playlistId)) return prev
@@ -364,11 +367,24 @@ export function AddToPlaylistDialog({
   }
 
   const closeAndDiscard = useCallback(() => {
+    const vid = videoId.trim()
+    if (vid && deferredCreatedPlaylistIds.size > 0) {
+      void Promise.all(
+        Array.from(deferredCreatedPlaylistIds).map(async (playlistId) => {
+          try {
+            await apiClient.removePlaylistItem(playlistId, vid)
+          } catch {
+            // best effort rollback on cancel
+          }
+        }),
+      )
+    }
     setBasePlaylistIds(new Set())
     setPendingAddPlaylistIds(new Set())
     setPendingRemovePlaylistIds(new Set())
+    setDeferredCreatedPlaylistIds(new Set())
     onOpenChange(false)
-  }, [onOpenChange])
+  }, [deferredCreatedPlaylistIds, onOpenChange, videoId])
 
   const handleConfirmAdds = useCallback(async () => {
     const vid = videoId.trim()
@@ -384,6 +400,7 @@ export function AddToPlaylistDialog({
     let addSuccessCount = 0
     let removeSuccessCount = 0
     let failureCount = 0
+    const addSuccessIds = new Set<string>()
 
     await Promise.all(
       addIds.map(async (playlistId) => {
@@ -391,6 +408,7 @@ export function AddToPlaylistDialog({
           const res = await apiClient.addPlaylistItem(playlistId, vid)
           if (!res.success) throw new Error(res.message || "Could not add video")
           addSuccessCount += 1
+          addSuccessIds.add(playlistId)
         } catch {
           failureCount += 1
         }
@@ -423,6 +441,12 @@ export function AddToPlaylistDialog({
       })
       setPendingAddPlaylistIds(new Set())
       setPendingRemovePlaylistIds(new Set())
+      setDeferredCreatedPlaylistIds((prev) => {
+        if (prev.size === 0 || addSuccessIds.size === 0) return prev
+        const next = new Set(prev)
+        addSuccessIds.forEach((id) => next.delete(id))
+        return next
+      })
       onOpenChange(false)
       return
     }
@@ -446,19 +470,32 @@ export function AddToPlaylistDialog({
         video_id: vid,
       })
       if (!res.success || !res.playlist_id) throw new Error(res.message || "Create failed")
+      // API currently creates playlist with the video already attached.
+      // Roll this back so video assignment only happens when user presses Done.
+      try {
+        await apiClient.removePlaylistItem(res.playlist_id, vid)
+      } catch {
+        // If rollback fails here, we keep UI in deferred state and retry on cancel if needed.
+      }
+
       toast({
         title: "Playlist created",
-        description: "This video was added as the first item.",
+        description: "Select Done to add this video.",
       })
-      setBasePlaylistIds((prev) => {
+      notifyCuratedPlaylistsUpdated()
+      setDeferredCreatedPlaylistIds((prev) => {
         const next = new Set(prev)
         next.add(res.playlist_id)
         return next
       })
-      setPendingAddPlaylistIds((prev) => {
-        if (!prev.has(res.playlist_id)) return prev
+      setBasePlaylistIds((prev) => {
         const next = new Set(prev)
         next.delete(res.playlist_id)
+        return next
+      })
+      setPendingAddPlaylistIds((prev) => {
+        const next = new Set(prev)
+        next.add(res.playlist_id)
         return next
       })
       setPendingRemovePlaylistIds((prev) => {
@@ -506,8 +543,8 @@ export function AddToPlaylistDialog({
             <p className="text-sm font-semibold text-foreground">No playlists yet</p>
             <p className="text-sm text-muted-foreground">
               {layout === "sheet"
-                ? "Create one with the button above — this video will be added automatically."
-                : "Use New playlist above — we’ll create one and add this video automatically."}
+                ? "Create one with the button above, then press Done to save this video."
+                : "Use New playlist above, then press Done to save this video."}
             </p>
           </div>
         </div>

@@ -37,6 +37,7 @@ import {
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { getThumbnailUrl } from "@/lib/storage"
 import { setPlaylistSession } from "@/lib/playlist-session"
+import { notifyCuratedPlaylistsUpdated } from "@/lib/curated-playlists-events"
 
 type VideoMeta = { title: string; thumbnail?: string }
 type PlaylistPreview = { videoIds: string[]; totalVideos: number }
@@ -526,6 +527,7 @@ function PlaylistsPageContent() {
       const res = await apiClient.deletePlaylist(selectedId)
       if (!res.success) throw new Error(res.message || "Delete failed")
       toast({ title: "Playlist deleted" })
+      notifyCuratedPlaylistsUpdated()
       setDeletePlaylistOpen(false)
       setSelectedId(null)
       setDetailPlaylist(null)

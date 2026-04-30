@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api-client"
 import { setPlaylistSession } from "@/lib/playlist-session"
+import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
 
 interface SidebarProps {
   className?: string
@@ -73,36 +74,47 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     }
   }
 
-  // Load the latest curated/admin mix for all users.
+  const loadCuratedPlaylists = useCallback(async () => {
+    try {
+      setCuratedLoading(true)
+
+      const listRes = await apiClient.listCuratedPlaylists({ limit: 3, offset: 0 })
+      const next = (listRes.playlists || [])
+        .filter((p) => Boolean(p.playlist_id) && Boolean(p.title))
+        .map((p) => ({
+          playlistId: p.playlist_id,
+          title: p.title,
+          description: p.description,
+          item_count: p.item_count,
+        }))
+
+      setCuratedPlaylists(next)
+    } catch {
+      // no-op; curated mix is optional
+    } finally {
+      setCuratedLoading(false)
+    }
+  }, [])
+
+  // Load the latest curated/admin mix for all users and refresh when changed elsewhere.
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        setCuratedLoading(true)
+    const safeLoad = async () => {
+      if (cancelled) return
+      await loadCuratedPlaylists()
+    }
+    void safeLoad()
 
-        const listRes = await apiClient.listCuratedPlaylists({ limit: 3, offset: 0 })
-        const next = (listRes.playlists || [])
-          .filter((p) => Boolean(p.playlist_id) && Boolean(p.title))
-          .map((p) => ({
-            playlistId: p.playlist_id,
-            title: p.title,
-            description: p.description,
-            item_count: p.item_count,
-          }))
-
-        if (cancelled) return
-        setCuratedPlaylists(next)
-      } catch {
-        // no-op; curated mix is optional
-      } finally {
-        if (!cancelled) setCuratedLoading(false)
-      }
-    })()
+    const handleCuratedPlaylistsUpdated = () => {
+      void safeLoad()
+    }
+    window.addEventListener(CURATED_PLAYLISTS_UPDATED_EVENT, handleCuratedPlaylistsUpdated)
 
     return () => {
       cancelled = true
+      window.removeEventListener(CURATED_PLAYLISTS_UPDATED_EVENT, handleCuratedPlaylistsUpdated)
     }
-  }, [])
+  }, [loadCuratedPlaylists])
 
   // Prefetch the first playable video id per curated playlist so clicks can navigate instantly.
   useEffect(() => {
