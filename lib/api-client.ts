@@ -3480,6 +3480,109 @@ class ApiClient {
     }
   }
 
+  async adminGetReferals(params: {
+    limit?: number
+    offset?: number
+  } = {}): Promise<{
+    count: number
+    limit: number
+    offset: number
+    filters: Record<string, any>
+    referals: Array<{
+      code: string
+      enrolled_at: string
+      referrer_uid: string
+      referrer_username: string
+      referrer_name: string
+      referred_uid: string
+      referred_username: string
+      referred_name: string
+    }>
+  }> {
+    const limit = params.limit ?? 20
+    const offset = params.offset ?? 0
+
+    const query = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    })
+
+    type ReferalsResponse = {
+      success?: boolean
+      data?: {
+        count?: number
+        filters?: Record<string, any>
+        limit?: number
+        offset?: number
+        referals?: Array<{
+          code: string
+          enrolled_at: string
+          referrer_uid: string
+          referrer_username: string
+          referrer_name: string
+          referred_uid: string
+          referred_username: string
+          referred_name: string
+        }>
+      }
+      count?: number
+      filters?: Record<string, any>
+      limit?: number
+      offset?: number
+      referals?: Array<{
+        code: string
+        enrolled_at: string
+        referrer_uid: string
+        referrer_username: string
+        referrer_name: string
+        referred_uid: string
+        referred_username: string
+        referred_name: string
+      }>
+    }
+
+    let response: ReferalsResponse
+    try {
+      response = await this.request<ReferalsResponse>(`/admin/referals?${query.toString()}`, { method: "GET" }, true)
+    } catch (error: any) {
+      const isFetchBlockedOrNetwork =
+        error?.status === 0 ||
+        String(error?.message || "").toLowerCase().includes("failed to fetch") ||
+        String(error?.message || "").toLowerCase().includes("unable to connect")
+
+      if (typeof window !== "undefined" && isFetchBlockedOrNetwork) {
+        const token = this.getAuthToken()
+        const proxyResponse = await fetch(`/proxy/admin-referals?${query.toString()}`, {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+
+        if (!proxyResponse.ok) {
+          const proxyText = await proxyResponse.text().catch(() => proxyResponse.statusText)
+          const proxyError: ApiError = {
+            message: proxyText || "Failed to fetch admin referrals via proxy.",
+            status: proxyResponse.status,
+            responseBody: proxyText,
+          }
+          throw proxyError
+        }
+
+        response = await proxyResponse.json()
+      } else {
+        throw error
+      }
+    }
+
+    const payload = response.data ?? response
+    return {
+      count: payload.count || 0,
+      filters: payload.filters || {},
+      limit: payload.limit || limit,
+      offset: payload.offset || offset,
+      referals: payload.referals || [],
+    }
+  }
+
   // Admin endpoints - Delete User
   // DELETE /admin/users/{username} - Delete a user account by username
   async deleteUserByUsername(username: string): Promise<{

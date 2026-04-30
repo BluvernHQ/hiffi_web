@@ -5,7 +5,8 @@
       {
         "appID": "WL56UL38RX.com.hiffi.com",
         "paths": [
-          "/watch/*"
+          "/watch/*",
+          "/referrar/*"
         ]
       }
     ]

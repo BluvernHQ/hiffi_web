@@ -10,6 +10,7 @@ import {
   Video,
   MessageSquare,
   Reply,
+  UsersRound,
   Shield,
   X,
   ChevronLeft,
@@ -55,6 +56,11 @@ const navItems = [
     icon: Activity,
     label: "Activity Logs",
     value: "activity",
+  },
+  {
+    icon: UsersRound,
+    label: "Referrals",
+    value: "referrals",
   },
 ]
 

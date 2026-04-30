@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +23,7 @@ import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
 
 export function AdminUsersTable() {
+  const searchParams = useSearchParams()
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -314,6 +316,15 @@ export function AdminUsersTable() {
 
     return () => clearTimeout(timeoutId)
   }, [searchInput])
+
+  // Hydrate search from URL query (e.g., /admin/dashboard?section=users&q=username)
+  useEffect(() => {
+    const q = (searchParams.get("q") || "").trim()
+    if (!q) return
+    setSearchInput(q)
+    setSearchQuery(q)
+    setPage(1)
+  }, [searchParams])
 
   useEffect(() => {
     fetchUsers()

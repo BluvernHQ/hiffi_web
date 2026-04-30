@@ -21,6 +21,7 @@ import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
 import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
+import { AdminReferralsTable } from "@/components/admin/referrals-table"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
@@ -305,6 +306,18 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showContent ? <AdminActivityLogsTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {section === "referrals" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Referrals</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Track referral codes, referrers, and enrolled users
+                    </p>
+                  </div>
+                  {showContent ? <AdminReferralsTable /> : <TableSkeleton />}
                 </div>
               )}
             </div>
