@@ -3873,16 +3873,27 @@ class ApiClient {
     }
   }
 
-  async searchUsers(query: string, limit: number = 10): Promise<{ success: boolean; users: any[]; count: number }> {
+  async searchUsers(
+    query: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<{ success: boolean; users: any[]; count: number }> {
+    const page = Math.floor(offset / Math.max(limit, 1)) + 1
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      page: String(page),
+    })
     const response = await this.request<{
       success: boolean
       data?: {
         users: any[]
         count: number
         limit: number
+        offset?: number
         query: string
       }
-    }>(`/search/users/${encodeURIComponent(query)}`, {}, false)
+    }>(`/search/users/${encodeURIComponent(query)}?${params.toString()}`, {}, false)
     
     if (response.success && response.data) {
       return {
@@ -3899,16 +3910,28 @@ class ApiClient {
     }
   }
 
-  async searchVideos(query: string, limit: number = 10): Promise<{ success: boolean; videos: any[]; count: number }> {
+  async searchVideos(
+    query: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<{ success: boolean; videos: any[]; count: number }> {
+    const page = Math.floor(offset / Math.max(limit, 1)) + 1
+    console.log("[API] searchVideos request:", { query, limit, offset, page })
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      page: String(page),
+    })
     const response = await this.request<{
       success: boolean
       data?: {
         videos: any[]
         count: number
         limit: number
+        offset?: number
         query: string
       }
-    }>(`/search/videos/${encodeURIComponent(query)}`, {}, false)
+    }>(`/search/videos/${encodeURIComponent(query)}?${params.toString()}`, {}, false)
     
     if (response.success && response.data) {
       console.log("[API] searchVideos response:", {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { VideoGrid } from '@/components/video/video-grid';
 import { Search, Loader2, User, Video } from 'lucide-react';
@@ -8,13 +8,12 @@ import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getThumbnailUrl } from '@/lib/storage';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
-import { getSeed } from '@/lib/seed-manager';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const VIDEOS_PER_PAGE = 10;
+const USERS_PER_PAGE = 50;
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
@@ -23,7 +22,11 @@ function SearchPageContent() {
   const [userResults, setUserResults] = useState<any[]>([]);
   const [videoCount, setVideoCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(false);
+  const [loadingMoreVideos, setLoadingMoreVideos] = useState(false);
+  const [videoOffset, setVideoOffset] = useState(0);
+  const [hasMoreVideos, setHasMoreVideos] = useState(false);
+  const [isFetchingVideos, setIsFetchingVideos] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'videos' | 'users'>('all');
   const [currentQuery, setCurrentQuery] = useState<string | null>(null);
   const { toast } = useToast();
@@ -35,19 +38,27 @@ function SearchPageContent() {
       setUserResults([]);
       setVideoCount(0);
       setUserCount(0);
+      setVideoOffset(0);
+      setHasMoreVideos(false);
+      setLoadingInitial(false);
+      setLoadingMoreVideos(false);
+      setIsFetchingVideos(false);
       return;
     }
 
     try {
-      setLoading(true);
-      // Reset results immediately to show loading state
+      setLoadingInitial(true);
+      setIsFetchingVideos(true);
+      // Reset results immediately for a fresh search
       setVideoResults([]);
       setUserResults([]);
+      setVideoOffset(0);
+      setHasMoreVideos(false);
 
       // Fetch both users and videos in parallel
       const [usersResponse, videosResponse] = await Promise.all([
-        apiClient.searchUsers(searchQuery, 50).catch(() => ({ success: false, users: [], count: 0 })),
-        apiClient.searchVideos(searchQuery, 100).catch(() => ({ success: false, videos: [], count: 0 }))
+        apiClient.searchUsers(searchQuery, USERS_PER_PAGE, 0).catch(() => ({ success: false, users: [], count: 0 })),
+        apiClient.searchVideos(searchQuery, VIDEOS_PER_PAGE, 0).catch(() => ({ success: false, videos: [], count: 0 }))
       ]);
 
       // Process User Results
@@ -70,8 +81,13 @@ function SearchPageContent() {
 
       // Process Video Results
       if (videosResponse.success) {
-        setVideoResults(videosResponse.videos || []);
-        setVideoCount(videosResponse.count || 0);
+        const videos = videosResponse.videos || [];
+        const totalVideos = videosResponse.count || 0;
+        setVideoResults(videos);
+        setVideoCount(totalVideos);
+        setVideoOffset(videos.length);
+        // Some APIs return an inaccurate/limited `count`; keep paging while we still receive a full page.
+        setHasMoreVideos(videos.length === VIDEOS_PER_PAGE);
       }
 
     } catch (error: any) {
@@ -82,7 +98,42 @@ function SearchPageContent() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoadingInitial(false);
+      setIsFetchingVideos(false);
+    }
+  };
+
+  const loadMoreVideos = async () => {
+    if (!currentQuery?.trim() || loadingInitial || loadingMoreVideos || !hasMoreVideos || isFetchingVideos) return;
+
+    try {
+      setLoadingMoreVideos(true);
+      setIsFetchingVideos(true);
+
+      const videosResponse = await apiClient.searchVideos(currentQuery, VIDEOS_PER_PAGE, videoOffset);
+      if (!videosResponse.success) {
+        setHasMoreVideos(false);
+        return;
+      }
+
+      const nextVideos = videosResponse.videos || [];
+      const totalVideos = videosResponse.count || 0;
+      setVideoCount(totalVideos);
+      setVideoResults((prev) => {
+        const seen = new Set(prev.map((video: any) => video.videoId || video.video_id));
+        const deduped = nextVideos.filter((video: any) => !seen.has(video.videoId || video.video_id));
+        const merged = [...prev, ...deduped];
+        setVideoOffset(merged.length);
+        // Match home feed behavior: keep loading while API returns a full page.
+        setHasMoreVideos(nextVideos.length === VIDEOS_PER_PAGE);
+        return merged;
+      });
+    } catch (error) {
+      console.error('[hiffi] Failed to load more search videos:', error);
+      setHasMoreVideos(false);
+    } finally {
+      setLoadingMoreVideos(false);
+      setIsFetchingVideos(false);
     }
   };
 
@@ -99,7 +150,13 @@ function SearchPageContent() {
       } else {
         setVideoResults([]);
         setUserResults([]);
-        setLoading(false);
+        setVideoCount(0);
+        setUserCount(0);
+        setLoadingInitial(false);
+        setLoadingMoreVideos(false);
+        setVideoOffset(0);
+        setHasMoreVideos(false);
+        setIsFetchingVideos(false);
       }
     }
   }, [searchParams, currentQuery]);
@@ -114,7 +171,7 @@ function SearchPageContent() {
               </div>
               {query && (videoResults.length > 0 || userResults.length > 0) && (
                 <p className="text-muted-foreground text-xs sm:text-sm md:text-base">
-                  Found <span className="font-semibold text-foreground">{videoResults.length + userResults.length}</span> results for <span className="font-semibold text-foreground">"{query}"</span>
+                  Results for <span className="font-semibold text-foreground">"{query}"</span>
                 </p>
               )}
             </div>
@@ -122,7 +179,7 @@ function SearchPageContent() {
 
           {query ? (
             <>
-              {loading ? (
+              {loadingInitial ? (
                 <div className="text-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
                   <p className="text-muted-foreground">Searching for "{query}"...</p>
@@ -130,9 +187,9 @@ function SearchPageContent() {
               ) : videoResults.length > 0 || userResults.length > 0 ? (
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'videos' | 'users')} className="space-y-4 sm:space-y-6">
                   <TabsList className="grid w-full max-w-md grid-cols-3 text-xs sm:text-sm">
-                    <TabsTrigger value="all" className="gap-1 sm:gap-2 px-2 sm:px-4">All ({videoResults.length + userResults.length})</TabsTrigger>
-                    <TabsTrigger value="videos" className="gap-1 sm:gap-2 px-2 sm:px-4"><Video className="h-3.5 w-3.5" /> Videos ({videoResults.length})</TabsTrigger>
-                    <TabsTrigger value="users" className="gap-2"><User className="h-4 w-4" /> Users ({userResults.length})</TabsTrigger>
+                    <TabsTrigger value="all" className="gap-1 sm:gap-2 px-2 sm:px-4">All</TabsTrigger>
+                    <TabsTrigger value="videos" className="gap-1 sm:gap-2 px-2 sm:px-4"><Video className="h-3.5 w-3.5" /> Videos</TabsTrigger>
+                    <TabsTrigger value="users" className="gap-2"><User className="h-4 w-4" /> Users</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="all" className="space-y-8 mt-6">
@@ -172,13 +229,25 @@ function SearchPageContent() {
                     {videoResults.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-4"><Video className="h-5 w-5 text-muted-foreground" /><h2 className="text-xl font-bold">Videos</h2></div>
-                        <VideoGrid videos={videoResults} loading={false} hasMore={false} />
+                        <VideoGrid
+                          videos={videoResults}
+                          loading={loadingInitial || loadingMoreVideos}
+                          hasMore={hasMoreVideos}
+                          onLoadMore={loadMoreVideos}
+                          openVideoUiName="opened-video-from-search"
+                        />
                       </div>
                     )}
                   </TabsContent>
 
                   <TabsContent value="videos" className="mt-6">
-                    <VideoGrid videos={videoResults} loading={false} hasMore={false} />
+                    <VideoGrid
+                      videos={videoResults}
+                      loading={loadingInitial || loadingMoreVideos}
+                      hasMore={hasMoreVideos}
+                      onLoadMore={loadMoreVideos}
+                      openVideoUiName="opened-video-from-search"
+                    />
                   </TabsContent>
 
                   <TabsContent value="users" className="mt-6">
