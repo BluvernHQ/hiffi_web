@@ -7,6 +7,36 @@ import { cn } from "@/lib/utils"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
 
 type OsState = "pending" | "desktop" | "ios" | "android" | "other-mobile"
+export type PlatformHint = "ios" | "android" | "unknown"
+
+const PLATFORM_SESSION_KEY = "hiffi_platform"
+const PLATFORM_COOKIE_KEY = "hiffi_platform"
+const PLATFORM_COOKIE_MAX_AGE_SECONDS = 60 * 30
+
+function parsePlatform(value: string | null | undefined): "ios" | "android" | null {
+  if (value === "ios" || value === "android") return value
+  return null
+}
+
+function writePlatformCache(platform: "ios" | "android") {
+  try {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(PLATFORM_SESSION_KEY, platform)
+      document.cookie = `${PLATFORM_COOKIE_KEY}=${platform}; Max-Age=${PLATFORM_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`
+    }
+  } catch {
+    // no-op
+  }
+}
+
+function readSessionPlatform(): "ios" | "android" | null {
+  try {
+    if (typeof window === "undefined") return null
+    return parsePlatform(sessionStorage.getItem(PLATFORM_SESSION_KEY))
+  } catch {
+    return null
+  }
+}
 
 function detectOs(): OsState {
   if (typeof window === "undefined") return "pending"
@@ -19,14 +49,31 @@ function detectOs(): OsState {
 
 type StoreVisual = "equal" | "ios-primary" | "android-primary"
 
-function useDownloadOsState() {
-  const [os, setOs] = useState<OsState>("pending")
+function useDownloadOsState(initialPlatform: PlatformHint) {
+  const initialOs: OsState = initialPlatform === "unknown" ? "pending" : initialPlatform
+  const [os, setOs] = useState<OsState>(initialOs)
   const [showAllStores, setShowAllStores] = useState(false)
+  const [isResolving, setIsResolving] = useState(initialOs === "pending")
 
   useEffect(() => {
-    setOs(detectOs())
+    const sessionPlatform = readSessionPlatform()
+    if (sessionPlatform) {
+      setOs(sessionPlatform)
+      setIsResolving(false)
+    }
+
+    const applyDetectedPlatform = () => {
+      const detected = detectOs()
+      setOs((prev) => (prev === detected ? prev : detected))
+      setIsResolving(false)
+      if (detected === "ios" || detected === "android") {
+        writePlatformCache(detected)
+      }
+    }
+
+    applyDetectedPlatform()
     const mq = window.matchMedia("(min-width: 768px)")
-    const onChange = () => setOs(detectOs())
+    const onChange = () => applyDetectedPlatform()
     mq.addEventListener("change", onChange)
     return () => mq.removeEventListener("change", onChange)
   }, [])
@@ -44,7 +91,7 @@ function useDownloadOsState() {
     else if (isAndroid) visual = "android-primary"
   }
 
-  return { os, showAllStores, setShowAllStores, showToggle, visual, isDesktop, hydrated }
+  return { os, showAllStores, setShowAllStores, showToggle, visual, isDesktop, hydrated, isResolving }
 }
 
 const pillBase =
@@ -184,9 +231,16 @@ function NoiseOverlay({ filterId }: { filterId: string }) {
   )
 }
 
-export function AppDownloadChrome({ children }: { children: ReactNode }) {
+export function AppDownloadChrome({
+  children,
+  initialPlatform = "unknown",
+}: {
+  children: ReactNode
+  initialPlatform?: PlatformHint
+}) {
   const filterId = `app-noise-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`
-  const { os, showAllStores, setShowAllStores, showToggle, visual, isDesktop, hydrated } = useDownloadOsState()
+  const { os, showAllStores, setShowAllStores, showToggle, visual, isDesktop, hydrated, isResolving } =
+    useDownloadOsState(initialPlatform)
 
   const isIos = os === "ios"
   const isAndroid = os === "android"
@@ -225,62 +279,64 @@ export function AppDownloadChrome({ children }: { children: ReactNode }) {
         <NoiseOverlay filterId={filterId} />
 
         <div className="relative z-[1] mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">{heroEyebrow}</p>
+          <div className={cn("transition-opacity duration-200", isResolving ? "opacity-95" : "opacity-100")}>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">{heroEyebrow}</p>
 
-          {showPlatformHero && isIos ? (
-            <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
-              Download Hiffi for <span className="text-primary">iPhone &amp; iPad</span>
-            </h1>
-          ) : showPlatformHero && isAndroid ? (
-            <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
-              Download Hiffi for <span className="text-primary">Android</span>
-            </h1>
-          ) : (
-            <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
-              Download Hiffi for{" "}
-              <span className="text-primary">iOS</span> and <span className="text-primary">Android</span>
-            </h1>
-          )}
+            {showPlatformHero && isIos ? (
+              <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
+                Download Hiffi for <span className="text-primary">iPhone &amp; iPad</span>
+              </h1>
+            ) : showPlatformHero && isAndroid ? (
+              <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
+                Download Hiffi for <span className="text-primary">Android</span>
+              </h1>
+            ) : (
+              <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
+                Download Hiffi for{" "}
+                <span className="text-primary">iOS</span> and <span className="text-primary">Android</span>
+              </h1>
+            )}
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
-            {heroDescription}
-          </p>
-
-          {showPlatformHero && isIos && (
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
-              <span className="font-semibold text-foreground">Also on Android</span>
-              {" — "}
-              Hiffi is the same app on Google Play for phones and tablets.{" "}
-              <a
-                href={HIFFI_PLAY_STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary underline-offset-2 hover:underline"
-              >
-                View on Google Play
-              </a>
-              .
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+              {heroDescription}
             </p>
-          )}
-          {showPlatformHero && isAndroid && (
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
-              <span className="font-semibold text-foreground">Also on iPhone &amp; iPad</span>
-              {" — "}
-              The same Hiffi experience is on the App Store for iOS.{" "}
-              <a
-                href={HIFFI_APP_STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary underline-offset-2 hover:underline"
-              >
-                View on App Store
-              </a>
-              .
-            </p>
-          )}
 
-          <div className="mt-10">
-            <StoreButtonRow visual={visual} />
+            {showPlatformHero && isIos && (
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
+                <span className="font-semibold text-foreground">Also on Android</span>
+                {" — "}
+                Hiffi is the same app on Google Play for phones and tablets.{" "}
+                <a
+                  href={HIFFI_PLAY_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  View on Google Play
+                </a>
+                .
+              </p>
+            )}
+            {showPlatformHero && isAndroid && (
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
+                <span className="font-semibold text-foreground">Also on iPhone &amp; iPad</span>
+                {" — "}
+                The same Hiffi experience is on the App Store for iOS.{" "}
+                <a
+                  href={HIFFI_APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  View on App Store
+                </a>
+                .
+              </p>
+            )}
+
+            <div className="mt-10">
+              <StoreButtonRow visual={visual} />
+            </div>
           </div>
 
           {showToggle && (

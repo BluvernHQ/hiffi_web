@@ -56,6 +56,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
+  const isAppDownloadPage = pathname === "/app"
 
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
@@ -131,7 +132,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className={isAppDownloadPage ? "h-9 w-9 text-foreground hover:text-foreground" : "h-9 w-9"}
               onClick={onMenuClick}
             >
               <Menu className="h-5 w-5" />

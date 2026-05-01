@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
-import { AppDownloadChrome } from "@/components/app/app-download-chrome"
+import { AppDownloadChrome, type PlatformHint } from "@/components/app/app-download-chrome"
 import { absoluteUrl } from "@/lib/seo/site"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
 import {
@@ -180,13 +181,18 @@ const appFeaturePills = [
   "iOS & Android support",
 ] as const
 
-export default function AppDownloadPage() {
+export default async function AppDownloadPage() {
+  const cookieStore = await cookies()
+  const cookiePlatform = cookieStore.get("hiffi_platform")?.value
+  const initialPlatform: PlatformHint =
+    cookiePlatform === "ios" || cookiePlatform === "android" ? cookiePlatform : "unknown"
+
   return (
     <div className="dark relative min-h-full bg-background text-foreground">
       <JsonLd data={softwareJsonLd} />
       <JsonLd data={faqJsonLd} />
 
-      <AppDownloadChrome>
+      <AppDownloadChrome initialPlatform={initialPlatform}>
         <div className="relative z-[1]">
           <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 md:py-28 lg:px-8">
             <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">What is Hiffi?</h2>

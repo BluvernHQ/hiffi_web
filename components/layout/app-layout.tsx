@@ -1,6 +1,7 @@
 "use client"
 
 import { ReactNode } from "react"
+import { usePathname } from "next/navigation"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
 import { useSidebar } from "@/lib/sidebar-context"
@@ -23,6 +24,9 @@ interface AppLayoutProps {
  * Sidebar state is managed by SidebarContext to persist across page navigations.
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
+  const pathname = usePathname()
+  const isAppDownloadPage = pathname === "/app"
+
   const {
     isSidebarOpen,
     setIsSidebarOpen,
@@ -32,7 +36,11 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   } = useSidebar()
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden relative">
+    <div
+      className={`h-[100dvh] flex flex-col bg-background overflow-hidden relative ${
+        isAppDownloadPage ? "dark" : ""
+      }`}
+    >
       {/* Navbar - Fixed at top, always visible */}
       <Navbar
         onMenuClick={() => {
@@ -49,6 +57,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
       {/* Main Layout Container */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
+          className={isAppDownloadPage ? "lg:fixed lg:top-16 lg:left-0 lg:z-[85] lg:h-[calc(100dvh-4rem)]" : undefined}
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
           isDesktopOpen={isDesktopSidebarOpen}

@@ -34,6 +34,7 @@ interface SidebarProps {
 export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange }: SidebarProps) {
   const { user, userData } = useAuth()
   const pathname = usePathname()
+  const isAppDownloadPage = pathname === "/app"
   const router = useRouter()
   const [internalMobileOpen, setInternalMobileOpen] = useState(false)
   const isHomePage = pathname === "/"
@@ -198,6 +199,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
         className={cn(
           // Standardized spacing and sizing - matches FilterItem exactly
           "flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+          isAppDownloadPage ? "text-foreground/90" : "text-foreground",
           // Hover state
           "hover:bg-accent hover:text-accent-foreground",
           // Active state - consistent visual treatment
@@ -244,6 +246,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
         className={cn(
           // Standardized spacing and sizing - never changes
           "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors text-left",
+          isAppDownloadPage ? "text-foreground/90" : "text-foreground",
           // Hover state
           "hover:bg-accent hover:text-accent-foreground",
           // Active state - consistent visual treatment
@@ -313,7 +316,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
 
               {/* Filter options - always show Explore section */}
               <div className={mainNavItems.length > 0 ? "pt-4" : ""}>
-                <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <div
+                  className={cn(
+                    "mb-2 px-4 text-xs font-semibold uppercase tracking-wider",
+                    isAppDownloadPage ? "text-foreground/80" : "text-muted-foreground",
+                  )}
+                >
                   Explore
                 </div>
                 <div className="space-y-1">
@@ -325,7 +333,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
 
               {(curatedLoading || curatedPlaylists.length > 0) && (
                 <div className="pt-4">
-                  <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div
+                    className={cn(
+                      "mb-2 px-4 text-xs font-semibold uppercase tracking-wider",
+                      isAppDownloadPage ? "text-foreground/80" : "text-muted-foreground",
+                    )}
+                  >
                     Curated Mix
                   </div>
 
@@ -436,7 +449,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                               )}
                             />
                             <div className="min-w-0 flex-1">
-                              <div className="relative truncate pl-5 text-sm font-semibold tracking-tight">
+                              <div
+                                className={cn(
+                                  "relative truncate pl-5 text-sm font-semibold tracking-tight",
+                                  isAppDownloadPage ? "text-foreground/90" : "text-foreground",
+                                )}
+                              >
                                 <Sparkles
                                   aria-hidden="true"
                                   className={cn(
@@ -447,7 +465,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                                 {p.title}
                               </div>
                               {p.description ? (
-                                <div className="mt-0.5 line-clamp-1 text-[11px] leading-4 text-muted-foreground/90">
+                                <div
+                                  className={cn(
+                                    "mt-0.5 line-clamp-1 text-[11px] leading-4",
+                                    isAppDownloadPage ? "text-foreground/75" : "text-muted-foreground/90",
+                                  )}
+                                >
                                   {p.description}
                                 </div>
                               ) : null}
@@ -475,7 +498,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
 
               {user && secondaryNavItems.length > 0 && (
               <div className="pt-4">
-                <div className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <div
+                  className={cn(
+                    "mb-2 px-4 text-xs font-semibold uppercase tracking-wider",
+                    isAppDownloadPage ? "text-foreground/80" : "text-muted-foreground",
+                  )}
+                >
                   Your Activity
                 </div>
                 <div className="space-y-1">
@@ -494,7 +522,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
               <div className="flex flex-col gap-1.5">
                 <Link
                   href="/terms-of-use"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "text-xs transition-colors",
+                    isAppDownloadPage
+                      ? "text-foreground/85 hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                   onClick={(e) => {
                     const { shouldBlock, message } = checkUploadNavigationGuard()
                     if (shouldBlock) {
@@ -512,7 +545,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </Link>
                 <Link
                   href="/payment-terms"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "text-xs transition-colors",
+                    isAppDownloadPage
+                      ? "text-foreground/85 hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                   onClick={(e) => {
                     const { shouldBlock, message } = checkUploadNavigationGuard()
                     if (shouldBlock) {
@@ -530,7 +568,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </Link>
                 <Link
                   href="/privacy-policy"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "text-xs transition-colors",
+                    isAppDownloadPage
+                      ? "text-foreground/85 hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                   onClick={(e) => {
                     const { shouldBlock, message } = checkUploadNavigationGuard()
                     if (shouldBlock) {
@@ -548,7 +591,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </Link>
                 <Link
                   href="/faq"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "text-xs transition-colors",
+                    isAppDownloadPage
+                      ? "text-foreground/85 hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                   onClick={(e) => {
                     const { shouldBlock, message } = checkUploadNavigationGuard()
                     if (shouldBlock) {
@@ -566,7 +614,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </Link>
                 <Link
                   href="/app"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "text-xs transition-colors",
+                    isAppDownloadPage
+                      ? "text-foreground/85 hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                   onClick={(e) => {
                     const { shouldBlock, message } = checkUploadNavigationGuard()
                     if (shouldBlock) {
@@ -584,7 +637,12 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 </Link>
                 <Link
                   href="/support"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={cn(
+                    "text-xs transition-colors",
+                    isAppDownloadPage
+                      ? "text-foreground/85 hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                   onClick={(e) => {
                     const { shouldBlock, message } = checkUploadNavigationGuard()
                     if (shouldBlock) {
@@ -601,7 +659,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   Support
                 </Link>
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className={cn("text-xs mt-1", isAppDownloadPage ? "text-foreground/70" : "text-muted-foreground")}>
                 © 2026 Kinimi Corporation
               </div>
             </div>

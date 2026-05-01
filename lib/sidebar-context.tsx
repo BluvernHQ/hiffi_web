@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from "react"
 
 interface SidebarContextType {
   isSidebarOpen: boolean
@@ -19,38 +19,37 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // Mobile sidebar state - always starts closed (no persistence needed)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  // Desktop sidebar state - initialize to false for SSR/Hydration
+  // Desktop sidebar state - initialized and hydrated from localStorage.
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [desktopStateHydrated, setDesktopStateHydrated] = useState(false)
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    setMounted(true)
+  // Load desktop state before first paint to avoid close/open flicker on refresh.
+  useLayoutEffect(() => {
     try {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
-        if (saved !== null) {
-          setIsDesktopSidebarOpen(saved === 'true')
-        }
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+      if (saved !== null) {
+        setIsDesktopSidebarOpen(saved === 'true')
       }
     } catch (error) {
       console.debug('[hiffi] Failed to load sidebar state:', error)
+    } finally {
+      setDesktopStateHydrated(true)
     }
   }, [])
 
   // Save desktop sidebar state to localStorage whenever it changes
   useEffect(() => {
-    if (!mounted) return
+    if (!desktopStateHydrated) return
     try {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isDesktopSidebarOpen))
     } catch (error) {
       // Ignore localStorage errors (e.g., in private browsing)
       console.debug('[hiffi] Failed to save sidebar state:', error)
     }
-  }, [isDesktopSidebarOpen, mounted])
+  }, [isDesktopSidebarOpen, desktopStateHydrated])
 
-  const toggleDesktopSidebar = () => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)
-  const toggleMobileSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+  const toggleDesktopSidebar = () => setIsDesktopSidebarOpen((prev) => !prev)
+  const toggleMobileSidebar = () => setIsSidebarOpen((prev) => !prev)
 
   return (
     <SidebarContext.Provider
