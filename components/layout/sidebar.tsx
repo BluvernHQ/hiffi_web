@@ -199,7 +199,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
         className={cn(
           // Standardized spacing and sizing - matches FilterItem exactly
           "flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
-          isAppDownloadPage ? "text-foreground/90" : "text-foreground",
+          isAppDownloadPage ? "text-black/85" : "text-foreground",
           // Hover state
           "hover:bg-accent hover:text-accent-foreground",
           // Active state - consistent visual treatment
@@ -246,7 +246,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
         className={cn(
           // Standardized spacing and sizing - never changes
           "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors text-left",
-          isAppDownloadPage ? "text-foreground/90" : "text-foreground",
+          isAppDownloadPage ? "text-black/85" : "text-foreground",
           // Hover state
           "hover:bg-accent hover:text-accent-foreground",
           // Active state - consistent visual treatment
@@ -273,7 +273,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
       <aside
         className={cn(
           // Fixed width - never changes (256px / w-64) when open
-          "flex-shrink-0 bg-background",
+          isAppDownloadPage ? "flex-shrink-0 bg-[#f3f0e8]" : "flex-shrink-0 bg-background",
           // Mobile: fixed overlay, always w-64
           "fixed left-0 top-0 z-[70] h-[100dvh] w-64 shadow-lg transition-transform duration-300 ease-in-out",
           // Desktop: sticky positioning below navbar, can be hidden
@@ -319,7 +319,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 <div
                   className={cn(
                     "mb-2 px-4 text-xs font-semibold uppercase tracking-wider",
-                    isAppDownloadPage ? "text-foreground/80" : "text-muted-foreground",
+                    isAppDownloadPage ? "text-black/55" : "text-muted-foreground",
                   )}
                 >
                   Explore
@@ -336,7 +336,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   <div
                     className={cn(
                       "mb-2 px-4 text-xs font-semibold uppercase tracking-wider",
-                      isAppDownloadPage ? "text-foreground/80" : "text-muted-foreground",
+                      isAppDownloadPage ? "text-black/55" : "text-muted-foreground",
                     )}
                   >
                     Curated Mix
@@ -452,7 +452,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                               <div
                                 className={cn(
                                   "relative truncate pl-5 text-sm font-semibold tracking-tight",
-                                  isAppDownloadPage ? "text-foreground/90" : "text-foreground",
+                                  isAppDownloadPage ? "text-white/90" : "text-foreground",
                                 )}
                               >
                                 <Sparkles
@@ -468,7 +468,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                                 <div
                                   className={cn(
                                     "mt-0.5 line-clamp-1 text-[11px] leading-4",
-                                    isAppDownloadPage ? "text-foreground/75" : "text-muted-foreground/90",
+                                    isAppDownloadPage ? "text-white/65" : "text-muted-foreground/90",
                                   )}
                                 >
                                   {p.description}
@@ -479,6 +479,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                               className={cn(
                                 "flex-shrink-0 text-muted-foreground/80 transition-all duration-200",
                                 !isLoading && "group-hover:text-foreground group-hover:translate-x-0.5",
+                                isAppDownloadPage && !isLoading && "text-white/55 group-hover:text-white/80",
                                 isSelected && "text-primary",
                               )}
                             >
@@ -501,7 +502,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 <div
                   className={cn(
                     "mb-2 px-4 text-xs font-semibold uppercase tracking-wider",
-                    isAppDownloadPage ? "text-foreground/80" : "text-muted-foreground",
+                    isAppDownloadPage ? "text-black/55" : "text-muted-foreground",
                   )}
                 >
                   Your Activity
@@ -525,7 +526,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   className={cn(
                     "text-xs transition-colors",
                     isAppDownloadPage
-                      ? "text-foreground/85 hover:text-foreground"
+                      ? "text-black/65 hover:text-black"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={(e) => {
@@ -548,7 +549,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   className={cn(
                     "text-xs transition-colors",
                     isAppDownloadPage
-                      ? "text-foreground/85 hover:text-foreground"
+                      ? "text-black/65 hover:text-black"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={(e) => {
@@ -571,7 +572,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   className={cn(
                     "text-xs transition-colors",
                     isAppDownloadPage
-                      ? "text-foreground/85 hover:text-foreground"
+                      ? "text-black/65 hover:text-black"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={(e) => {
@@ -594,7 +595,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   className={cn(
                     "text-xs transition-colors",
                     isAppDownloadPage
-                      ? "text-foreground/85 hover:text-foreground"
+                      ? "text-black/65 hover:text-black"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={(e) => {
@@ -617,7 +618,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   className={cn(
                     "text-xs transition-colors",
                     isAppDownloadPage
-                      ? "text-foreground/85 hover:text-foreground"
+                      ? "text-black/65 hover:text-black"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={(e) => {
@@ -640,7 +641,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   className={cn(
                     "text-xs transition-colors",
                     isAppDownloadPage
-                      ? "text-foreground/85 hover:text-foreground"
+                      ? "text-black/65 hover:text-black"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={(e) => {
@@ -659,7 +660,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   Support
                 </Link>
               </div>
-              <div className={cn("text-xs mt-1", isAppDownloadPage ? "text-foreground/70" : "text-muted-foreground")}>
+                <div className={cn("text-xs mt-1", isAppDownloadPage ? "text-black/55" : "text-muted-foreground")}>
                 © 2026 Kinimi Corporation
               </div>
             </div>

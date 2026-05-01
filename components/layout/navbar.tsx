@@ -126,13 +126,17 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header
+        className={isAppDownloadPage
+          ? "sticky top-0 z-[80] w-full border-b border-black/15 bg-[#f3f0e8]"
+          : "sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"}
+      >
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className={isAppDownloadPage ? "h-9 w-9 text-foreground hover:text-foreground" : "h-9 w-9"}
+              className={isAppDownloadPage ? "h-9 w-9 text-black/70 hover:bg-black/5 hover:text-black" : "h-9 w-9"}
               onClick={onMenuClick}
             >
               <Menu className="h-5 w-5" />
@@ -155,10 +159,26 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <div
                 onClick={() => setIsSearchOpen(true)}
                 data-analytics-name="navbar-open-search-button"
-                className="group relative flex items-center w-full h-9 rounded-full bg-muted/50 border border-input hover:bg-muted hover:border-primary/30 transition-all cursor-pointer overflow-hidden"
+                className={
+                  isAppDownloadPage
+                    ? "group relative flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-full border border-black/15 bg-white/90 shadow-sm transition-all hover:border-black/25 hover:bg-white"
+                    : "group relative flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-full border border-input bg-muted/50 transition-all hover:border-primary/30 hover:bg-muted"
+                }
               >
-                <Search className="absolute left-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="pl-10 text-sm text-muted-foreground truncate pr-4">
+                <Search
+                  className={
+                    isAppDownloadPage
+                      ? "absolute left-3 h-4 w-4 text-black/45 transition-colors group-hover:text-[#dc2626]"
+                      : "absolute left-3 h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                  }
+                />
+                <span
+                  className={
+                    isAppDownloadPage
+                      ? "truncate pl-10 pr-4 text-sm text-black/55"
+                      : "truncate pl-10 pr-4 text-sm text-muted-foreground"
+                  }
+                >
                   Search...
                 </span>
               </div>
@@ -291,7 +311,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
   return (
     <Suspense fallback={
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-black/15 bg-[#f3f0e8]">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Link href="/" className="flex items-center gap-3">

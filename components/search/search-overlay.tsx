@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, X, TrendingUp, Loader2, User, Video } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,8 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const resultItemRefs = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
   const router = useRouter();
+  const pathname = usePathname();
+  const isAppPage = pathname === '/app';
   const { toast } = useToast();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const previousBlobUrlsRef = useRef<Set<string>>(new Set()); // Track blob URLs for cleanup
@@ -188,16 +190,29 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-[90] backdrop-blur-sm"
+        className={cn(
+          'fixed inset-0 z-[90]',
+          isAppPage ? 'bg-black/25 backdrop-blur-[2px]' : 'bg-black/50 backdrop-blur-sm',
+        )}
         onClick={onClose}
       />
 
       {/* Search Panel */}
-      <div className="fixed top-0 left-0 right-0 z-[100] bg-background border-b shadow-lg">
+      <div
+        className={cn(
+          'fixed top-0 left-0 right-0 z-[100] border-b shadow-lg',
+          isAppPage ? 'border-black/15 bg-[#f3f0e8] text-black' : 'border-border bg-background',
+        )}
+      >
         <div className="container max-w-3xl mx-auto p-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search
+                className={cn(
+                  'absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2',
+                  isAppPage ? 'text-black/45' : 'text-muted-foreground',
+                )}
+              />
               <Input
                 ref={inputRef}
                 type="text"
@@ -238,18 +253,31 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
                   }
                 }}
-                className="pl-10 pr-10 h-12 text-lg"
+                className={cn(
+                  'pl-10 pr-10 h-12 text-lg',
+                  isAppPage &&
+                    'border-black/20 bg-white text-black shadow-sm placeholder:text-black/45 focus-visible:border-black/30 focus-visible:ring-black/15 dark:bg-white dark:text-black dark:placeholder:text-black/45',
+                )}
               />
               {query && (
                 <button
                   onClick={() => setQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className={cn(
+                    'absolute right-3 top-1/2 -translate-y-1/2',
+                    isAppPage ? 'text-black/45 hover:text-black' : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
                   <X className="h-5 w-5" />
                 </button>
               )}
             </div>
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              className={isAppPage ? 'text-black/80 hover:bg-black/5 hover:text-black' : undefined}
+            >
+              Cancel
+            </Button>
           </div>
 
           {/* Search Results */}
@@ -257,7 +285,12 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
             {query.length === 0 ? (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                  <h3
+                    className={cn(
+                      'mb-3 flex items-center gap-2 text-sm font-semibold',
+                      isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                    )}
+                  >
                     <TrendingUp className="h-4 w-4" />
                     Trending Searches
                   </h3>
@@ -268,8 +301,11 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         onClick={() => handleSearch(search)}
                         data-analytics-name="search-overlay-trending-search-button"
                         className={cn(
-                          "w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors",
-                          selectedIndex === index && "bg-muted"
+                          'w-full rounded-lg px-3 py-2 text-left transition-colors',
+                          isAppPage
+                            ? 'text-black/90 hover:bg-black/8'
+                            : 'hover:bg-muted',
+                          selectedIndex === index && (isAppPage ? 'bg-black/10' : 'bg-muted'),
                         )}
                         ref={(el) => {
                           if (el) resultItemRefs.current[index] = el;
@@ -284,7 +320,12 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
             ) : (
               <div className="space-y-2">
                 {isLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div
+                    className={cn(
+                      'py-8 text-center',
+                      isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                    )}
+                  >
                     <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                     <p>Searching...</p>
                   </div>
@@ -301,8 +342,17 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                           {users.length > 0 && (
                             <div>
                               <div className="flex items-center gap-2 mb-2 px-1">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Users</h3>
+                                <User
+                                  className={cn('h-4 w-4', isAppPage ? 'text-black/45' : 'text-muted-foreground')}
+                                />
+                                <h3
+                                  className={cn(
+                                    'text-xs font-semibold uppercase tracking-wider',
+                                    isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                                  )}
+                                >
+                                  Users
+                                </h3>
                               </div>
                               <div className="space-y-1">
                                 {users.map((result, index) => {
@@ -318,10 +368,16 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                         if (el) resultItemRefs.current[itemIndex] = el;
                                       }}
                                     >
-                                      <div className={cn(
-                                        "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
-                                        selectedIndex === itemIndex && "bg-muted"
-                                      )}>
+                                      <div
+                                        className={cn(
+                                          'group flex items-center gap-3 rounded-lg p-3 transition-colors',
+                                          isAppPage
+                                            ? 'hover:bg-black/8'
+                                            : 'hover:bg-muted',
+                                          selectedIndex === itemIndex &&
+                                            (isAppPage ? 'bg-black/10' : 'bg-muted'),
+                                        )}
+                                      >
                                         <ProfilePicture user={result.user} size="sm" />
                                         <div className="flex-1 min-w-0">
                                           <p className="font-medium truncate">
@@ -334,7 +390,12 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                             )}
                                           </p>
                                         </div>
-                                        <User className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <User
+                                          className={cn(
+                                            'h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100',
+                                            isAppPage ? 'text-black/45' : 'text-muted-foreground',
+                                          )}
+                                        />
                                       </div>
                                     </Link>
                                   );
@@ -347,19 +408,39 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                           {videos.length > 0 && (
                             <div>
                               <div className="flex items-center gap-2 mb-2 px-1">
-                                <Video className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Videos</h3>
+                                <Video
+                                  className={cn('h-4 w-4', isAppPage ? 'text-black/45' : 'text-muted-foreground')}
+                                />
+                                <h3
+                                  className={cn(
+                                    'text-xs font-semibold uppercase tracking-wider',
+                                    isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                                  )}
+                                >
+                                  Videos
+                                </h3>
                               </div>
                               <div className="space-y-1">
                                 {videos.map((result) => {
                                   const itemIndex = suggestions.indexOf(result);
                                   const processing = isVideoProcessing(result);
                                   const row = (
-                                    <div className={cn(
-                                      "flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors group",
-                                      selectedIndex === itemIndex && "bg-muted"
-                                    )}>
-                                      <div className="h-12 w-20 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
+                                    <div
+                                      className={cn(
+                                        'group flex items-center gap-3 rounded-lg p-3 transition-colors',
+                                        isAppPage
+                                          ? 'hover:bg-black/8'
+                                          : 'hover:bg-muted',
+                                        selectedIndex === itemIndex &&
+                                          (isAppPage ? 'bg-black/10' : 'bg-muted'),
+                                      )}
+                                    >
+                                      <div
+                                        className={cn(
+                                          'relative h-12 w-20 flex-shrink-0 overflow-hidden rounded-lg',
+                                          isAppPage ? 'bg-black/10' : 'bg-muted',
+                                        )}
+                                      >
                                         {result.thumbnail ? (
                                           <AuthenticatedImage
                                             src={getThumbnailUrl(result.thumbnail)}
@@ -369,8 +450,18 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                             authenticated={false}
                                           />
                                         ) : (
-                                          <div className="w-full h-full bg-muted flex items-center justify-center">
-                                            <Video className="h-4 w-4 text-muted-foreground" />
+                                          <div
+                                            className={cn(
+                                              'flex h-full w-full items-center justify-center',
+                                              isAppPage ? 'bg-black/10' : 'bg-muted',
+                                            )}
+                                          >
+                                            <Video
+                                              className={cn(
+                                                'h-4 w-4',
+                                                isAppPage ? 'text-black/40' : 'text-muted-foreground',
+                                              )}
+                                            />
                                           </div>
                                         )}
                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
@@ -387,7 +478,12 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                             )
                                           )}
                                         </p>
-                                        <p className="text-sm text-muted-foreground truncate">
+                                        <p
+                                          className={cn(
+                                            'truncate text-sm',
+                                            isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                                          )}
+                                        >
                                           @{result.username}
                                         </p>
                                       </div>
@@ -433,8 +529,10 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     <Button
                       variant="ghost"
                       className={cn(
-                        "w-full mt-4 border-t pt-4",
-                        selectedIndex === suggestions.length && "bg-muted"
+                        'mt-4 w-full border-t pt-4',
+                        isAppPage && 'border-black/15 text-black/90 hover:bg-black/8 hover:text-black',
+                        selectedIndex === suggestions.length &&
+                          (isAppPage ? 'bg-black/10' : 'bg-muted'),
                       )}
                       data-analytics-name="search-overlay-view-all-results-button"
                       onClick={() => handleSearch(query)}
@@ -446,11 +544,16 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     </Button>
                   </>
                 ) : query.trim().length > 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div
+                    className={cn(
+                      'py-8 text-center',
+                      isAppPage ? 'text-black/60' : 'text-muted-foreground',
+                    )}
+                  >
                     <p>No results found for "{query}"</p>
                     <Button
                       variant="ghost"
-                      className="mt-2"
+                      className={cn('mt-2', isAppPage && 'text-black/80 hover:bg-black/8 hover:text-black')}
                       onClick={() => handleSearch(query)}
                     >
                       Search anyway

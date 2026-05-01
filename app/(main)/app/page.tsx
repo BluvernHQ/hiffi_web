@@ -188,63 +188,66 @@ export default async function AppDownloadPage() {
     cookiePlatform === "ios" || cookiePlatform === "android" ? cookiePlatform : "unknown"
 
   return (
-    <div className="dark relative min-h-full bg-background text-foreground">
+    <div className="relative min-h-full bg-[#f3f0e8] text-[#121212]">
       <JsonLd data={softwareJsonLd} />
       <JsonLd data={faqJsonLd} />
 
       <AppDownloadChrome initialPlatform={initialPlatform}>
         <div className="relative z-[1]">
-          <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 md:py-28 lg:px-8">
-            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">What is Hiffi?</h2>
-            <p className="mx-auto mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+          <section className="relative mx-auto max-w-6xl border-t border-black/15 px-4 py-20 text-center sm:px-6 md:py-28 lg:px-8">
+            <p aria-hidden className="pointer-events-none absolute right-2 top-8 select-none text-[clamp(4rem,12vw,9rem)] font-black uppercase tracking-[-0.04em] text-black/[0.05]">
+              HIPHOP
+            </p>
+            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dc2626]">What is Hiffi?</h2>
+            <p className="mx-auto mt-6 max-w-3xl text-lg leading-relaxed text-black/80 md:text-xl">
               Hiffi is a music and video streaming platform built for independent creators, hip-hop artists, and their
               fans. Whether you&apos;re an artist ready to share your work or a fan looking for new sounds, Hiffi
               connects you directly.
             </p>
           </section>
 
-          <section className="border-t border-border/60 bg-card/30 py-20 md:py-28">
+          <section className="border-t border-black/15 bg-[#efebdf] py-20 md:py-28">
             <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">For fans</h2>
+              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dc2626]">For fans</h2>
               <div className="mt-10 grid gap-4 text-left sm:grid-cols-2 lg:gap-5 xl:grid-cols-3">
-                {fanFeatures.map(({ icon: Icon, title, description }) => (
+                {fanFeatures.map(({ icon: Icon, title, description }, idx) => (
                   <article
                     key={title}
-                    className="rounded-xl border border-border bg-card/80 p-5 shadow-sm md:p-6 lg:rounded-2xl"
+                    className={`border-2 border-black p-5 md:p-6 ${idx % 3 === 1 ? "-rotate-[0.8deg] bg-[#fffdf8]" : idx % 3 === 2 ? "rotate-[0.7deg] bg-[#fde9a9]" : "bg-[#f9f6ed]"} shadow-[6px_6px_0_#111]`}
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+                    <div className="flex h-11 w-11 items-center justify-center border-2 border-black bg-[#dc2626] text-white">
                       <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
                     </div>
-                    <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">{title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+                    <h3 className="mt-4 text-base font-semibold uppercase tracking-tight text-black">{title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-black/80">{description}</p>
                   </article>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="py-20 md:py-28">
+          <section className="border-t border-black/15 py-20 md:py-28">
             <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">
+              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dc2626]">
                 For artists
               </h2>
               <div className="mt-10 grid gap-4 text-left sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
-                {artistFeatures.map(({ icon: Icon, title, description }) => (
+                {artistFeatures.map(({ icon: Icon, title, description }, idx) => (
                   <article
                     key={title}
-                    className="rounded-xl border border-border bg-card/80 p-5 shadow-sm md:p-6 lg:rounded-2xl"
+                    className={`border-2 border-black p-5 md:p-6 ${idx % 2 === 0 ? "bg-[#fffdf8]" : "bg-[#f6f3ea]"} shadow-[6px_6px_0_#111] ${idx === 1 ? "rotate-[0.8deg]" : idx === 2 ? "-rotate-[0.6deg]" : ""}`}
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+                    <div className="flex h-11 w-11 items-center justify-center border-2 border-black bg-black text-white">
                       <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
                     </div>
-                    <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">{title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+                    <h3 className="mt-4 text-base font-semibold uppercase tracking-tight text-black">{title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-black/80">{description}</p>
                   </article>
                 ))}
               </div>
-              <p className="mt-10 text-sm text-muted-foreground">
+              <p className="mt-10 text-sm text-black/75">
                 On the web?{" "}
-                <Link href="/creator/apply" className="font-semibold text-primary hover:underline">
+                <Link href="/creator/apply" className="font-semibold text-[#dc2626] hover:underline">
                   Become a creator
                 </Link>
                 .
@@ -252,16 +255,16 @@ export default async function AppDownloadPage() {
             </div>
           </section>
 
-          <section className="border-t border-border/60 bg-card/20 py-20 md:py-28">
+          <section className="border-t border-black/15 bg-[#ece8dd] py-20 md:py-28">
             <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">
+              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dc2626]">
                 App features
               </h2>
               <div className="mt-10 flex flex-wrap justify-center gap-3">
                 {appFeaturePills.map((label) => (
                   <span
                     key={label}
-                    className="inline-flex rounded-full border border-border bg-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground"
+                    className="inline-flex border-2 border-black bg-[#fffdf8] px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-black shadow-[4px_4px_0_#111]"
                   >
                     {label}
                   </span>
@@ -270,18 +273,18 @@ export default async function AppDownloadPage() {
             </div>
           </section>
 
-          <section className="border-t border-border/60 py-20 md:py-24">
+          <section className="border-t border-black/15 py-20 md:py-24">
             <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">
+              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#dc2626]">
                 Frequently asked questions
               </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-muted-foreground">
+              <p className="mx-auto mt-5 max-w-2xl text-black/75">
                 Answers about the app, devices, pricing, and creators live on our FAQ — same topics search engines pick
                 up from this page&apos;s structured data, with full detail in one place.
               </p>
               <Link
                 href="/faq#app-and-downloads"
-                className="mt-8 inline-flex rounded-full border-2 border-primary bg-transparent px-8 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                className="mt-8 inline-flex border-2 border-black bg-black px-8 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-[6px_6px_0_#dc2626] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[5px_5px_0_#dc2626]"
               >
                 Open FAQ
               </Link>

@@ -2,12 +2,16 @@
 
 import { useEffect, useId, useState, type ReactNode } from "react"
 import { QRCodeSVG } from "qrcode.react"
+import { Anton, Special_Elite } from "next/font/google"
 import { AppleAppStoreIcon, GooglePlayStoreIcon } from "@/components/app/store-platform-icons"
 import { cn } from "@/lib/utils"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
 
 type OsState = "pending" | "desktop" | "ios" | "android" | "other-mobile"
 export type PlatformHint = "ios" | "android" | "unknown"
+
+const heroDisplayFont = Anton({ subsets: ["latin"], weight: "400" })
+const editorialMonoFont = Special_Elite({ subsets: ["latin"], weight: "400" })
 
 const PLATFORM_SESSION_KEY = "hiffi_platform"
 const PLATFORM_COOKIE_KEY = "hiffi_platform"
@@ -95,7 +99,7 @@ function useDownloadOsState(initialPlatform: PlatformHint) {
 }
 
 const pillBase =
-  "inline-flex w-full min-h-[52px] items-center justify-center gap-3 rounded-full border-2 px-6 py-3.5 text-sm font-semibold tracking-tight transition-colors duration-200 md:w-auto md:min-w-[220px]"
+  "inline-flex w-full min-h-[52px] items-center justify-center gap-3 border-2 px-6 py-3.5 text-sm font-semibold uppercase tracking-wide transition-all duration-150 md:w-auto md:min-w-[230px]"
 
 function storeButtonCopy(visual: StoreVisual) {
   if (visual === "ios-primary") {
@@ -147,8 +151,8 @@ function StoreLink({
       className={cn(
         pillBase,
         primary
-          ? "border-primary bg-primary text-primary-foreground shadow-[0_0_24px_-4px_rgba(237,28,47,0.55)] hover:bg-primary/90 hover:border-primary/90"
-          : "border-white/35 bg-transparent text-white/90 hover:border-primary hover:bg-primary hover:text-primary-foreground",
+          ? "border-black bg-black text-white shadow-[7px_7px_0_#e11d23] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[6px_6px_0_#e11d23]"
+          : "border-black bg-[#fffdf8] text-black shadow-[6px_6px_0_#111] hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-[#f8f5ec]",
       )}
     >
       {isApple ? (
@@ -216,7 +220,7 @@ function QrCard({
       >
         <QRCodeSVG value={url} size={168} level="M" includeMargin={false} />
       </div>
-      <span className="text-sm font-medium text-foreground/90">{label}</span>
+      <span className="text-sm font-medium text-black/90">{label}</span>
     </div>
   )
 }
@@ -273,44 +277,77 @@ export function AppDownloadChrome({
         </defs>
       </svg>
 
-      <header className="relative min-h-[min(100dvh,920px)] overflow-hidden border-b border-border/80 pb-16 pt-12 md:pb-24 md:pt-16">
-        <div className="pointer-events-none absolute -left-32 top-0 h-[420px] w-[420px] rounded-full bg-primary/25 blur-[100px]" aria-hidden />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-[360px] w-[360px] rounded-full bg-primary/10 blur-[90px]" aria-hidden />
+      <header className="relative min-h-[min(100dvh,920px)] overflow-hidden border-b border-black/20 bg-[#f3f0e8] pb-16 pt-12 text-[#121212] md:pb-24 md:pt-16">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 10%, rgba(0,0,0,0.08) 0, rgba(0,0,0,0) 40%), radial-gradient(circle at 85% 60%, rgba(0,0,0,0.07) 0, rgba(0,0,0,0) 38%)",
+          }}
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.03)_1px,transparent_1px)] bg-[length:100%_44px] opacity-30" aria-hidden />
         <NoiseOverlay filterId={filterId} />
+        <p
+          className={cn(
+            "pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 select-none text-center text-[clamp(5rem,16vw,13rem)] leading-none tracking-[-0.04em] text-black/[0.06]",
+            heroDisplayFont.className,
+          )}
+          aria-hidden
+        >
+          STREAM
+        </p>
 
         <div className="relative z-[1] mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
           <div className={cn("transition-opacity duration-200", isResolving ? "opacity-95" : "opacity-100")}>
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">{heroEyebrow}</p>
+            <p className={cn("text-[12px] uppercase tracking-[0.3em] text-[#dc2626]", editorialMonoFont.className)}>
+              {heroEyebrow}
+            </p>
 
             {showPlatformHero && isIos ? (
-              <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
-                Download Hiffi for <span className="text-primary">iPhone &amp; iPad</span>
+              <h1
+                className={cn(
+                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-black",
+                  heroDisplayFont.className,
+                )}
+              >
+                Download Hiffi for <span className="text-[#dc2626]">iPhone &amp; iPad</span>
               </h1>
             ) : showPlatformHero && isAndroid ? (
-              <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
-                Download Hiffi for <span className="text-primary">Android</span>
+              <h1
+                className={cn(
+                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-black",
+                  heroDisplayFont.className,
+                )}
+              >
+                Download Hiffi for <span className="text-[#dc2626]">Android</span>
               </h1>
             ) : (
-              <h1 className="mx-auto mt-4 max-w-4xl font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
+              <h1
+                className={cn(
+                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-black",
+                  heroDisplayFont.className,
+                )}
+              >
                 Download Hiffi for{" "}
-                <span className="text-primary">iOS</span> and <span className="text-primary">Android</span>
+                <span className="text-[#dc2626]">iOS</span> and <span className="text-[#dc2626]">Android</span>
               </h1>
             )}
 
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+            <p className={cn("mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-black/80 md:text-2xl", editorialMonoFont.className)}>
               {heroDescription}
             </p>
 
             {showPlatformHero && isIos && (
-              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
-                <span className="font-semibold text-foreground">Also on Android</span>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-black/90">
+                <span className="font-semibold text-black">Also on Android</span>
                 {" — "}
                 Hiffi is the same app on Google Play for phones and tablets.{" "}
                 <a
                   href={HIFFI_PLAY_STORE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-primary underline-offset-2 hover:underline"
+                  className="font-medium text-[#dc2626] underline-offset-2 hover:underline"
                 >
                   View on Google Play
                 </a>
@@ -318,15 +355,15 @@ export function AppDownloadChrome({
               </p>
             )}
             {showPlatformHero && isAndroid && (
-              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
-                <span className="font-semibold text-foreground">Also on iPhone &amp; iPad</span>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-black/90">
+                <span className="font-semibold text-black">Also on iPhone &amp; iPad</span>
                 {" — "}
                 The same Hiffi experience is on the App Store for iOS.{" "}
                 <a
                   href={HIFFI_APP_STORE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-primary underline-offset-2 hover:underline"
+                  className="font-medium text-[#dc2626] underline-offset-2 hover:underline"
                 >
                   View on App Store
                 </a>
@@ -344,21 +381,21 @@ export function AppDownloadChrome({
               <button
                 type="button"
                 onClick={() => setShowAllStores(true)}
-                className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                className={cn("text-sm text-black/70 underline-offset-4 transition-colors hover:text-black hover:underline", editorialMonoFont.className)}
               >
                 Not your device?
               </button>
             </div>
           )}
           {showAllStores && !isDesktop && (os === "ios" || os === "android") && (
-            <p className="mt-4 text-sm font-medium text-muted-foreground">Showing all download options.</p>
+            <p className={cn("mt-4 text-sm text-black/75", editorialMonoFont.className)}>Showing all download options.</p>
           )}
 
           <div className="mx-auto mt-16 hidden max-w-2xl md:block">
-            <p className="text-center font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
+            <p className={cn("text-center text-[11px] uppercase tracking-[0.25em] text-[#dc2626]", editorialMonoFont.className)}>
               Scan to download
             </p>
-            <p className="mt-2 text-center text-sm text-muted-foreground">
+            <p className={cn("mt-2 text-center text-sm text-black/75", editorialMonoFont.className)}>
               Scan the QR code with your phone to download Hiffi.
             </p>
             <div className="mt-8 grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-8">
@@ -379,11 +416,11 @@ export function AppDownloadChrome({
 
       {children}
 
-      <footer className="border-t border-border/80 bg-card/40 py-16 md:py-20">
+      <footer className="border-t border-black/20 bg-[#ece8dd] py-16 md:py-20">
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">Get the app</p>
-          <p className="mt-3 text-xl font-semibold tracking-tight text-foreground md:text-2xl">Ready to discover?</p>
-          <p className="mt-2 text-muted-foreground">Download Hiffi now.</p>
+          <p className={cn("text-[11px] uppercase tracking-[0.28em] text-[#dc2626]", editorialMonoFont.className)}>Get the app</p>
+          <p className={cn("mt-3 text-3xl uppercase tracking-tight text-black md:text-5xl", heroDisplayFont.className)}>Ready to discover?</p>
+          <p className={cn("mt-2 text-black/75", editorialMonoFont.className)}>Download Hiffi now.</p>
           <div className="mt-8 flex justify-center">
             <StoreButtonRow visual={visual} />
           </div>
