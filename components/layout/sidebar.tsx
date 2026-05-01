@@ -434,18 +434,31 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                               }
                             }}
                             className={cn(
-                              "group relative w-full flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all",
-                              "bg-background/95 border border-border/80 hover:bg-muted/45 hover:border-border hover:shadow-sm",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                              isSelected && "border-primary/35 bg-primary/[0.05]",
-                              isLoading && "opacity-70 pointer-events-none",
+                              "group relative flex w-full items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200",
+                              isAppDownloadPage
+                                ? cn(
+                                    "border border-white/10 bg-zinc-950 shadow-sm",
+                                    "hover:border-white/20 hover:bg-zinc-900 hover:shadow-md",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f3f0e8]",
+                                    isSelected && "border-primary/45 bg-zinc-900 shadow-md ring-1 ring-primary/20",
+                                  )
+                                : cn(
+                                    "border-border/80 bg-background/95 hover:border-border hover:bg-muted/45 hover:shadow-sm",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                                    isSelected && "border-primary/35 bg-primary/[0.05]",
+                                  ),
+                              isLoading && "pointer-events-none opacity-70",
                             )}
                           >
                             <span
                               aria-hidden="true"
                               className={cn(
-                                "absolute left-0 top-1.5 bottom-1.5 w-px rounded-full bg-transparent transition-colors",
-                                isSelected ? "bg-primary/70" : "group-hover:bg-border",
+                                "absolute bottom-1.5 left-0 top-1.5 w-px rounded-full bg-transparent transition-colors",
+                                isSelected
+                                  ? "bg-primary/70"
+                                  : isAppDownloadPage
+                                    ? "group-hover:bg-white/25"
+                                    : "group-hover:bg-border",
                               )}
                             />
                             <div className="min-w-0 flex-1">
