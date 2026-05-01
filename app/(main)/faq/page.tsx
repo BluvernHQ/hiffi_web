@@ -53,7 +53,14 @@ export const metadata: Metadata = {
 type FaqItem = {
   question: string
   answer: string
-  category: "Getting Started" | "Watching & Discovery" | "Creators" | "Account & Support"
+  category:
+    | "Getting Started"
+    | "App & downloads"
+    | "Watching & Discovery"
+    | "Creators"
+    | "Account & Support"
+  /** When set, this exact substring of `answer` is rendered as a link */
+  answerLink?: { href: string; match: string }
 }
 
 const faqItems: FaqItem[] = [
@@ -80,6 +87,43 @@ const faqItems: FaqItem[] = [
     answer:
       "Yes. Use the Forgot Password page, verify your email with the OTP flow, and set a new password.",
     category: "Getting Started",
+  },
+  {
+    question: "How do I get Hiffi?",
+    answer:
+      "Install Hiffi on your phone or tablet from our official download page: Download Hiffi App. That page lists the App Store and Google Play links (and QR codes on desktop).",
+    category: "Getting Started",
+    answerLink: { href: "/app", match: "Download Hiffi App" },
+  },
+  {
+    question: "Is Hiffi available on iPhone?",
+    answer:
+      "Yes. Download Hiffi from the App Store on iPhone and iPad in supported regions. Official store links are on the Download Hiffi App page.",
+    category: "App & downloads",
+  },
+  {
+    question: "Is Hiffi available on Android?",
+    answer:
+      "Yes. Download Hiffi from Google Play on supported Android devices. Official store links are on the Download Hiffi App page.",
+    category: "App & downloads",
+  },
+  {
+    question: "Is Hiffi free to download?",
+    answer:
+      "Yes. The Hiffi app is free to download on iOS and Android. In-app experiences may vary based on your account and how you use the platform.",
+    category: "App & downloads",
+  },
+  {
+    question: "Can artists upload videos on Hiffi?",
+    answer:
+      "Yes. Creators can upload and manage videos from the Hiffi app and web experience, subject to platform rules and your account status.",
+    category: "App & downloads",
+  },
+  {
+    question: "Is Hiffi for hip-hop and rap artists?",
+    answer:
+      "Hiffi is built with hip-hop and rap culture in mind and welcomes independent artists and fans across related genres. You can discover music videos, follow creators, and stream high-quality audio in the app.",
+    category: "App & downloads",
   },
   {
     question: "How do I find videos on Hiffi?",
@@ -175,6 +219,7 @@ const faqItems: FaqItem[] = [
 
 const faqCategoryOrder: FaqItem["category"][] = [
   "Getting Started",
+  "App & downloads",
   "Watching & Discovery",
   "Creators",
   "Account & Support",
@@ -182,9 +227,32 @@ const faqCategoryOrder: FaqItem["category"][] = [
 
 const categoryIdMap: Record<FaqItem["category"], string> = {
   "Getting Started": "getting-started",
+  "App & downloads": "app-and-downloads",
   "Watching & Discovery": "watching-and-discovery",
   Creators: "creators",
   "Account & Support": "account-and-support",
+}
+
+function FaqAnswer({ item }: { item: FaqItem }) {
+  const link = item.answerLink
+  if (!link) {
+    return <p className="leading-relaxed text-foreground/90 mt-3">{item.answer}</p>
+  }
+  const idx = item.answer.indexOf(link.match)
+  if (idx === -1) {
+    return <p className="leading-relaxed text-foreground/90 mt-3">{item.answer}</p>
+  }
+  const before = item.answer.slice(0, idx)
+  const after = item.answer.slice(idx + link.match.length)
+  return (
+    <p className="leading-relaxed text-foreground/90 mt-3">
+      {before}
+      <Link href={link.href} className="font-medium text-primary hover:underline">
+        {link.match}
+      </Link>
+      {after}
+    </p>
+  )
 }
 
 const faqJsonLd = {
@@ -242,6 +310,14 @@ export default function FAQPage() {
 
       <section className="mb-8 rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Quick links</h2>
+        <div className="mb-3">
+          <Link
+            href="/app"
+            className="inline-flex rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            Download Hiffi App
+          </Link>
+        </div>
         <div className="flex flex-wrap gap-2">
           {faqCategoryOrder.map((category) => (
             <a
@@ -270,7 +346,7 @@ export default function FAQPage() {
                         +
                       </span>
                     </summary>
-                    <p className="leading-relaxed text-foreground/90 mt-3">{item.answer}</p>
+                    <FaqAnswer item={item} />
                   </details>
                 ))}
               </div>

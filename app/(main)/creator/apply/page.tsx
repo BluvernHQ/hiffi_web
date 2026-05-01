@@ -199,6 +199,12 @@ export default function BecomeCreatorPage() {
                 <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
                   Your channel is active and ready to publish.
                 </p>
+                <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
+                  <Link href="/app" className="font-semibold text-primary underline-offset-2 hover:underline">
+                    Download Hiffi App
+                  </Link>{" "}
+                  for the best mobile studio and playback experience.
+                </p>
               </div>
             </div>
           </section>
@@ -468,6 +474,14 @@ export default function BecomeCreatorPage() {
             </p>
           </article>
         </div>
+
+        <p className="mt-8 text-center text-[13px] leading-relaxed text-muted-foreground sm:mt-10 sm:text-sm">
+          When you&apos;re set up,{" "}
+          <Link href="/app" className="font-semibold text-primary underline-offset-2 hover:underline">
+            Download Hiffi App
+          </Link>{" "}
+          on iOS or Android to upload and manage content on the go.
+        </p>
       </main>
     </div>
   )

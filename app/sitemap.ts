@@ -27,6 +27,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "never",
       priority: 0.3,
     },
+    {
+      url: absoluteUrl("/app"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
   ]
 
   const entries = await fetchVideoEntriesForSitemap()

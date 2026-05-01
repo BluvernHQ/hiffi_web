@@ -1,6 +1,7 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
 import { useSidebar } from "@/lib/sidebar-context"
@@ -23,6 +24,9 @@ interface AppLayoutProps {
  * Sidebar state is managed by SidebarContext to persist across page navigations.
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
+  const pathname = usePathname()
+  const hideSidebar = pathname === "/app"
+
   const {
     isSidebarOpen,
     setIsSidebarOpen,
@@ -32,11 +36,18 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
     toggleMobileSidebar
   } = useSidebar()
 
+  useEffect(() => {
+    if (!hideSidebar) return
+    setIsSidebarOpen(false)
+    setIsDesktopSidebarOpen(false)
+  }, [hideSidebar, setIsSidebarOpen, setIsDesktopSidebarOpen])
+
   return (
     <div className="h-[100dvh] flex flex-col bg-background overflow-hidden relative">
       {/* Navbar - Fixed at top, always visible */}
       <Navbar
         onMenuClick={() => {
+          if (hideSidebar) return
           // Toggle mobile sidebar on mobile, desktop sidebar on desktop
           if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
             toggleDesktopSidebar()
@@ -49,15 +60,16 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
 
       {/* Main Layout Container */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Consistent across all pages */}
-        <Sidebar
-          isMobileOpen={isSidebarOpen}
-          onMobileClose={() => setIsSidebarOpen(false)}
-          isDesktopOpen={isDesktopSidebarOpen}
-          onDesktopToggle={() => toggleDesktopSidebar()}
-          currentFilter={currentFilter}
-          onFilterChange={onFilterChange}
-        />
+        {!hideSidebar && (
+          <Sidebar
+            isMobileOpen={isSidebarOpen}
+            onMobileClose={() => setIsSidebarOpen(false)}
+            isDesktopOpen={isDesktopSidebarOpen}
+            onDesktopToggle={() => toggleDesktopSidebar()}
+            currentFilter={currentFilter}
+            onFilterChange={onFilterChange}
+          />
+        )}
 
         {/* Main Content Area - Adapts to sidebar, never affects it */}
         <main id="main-content" className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">

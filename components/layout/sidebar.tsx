@@ -565,6 +565,24 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   FAQ
                 </Link>
                 <Link
+                  href="/app"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={(e) => {
+                    const { shouldBlock, message } = checkUploadNavigationGuard()
+                    if (shouldBlock) {
+                      e.preventDefault()
+                      if (typeof window !== "undefined" && window.confirm(message)) {
+                        closeSidebar()
+                        router.push("/app")
+                      }
+                    } else {
+                      closeSidebar()
+                    }
+                  }}
+                >
+                  Download Hiffi App
+                </Link>
+                <Link
                   href="/support"
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   onClick={(e) => {
