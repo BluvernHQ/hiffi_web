@@ -59,7 +59,6 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
-  const showSidebarMenu = pathname !== "/app"
 
   const closeLogoutDialog = () => {
     setLogoutDialogOpen(false)
@@ -129,17 +128,15 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
       <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
-            {showSidebarMenu && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                onClick={onMenuClick}
-              >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={onMenuClick}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
             <Link href="/" className="flex items-center gap-3" data-analytics-name="navbar-home-logo-link">
               <Image
                 src="/appbarlogo.png"
