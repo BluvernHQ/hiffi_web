@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, startTransition } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
@@ -294,12 +294,15 @@ export default function WatchPage() {
     if (id && id !== currentVideoId) {
       setCurrentVideoId(id)
       videoHistoryRef.current = [] // External navigation resets internal history
+      setPlayerBackStackEpoch((n) => n + 1)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.videoId])
 
   // Stack of previously played video IDs for in-place back navigation.
   const videoHistoryRef = useRef<string[]>([])
+  /** Bumped whenever the stack is pushed/popped/cleared so we can derive UI from ref length. */
+  const [playerBackStackEpoch, setPlayerBackStackEpoch] = useState(0)
   const isInPlaceNavigationRef = useRef(false)
   const [playlistContext, setPlaylistContext] = useState<{
     playlistId: string
@@ -309,12 +312,17 @@ export default function WatchPage() {
     autoplay: boolean
   } | null>(null)
   const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, { title?: string; thumbnail?: string }>>({})
+  const canNavigateToPreviousVideo = useMemo(() => {
+    if (playlistContext && playlistContext.currentIndex > 0) return true
+    return videoHistoryRef.current.length > 0
+  }, [playlistContext, playerBackStackEpoch])
 
   const navigateToVideo = (nextId: string, nextIndex?: number, pushHistory = true) => {
     if (!nextId || nextId === currentVideoId) return
     isInPlaceNavigationRef.current = true
     if (pushHistory) {
       videoHistoryRef.current.push(currentVideoId)
+      setPlayerBackStackEpoch((n) => n + 1)
     }
     setCurrentVideoId(nextId)
     if (typeof window !== "undefined") {
@@ -375,12 +383,63 @@ export default function WatchPage() {
       isInPlaceNavigationRef.current = true
       setCurrentVideoId(prevId)
       if (typeof window !== "undefined") {
-        window.history.pushState({}, "", `/watch/${prevId}`)
+        const stored = getPlaylistSession()
+        let url = `/watch/${prevId}`
+        if (stored?.playlistId && Array.isArray(stored.videoIds) && stored.videoIds.includes(prevId)) {
+          const prevIndex = stored.videoIds.indexOf(prevId)
+          url = `/watch/${encodeURIComponent(prevId)}?playlist=${encodeURIComponent(stored.playlistId)}&pindex=${prevIndex}`
+          setPlaylistContext((prev) => {
+            if (!prev || prev.playlistId !== stored.playlistId) return prev
+            if (prevIndex === prev.currentIndex) return prev
+            const next = { ...prev, currentIndex: prevIndex }
+            setPlaylistSession(next)
+            return next
+          })
+        }
+        window.history.pushState({}, "", url)
+        setPlayerBackStackEpoch((n) => n + 1)
       }
     } else {
       router.back()
     }
   }
+
+  // In-watch navigation uses history.pushState so the player stays mounted. The App Router
+  // does not observe that stack, so browser Back/Forward must sync React state from the URL.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const readWatchIdFromLocation = () => {
+      const m = window.location.pathname.match(/^\/watch\/([^/]+)/)
+      return m ? decodeURIComponent(m[1]) : ""
+    }
+
+    const onPopState = () => {
+      const newId = readWatchIdFromLocation()
+      if (!newId) return
+
+      if (videoHistoryRef.current.length > 0) {
+        const top = videoHistoryRef.current[videoHistoryRef.current.length - 1]
+        if (top === newId) {
+          videoHistoryRef.current.pop()
+        } else {
+          videoHistoryRef.current = []
+        }
+        setPlayerBackStackEpoch((n) => n + 1)
+      }
+
+      isInPlaceNavigationRef.current = true
+      setCurrentVideoId(newId)
+
+      const pathWithSearch = window.location.pathname + window.location.search
+      startTransition(() => {
+        router.replace(pathWithSearch)
+      })
+    }
+
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [router])
 
   const activeVideoMatchesRoute = !!activeVideo && (activeVideo.videoId || activeVideo.video_id) === routeVideoId
   const activeVideoInitialVoteState = activeVideoMatchesRoute
@@ -1432,6 +1491,7 @@ export default function WatchPage() {
                 availableProfiles={currentPlayerVideo?.profiles}
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
+                previousVideoDisabled={!canNavigateToPreviousVideo}
                 initialSeekSeconds={initialSeekSeconds.current}
               />
 

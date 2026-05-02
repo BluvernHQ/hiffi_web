@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useSearchParams } from "next/navigation"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,11 +22,38 @@ import {
 import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
 
+const USERS_PAGE_QUERY = "users_page"
+
 export function AdminUsersTable() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const page = useMemo(() => {
+    const raw = searchParams.get(USERS_PAGE_QUERY)
+    if (!raw) return 1
+    const n = parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 1 ? n : 1
+  }, [searchParams])
+
+  const syncUsersPageToUrl = useCallback(
+    (nextPage: number) => {
+      const fromWindow =
+        typeof window !== "undefined" &&
+        window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
+      const params = new URLSearchParams(
+        fromWindow ? window.location.search.slice(1) : searchParams.toString(),
+      )
+      if (!params.get("section")) params.set("section", "users")
+      const p = Math.max(1, Math.floor(nextPage))
+      if (p <= 1) params.delete(USERS_PAGE_QUERY)
+      else params.set(USERS_PAGE_QUERY, String(p))
+      const qs = params.toString()
+      router.replace(`/admin/dashboard${qs ? `?${qs}` : ""}`)
+    },
+    [router, searchParams],
+  )
+
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [showFilters, setShowFilters] = useState(true)
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
@@ -305,13 +332,13 @@ export function AdminUsersTable() {
     if (searchInput.trim() === "") {
       // Clear search immediately when input is empty
       setSearchQuery("")
-      setPage(1)
+      syncUsersPageToUrl(1)
       return
     }
 
     const timeoutId = setTimeout(() => {
       setSearchQuery(searchInput)
-      setPage(1)
+      syncUsersPageToUrl(1)
     }, 500)
 
     return () => clearTimeout(timeoutId)
@@ -323,7 +350,7 @@ export function AdminUsersTable() {
     if (!q) return
     setSearchInput(q)
     setSearchQuery(q)
-    setPage(1)
+    syncUsersPageToUrl(1)
   }, [searchParams])
 
   useEffect(() => {
@@ -356,7 +383,7 @@ export function AdminUsersTable() {
   const handleSort = (key: string, direction: SortDirection) => {
     setSortKey(direction ? key : null)
     setSortDirection(direction)
-    setPage(1)
+    syncUsersPageToUrl(1)
   }
 
   // Debounce timers for number inputs
@@ -397,12 +424,12 @@ export function AdminUsersTable() {
       
       // Debounce the page reset - wait 500ms after user stops typing
       textFilterTimersRef.current[key] = setTimeout(() => {
-        setPage(1)
+        syncUsersPageToUrl(1)
         delete textFilterTimersRef.current[key]
       }, 500)
     } else {
       // For other filters, reset page immediately
-      setPage(1)
+      syncUsersPageToUrl(1)
     }
   }
   
@@ -444,7 +471,7 @@ export function AdminUsersTable() {
     
     // Debounce the page reset - wait 500ms after user stops clicking arrows
     numberInputTimersRef.current[key] = setTimeout(() => {
-      setPage(1)
+      syncUsersPageToUrl(1)
       delete numberInputTimersRef.current[key]
     }, 500)
   }
@@ -490,11 +517,18 @@ export function AdminUsersTable() {
       updated_after: "",
       updated_before: "",
     })
-    setPage(1)
+    syncUsersPageToUrl(1)
   }
 
   const hasActiveFilters = searchQuery.trim() !== "" || Object.values(filters).some((v) => v !== "")
   const totalPages = Math.ceil(total / limit)
+  const maxUsersPage = total <= 0 ? 1 : Math.max(1, totalPages)
+
+  useEffect(() => {
+    if (page > maxUsersPage) {
+      syncUsersPageToUrl(maxUsersPage)
+    }
+  }, [page, maxUsersPage, syncUsersPageToUrl])
 
   // Helper function to convert ISO string to datetime-local format (local time)
   const isoToLocalDateTime = (isoString: string): string => {
@@ -680,7 +714,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -699,7 +733,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -721,7 +755,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -740,7 +774,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -762,7 +796,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -781,7 +815,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -1110,7 +1144,7 @@ export function AdminUsersTable() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => syncUsersPageToUrl(Math.max(1, page - 1))}
                 disabled={page === 1}
                 className="gap-1"
               >
@@ -1168,7 +1202,7 @@ export function AdminUsersTable() {
                         key={pageNum}
                         variant={page === pageNum ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setPage(pageNum)}
+                        onClick={() => syncUsersPageToUrl(pageNum)}
                         className="min-w-[2.5rem]"
                       >
                         {pageNum}
@@ -1181,7 +1215,7 @@ export function AdminUsersTable() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => syncUsersPageToUrl(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 className="gap-1"
               >

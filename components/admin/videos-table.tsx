@@ -1027,7 +1027,7 @@ export function AdminVideosTable() {
           <DialogHeader>
             <DialogTitle>{isBulkDelete ? "Delete Multiple Videos" : "Delete Video"}</DialogTitle>
             <DialogDescription asChild>
-              <div>
+              <div className="min-w-0 max-w-full">
                 {isBulkDelete ? (
                   <>
                     Are you sure you want to delete <strong>{selectedVideoIds.length}</strong> selected videos? This action cannot be undone and will delete all associated data for each video.
@@ -1047,9 +1047,19 @@ export function AdminVideosTable() {
                     )}
                   </>
                 ) : (
-                  <>
-                    Are you sure you want to delete the video <strong>"{videoToDelete?.video_title || videoToDelete?.videoTitle || "Untitled"}"</strong>? This action cannot be undone and will delete all associated data including comments, replies, and views.
-                  </>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      Are you sure you want to delete this video? This action cannot be undone and will delete all associated data including comments, replies, and views.
+                    </p>
+                    <div className="rounded-md border border-border bg-muted/50 px-3 py-2 min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+                        Title
+                      </p>
+                      <p className="max-h-36 overflow-y-auto text-sm font-semibold leading-snug text-foreground break-words [overflow-wrap:anywhere]">
+                        {videoToDelete?.video_title || videoToDelete?.videoTitle || "Untitled"}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             </DialogDescription>

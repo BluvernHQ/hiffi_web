@@ -45,8 +45,13 @@ interface VideoPlayerProps {
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
   /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
   onNext?: (nextId: string) => void
-  /** Called when the player's Previous button is pressed. When provided, no route navigation occurs. */
+  /**
+   * Watch page: previous video / in-player history. When omitted, SkipBack seeks back 10s in the
+   * current video (never browser history) so floating/mini players do not hijack the back stack.
+   */
   onPrevious?: () => void
+  /** When `onPrevious` is set, disables SkipBack if there is no prior video (first in playlist and empty session stack). */
+  previousVideoDisabled?: boolean
   /**
    * If set, the player seeks to this position (in seconds) once the video metadata is loaded.
    * Used to honour the `?t=` URL parameter from Google SeekToAction deep-links.
@@ -92,6 +97,7 @@ export function VideoPlayer({
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
   onPrevious,
+  previousVideoDisabled = false,
   initialSeekSeconds,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -1455,13 +1461,20 @@ export function VideoPlayer({
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
   }
 
+  const isPreviousVideoNavDisabled = Boolean(onPrevious && previousVideoDisabled)
+
   const handlePrevious = () => {
     if (onPrevious) {
+      if (previousVideoDisabled) return
       onPrevious()
       return
     }
-    // Fallback: standard browser back when no in-place handler is provided
-    router.back()
+    const player = playerRef.current
+    if (player && duration > 0) {
+      const pos = typeof player.currentTime === "function" ? player.currentTime() : currentTime
+      const newTime = Math.max(0, pos - 10)
+      handleSeek([newTime])
+    }
   }
 
   const handleNext = () => {
@@ -1604,12 +1617,24 @@ export function VideoPlayer({
           )}
         >
           <button
+            type="button"
             data-analytics-name="backward"
             onClick={(e) => {
               e.stopPropagation()
               handlePrevious()
             }}
-            className="h-11 w-11 rounded-full bg-black/45 backdrop-blur-[2px] flex items-center justify-center text-white/90"
+            disabled={isPreviousVideoNavDisabled}
+            aria-label={
+              onPrevious
+                ? previousVideoDisabled
+                  ? "No previous video in this session"
+                  : "Previous video"
+                : "Seek back 10 seconds"
+            }
+            className={cn(
+              "h-11 w-11 rounded-full bg-black/45 backdrop-blur-[2px] flex items-center justify-center text-white/90",
+              isPreviousVideoNavDisabled && "opacity-40 cursor-not-allowed",
+            )}
           >
             <SkipBack className="h-5 w-5" />
           </button>
@@ -1786,12 +1811,24 @@ export function VideoPlayer({
         <div className="hidden md:flex items-center justify-between text-white gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
+              type="button"
               data-analytics-name="backward"
               onClick={(e) => {
                 e.stopPropagation()
                 handlePrevious()
               }}
-              className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
+              disabled={isPreviousVideoNavDisabled}
+              aria-label={
+                onPrevious
+                  ? previousVideoDisabled
+                    ? "No previous video in this session"
+                    : "Previous video"
+                  : "Seek back 10 seconds"
+              }
+              className={cn(
+                "h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors",
+                isPreviousVideoNavDisabled && "opacity-40 cursor-not-allowed",
+              )}
             >
               <SkipBack className="h-5 w-5" />
             </button>
