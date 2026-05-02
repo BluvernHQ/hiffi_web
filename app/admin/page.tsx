@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
         console.error("[Admin] Failed to refresh user data:", err)
       })
     }
-  }, [authLoading, user, refreshUserData])
+  }, [authLoading, user, userData, refreshUserData])
 
   // Check if user is admin and redirect to dashboard
   useEffect(() => {

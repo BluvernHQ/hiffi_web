@@ -57,6 +57,7 @@ export function AdminReferralsTable() {
   const [count, setCount] = useState(0)
 
   const fetchReferrals = async (isRefresh = false) => {
+    let refreshSucceeded = false
     try {
       if (isRefresh) {
         setRefreshing(true)
@@ -67,6 +68,7 @@ export function AdminReferralsTable() {
       const response = await apiClient.adminGetReferals({ limit, offset })
       setRows(response.referals || [])
       setCount(response.count || 0)
+      refreshSucceeded = true
     } catch (error) {
       console.error("[admin] Failed to fetch referrals:", error)
       toast({
@@ -77,6 +79,12 @@ export function AdminReferralsTable() {
     } finally {
       setLoading(false)
       setRefreshing(false)
+    }
+    if (isRefresh && refreshSucceeded) {
+      toast({
+        title: "Referrals refreshed",
+        description: "The latest referral data is now shown.",
+      })
     }
   }
 

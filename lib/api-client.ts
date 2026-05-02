@@ -3438,36 +3438,29 @@ class ApiClient {
       }
     }
 
+    // Browser: use same-origin proxy so paths like /analytics/* are not blocked (ERR_BLOCKED_BY_CLIENT)
+    // by common ad blockers. Server / tests: call the API directly.
     let response: AnalyticsEventsResponse
-    try {
-      response = await this.request<AnalyticsEventsResponse>(`/analytics/events?${query.toString()}`, { method: "GET" }, true)
-    } catch (error: any) {
-      const isFetchBlockedOrNetwork =
-        error?.status === 0 ||
-        String(error?.message || "").toLowerCase().includes("failed to fetch") ||
-        String(error?.message || "").toLowerCase().includes("unable to connect")
+    if (typeof window !== "undefined") {
+      const token = this.getAuthToken()
+      const proxyResponse = await fetch(`/proxy/admin-events?${query.toString()}`, {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
 
-      if (typeof window !== "undefined" && isFetchBlockedOrNetwork) {
-        const token = this.getAuthToken()
-        const proxyResponse = await fetch(`/proxy/admin-events?${query.toString()}`, {
-          method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-
-        if (!proxyResponse.ok) {
-          const proxyText = await proxyResponse.text().catch(() => proxyResponse.statusText)
-          const proxyError: ApiError = {
-            message: proxyText || "Failed to fetch admin activity logs via proxy.",
-            status: proxyResponse.status,
-            responseBody: proxyText,
-          }
-          throw proxyError
+      if (!proxyResponse.ok) {
+        const proxyText = await proxyResponse.text().catch(() => proxyResponse.statusText)
+        const proxyError: ApiError = {
+          message: proxyText || "Failed to fetch admin activity logs via proxy.",
+          status: proxyResponse.status,
+          responseBody: proxyText,
         }
-
-        response = await proxyResponse.json()
-      } else {
-        throw error
+        throw proxyError
       }
+
+      response = await proxyResponse.json()
+    } else {
+      response = await this.request<AnalyticsEventsResponse>(`/analytics/events?${query.toString()}`, { method: "GET" }, true)
     }
 
     const payload = response.data ?? response

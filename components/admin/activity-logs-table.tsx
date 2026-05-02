@@ -241,6 +241,7 @@ export function AdminActivityLogsTable() {
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
 
   const fetchEvents = async (isRefresh = false) => {
+    let refreshSucceeded = false
     try {
       if (isRefresh) {
         setRefreshing(true)
@@ -253,6 +254,7 @@ export function AdminActivityLogsTable() {
         .filter((item) => !isLowSignalAutocaptureClick(item))
       setEvents(normalizedEvents)
       setCount(response.count || 0)
+      refreshSucceeded = true
     } catch (error) {
       console.error("[admin] Failed to fetch activity logs:", error)
       toast({
@@ -263,6 +265,12 @@ export function AdminActivityLogsTable() {
     } finally {
       setLoading(false)
       setRefreshing(false)
+    }
+    if (isRefresh && refreshSucceeded) {
+      toast({
+        title: "Activity logs refreshed",
+        description: "The latest events are now shown.",
+      })
     }
   }
 

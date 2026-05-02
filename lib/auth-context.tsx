@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { apiClient } from "./api-client"
 import { toast } from "@/hooks/use-toast"
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     identifyAnalyticsUser(user?.username ?? null)
   }, [user?.username])
 
-  const refreshUserData = async (forceRefresh = false): Promise<any | null> => {
+  const refreshUserData = useCallback(async (forceRefresh = false): Promise<any | null> => {
     const token = apiClient.getAuthToken()
     if (!token) {
       console.log("[hiffi] No auth token, skipping user data refresh")
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return null
     }
-  }
+  }, [])
 
   useEffect(() => {
     console.log("[hiffi] Checking auth state on mount")
@@ -228,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     checkAuth()
-  }, [])
+  }, [refreshUserData])
 
   // Global cleanup effect: Remove any blocking overlays that might persist after navigation
   useEffect(() => {
