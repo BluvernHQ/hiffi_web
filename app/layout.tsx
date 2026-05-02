@@ -1,4 +1,5 @@
-import type { Metadata } from 'next'
+import type { Metadata } from "next"
+import { Suspense } from "react"
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
@@ -8,7 +9,8 @@ import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
-import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
+import { ApiAnalyticsTracker } from "@/components/analytics/api-analytics-tracker"
+import { UtmPoll } from "@/components/marketing/utm-poll"
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
 import { API_BASE_URL } from '@/lib/config'
@@ -202,7 +204,12 @@ export default function RootLayout({
         <AuthProvider>
           <VideoProvider>
             <SidebarProvider>
-              <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
+              <VideoUploadQueueProvider>
+                {children}
+                <Suspense fallback={null}>
+                  <UtmPoll />
+                </Suspense>
+              </VideoUploadQueueProvider>
             </SidebarProvider>
           </VideoProvider>
         </AuthProvider>

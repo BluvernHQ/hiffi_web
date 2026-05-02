@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Reply,
   UsersRound,
+  Megaphone,
   Shield,
   X,
   ChevronLeft,
@@ -61,6 +62,11 @@ const navItems = [
     icon: UsersRound,
     label: "Referrals",
     value: "referrals",
+  },
+  {
+    icon: Megaphone,
+    label: "UTM campaigns",
+    value: "utm_polls",
   },
 ]
 

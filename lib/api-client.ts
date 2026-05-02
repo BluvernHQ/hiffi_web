@@ -3950,6 +3950,185 @@ class ApiClient {
       count: 0,
     }
   }
+
+  /**
+   * Public marketing ingest: POST /utm/poll.
+   * When NEXT_PUBLIC_UTM_POLL_INGEST_KEY is set (mirrors server UTM_POLL_INGEST_KEY), sends X-Utm-Poll-Ingest-Key.
+   */
+  async pollUtmPoll(body: {
+    utm_source: string
+    utm_medium?: string
+    utm_campaign?: string
+    utm_term?: string
+    utm_content?: string
+    session_id?: string
+    path?: string
+  }): Promise<{ success?: boolean; data?: { ok?: boolean } }> {
+    const headers: Record<string, string> = {}
+    const ingestKey =
+      typeof process !== "undefined" ? (process.env.NEXT_PUBLIC_UTM_POLL_INGEST_KEY || "").trim() : ""
+    if (ingestKey) {
+      headers["X-Utm-Poll-Ingest-Key"] = ingestKey
+    }
+    return this.request<{ success?: boolean; data?: { ok?: boolean } }>(
+      "/utm/poll",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+        ...(Object.keys(headers).length ? { headers } : {}),
+      },
+      false,
+    )
+  }
+
+  // GET /admin/utm_polls — list raw UTM poll rows (admin)
+  async adminListUtmPollEvents(params: {
+    limit?: number
+    offset?: number
+    utm_source?: string
+    utm_medium?: string
+    utm_campaign?: string
+    session_id?: string
+    path?: string
+    client_ip?: string
+    created_after?: string
+    created_before?: string
+  } = {}): Promise<{
+    utm_polls: any[]
+    limit: number
+    offset: number
+    count: number
+    filters?: Record<string, unknown>
+  }> {
+    const limit = Math.min(200, Math.max(1, params.limit ?? 50))
+    const offset = Math.max(0, params.offset ?? 0)
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    const setIf = (key: string, val?: string) => {
+      const v = val?.trim()
+      if (v) q.set(key, v)
+    }
+    setIf("utm_source", params.utm_source)
+    setIf("utm_medium", params.utm_medium)
+    setIf("utm_campaign", params.utm_campaign)
+    setIf("session_id", params.session_id)
+    setIf("path", params.path)
+    setIf("client_ip", params.client_ip)
+    setIf("created_after", params.created_after)
+    setIf("created_before", params.created_before)
+
+    const response = await this.request<{
+      success?: boolean
+      data?: {
+        utm_polls?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+        filters?: Record<string, unknown>
+      }
+      utm_polls?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+      filters?: Record<string, unknown>
+    }>(`/admin/utm_polls?${q.toString()}`, { method: "GET" }, true)
+
+    const payload =
+      response.success && response.data
+        ? response.data
+        : (response as { utm_polls?: any[]; limit?: number; offset?: number; count?: number; filters?: Record<string, unknown> })
+
+    return {
+      utm_polls: payload.utm_polls || [],
+      limit: payload.limit ?? limit,
+      offset: payload.offset ?? offset,
+      count: payload.count ?? 0,
+      filters: payload.filters || {},
+    }
+  }
+
+  // GET /admin/utm_polls/analyze — grouped UTM stats (admin)
+  async adminAnalyzeUtmPollEvents(params: {
+    limit?: number
+    utm_source?: string
+    utm_medium?: string
+    utm_campaign?: string
+    session_id?: string
+    path?: string
+    client_ip?: string
+    created_after?: string
+    created_before?: string
+  } = {}): Promise<{
+    analysis: Array<{
+      utm_source: string
+      utm_medium?: string | null
+      utm_campaign?: string | null
+      event_count: number
+    }>
+    total_events: number
+    group_limit: number
+    filters?: Record<string, unknown>
+  }> {
+    const groupLimit = Math.min(500, Math.max(1, params.limit ?? 100))
+    const q = new URLSearchParams({ limit: String(groupLimit) })
+    const setIf = (key: string, val?: string) => {
+      const v = val?.trim()
+      if (v) q.set(key, v)
+    }
+    setIf("utm_source", params.utm_source)
+    setIf("utm_medium", params.utm_medium)
+    setIf("utm_campaign", params.utm_campaign)
+    setIf("session_id", params.session_id)
+    setIf("path", params.path)
+    setIf("client_ip", params.client_ip)
+    setIf("created_after", params.created_after)
+    setIf("created_before", params.created_before)
+
+    const response = await this.request<{
+      success?: boolean
+      data?: {
+        analysis?: Array<{
+          utm_source: string
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          event_count: number
+        }>
+        total_events?: number
+        group_limit?: number
+        filters?: Record<string, unknown>
+      }
+      analysis?: Array<{
+        utm_source: string
+        utm_medium?: string | null
+        utm_campaign?: string | null
+        event_count: number
+      }>
+      total_events?: number
+      group_limit?: number
+      filters?: Record<string, unknown>
+    }>(`/admin/utm_polls/analyze?${q.toString()}`, { method: "GET" }, true)
+
+    const payload =
+      response.success && response.data
+        ? response.data
+        : (response as {
+            analysis?: Array<{
+              utm_source: string
+              utm_medium?: string | null
+              utm_campaign?: string | null
+              event_count: number
+            }>
+            total_events?: number
+            group_limit?: number
+            filters?: Record<string, unknown>
+          })
+
+    return {
+      analysis: payload.analysis || [],
+      total_events: payload.total_events ?? 0,
+      group_limit: payload.group_limit ?? groupLimit,
+      filters: payload.filters || {},
+    }
+  }
 }
 
 export const apiClient = new ApiClient()

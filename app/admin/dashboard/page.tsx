@@ -22,6 +22,7 @@ import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
 import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
 import { AdminReferralsTable } from "@/components/admin/referrals-table"
+import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
@@ -318,6 +319,18 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showContent ? <AdminReferralsTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {section === "utm_polls" && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">UTM campaigns</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Marketing landing parameters (raw events and grouped analysis)
+                    </p>
+                  </div>
+                  {showContent ? <AdminUtmPollsPanel /> : <TableSkeleton />}
                 </div>
               )}
             </div>
