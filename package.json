@@ -7,9 +7,10 @@
   },
   "scripts": {
     "build": "next build",
+    "postbuild": "mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start -p 3001"
+    "start": "cd .next/standalone && HOSTNAME=0.0.0.0 PORT=${PORT:-3001} node server.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
