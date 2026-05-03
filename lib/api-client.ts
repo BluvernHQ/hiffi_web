@@ -4129,6 +4129,56 @@ class ApiClient {
       filters: payload.filters || {},
     }
   }
+  // POST /admin/utm_generated_urls — Admin create saved link
+  async adminCreateUtmGeneratedUrl(data: {
+    url: string
+    utm_source: string
+    label: string
+  }): Promise<{ success: boolean; generated_url?: any; error?: string }> {
+    return this.request(
+      `/admin/utm_generated_urls`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
+  }
+
+  // GET /admin/utm_generated_urls — Admin list saved links
+  async adminListUtmGeneratedUrls(params: { limit?: number; offset?: number } = {}): Promise<{
+    utm_generated_urls: any[]
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const limit = Math.min(200, Math.max(1, params.limit ?? 50))
+    const offset = Math.max(0, params.offset ?? 0)
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+
+    const response = await this.request<{
+      success?: boolean
+      data?: {
+        utm_generated_urls?: any[]
+        limit?: number
+        offset?: number
+        count?: number
+      }
+      utm_generated_urls?: any[]
+      limit?: number
+      offset?: number
+      count?: number
+    }>(`/admin/utm_generated_urls?${q.toString()}`, { method: "GET" }, true)
+
+    const payload = response.success && response.data ? response.data : response
+
+    return {
+      utm_generated_urls: payload.utm_generated_urls || [],
+      limit: payload.limit ?? limit,
+      offset: payload.offset ?? offset,
+      count: payload.count ?? 0,
+    }
+  }
 }
 
 export const apiClient = new ApiClient()

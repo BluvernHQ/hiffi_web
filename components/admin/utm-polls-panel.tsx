@@ -68,6 +68,11 @@ export function AdminUtmPollsPanel() {
   const [analyzeLoading, setAnalyzeLoading] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  const [savedLinks, setSavedLinks] = useState<any[]>([])
+  const [savedCount, setSavedCount] = useState(0)
+  const [savedLoading, setSavedLoading] = useState(false)
+  const [savedOffset, setSavedOffset] = useState(0)
+
   const fetchList = useCallback(
     async (isRefresh = false) => {
       let ok = false
@@ -135,6 +140,26 @@ export function AdminUtmPollsPanel() {
   useEffect(() => {
     void fetchAnalyze()
   }, [fetchAnalyze])
+
+  const fetchSavedLinks = useCallback(async () => {
+    setSavedLoading(true)
+    try {
+      const res = await apiClient.adminListUtmGeneratedUrls({
+        limit: 50,
+        offset: savedOffset,
+      })
+      setSavedLinks(res.utm_generated_urls || [])
+      setSavedCount(res.count || 0)
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to load saved links.", variant: "destructive" })
+    } finally {
+      setSavedLoading(false)
+    }
+  }, [savedOffset, toast])
+
+  useEffect(() => {
+    if (tab === "saved") void fetchSavedLinks()
+  }, [tab, fetchSavedLinks])
 
   const applyFilters = () => {
     setApplied({ ...draft })
@@ -213,9 +238,10 @@ export function AdminUtmPollsPanel() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full relative">
-        <TabsList className="w-full max-w-md grid grid-cols-2 mb-4">
+        <TabsList className="w-full max-w-md grid grid-cols-3 mb-4">
           <TabsTrigger value="analyze">Analysis</TabsTrigger>
           <TabsTrigger value="list">Raw events</TabsTrigger>
+          <TabsTrigger value="saved">Saved Links</TabsTrigger>
         </TabsList>
 
         {/* Top Summary Rail */}
@@ -277,7 +303,7 @@ export function AdminUtmPollsPanel() {
         </div>
 
         {/* Sticky Filter Bar */}
-        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur pb-4 border-b mb-6 shadow-sm -mx-4 px-4 sm:-mx-6 sm:px-6">
+        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur pb-4 mb-6 pt-2">
           <div className="rounded-lg border bg-card p-3 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Filters</p>
@@ -500,6 +526,102 @@ export function AdminUtmPollsPanel() {
                   size="sm"
                   disabled={listOffset + rows.length >= listCount || listLoading}
                   onClick={() => setListOffset((o) => o + listLimit)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="saved" className="space-y-4 outline-none">
+          <div className="flex flex-wrap items-center gap-2 justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => void fetchSavedLinks()} disabled={savedLoading}>
+                {savedLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                <span className="ml-1">Refresh</span>
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Total <span className="font-medium text-foreground">{savedCount}</span> saved links
+            </p>
+          </div>
+
+          {savedLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-background shadow-sm overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="h-10 px-3 text-left font-semibold">Created</th>
+                    <th className="h-10 px-3 text-left font-semibold">Label</th>
+                    <th className="h-10 px-3 text-left font-semibold">Source</th>
+                    <th className="h-10 px-3 text-left font-semibold">URL</th>
+                    <th className="h-10 px-3 text-center font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedLinks.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="h-24 px-3 text-center text-muted-foreground">
+                        No saved links found.
+                      </td>
+                    </tr>
+                  ) : (
+                    savedLinks.map((row) => {
+                      let createdLabel = row.created_at
+                      if (createdLabel) {
+                        try { createdLabel = format(new Date(createdLabel), "MMM d, yyyy HH:mm") } catch {}
+                      }
+                      return (
+                        <tr key={row.id} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
+                          <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{createdLabel}</td>
+                          <td className="px-3 py-2 font-medium">{row.label}</td>
+                          <td className="px-3 py-2">{row.utm_source}</td>
+                          <td className="px-3 py-2 font-mono text-xs max-w-[300px] truncate" title={row.url}>{row.url}</td>
+                          <td className="px-3 py-2 text-center">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                navigator.clipboard.writeText(row.url)
+                                toast({ title: "Copied", description: "URL copied to clipboard." })
+                              }}
+                            >
+                              Copy
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {savedCount > 50 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t mt-4">
+              <p className="text-sm text-muted-foreground">
+                Page {Math.floor(savedOffset / 50) + 1} of {Math.max(1, Math.ceil(savedCount / 50))}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={savedOffset === 0 || savedLoading}
+                  onClick={() => setSavedOffset((o) => Math.max(0, o - 50))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={savedOffset + savedLinks.length >= savedCount || savedLoading}
+                  onClick={() => setSavedOffset((o) => o + 50)}
                 >
                   Next
                 </Button>

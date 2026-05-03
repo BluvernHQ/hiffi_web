@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Copy, Check, Link as LinkIcon, AlertCircle } from "lucide-react"
+import { Copy, Check, Link as LinkIcon, AlertCircle, Save, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { apiClient } from "@/lib/api-client"
 
 function formatUtmParam(val: string) {
   // auto-format: lowercase, replace spaces with underscores, remove non-alphanumeric/hyphen/underscore
@@ -26,6 +27,7 @@ export function AdminUtmBuilder() {
   const [content, setContent] = useState("")
   
   const [copied, setCopied] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Validate URL
   useEffect(() => {
@@ -70,6 +72,27 @@ export function AdminUtmBuilder() {
       description: "The campaign URL has been copied to your clipboard.",
     })
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSave = async () => {
+    if (!isValid || !generatedUrl) return
+    setIsSaving(true)
+    try {
+      const res = await apiClient.adminCreateUtmGeneratedUrl({
+        url: generatedUrl,
+        utm_source: source,
+        label: campaign
+      })
+      if (res.success !== false) {
+        toast({ title: "Success", description: "URL has been saved successfully." })
+      } else {
+        toast({ title: "Error", description: res.error || "Failed to save URL.", variant: "destructive" })
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to save URL.", variant: "destructive" })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -200,6 +223,16 @@ export function AdminUtmBuilder() {
                 Copy URL
               </>
             )}
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            size="lg"
+            variant="outline"
+            className="shrink-0 h-12 w-full sm:w-auto font-semibold"
+            disabled={!isValid || isSaving}
+          >
+            {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
+            Save Link
           </Button>
         </div>
       </CardFooter>
