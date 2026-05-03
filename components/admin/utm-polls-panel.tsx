@@ -1,14 +1,16 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { format } from "date-fns"
-import { Loader2, RefreshCw } from "lucide-react"
+import { Loader2, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, Activity, Globe, MousePointerClick, Hash, Clock } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { AdminUtmBuilder } from "@/components/admin/utm-builder"
 
 const LIST_LIMIT_OPTIONS = [25, 50, 100, 200] as const
 const GROUP_LIMIT_OPTIONS = [50, 100, 200, 500] as const
@@ -45,7 +47,8 @@ function rowCell(row: Record<string, unknown>, ...keys: string[]) {
 
 export function AdminUtmPollsPanel() {
   const { toast } = useToast()
-  const [tab, setTab] = useState("list")
+  const [tab, setTab] = useState("analyze")
+  const [showBuilder, setShowBuilder] = useState(false)
 
   const [draft, setDraft] = useState<FilterForm>({ ...emptyFilters })
   const [applied, setApplied] = useState<FilterForm>({ ...emptyFilters })
@@ -63,6 +66,7 @@ export function AdminUtmPollsPanel() {
   >([])
   const [totalEvents, setTotalEvents] = useState(0)
   const [analyzeLoading, setAnalyzeLoading] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const fetchList = useCallback(
     async (isRefresh = false) => {
@@ -96,7 +100,7 @@ export function AdminUtmPollsPanel() {
         toast({ title: "UTM data refreshed", description: "List is up to date." })
       }
     },
-    [listLimit, listOffset, applied],
+    [listLimit, listOffset, applied, toast],
   )
 
   const fetchAnalyze = useCallback(async () => {
@@ -121,17 +125,16 @@ export function AdminUtmPollsPanel() {
     } finally {
       setAnalyzeLoading(false)
     }
-  }, [applied, groupLimit])
+  }, [applied, groupLimit, toast])
 
+  // Fetch both sets of data whenever applied filters change so the summary rail is accurate
   useEffect(() => {
-    if (tab !== "list") return
     void fetchList()
-  }, [tab, fetchList])
+  }, [fetchList])
 
   useEffect(() => {
-    if (tab !== "analyze") return
     void fetchAnalyze()
-  }, [tab, fetchAnalyze])
+  }, [fetchAnalyze])
 
   const applyFilters = () => {
     setApplied({ ...draft })
@@ -147,101 +150,252 @@ export function AdminUtmPollsPanel() {
   const listTotalPages = Math.max(1, Math.ceil(listCount / listLimit))
   const listPage = Math.floor(listOffset / listLimit) + 1
 
+  // Compute summary metrics
+  const summary = useMemo(() => {
+    let topSource = { name: "—", count: 0 }
+    let topMedium = { name: "—", count: 0 }
+    let topCampaign = { name: "—", count: 0 }
+
+    const sourceMap = new Map<string, number>()
+    const mediumMap = new Map<string, number>()
+    const campaignMap = new Map<string, number>()
+
+    analysis.forEach((a) => {
+      if (a.utm_source) sourceMap.set(a.utm_source, (sourceMap.get(a.utm_source) || 0) + a.event_count)
+      if (a.utm_medium) mediumMap.set(a.utm_medium, (mediumMap.get(a.utm_medium) || 0) + a.event_count)
+      if (a.utm_campaign) campaignMap.set(a.utm_campaign, (campaignMap.get(a.utm_campaign) || 0) + a.event_count)
+    })
+
+    sourceMap.forEach((count, name) => { if (count > topSource.count) topSource = { name, count } })
+    mediumMap.forEach((count, name) => { if (count > topMedium.count) topMedium = { name, count } })
+    campaignMap.forEach((count, name) => { if (count > topCampaign.count) topCampaign = { name, count } })
+
+    let lastActivity = "—"
+    if (rows.length > 0) {
+      const firstRow = rows[0] as any
+      if (firstRow.created_at) {
+        try {
+          lastActivity = format(new Date(firstRow.created_at), "MMM d, HH:mm")
+        } catch {
+          lastActivity = "Unknown"
+        }
+      }
+    }
+
+    return {
+      topSource: topSource.name,
+      topMedium: topMedium.name,
+      topCampaign: topCampaign.name,
+      lastActivity,
+    }
+  }, [analysis, rows])
+
   return (
     <div className="space-y-4">
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="w-full max-w-md grid grid-cols-2">
-          <TabsTrigger value="list">Raw events</TabsTrigger>
+      {/* Collapsible UTM Builder */}
+      <div className="mb-4">
+        <Button 
+          variant="outline" 
+          onClick={() => setShowBuilder(!showBuilder)}
+          className="w-full justify-between font-medium h-12 shadow-sm bg-background border-dashed hover:bg-muted/50"
+        >
+          <span className="flex items-center gap-2">
+            <LinkIcon className="h-4 w-4" />
+            Create tracked URL
+          </span>
+          {showBuilder ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+        {showBuilder && (
+          <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <AdminUtmBuilder />
+          </div>
+        )}
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="w-full relative">
+        <TabsList className="w-full max-w-md grid grid-cols-2 mb-4">
           <TabsTrigger value="analyze">Analysis</TabsTrigger>
+          <TabsTrigger value="list">Raw events</TabsTrigger>
         </TabsList>
 
-        <div className="rounded-lg border bg-background p-4 space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Filters apply to both tabs. Use RFC3339 for date bounds (e.g. <code className="text-xs">2025-01-15T00:00:00Z</code>
-            ).
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="utm_source">utm_source (substring)</Label>
-              <Input
-                id="utm_source"
-                value={draft.utm_source}
-                onChange={(e) => setDraft((d) => ({ ...d, utm_source: e.target.value }))}
-                placeholder="google"
-              />
+        {/* Top Summary Rail */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+          <Card className="bg-muted/10 shadow-sm border-primary/10">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                <Activity className="h-3.5 w-3.5 text-primary" /> Total Visits
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl font-bold">{totalEvents}</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-muted/10 shadow-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                <Globe className="h-3.5 w-3.5" /> Top Source
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-semibold truncate" title={summary.topSource}>{summary.topSource}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/10 shadow-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                <MousePointerClick className="h-3.5 w-3.5" /> Top Medium
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-semibold truncate" title={summary.topMedium}>{summary.topMedium}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/10 shadow-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                <Hash className="h-3.5 w-3.5" /> Top Campaign
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-semibold truncate" title={summary.topCampaign}>{summary.topCampaign}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/10 shadow-sm">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5" /> Last Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-sm font-medium pt-1 text-muted-foreground">{summary.lastActivity}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sticky Filter Bar */}
+        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur pb-4 border-b mb-6 shadow-sm -mx-4 px-4 sm:-mx-6 sm:px-6">
+          <div className="rounded-lg border bg-card p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Filters</p>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" onClick={applyFilters} className="h-8">Apply</Button>
+                <Button type="button" size="sm" variant="outline" onClick={resetFilters} className="h-8">Reset</Button>
+                <Button type="button" size="sm" variant="ghost" className="text-muted-foreground h-8" onClick={() => setShowAdvanced(!showAdvanced)}>
+                  {showAdvanced ? <><ChevronUp className="h-4 w-4 mr-1" /> Hide</> : <><ChevronDown className="h-4 w-4 mr-1" /> More</>}
+                </Button>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="utm_medium">utm_medium</Label>
-              <Input
-                id="utm_medium"
-                value={draft.utm_medium}
-                onChange={(e) => setDraft((d) => ({ ...d, utm_medium: e.target.value }))}
-                placeholder="cpc"
-              />
+            
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="utm_source" className="text-xs">Source</Label>
+                <Input id="utm_source" className="h-8 text-sm" value={draft.utm_source} onChange={(e) => setDraft((d) => ({ ...d, utm_source: e.target.value }))} placeholder="instagram" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="utm_medium" className="text-xs">Medium</Label>
+                <Input id="utm_medium" className="h-8 text-sm" value={draft.utm_medium} onChange={(e) => setDraft((d) => ({ ...d, utm_medium: e.target.value }))} placeholder="social" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="utm_campaign" className="text-xs">Campaign</Label>
+                <Input id="utm_campaign" className="h-8 text-sm" value={draft.utm_campaign} onChange={(e) => setDraft((d) => ({ ...d, utm_campaign: e.target.value }))} placeholder="summer_drop" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="created_after" className="text-xs">After Date (RFC3339)</Label>
+                <Input id="created_after" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_after} onChange={(e) => setDraft((d) => ({ ...d, created_after: e.target.value }))} placeholder="2025-01-01T00:00:00Z" />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="utm_campaign">utm_campaign</Label>
-              <Input
-                id="utm_campaign"
-                value={draft.utm_campaign}
-                onChange={(e) => setDraft((d) => ({ ...d, utm_campaign: e.target.value }))}
-                placeholder="spring_sale"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="session_id">session_id (exact)</Label>
-              <Input
-                id="session_id"
-                value={draft.session_id}
-                onChange={(e) => setDraft((d) => ({ ...d, session_id: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="path">path (substring)</Label>
-              <Input
-                id="path"
-                value={draft.path}
-                onChange={(e) => setDraft((d) => ({ ...d, path: e.target.value }))}
-                placeholder="/watch/"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="client_ip">client_ip (exact)</Label>
-              <Input
-                id="client_ip"
-                value={draft.client_ip}
-                onChange={(e) => setDraft((d) => ({ ...d, client_ip: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="created_after">created_after</Label>
-              <Input
-                id="created_after"
-                value={draft.created_after}
-                onChange={(e) => setDraft((d) => ({ ...d, created_after: e.target.value }))}
-                placeholder="2025-01-01T00:00:00Z"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="created_before">created_before</Label>
-              <Input
-                id="created_before"
-                value={draft.created_before}
-                onChange={(e) => setDraft((d) => ({ ...d, created_before: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={applyFilters}>
-              Apply filters
-            </Button>
-            <Button type="button" variant="outline" onClick={resetFilters}>
-              Reset
-            </Button>
+
+            {showAdvanced && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-3 mt-3 border-t border-dashed">
+                <div className="space-y-1.5">
+                  <Label htmlFor="session_id" className="text-xs">Session ID</Label>
+                  <Input id="session_id" className="h-8 text-sm" value={draft.session_id} onChange={(e) => setDraft((d) => ({ ...d, session_id: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="path" className="text-xs">Path</Label>
+                  <Input id="path" className="h-8 text-sm font-mono" value={draft.path} onChange={(e) => setDraft((d) => ({ ...d, path: e.target.value }))} placeholder="/watch/cypher2025" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="client_ip" className="text-xs">Client IP</Label>
+                  <Input id="client_ip" className="h-8 text-sm font-mono" value={draft.client_ip} onChange={(e) => setDraft((d) => ({ ...d, client_ip: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="created_before" className="text-xs">Before Date</Label>
+                  <Input id="created_before" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_before} onChange={(e) => setDraft((d) => ({ ...d, created_before: e.target.value }))} placeholder="2025-12-31T00:00:00Z" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <TabsContent value="list" className="mt-4 space-y-4">
+        <TabsContent value="analyze" className="space-y-4 outline-none">
+          <div className="flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-sm text-muted-foreground">Max groups</Label>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={groupLimit}
+                onChange={(e) => setGroupLimit(Number(e.target.value))}
+              >
+                {GROUP_LIMIT_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <Button variant="outline" size="sm" onClick={() => void fetchAnalyze()} disabled={analyzeLoading}>
+                {analyzeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                <span className="ml-1">Reload</span>
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{analysis.length}</span> groups shown
+            </p>
+          </div>
+
+          {analyzeLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-background shadow-sm overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="h-10 px-3 text-left font-semibold">utm_source</th>
+                    <th className="h-10 px-3 text-left font-semibold">utm_medium</th>
+                    <th className="h-10 px-3 text-left font-semibold">utm_campaign</th>
+                    <th className="h-10 px-3 text-right font-semibold">Events</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analysis.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="h-24 px-3 text-center text-muted-foreground">
+                        No grouped data for the current filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    analysis.map((row, idx) => (
+                      <tr key={`${row.utm_source}-${row.utm_medium}-${row.utm_campaign}-${idx}`} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
+                        <td className="px-3 py-2 font-medium break-words">{row.utm_source}</td>
+                        <td className="px-3 py-2 break-words text-muted-foreground">{row.utm_medium ?? "—"}</td>
+                        <td className="px-3 py-2 break-words text-muted-foreground">{row.utm_campaign ?? "—"}</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-semibold">{row.event_count}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="list" className="space-y-4 outline-none">
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <select
@@ -308,16 +462,16 @@ export function AdminUtmPollsPanel() {
                         }
                       }
                       return (
-                        <tr key={String(r.id ?? idx)} className="border-b last:border-0 hover:bg-muted/40">
+                        <tr key={String(r.id ?? idx)} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
                           <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{createdLabel}</td>
-                          <td className="px-3 py-2 break-words max-w-[140px]">{rowCell(r, "utm_source", "utmSource")}</td>
-                          <td className="px-3 py-2 break-words max-w-[120px]">{rowCell(r, "utm_medium", "utmMedium")}</td>
-                          <td className="px-3 py-2 break-words max-w-[160px]">{rowCell(r, "utm_campaign", "utmCampaign")}</td>
-                          <td className="px-3 py-2 break-words max-w-[120px]">{rowCell(r, "utm_term", "utmTerm")}</td>
-                          <td className="px-3 py-2 break-words max-w-[120px]">{rowCell(r, "utm_content", "utmContent")}</td>
-                          <td className="px-3 py-2 break-all max-w-[140px] font-mono text-xs">{rowCell(r, "session_id", "sessionId")}</td>
+                          <td className="px-3 py-2 break-words max-w-[140px] font-medium">{rowCell(r, "utm_source", "utmSource")}</td>
+                          <td className="px-3 py-2 break-words max-w-[120px] text-muted-foreground">{rowCell(r, "utm_medium", "utmMedium")}</td>
+                          <td className="px-3 py-2 break-words max-w-[160px] text-muted-foreground">{rowCell(r, "utm_campaign", "utmCampaign")}</td>
+                          <td className="px-3 py-2 break-words max-w-[120px] text-muted-foreground">{rowCell(r, "utm_term", "utmTerm")}</td>
+                          <td className="px-3 py-2 break-words max-w-[120px] text-muted-foreground">{rowCell(r, "utm_content", "utmContent")}</td>
+                          <td className="px-3 py-2 break-all max-w-[140px] font-mono text-xs text-muted-foreground/70">{rowCell(r, "session_id", "sessionId")}</td>
                           <td className="px-3 py-2 break-all max-w-[180px] font-mono text-xs">{rowCell(r, "path")}</td>
-                          <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{rowCell(r, "client_ip", "clientIp")}</td>
+                          <td className="px-3 py-2 whitespace-nowrap font-mono text-xs text-muted-foreground/70">{rowCell(r, "client_ip", "clientIp")}</td>
                         </tr>
                       )
                     })
@@ -328,7 +482,7 @@ export function AdminUtmPollsPanel() {
           )}
 
           {listCount > listLimit && (
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t mt-4">
               <p className="text-sm text-muted-foreground">
                 Page {listPage} of {listTotalPages}
               </p>
@@ -350,70 +504,6 @@ export function AdminUtmPollsPanel() {
                   Next
                 </Button>
               </div>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="analyze" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-center gap-3 justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <Label className="text-sm text-muted-foreground">Max groups</Label>
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                value={groupLimit}
-                onChange={(e) => setGroupLimit(Number(e.target.value))}
-              >
-                {GROUP_LIMIT_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-              <Button variant="outline" size="sm" onClick={() => void fetchAnalyze()} disabled={analyzeLoading}>
-                {analyzeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                <span className="ml-1">Reload</span>
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{totalEvents}</span> events after filters,{" "}
-              <span className="font-medium text-foreground">{analysis.length}</span> groups shown
-            </p>
-          </div>
-
-          {analyzeLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-lg border bg-background shadow-sm overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="h-10 px-3 text-left font-semibold">utm_source</th>
-                    <th className="h-10 px-3 text-left font-semibold">utm_medium</th>
-                    <th className="h-10 px-3 text-left font-semibold">utm_campaign</th>
-                    <th className="h-10 px-3 text-right font-semibold">Events</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analysis.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="h-24 px-3 text-center text-muted-foreground">
-                        No grouped data for the current filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    analysis.map((row, idx) => (
-                      <tr key={`${row.utm_source}-${row.utm_medium}-${row.utm_campaign}-${idx}`} className="border-b last:border-0 hover:bg-muted/40">
-                        <td className="px-3 py-2 font-medium break-words">{row.utm_source}</td>
-                        <td className="px-3 py-2 break-words">{row.utm_medium ?? "—"}</td>
-                        <td className="px-3 py-2 break-words">{row.utm_campaign ?? "—"}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{row.event_count}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
             </div>
           )}
         </TabsContent>
