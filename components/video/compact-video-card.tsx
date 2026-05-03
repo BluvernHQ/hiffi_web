@@ -7,7 +7,7 @@ import { useGlobalVideo } from "@/lib/video-context"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
-import { AuthenticatedImage } from "./authenticated-image"
+import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 
 interface CompactVideoCardProps {
   video: {
@@ -94,11 +94,7 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
             authenticated={false}
           />
         ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            <svg className="h-6 w-6 text-muted-foreground/50" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </div>
+          <VideoThumbnailPlaceholder fill />
         )}
         {/* Duration overlay - YouTube style (if available) */}
         {(video as any).duration && (

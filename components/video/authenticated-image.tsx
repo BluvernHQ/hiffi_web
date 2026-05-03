@@ -1,8 +1,41 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, type CSSProperties } from "react"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 import { WORKERS_BASE_URL } from "@/lib/storage"
+
+/** Faded app logo when a video thumbnail URL is missing or fails to load. */
+export function VideoThumbnailPlaceholder({
+  fill,
+  className,
+  style,
+}: {
+  fill?: boolean
+  className?: string
+  style?: CSSProperties
+}) {
+  return (
+    <div
+      className={cn(
+        "relative flex items-center justify-center overflow-hidden bg-muted",
+        fill && "absolute inset-0 size-full",
+        className,
+      )}
+      style={style}
+      aria-hidden
+    >
+      <Image
+        src="/appbarlogo.png"
+        alt=""
+        width={240}
+        height={160}
+        className="h-[38%] w-auto max-h-20 max-w-[min(78%,9rem)] object-contain opacity-25"
+        sizes="(max-width: 768px) 30vw, 160px"
+      />
+    </div>
+  )
+}
 
 interface AuthenticatedImageProps {
   src: string
@@ -21,7 +54,7 @@ interface AuthenticatedImageProps {
  * Image component that uses a server-side proxy to fetch authenticated images.
  * This eliminates the need for fetch -> Blob -> URL.createObjectURL on the client,
  * which prevents memory leaks and enables browser-native caching.
- * 
+ *
  * If authenticated is false (e.g. for public thumbnails), it uses the source URL directly.
  */
 export function AuthenticatedImage({
@@ -38,39 +71,33 @@ export function AuthenticatedImage({
 }: AuthenticatedImageProps) {
   const [imageLoadError, setImageLoadError] = useState(false)
 
-  // Determine the final source URL
   const getDisplayUrl = () => {
     if (!src) return null
-    
-    // Only proxy if it's a Workers URL and authenticated is true
+
     if (authenticated && src.startsWith(WORKERS_BASE_URL)) {
       const path = src.replace(`${WORKERS_BASE_URL}/`, "")
       return `/proxy/image/${path}`
     }
-    
+
     return src
   }
 
   const displayUrl = getDisplayUrl()
 
-  // Handle image load error
   const handleImageError = () => {
-    console.error("[AuthenticatedImage] Failed to load image:", displayUrl)
     setImageLoadError(true)
     onError?.()
   }
 
-  // Show error state if no URL or load failed
   if (!displayUrl || imageLoadError) {
     return (
-      <div
+      <VideoThumbnailPlaceholder
+        fill={fill}
         className={className}
-        style={fill ? undefined : { width, height }}
-      >
-        <div className="w-full h-full bg-muted flex items-center justify-center">
-          <span className="text-muted-foreground text-xs">No thumbnail</span>
-        </div>
-      </div>
+        style={
+          fill ? undefined : width !== undefined && height !== undefined ? { width, height } : undefined
+        }
+      />
     )
   }
 
