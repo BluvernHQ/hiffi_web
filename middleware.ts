@@ -31,8 +31,11 @@ export function middleware(req: NextRequest) {
   return NextResponse.rewrite(url)
 }
 
-// Apply middleware to all application routes
+// Apply middleware to all application routes except static-ish paths and /health
+// (/health is excluded so external uptime checks always reach the handler, even in maintenance)
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|maintenance|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|maintenance|favicon.ico|robots.txt|sitemap.xml|health$).*)",
+  ],
 }
 
