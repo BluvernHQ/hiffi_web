@@ -47,6 +47,10 @@ export default function ProfilePage() {
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
   const isRegularUser = profileUser?.role === "user" || profileUser?.role === undefined;
+  const referralUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/referrar/${username}` : `/referrar/${username}`;
+  const profileUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/profile/${encodeURIComponent(username)}` : `/profile/${encodeURIComponent(username)}`;
 
   const getVideoUpdatedTimestamp = useCallback((video: any): number => {
     const updatedCandidate =
@@ -381,10 +385,8 @@ export default function ProfilePage() {
       return
     }
 
-    const profileUrl = `${window.location.origin}/referrar/${username}`
-
     try {
-      await navigator.clipboard.writeText(profileUrl)
+      await navigator.clipboard.writeText(referralUrl)
       setCopied(true)
       toast({
         title: "Link copied!",
@@ -408,7 +410,6 @@ export default function ProfilePage() {
   const handleShare = async () => {
     if (typeof window === 'undefined') return
 
-    const profileUrl = `${window.location.origin}/referrar/${username}`
     const displayName = profileUser?.name || profileUser?.username || username
     const title = `${displayName}'s Profile`
     const text = `Check out ${displayName}'s profile on Hiffi`
@@ -713,19 +714,6 @@ export default function ProfilePage() {
                       variant="outline" 
                       size="icon" 
                       className="flex-shrink-0"
-                      onClick={handleCopy}
-                      aria-label="Copy profile link"
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="flex-shrink-0"
                       onClick={handleShare}
                       aria-label="Share profile"
                     >
@@ -794,6 +782,24 @@ export default function ProfilePage() {
                             >
                               {profileUser.email || currentUserData?.email}
                             </a>
+                          </div>
+                          <div className="mt-3">
+                            <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Referral URL</Label>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <p className="min-w-0 flex-1 truncate whitespace-nowrap text-xs sm:text-sm font-medium text-foreground" title={referralUrl}>
+                                {referralUrl}
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                onClick={handleCopy}
+                                aria-label="Copy referral URL"
+                              >
+                                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -995,19 +1001,6 @@ export default function ProfilePage() {
                     variant="outline" 
                     size="icon" 
                     className="flex-shrink-0"
-                    onClick={handleCopy}
-                    aria-label="Copy profile link"
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    className="flex-shrink-0"
                     onClick={handleShare}
                     aria-label="Share profile"
                   >
@@ -1038,6 +1031,24 @@ export default function ProfilePage() {
                             >
                               {profileUser.email || currentUserData?.email}
                             </a>
+                          </div>
+                          <div className="mt-3">
+                            <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Referral URL</Label>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <p className="min-w-0 flex-1 truncate whitespace-nowrap text-xs sm:text-sm font-medium text-foreground" title={referralUrl}>
+                                {referralUrl}
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                onClick={handleCopy}
+                                aria-label="Copy referral URL"
+                              >
+                                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       )}

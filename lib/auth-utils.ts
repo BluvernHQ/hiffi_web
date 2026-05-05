@@ -44,7 +44,13 @@ export function validateRedirect(redirect: string | null | undefined): string | 
   
   try {
     // Decode the redirect value
-    const decoded = decodeURIComponent(redirect)
+    const decoded = decodeURIComponent(redirect).trim()
+
+    // Reject protocol-relative URLs (e.g. //admin) that escape current origin.
+    if (decoded.startsWith("//")) {
+      console.warn("[auth-utils] Invalid redirect: protocol-relative URL detected", decoded)
+      return null
+    }
     
     // Must start with / (internal route)
     if (!decoded.startsWith('/')) {
@@ -69,5 +75,21 @@ export function validateRedirect(redirect: string | null | undefined): string | 
     console.warn("[auth-utils] Failed to decode redirect:", e)
     return null
   }
+}
+
+/**
+ * Normalize an internal app route for safe client navigation.
+ * - Rejects protocol-relative URLs (//foo)
+ * - Forces a leading slash
+ * - Collapses repeated leading slashes
+ */
+export function sanitizeInternalPath(path: string | null | undefined, fallback = "/"): string {
+  const raw = String(path ?? "").trim()
+  if (!raw) return fallback
+
+  if (raw.startsWith("//")) return fallback
+
+  const normalized = raw.startsWith("/") ? raw : `/${raw}`
+  return normalized.replace(/^\/+/, "/")
 }
 

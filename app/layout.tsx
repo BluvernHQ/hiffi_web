@@ -11,6 +11,7 @@ import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
 import { ApiAnalyticsTracker } from "@/components/analytics/api-analytics-tracker"
 import { UtmPoll } from "@/components/marketing/utm-poll"
+import { RuntimeGuards } from "@/components/system/runtime-guards"
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
 import { API_BASE_URL } from '@/lib/config'
@@ -209,6 +210,7 @@ export default function RootLayout({
                 <Suspense fallback={null}>
                   <UtmPoll />
                 </Suspense>
+                <RuntimeGuards />
               </VideoUploadQueueProvider>
             </SidebarProvider>
           </VideoProvider>

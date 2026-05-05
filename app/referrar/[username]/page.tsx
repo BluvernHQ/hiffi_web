@@ -3,8 +3,7 @@
 import { useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { buildSignupUrl } from "@/lib/auth-utils"
-import { setReferralCode, setReferralRedirectProfile } from "@/lib/referral-cookie"
+import { setReferralCode } from "@/lib/referral-cookie"
 
 export default function ReferralLandingPage() {
   const params = useParams()
@@ -16,13 +15,12 @@ export default function ReferralLandingPage() {
     if (loading || !username) return
 
     if (userData?.username) {
-      router.replace(`/profile/${encodeURIComponent(username)}`)
+      router.replace("/")
       return
     }
 
     setReferralCode(username)
-    setReferralRedirectProfile(username)
-    router.replace(buildSignupUrl(`/profile/${encodeURIComponent(username)}`))
+    router.replace("/signup")
   }, [loading, username, userData?.username, router])
 
   return (

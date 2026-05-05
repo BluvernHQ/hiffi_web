@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { apiClient } from "./api-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
+import { sanitizeInternalPath } from "@/lib/auth-utils"
 import {
   clearReferralCode,
   clearReferralRedirectProfile,
@@ -395,7 +396,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace("/admin/dashboard")
       } else {
         // Use redirect path if provided (from query param), otherwise go to home
-        const destination = redirectPath || "/"
+        const destination = sanitizeInternalPath(redirectPath || "/", "/")
         console.log("[hiffi] Redirecting after login to:", destination)
         router.replace(destination)
       }
@@ -485,6 +486,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const destination = referralRedirectProfile
         ? `/profile/${encodeURIComponent(referralRedirectProfile)}`
         : redirectPath || "/"
+      const safeDestination = sanitizeInternalPath(destination, "/")
       const signupSource = normalizeConversionSource(
         referralRedirectProfile ? "profile" : redirectPath || "/signup",
       )
@@ -492,10 +494,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: response.data.user.username,
         source: signupSource,
         has_referral_code: Boolean(referralCode),
-        redirected_to: destination,
+        redirected_to: safeDestination,
       })
-      console.log("[hiffi] OTP verification complete, redirecting to:", destination)
-      router.replace(destination)
+      console.log("[hiffi] OTP verification complete, redirecting to:", safeDestination)
+      router.replace(safeDestination)
     } catch (error: any) {
       console.error("[hiffi] OTP verification failed:", error)
 
