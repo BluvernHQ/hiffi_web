@@ -4,21 +4,30 @@ import { NextResponse } from "next/server"
 const MAINTENANCE_MODE = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true"
 
 export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl
+
+  // Normalize repeated slashes in path (e.g. //app -> /app) to avoid
+  // protocol-relative navigation bugs on the client.
+  const normalizedPathname = pathname.replace(/\/{2,}/g, "/")
+  if (normalizedPathname !== pathname) {
+    const url = req.nextUrl.clone()
+    url.pathname = normalizedPathname
+    return NextResponse.redirect(url, 308)
+  }
+
   if (!MAINTENANCE_MODE) {
     return NextResponse.next()
   }
 
-  const { pathname } = req.nextUrl
-
   // Allow maintenance page itself and essential assets/APIs
   const isAllowed =
-    pathname.startsWith("/maintenance") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/robots.txt") ||
-    pathname.startsWith("/sitemap") ||
-    pathname.startsWith("/appbarlogo") // allow logo used on maintenance page
+    normalizedPathname.startsWith("/maintenance") ||
+    normalizedPathname.startsWith("/_next") ||
+    normalizedPathname.startsWith("/api") ||
+    normalizedPathname.startsWith("/favicon") ||
+    normalizedPathname.startsWith("/robots.txt") ||
+    normalizedPathname.startsWith("/sitemap") ||
+    normalizedPathname.startsWith("/appbarlogo") // allow logo used on maintenance page
 
   if (isAllowed) {
     return NextResponse.next()
