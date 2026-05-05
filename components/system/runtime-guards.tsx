@@ -7,17 +7,6 @@ const CHUNK_RELOAD_KEY = "hiffi_chunk_reload_once"
 
 export function RuntimeGuards() {
   useEffect(() => {
-    // Safety-net normalization for malformed double-slash URLs that can trigger
-    // protocol-relative navigation bugs in client routing (e.g. //admin, //app).
-    if (typeof window !== "undefined") {
-      const { pathname, search, hash } = window.location
-      const normalizedPath = pathname.replace(/\/{2,}/g, "/")
-      if (normalizedPath !== pathname) {
-        window.location.replace(`${normalizedPath}${search}${hash}`)
-        return
-      }
-    }
-
     const onError = (event: ErrorEvent) => {
       if (isChunkLoadFailure(event.error || event.message)) {
         reloadOncePerSession(CHUNK_RELOAD_KEY)
