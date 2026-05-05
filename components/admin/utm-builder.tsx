@@ -109,7 +109,18 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
         }
       }
     } catch (e) {
-      toast({ title: "Error", description: "Failed to save URL.", variant: "destructive" })
+      const error = e as { status?: number; message?: string; responseBody?: string }
+      const normalizedMessage = String(error?.message || "").toLowerCase()
+      const normalizedBody = String(error?.responseBody || "").toLowerCase()
+      const isDuplicateError =
+        error?.status === 409 || normalizedMessage.includes("already exists") || normalizedBody.includes("already exists")
+
+      if (isDuplicateError) {
+        setLastSavedUrl(generatedUrl)
+        toast({ title: "Already saved", description: "This link already exists." })
+      } else {
+        toast({ title: "Error", description: "Failed to save URL.", variant: "destructive" })
+      }
     } finally {
       setIsSaving(false)
     }
