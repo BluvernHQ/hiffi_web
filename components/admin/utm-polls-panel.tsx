@@ -241,7 +241,6 @@ export function AdminUtmPollsPanel() {
 
   const hasAnyDraftFilter = useMemo(() => !isFilterFormEmpty(draft), [draft])
   const hasAnyAppliedFilter = useMemo(() => !isFilterFormEmpty(applied), [applied])
-  const hasMainPendingChanges = useMemo(() => !areFilterFormsEqual(draft, applied), [draft, applied])
   const canApplyMainFilters = useMemo(() => hasAnyDraftFilter && !areFilterFormsEqual(draft, applied), [hasAnyDraftFilter, draft, applied])
   const canResetMainFilters = useMemo(() => hasAnyDraftFilter || hasAnyAppliedFilter, [hasAnyDraftFilter, hasAnyAppliedFilter])
 
@@ -282,6 +281,21 @@ export function AdminUtmPollsPanel() {
     setSavedDraft({ ...emptySavedFilters })
     setSavedApplied({ ...emptySavedFilters })
   }
+
+  useEffect(() => {
+    // Auto-reset applied main filters when all inputs are manually cleared.
+    if (isFilterFormEmpty(draft) && !isFilterFormEmpty(applied)) {
+      setApplied({ ...emptyFilters })
+      setListOffset(0)
+    }
+  }, [draft, applied])
+
+  useEffect(() => {
+    // Auto-reset applied saved-links filters when all inputs are manually cleared.
+    if (isFilterFormEmpty(savedDraft) && !isFilterFormEmpty(savedApplied)) {
+      setSavedApplied({ ...emptySavedFilters })
+    }
+  }, [savedDraft, savedApplied])
 
   return (
     <div className="space-y-4">
@@ -422,11 +436,6 @@ export function AdminUtmPollsPanel() {
                     <Input id="created_before" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_before} onChange={(e) => setDraft((d) => ({ ...d, created_before: e.target.value }))} placeholder="2025-12-31T00:00:00Z" />
                   </div>
                 </div>
-              )}
-              {!hasAnyDraftFilter && hasAnyAppliedFilter && hasMainPendingChanges && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Filters are still applied. Click <span className="font-semibold text-foreground">Reset</span> to clear active filtering.
-                </p>
               )}
             </div>
           </div>
