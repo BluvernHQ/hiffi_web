@@ -15,7 +15,7 @@ function formatUtmParam(val: string) {
   return val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '')
 }
 
-export function AdminUtmBuilder() {
+export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
   const { toast } = useToast()
   const [url, setUrl] = useState("")
   const [urlError, setUrlError] = useState("")
@@ -93,6 +93,18 @@ export function AdminUtmBuilder() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleCancel = () => {
+    setUrl("")
+    setUrlError("")
+    setSource("")
+    setMedium("")
+    setCampaign("")
+    setTerm("")
+    setContent("")
+    setCopied(false)
+    onCancel?.()
   }
 
   return (
@@ -233,6 +245,16 @@ export function AdminUtmBuilder() {
           >
             {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
             Save Link
+          </Button>
+          <Button
+            type="button"
+            onClick={handleCancel}
+            size="lg"
+            variant="ghost"
+            className="shrink-0 h-12 w-full sm:w-auto font-semibold"
+            disabled={isSaving}
+          >
+            Cancel
           </Button>
         </div>
       </CardFooter>

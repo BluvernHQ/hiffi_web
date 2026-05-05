@@ -26,6 +26,12 @@ type FilterForm = {
   created_before: string
 }
 
+type SavedLinksFilterForm = {
+  label: string
+  utm_source: string
+  url: string
+}
+
 const emptyFilters: FilterForm = {
   utm_source: "",
   utm_medium: "",
@@ -35,6 +41,20 @@ const emptyFilters: FilterForm = {
   client_ip: "",
   created_after: "",
   created_before: "",
+}
+
+const emptySavedFilters: SavedLinksFilterForm = {
+  label: "",
+  utm_source: "",
+  url: "",
+}
+
+function isFilterFormEmpty<T extends Record<string, string>>(form: T) {
+  return Object.values(form).every((value) => value.trim() === "")
+}
+
+function areFilterFormsEqual<T extends Record<string, string>>(a: T, b: T) {
+  return Object.keys(a).every((key) => a[key as keyof T].trim() === b[key as keyof T].trim())
 }
 
 function rowCell(row: Record<string, unknown>, ...keys: string[]) {
@@ -72,6 +92,8 @@ export function AdminUtmPollsPanel() {
   const [savedCount, setSavedCount] = useState(0)
   const [savedLoading, setSavedLoading] = useState(false)
   const [savedOffset, setSavedOffset] = useState(0)
+  const [savedDraft, setSavedDraft] = useState<SavedLinksFilterForm>({ ...emptySavedFilters })
+  const [savedApplied, setSavedApplied] = useState<SavedLinksFilterForm>({ ...emptySavedFilters })
 
   const fetchList = useCallback(
     async (isRefresh = false) => {
@@ -162,11 +184,13 @@ export function AdminUtmPollsPanel() {
   }, [tab, fetchSavedLinks])
 
   const applyFilters = () => {
+    if (isFilterFormEmpty(draft)) return
     setApplied({ ...draft })
     setListOffset(0)
   }
 
   const resetFilters = () => {
+    if (isFilterFormEmpty(draft) && isFilterFormEmpty(applied)) return
     setDraft({ ...emptyFilters })
     setApplied({ ...emptyFilters })
     setListOffset(0)
@@ -215,6 +239,49 @@ export function AdminUtmPollsPanel() {
     }
   }, [analysis, rows])
 
+  const hasAnyDraftFilter = useMemo(() => !isFilterFormEmpty(draft), [draft])
+  const hasAnyAppliedFilter = useMemo(() => !isFilterFormEmpty(applied), [applied])
+  const canApplyMainFilters = useMemo(() => hasAnyDraftFilter && !areFilterFormsEqual(draft, applied), [hasAnyDraftFilter, draft, applied])
+  const canResetMainFilters = useMemo(() => hasAnyDraftFilter || hasAnyAppliedFilter, [hasAnyDraftFilter, hasAnyAppliedFilter])
+
+  const hasAnySavedDraftFilter = useMemo(() => !isFilterFormEmpty(savedDraft), [savedDraft])
+  const hasAnySavedAppliedFilter = useMemo(() => !isFilterFormEmpty(savedApplied), [savedApplied])
+  const canApplySavedFilters = useMemo(
+    () => hasAnySavedDraftFilter && !areFilterFormsEqual(savedDraft, savedApplied),
+    [hasAnySavedDraftFilter, savedDraft, savedApplied],
+  )
+  const canResetSavedFilters = useMemo(
+    () => hasAnySavedDraftFilter || hasAnySavedAppliedFilter,
+    [hasAnySavedDraftFilter, hasAnySavedAppliedFilter],
+  )
+
+  const filteredSavedLinks = useMemo(() => {
+    const labelQ = savedApplied.label.trim().toLowerCase()
+    const sourceQ = savedApplied.utm_source.trim().toLowerCase()
+    const urlQ = savedApplied.url.trim().toLowerCase()
+
+    return savedLinks.filter((row) => {
+      const label = String(row.label ?? "").toLowerCase()
+      const source = String(row.utm_source ?? "").toLowerCase()
+      const url = String(row.url ?? "").toLowerCase()
+      if (labelQ && !label.includes(labelQ)) return false
+      if (sourceQ && !source.includes(sourceQ)) return false
+      if (urlQ && !url.includes(urlQ)) return false
+      return true
+    })
+  }, [savedLinks, savedApplied])
+
+  const applySavedFilters = () => {
+    if (isFilterFormEmpty(savedDraft)) return
+    setSavedApplied({ ...savedDraft })
+  }
+
+  const resetSavedFilters = () => {
+    if (isFilterFormEmpty(savedDraft) && isFilterFormEmpty(savedApplied)) return
+    setSavedDraft({ ...emptySavedFilters })
+    setSavedApplied({ ...emptySavedFilters })
+  }
+
   return (
     <div className="space-y-4">
       {/* Collapsible UTM Builder */}
@@ -232,7 +299,7 @@ export function AdminUtmPollsPanel() {
         </Button>
         {showBuilder && (
           <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-            <AdminUtmBuilder />
+            <AdminUtmBuilder onCancel={() => setShowBuilder(false)} />
           </div>
         )}
       </div>
@@ -302,61 +369,62 @@ export function AdminUtmPollsPanel() {
           </Card>
         </div>
 
-        {/* Sticky Filter Bar */}
-        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur pb-4 mb-6 pt-2">
-          <div className="rounded-lg border bg-card p-3 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Filters</p>
-              <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={applyFilters} className="h-8">Apply</Button>
-                <Button type="button" size="sm" variant="outline" onClick={resetFilters} className="h-8">Reset</Button>
-                <Button type="button" size="sm" variant="ghost" className="text-muted-foreground h-8" onClick={() => setShowAdvanced(!showAdvanced)}>
-                  {showAdvanced ? <><ChevronUp className="h-4 w-4 mr-1" /> Hide</> : <><ChevronDown className="h-4 w-4 mr-1" /> More</>}
-                </Button>
+        {tab !== "saved" && (
+          <div className="sticky top-16 z-20 bg-background/95 backdrop-blur pb-4 mb-6 pt-2">
+            <div className="rounded-lg border bg-card p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Filters</p>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={applyFilters} className="h-8" disabled={!canApplyMainFilters}>Apply</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={resetFilters} className="h-8" disabled={!canResetMainFilters}>Reset</Button>
+                  <Button type="button" size="sm" variant="ghost" className="text-muted-foreground h-8" onClick={() => setShowAdvanced(!showAdvanced)}>
+                    {showAdvanced ? <><ChevronUp className="h-4 w-4 mr-1" /> Hide</> : <><ChevronDown className="h-4 w-4 mr-1" /> More</>}
+                  </Button>
+                </div>
               </div>
-            </div>
-            
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="utm_source" className="text-xs">Source</Label>
-                <Input id="utm_source" className="h-8 text-sm" value={draft.utm_source} onChange={(e) => setDraft((d) => ({ ...d, utm_source: e.target.value }))} placeholder="instagram" />
+              
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="utm_source" className="text-xs">Source</Label>
+                  <Input id="utm_source" className="h-8 text-sm" value={draft.utm_source} onChange={(e) => setDraft((d) => ({ ...d, utm_source: e.target.value }))} placeholder="instagram" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="utm_medium" className="text-xs">Medium</Label>
+                  <Input id="utm_medium" className="h-8 text-sm" value={draft.utm_medium} onChange={(e) => setDraft((d) => ({ ...d, utm_medium: e.target.value }))} placeholder="social" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="utm_campaign" className="text-xs">Campaign</Label>
+                  <Input id="utm_campaign" className="h-8 text-sm" value={draft.utm_campaign} onChange={(e) => setDraft((d) => ({ ...d, utm_campaign: e.target.value }))} placeholder="summer_drop" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="created_after" className="text-xs">After Date (RFC3339)</Label>
+                  <Input id="created_after" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_after} onChange={(e) => setDraft((d) => ({ ...d, created_after: e.target.value }))} placeholder="2025-01-01T00:00:00Z" />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="utm_medium" className="text-xs">Medium</Label>
-                <Input id="utm_medium" className="h-8 text-sm" value={draft.utm_medium} onChange={(e) => setDraft((d) => ({ ...d, utm_medium: e.target.value }))} placeholder="social" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="utm_campaign" className="text-xs">Campaign</Label>
-                <Input id="utm_campaign" className="h-8 text-sm" value={draft.utm_campaign} onChange={(e) => setDraft((d) => ({ ...d, utm_campaign: e.target.value }))} placeholder="summer_drop" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="created_after" className="text-xs">After Date (RFC3339)</Label>
-                <Input id="created_after" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_after} onChange={(e) => setDraft((d) => ({ ...d, created_after: e.target.value }))} placeholder="2025-01-01T00:00:00Z" />
-              </div>
-            </div>
 
-            {showAdvanced && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-3 mt-3 border-t border-dashed">
-                <div className="space-y-1.5">
-                  <Label htmlFor="session_id" className="text-xs">Session ID</Label>
-                  <Input id="session_id" className="h-8 text-sm" value={draft.session_id} onChange={(e) => setDraft((d) => ({ ...d, session_id: e.target.value }))} />
+              {showAdvanced && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-3 mt-3 border-t border-dashed">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="session_id" className="text-xs">Session ID</Label>
+                    <Input id="session_id" className="h-8 text-sm" value={draft.session_id} onChange={(e) => setDraft((d) => ({ ...d, session_id: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="path" className="text-xs">Path</Label>
+                    <Input id="path" className="h-8 text-sm font-mono" value={draft.path} onChange={(e) => setDraft((d) => ({ ...d, path: e.target.value }))} placeholder="/watch/cypher2025" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="client_ip" className="text-xs">Client IP</Label>
+                    <Input id="client_ip" className="h-8 text-sm font-mono" value={draft.client_ip} onChange={(e) => setDraft((d) => ({ ...d, client_ip: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="created_before" className="text-xs">Before Date</Label>
+                    <Input id="created_before" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_before} onChange={(e) => setDraft((d) => ({ ...d, created_before: e.target.value }))} placeholder="2025-12-31T00:00:00Z" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="path" className="text-xs">Path</Label>
-                  <Input id="path" className="h-8 text-sm font-mono" value={draft.path} onChange={(e) => setDraft((d) => ({ ...d, path: e.target.value }))} placeholder="/watch/cypher2025" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="client_ip" className="text-xs">Client IP</Label>
-                  <Input id="client_ip" className="h-8 text-sm font-mono" value={draft.client_ip} onChange={(e) => setDraft((d) => ({ ...d, client_ip: e.target.value }))} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="created_before" className="text-xs">Before Date</Label>
-                  <Input id="created_before" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_before} onChange={(e) => setDraft((d) => ({ ...d, created_before: e.target.value }))} placeholder="2025-12-31T00:00:00Z" />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <TabsContent value="analyze" className="space-y-4 outline-none">
           <div className="flex flex-wrap items-center gap-3 justify-between">
@@ -535,6 +603,30 @@ export function AdminUtmPollsPanel() {
         </TabsContent>
 
         <TabsContent value="saved" className="space-y-4 outline-none">
+          <div className="rounded-lg border bg-card p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Saved links filters</p>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" onClick={applySavedFilters} className="h-8" disabled={!canApplySavedFilters}>Apply</Button>
+                <Button type="button" size="sm" variant="outline" onClick={resetSavedFilters} className="h-8" disabled={!canResetSavedFilters}>Reset</Button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="saved_label" className="text-xs">Label</Label>
+                <Input id="saved_label" className="h-8 text-sm" value={savedDraft.label} onChange={(e) => setSavedDraft((d) => ({ ...d, label: e.target.value }))} placeholder="Artist launch" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="saved_source" className="text-xs">Source</Label>
+                <Input id="saved_source" className="h-8 text-sm" value={savedDraft.utm_source} onChange={(e) => setSavedDraft((d) => ({ ...d, utm_source: e.target.value }))} placeholder="instagram" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="saved_url" className="text-xs">URL contains</Label>
+                <Input id="saved_url" className="h-8 text-sm font-mono" value={savedDraft.url} onChange={(e) => setSavedDraft((d) => ({ ...d, url: e.target.value }))} placeholder="utm_campaign=spring_drop" />
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => void fetchSavedLinks()} disabled={savedLoading}>
@@ -543,7 +635,7 @@ export function AdminUtmPollsPanel() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Total <span className="font-medium text-foreground">{savedCount}</span> saved links
+              Total <span className="font-medium text-foreground">{hasAnySavedAppliedFilter ? filteredSavedLinks.length : savedCount}</span> saved links
             </p>
           </div>
 
@@ -564,14 +656,14 @@ export function AdminUtmPollsPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {savedLinks.length === 0 ? (
+                  {filteredSavedLinks.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="h-24 px-3 text-center text-muted-foreground">
-                        No saved links found.
+                        No saved links match the current filters.
                       </td>
                     </tr>
                   ) : (
-                    savedLinks.map((row) => {
+                    filteredSavedLinks.map((row) => {
                       let createdLabel = row.created_at
                       if (createdLabel) {
                         try { createdLabel = format(new Date(createdLabel), "MMM d, yyyy HH:mm") } catch {}
@@ -603,7 +695,7 @@ export function AdminUtmPollsPanel() {
             </div>
           )}
 
-          {savedCount > 50 && (
+          {!hasAnySavedAppliedFilter && savedCount > 50 && (
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t mt-4">
               <p className="text-sm text-muted-foreground">
                 Page {Math.floor(savedOffset / 50) + 1} of {Math.max(1, Math.ceil(savedCount / 50))}
