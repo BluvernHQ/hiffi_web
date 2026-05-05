@@ -151,7 +151,7 @@ function StoreLink({
       className={cn(
         pillBase,
         primary
-          ? "border-black bg-black text-white shadow-[7px_7px_0_#ed1b2f] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[6px_6px_0_#ed1b2f]"
+          ? "border-black bg-black text-white shadow-[7px_7px_0_#DA291C] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[6px_6px_0_#DA291C]"
           : "border-black bg-[#fffdf8] text-black shadow-[6px_6px_0_#111] hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-[#f8f5ec]",
       )}
     >
@@ -300,7 +300,7 @@ export function AppDownloadChrome({
 
         <div className="relative z-[1] mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
           <div className={cn("transition-opacity duration-200", isResolving ? "opacity-95" : "opacity-100")}>
-            <p className={cn("text-[12px] uppercase tracking-[0.3em] text-[#ed1b2f]", editorialMonoFont.className)}>
+            <p className={cn("text-[12px] uppercase tracking-[0.3em] text-[#DA291C]", editorialMonoFont.className)}>
               {heroEyebrow}
             </p>
 
@@ -311,7 +311,7 @@ export function AppDownloadChrome({
                   heroDisplayFont.className,
                 )}
               >
-                Download <span className="text-[#ed1b2f]">Hiffi</span> for <span className="text-[#ed1b2f]">iPhone &amp; iPad</span>
+                Download <span className="text-[#DA291C]">Hiffi</span> for <span className="text-[#DA291C]">iPhone &amp; iPad</span>
               </h1>
             ) : showPlatformHero && isAndroid ? (
               <h1
@@ -320,7 +320,7 @@ export function AppDownloadChrome({
                   heroDisplayFont.className,
                 )}
               >
-                Download <span className="text-[#ed1b2f]">Hiffi</span> for <span className="text-[#ed1b2f]">Android</span>
+                Download <span className="text-[#DA291C]">Hiffi</span> for <span className="text-[#DA291C]">Android</span>
               </h1>
             ) : (
               <h1
@@ -329,8 +329,8 @@ export function AppDownloadChrome({
                   heroDisplayFont.className,
                 )}
               >
-                Download <span className="text-[#ed1b2f]">Hiffi</span> for <span className="text-[#ed1b2f]">iOS</span> and{" "}
-                <span className="text-[#ed1b2f]">Android</span>
+                Download <span className="text-[#DA291C]">Hiffi</span> for <span className="text-[#DA291C]">iOS</span> and{" "}
+                <span className="text-[#DA291C]">Android</span>
               </h1>
             )}
 
@@ -347,7 +347,7 @@ export function AppDownloadChrome({
                   href={HIFFI_PLAY_STORE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[#ed1b2f] underline-offset-2 hover:underline"
+                  className="font-medium text-[#DA291C] underline-offset-2 hover:underline"
                 >
                   View on Google Play
                 </a>
@@ -363,7 +363,7 @@ export function AppDownloadChrome({
                   href={HIFFI_APP_STORE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[#ed1b2f] underline-offset-2 hover:underline"
+                  className="font-medium text-[#DA291C] underline-offset-2 hover:underline"
                 >
                   View on App Store
                 </a>
@@ -392,7 +392,7 @@ export function AppDownloadChrome({
           )}
 
           <div className="mx-auto mt-16 hidden max-w-2xl md:block">
-            <p className={cn("text-center text-[11px] uppercase tracking-[0.25em] text-[#ed1b2f]", editorialMonoFont.className)}>
+            <p className={cn("text-center text-[11px] uppercase tracking-[0.25em] text-[#DA291C]", editorialMonoFont.className)}>
               Scan to download
             </p>
             <p className={cn("mt-2 text-center text-sm text-black/75", editorialMonoFont.className)}>
@@ -418,7 +418,7 @@ export function AppDownloadChrome({
 
       <footer className="border-t border-black/20 bg-[#ece8dd] py-16 md:py-20">
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-          <p className={cn("text-[11px] uppercase tracking-[0.28em] text-[#ed1b2f]", editorialMonoFont.className)}>Get the app</p>
+          <p className={cn("text-[11px] uppercase tracking-[0.28em] text-[#DA291C]", editorialMonoFont.className)}>Get the app</p>
           <p className={cn("mt-3 text-3xl uppercase tracking-tight text-black md:text-5xl", heroDisplayFont.className)}>Ready to discover?</p>
           <p className={cn("mt-2 text-black/75", editorialMonoFont.className)}>Download Hiffi now.</p>
           <div className="mt-8 flex justify-center">
