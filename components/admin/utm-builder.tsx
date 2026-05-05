@@ -28,6 +28,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
   
   const [copied, setCopied] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [lastSavedUrl, setLastSavedUrl] = useState("")
 
   // Validate URL
   useEffect(() => {
@@ -63,6 +64,11 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
     }
   }, [url, source, medium, campaign, term, content, isValid])
 
+  const isDuplicateInSession = useMemo(
+    () => generatedUrl.length > 0 && generatedUrl === lastSavedUrl,
+    [generatedUrl, lastSavedUrl],
+  )
+
   const handleCopy = () => {
     if (!generatedUrl) return
     navigator.clipboard.writeText(generatedUrl)
@@ -76,6 +82,13 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
 
   const handleSave = async () => {
     if (!isValid || !generatedUrl) return
+    if (isDuplicateInSession) {
+      toast({
+        title: "Already saved",
+        description: "This link already exists in the current session.",
+      })
+      return
+    }
     setIsSaving(true)
     try {
       const res = await apiClient.adminCreateUtmGeneratedUrl({
@@ -84,9 +97,16 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
         label: campaign
       })
       if (res.success !== false) {
+        setLastSavedUrl(generatedUrl)
         toast({ title: "Success", description: "URL has been saved successfully." })
       } else {
-        toast({ title: "Error", description: res.error || "Failed to save URL.", variant: "destructive" })
+        const normalizedError = String(res.error || "").toLowerCase()
+        if (normalizedError.includes("duplicate") || normalizedError.includes("already")) {
+          setLastSavedUrl(generatedUrl)
+          toast({ title: "Already saved", description: "This link already exists." })
+        } else {
+          toast({ title: "Error", description: res.error || "Failed to save URL.", variant: "destructive" })
+        }
       }
     } catch (e) {
       toast({ title: "Error", description: "Failed to save URL.", variant: "destructive" })
@@ -104,6 +124,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
     setTerm("")
     setContent("")
     setCopied(false)
+    setLastSavedUrl("")
     onCancel?.()
   }
 
@@ -241,10 +262,10 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
             size="lg"
             variant="outline"
             className="shrink-0 h-12 w-full sm:w-auto font-semibold"
-            disabled={!isValid || isSaving}
+            disabled={!isValid || isSaving || isDuplicateInSession}
           >
             {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
-            Save Link
+            {isDuplicateInSession ? "Already Saved" : "Save Link"}
           </Button>
           <Button
             type="button"
