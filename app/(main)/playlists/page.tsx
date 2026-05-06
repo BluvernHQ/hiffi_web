@@ -230,8 +230,10 @@ function PlaylistsPageContent() {
   const [editOpen, setEditOpen] = useState(false)
 
   const [deletePlaylistOpen, setDeletePlaylistOpen] = useState(false)
+  const [deleteAfterLastItemOpen, setDeleteAfterLastItemOpen] = useState(false)
   const [playlistActionsOpen, setPlaylistActionsOpen] = useState(false)
   const [removingItemId, setRemovingItemId] = useState<string | null>(null)
+  const [pendingLastItemVideoId, setPendingLastItemVideoId] = useState<string | null>(null)
   const [thumbnailTones, setThumbnailTones] = useState<ArtworkTone[] | null>(null)
 
   const loadList = useCallback(async () => {
@@ -540,6 +542,28 @@ function PlaylistsPageContent() {
     }
   }
 
+  const handleDeletePlaylistAfterLastItem = async () => {
+    if (!selectedId) return
+    try {
+      const res = await apiClient.deletePlaylist(selectedId)
+      if (!res.success) throw new Error(res.message || "Delete failed")
+      toast({ title: "Playlist deleted", description: "You removed the last video, so the playlist was deleted too." })
+      notifyCuratedPlaylistsUpdated()
+      setDeleteAfterLastItemOpen(false)
+      setPendingLastItemVideoId(null)
+      setSelectedId(null)
+      setDetailPlaylist(null)
+      setItems([])
+      router.replace("/playlists", { scroll: false })
+      await loadList()
+    } catch (e) {
+      const err = parseApiError(e)
+      toast({ title: "Couldn’t delete playlist", description: err?.message, variant: "destructive" })
+    } finally {
+      setRemovingItemId(null)
+    }
+  }
+
   const handleSaveEdit = async () => {
     await saveMetadata(titleEdit, descEdit)
     setEditOpen(false)
@@ -562,6 +586,11 @@ function PlaylistsPageContent() {
 
   const handleRemoveItemFromPlaylist = async (videoId: string) => {
     if (!selectedId || !videoId || removingItemId) return
+    if (items.length === 1) {
+      setPendingLastItemVideoId(videoId)
+      setDeleteAfterLastItemOpen(true)
+      return
+    }
     setRemovingItemId(videoId)
     try {
       const res = await apiClient.removePlaylistItem(selectedId, videoId)
@@ -1074,6 +1103,48 @@ function PlaylistsPageContent() {
             </Button>
             <Button variant="destructive" type="button" onClick={() => void handleDeletePlaylist()}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteAfterLastItemOpen}
+        onOpenChange={(open) => {
+          setDeleteAfterLastItemOpen(open)
+          if (!open) setPendingLastItemVideoId(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete playlist too?</DialogTitle>
+            <DialogDescription>
+              This is the last video in this playlist. If you remove it, the playlist will be deleted as well.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={!!removingItemId}
+              onClick={() => {
+                setDeleteAfterLastItemOpen(false)
+                setPendingLastItemVideoId(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              disabled={!!removingItemId || !pendingLastItemVideoId}
+              onClick={() => {
+                if (!pendingLastItemVideoId) return
+                setRemovingItemId(pendingLastItemVideoId)
+                void handleDeletePlaylistAfterLastItem()
+              }}
+            >
+              {removingItemId ? "Deleting…" : "Remove & delete playlist"}
             </Button>
           </DialogFooter>
         </DialogContent>
