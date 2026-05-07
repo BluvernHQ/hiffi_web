@@ -189,24 +189,25 @@ export default function RootLayout({
             />
           </>
         )}
-        {/* Umami Session Replay - recorder.js must load before or with script.js */}
-        {isProd && umamiWebsiteId && umamiReplayEnabled && (
-          <Script
-            id="umami-replay"
-            src="https://analytics.superlabs.co/recorder.js"
-            strategy="afterInteractive"
-            data-website-id={umamiWebsiteId}
-            data-sample-rate="1"
-            data-mask-level="moderate"
-            data-max-duration="300000"
-          ></Script>
-        )}
-        {/* Umami Tracker */}
+        {/* Umami Tracker - MUST load before recorder.js */}
         {isProd && umamiWebsiteId && (
           <Script
             id="umami"
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
+            data-domains={umamiDomains}
+            strategy="afterInteractive"
+          />
+        )}
+        {/* Umami Session Replay */}
+        {isProd && umamiWebsiteId && umamiReplayEnabled && (
+          <Script
+            id="umami-replay"
+            src="https://analytics.superlabs.co/recorder.js"
+            data-website-id={umamiWebsiteId}
+            data-sample-rate="1"
+            data-mask-level="moderate"
+            data-max-duration="300000"
             data-domains={umamiDomains}
             strategy="afterInteractive"
           />
