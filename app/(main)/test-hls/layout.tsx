@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "HLS Playback Test | Hiffi",
-  description: "Internal HLS playback diagnostics page for Hiffi video streaming.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "HLS playback test",
+  description: "Internal Hiffi streaming test page.",
+  path: "/test-hls",
+  index: false,
+})
 
-export default function TestHlsLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function TestHlsSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

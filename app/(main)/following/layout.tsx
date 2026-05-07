@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Following Feed | Hiffi",
-  description: "Watch the latest videos from creators you follow on Hiffi.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Following",
+  description: "Videos from creators you follow on Hiffi (signed-in users).",
+  path: "/following",
+  index: false,
+})
 
-export default function FollowingLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function FollowingSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

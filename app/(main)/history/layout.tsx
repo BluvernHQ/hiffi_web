@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Watch History | Hiffi",
-  description: "View your recently watched videos on Hiffi.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Watch history",
+  description: "Your recently watched videos on Hiffi (signed-in users).",
+  path: "/history",
+  index: false,
+})
 
-export default function HistoryLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function HistorySegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

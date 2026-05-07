@@ -1,10 +1,12 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Terms of Use | Hiffi",
-  description: "Read the Terms of Use for accessing and using Hiffi services.",
-}
+export const metadata = routeMetadata({
+  title: "Terms of Use",
+  description: "Terms governing your use of the Hiffi streaming platform, accounts, content, and services.",
+  path: "/terms-of-use",
+})
 
-export default function TermsLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function TermsOfUseSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

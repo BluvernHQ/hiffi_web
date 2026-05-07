@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Liked Videos | Hiffi",
-  description: "Revisit videos you liked on Hiffi.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Liked videos",
+  description: "Videos you have liked on Hiffi (signed-in users).",
+  path: "/liked",
+  index: false,
+})
 
-export default function LikedLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function LikedSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

@@ -1,10 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | Hiffi",
-  description: "Learn how Hiffi collects, uses, and protects your personal data.",
-}
+export const metadata = routeMetadata({
+  title: "Privacy Policy",
+  description:
+    "How Hiffi and Kinimi Corporation collect, use, and protect your personal information across the platform.",
+  path: "/privacy-policy",
+})
 
-export default function PrivacyPolicyLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function PrivacyPolicySegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

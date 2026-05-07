@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Admin Login | Hiffi",
-  description: "Admin sign-in portal for managing Hiffi platform operations.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Admin",
+  description: "Hiffi administrator sign-in.",
+  path: "/admin",
+  index: false,
+})
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function AdminSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

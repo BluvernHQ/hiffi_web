@@ -255,6 +255,7 @@ function FaqAnswer({ item }: { item: FaqItem }) {
   )
 }
 
+// WebPage + FAQPage only — Organization uses the single node in root layout (same @id) for GEO consistency.
 const faqJsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -267,11 +268,13 @@ const faqJsonLd = {
       inLanguage: "en",
       isPartOf: { "@id": `${getSiteOrigin()}/#website` },
       about: { "@id": `${getSiteOrigin()}/#organization` },
+      mainEntity: { "@id": `${pageUrl}#faq` },
     },
     {
       "@type": "FAQPage",
       "@id": `${pageUrl}#faq`,
       url: pageUrl,
+      about: { "@id": `${getSiteOrigin()}/#organization` },
       mainEntity: faqItems.map((item) => ({
         "@type": "Question",
         name: item.question,
@@ -280,19 +283,6 @@ const faqJsonLd = {
           text: item.answer,
         },
       })),
-    },
-    {
-      "@type": "Organization",
-      "@id": `${getSiteOrigin()}/#organization`,
-      name: "Hiffi",
-      url: getSiteOrigin(),
-      areaServed: ["US", "IN", "Worldwide"],
-      contactPoint: {
-        "@type": "ContactPoint",
-        contactType: "customer support",
-        email: "care@hiffi.com",
-        availableLanguage: ["English"],
-      },
     },
   ],
 }

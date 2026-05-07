@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Upload Video | Hiffi",
-  description: "Upload your music videos to Hiffi and publish them for your audience.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Upload video",
+  description: "Upload high-fidelity video and metadata for your Hiffi creator channel.",
+  path: "/upload",
+  index: false,
+})
 
-export default function UploadLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function UploadLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

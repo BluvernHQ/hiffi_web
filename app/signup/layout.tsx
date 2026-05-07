@@ -1,11 +1,14 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Create Account | Hiffi",
-  description: "Create your Hiffi account to watch videos, follow artists, and build playlists.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Sign up",
+  description:
+    "Create a free Hiffi account to follow creators, save playlists, and stream high-fidelity music and video.",
+  path: "/signup",
+  index: false,
+})
 
-export default function SignupLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function SignupLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

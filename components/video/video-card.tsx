@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
 import { useToast } from "@/hooks/use-toast"
 import { DeleteVideoDialog } from "./delete-video-dialog"
-import { AuthenticatedImage } from "./authenticated-image"
+import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -171,16 +171,9 @@ export function VideoCard({
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                 priority={priority}
                 authenticated={false}
-                onError={() => {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error("[VideoCard] Failed to load thumbnail:", thumbnailUrl)
-                  }
-                }}
               />
             ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <Play className="h-12 w-12 text-muted-foreground/50" />
-              </div>
+              <VideoThumbnailPlaceholder fill className="transition-transform duration-200 group-hover:scale-105" />
             )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
             

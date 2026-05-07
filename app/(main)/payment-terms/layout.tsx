@@ -1,10 +1,12 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Payment Terms | Hiffi",
-  description: "Review Hiffi payment terms for creator and platform transactions.",
-}
+export const metadata = routeMetadata({
+  title: "Payment Terms",
+  description: "Payment terms for tips, subscriptions, and creator payouts on the Hiffi platform.",
+  path: "/payment-terms",
+})
 
-export default function PaymentTermsLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function PaymentTermsSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Maintenance | Hiffi",
-  description: "Hiffi is temporarily under maintenance. Please check back shortly.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Maintenance",
+  description: "Hiffi is temporarily unavailable. Please try again shortly.",
+  path: "/maintenance",
+  index: false,
+})
 
-export default function MaintenanceLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function MaintenanceLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

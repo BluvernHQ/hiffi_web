@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "seo-geo": {
+      "source": "whyashthakker/agent-skills-marketing",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/seo-geo/SKILL.md",
+      "computedHash": "8c6cf380e2e4cb4942e02b485778496f18dd87265f6576f25a5c2123d625fc76"
+    }
+  }
+}

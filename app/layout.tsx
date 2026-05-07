@@ -117,6 +117,14 @@ const siteJsonLd = {
         caption: SITE_NAME,
       },
       image: { "@id": `${getSiteOrigin()}/#logo` },
+      // GEO / E-E-A-T: single canonical Organization — referenced by FAQ, profiles, and VideoObject.
+      areaServed: ["US", "IN", "Worldwide"],
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: "care@hiffi.com",
+        availableLanguage: ["English"],
+      },
       // sameAs: add official social profile URLs here when available
       // e.g. "https://twitter.com/hiffi", "https://instagram.com/hiffi"
       sameAs: [],

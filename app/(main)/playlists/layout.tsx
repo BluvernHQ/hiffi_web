@@ -1,11 +1,13 @@
-import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import { routeMetadata } from "@/lib/seo/route-metadata"
 
-export const metadata: Metadata = {
-  title: "Your Playlists | Hiffi",
-  description: "Create, manage, and play your personal playlists on Hiffi.",
-  robots: { index: false, follow: false },
-}
+export const metadata = routeMetadata({
+  title: "Playlists",
+  description: "Create and manage your Hiffi playlists (signed-in users).",
+  path: "/playlists",
+  index: false,
+})
 
-export default function PlaylistsLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function PlaylistsSegmentLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }
