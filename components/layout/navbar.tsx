@@ -5,7 +5,7 @@ import Image from "next/image"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { buildLoginUrl } from "@/lib/auth-utils"
+import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2 } from "lucide-react"
@@ -154,7 +154,8 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             </Link>
           </div>
 
-          <div className="flex-1 flex items-center justify-center px-2 min-w-0">
+          {/* Tablet/desktop: full search pill in center; mobile shows nothing here (spacer only) */}
+          <div className="flex-1 hidden sm:flex items-center justify-center px-2 min-w-0">
             <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
               <div
                 onClick={() => setIsSearchOpen(true)}
@@ -184,8 +185,24 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               </div>
             </div>
           </div>
+          {/* Mobile spacer when search hidden in center */}
+          <div className="flex-1 sm:hidden" />
 
-          <div className="flex items-center gap-2 md:gap-4 pr-2 sm:pr-3 md:pr-4 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 pr-2 sm:pr-3 md:pr-4 flex-shrink-0">
+            {/* Mobile-only icon search trigger, sits with action cluster */}
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              data-analytics-name="navbar-open-search-button-mobile"
+              aria-label="Open search"
+              className={
+                isAppDownloadPage
+                  ? "sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-full text-black/70 hover:bg-black/5 hover:text-black"
+                  : "sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+              }
+            >
+              <Search className="h-5 w-5" />
+            </button>
             {user && userData ? (
               <>
                 {showUploadButton && (
@@ -260,9 +277,21 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 </DropdownMenu>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <Button asChild className="rounded-full px-6" data-analytics-name="navbar-login-button">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent"
+                  data-analytics-name="navbar-login-button"
+                >
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>
+                </Button>
+                <Button
+                  asChild
+                  className="rounded-full px-4 sm:px-6"
+                  data-analytics-name="navbar-signup-button"
+                >
+                  <Link href={buildSignupUrl(pathname, searchParamsString)}>Sign up</Link>
                 </Button>
               </div>
             )}
