@@ -134,6 +134,9 @@ export default function RootLayout({
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
   const gaId = process.env.NEXT_PUBLIC_GA_ID
   const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const umamiReplayEnabled =
+    process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
+    process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsSrc = apiAnalyticsEnabled
@@ -190,6 +193,18 @@ export default function RootLayout({
             id="umami"
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
+            strategy="afterInteractive"
+          />
+        )}
+        {/* Umami Session Replay - same website ID, opt-out via NEXT_PUBLIC_UMAMI_REPLAY_ENABLED=false */}
+        {umamiWebsiteId && umamiReplayEnabled && (
+          <Script
+            id="umami-replay"
+            src="https://analytics.superlabs.co/recorder.js"
+            data-website-id={umamiWebsiteId}
+            data-sample-rate="0.15"
+            data-mask-level="moderate"
+            data-max-duration="300000"
             strategy="afterInteractive"
           />
         )}
