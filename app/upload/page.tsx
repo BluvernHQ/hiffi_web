@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Upload, ImageIcon, CheckCircle2, Sparkles } from 'lucide-react';
+import { Upload, ImageIcon, CheckCircle2, Sparkles, Video, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useSidebar } from '@/lib/sidebar-context';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ import { extractMultipleVideoThumbnails, blobToFile } from '@/lib/video-utils';
 import { takePendingVideoFile } from '@/lib/upload-pending-video';
 import { registerUploadNavigationGuard } from '@/lib/upload-navigation-guard';
 import { useVideoUploadQueue } from '@/lib/video-upload-queue-context';
+import { cn } from '@/lib/utils';
 
 export default function UploadPage() {
   const { user, userData, loading: authLoading } = useAuth();
@@ -266,19 +267,9 @@ export default function UploadPage() {
   };
 
   const handleRemoveThumbnail = () => {
-    // Clean up auto thumbnail URLs before clearing state
-    autoThumbnails.forEach(url => {
-      try {
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        console.warn('Error revoking auto thumbnail URL:', e);
-      }
-    });
-    
+    // Only clear current selection. Keep suggested frames list.
     setThumbnail(null);
     setThumbnailPreview(null);
-    setAutoThumbnails([]);
-    setAutoThumbnailBlobs([]);
   };
 
   // Add cleanup on unmount for auto-generated thumbnails
@@ -310,6 +301,14 @@ export default function UploadPage() {
 
   const handleUpload = () => {
     if (!file || !title) return;
+    if (!thumbnail) {
+      toast({
+        title: "Thumbnail required",
+        description: "Pick suggested frame or upload custom thumbnail before uploading video.",
+        variant: "destructive",
+      })
+      return
+    }
     setSuccessVideoId(null);
     const id = startUpload({
       file,
@@ -433,44 +432,203 @@ export default function UploadPage() {
           onFilterChange={onFilterChange}
         />
         <main className="flex-1 p-6 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Upload Video</h1>
+          <div className={cn("mx-auto", uploadStep === "select" ? "max-w-5xl" : "max-w-3xl")}>
+            {uploadStep === "select" ? (
+              <div className="mb-6 sm:mb-8 lg:mb-10">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Creator
+                </p>
+                <h1 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
+                  Hiffi Studio
+                </h1>
+                <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+                  Your space to publish, refine, and manage your presence on Hiffi.
+                </p>
+              </div>
+            ) : (
+              <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Upload Video</h1>
+            )}
 
             {uploadStep === 'select' && (
-              <Card 
-                className="border-dashed border-2 min-h-[400px] flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <CardContent className="flex flex-col items-center text-center space-y-4 pt-6">
-                  <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Upload className="h-10 w-10 text-primary" />
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="sr-only"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                />
+
+                <section
+                  className={cn(
+                    "mb-5 flex overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm",
+                    "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md",
+                    "sm:mb-6 sm:rounded-2xl",
+                    "lg:mb-8",
+                  )}
+                  aria-labelledby="studio-status-label"
+                >
+                  <div className="hidden w-1 shrink-0 bg-primary/85 lg:block" aria-hidden />
+                  <div className="relative min-w-0 flex-1 px-4 py-4 pl-5 sm:px-6 sm:py-5 sm:pl-6 lg:py-4 lg:pl-6">
+                    <div className="absolute bottom-3 left-0 top-3 w-0.5 rounded-full bg-primary lg:hidden" aria-hidden />
+                    <div className="pl-3 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:pl-0">
+                      <div className="lg:flex lg:items-baseline lg:gap-3">
+                        <p
+                          id="studio-status-label"
+                          className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+                        >
+                          Creator status
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-primary lg:mt-0 lg:text-xl">
+                          Active
+                        </p>
+                      </div>
+                      <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
+                        Your channel is active and ready to publish.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">Drag and drop video files to upload</h3>
-                    <p className="text-muted-foreground mt-2">Your videos will be private until you publish them.</p>
-                  </div>
-                  <Button size="lg" className="mt-4" data-analytics-name="upload-select-files-button">Select Files</Button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="video/*" 
-                    onChange={handleFileSelect}
-                  />
-                </CardContent>
-              </Card>
+                </section>
+
+                <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6">
+                  <section
+                    aria-labelledby="upload-action-title"
+                    className={cn(
+                      "group rounded-xl border border-primary/25 bg-card p-5 shadow-sm",
+                      "transition-[border-color,box-shadow,transform] duration-200",
+                      "hover:border-primary/40 hover:shadow-md",
+                      "motion-safe:hover:-translate-y-px",
+                      "sm:rounded-2xl sm:p-7",
+                      "lg:col-span-7 lg:flex lg:flex-col lg:p-8",
+                      "xl:col-span-8",
+                    )}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                  >
+                    <div className="flex flex-1 flex-col gap-5 sm:gap-6 lg:flex-1">
+                      <div className="flex items-start gap-4">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary/[0.14] sm:h-12 sm:w-12"
+                          aria-hidden
+                        >
+                          <Video className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+                        </div>
+                        <div className="min-w-0 flex-1 pt-0.5">
+                          <h2
+                            id="upload-action-title"
+                            className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
+                          >
+                            Upload a video
+                          </h2>
+                          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                            Share a new release with your audience.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="lg"
+                        data-analytics-name="creator-studio-upload-new-video-button"
+                        className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:mt-auto lg:h-12"
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-label="Choose a video file to upload"
+                      >
+                        <Video className="size-4 opacity-95" aria-hidden />
+                        Upload new video
+                      </Button>
+
+                      <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                        Tip: drag & drop file into this card.
+                      </p>
+                    </div>
+                  </section>
+
+                  <section
+                    aria-labelledby="profile-action-title"
+                    className={cn(
+                      "rounded-xl border border-border/80 bg-muted/30 p-5 shadow-sm",
+                      "transition-[border-color,background-color,box-shadow] duration-200",
+                      "hover:border-border hover:bg-muted/40 hover:shadow-sm",
+                      "dark:bg-card/60 dark:hover:bg-card/80",
+                      "sm:rounded-2xl sm:p-6",
+                      "lg:col-span-5 lg:flex lg:flex-col lg:justify-between lg:p-6",
+                      "xl:col-span-4",
+                    )}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-muted-foreground dark:bg-background/50"
+                        aria-hidden
+                      >
+                        <UserIcon className="size-[18px]" strokeWidth={1.65} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <h2
+                          id="profile-action-title"
+                          className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]"
+                        >
+                          Creator profile
+                        </h2>
+                        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+                          Update how viewers see you across Hiffi.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="default"
+                      data-analytics-name="creator-studio-manage-profile-button"
+                      className="mt-6 h-10 w-full rounded-xl border-border bg-background/90 text-[13px] font-medium motion-safe:active:scale-[0.99] hover:bg-muted/50 dark:bg-transparent dark:hover:bg-muted/30 lg:mt-6"
+                    >
+                      <Link href={userData?.username ? `/profile/${userData.username}` : "/"}>
+                        Manage profile
+                      </Link>
+                    </Button>
+                  </section>
+                </div>
+              </>
             )}
 
             {uploadStep === 'details' && (
               <div className="grid gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Video Details</CardTitle>
-                    <CardDescription>Add metadata to help viewers find your video</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
+                <section
+                  aria-labelledby="upload-details-title"
+                  className={cn(
+                    "group rounded-xl border border-primary/25 bg-card p-5 shadow-sm",
+                    "transition-[border-color,box-shadow,transform] duration-200",
+                    "hover:border-primary/40 hover:shadow-md",
+                    "motion-safe:hover:-translate-y-px",
+                    "sm:rounded-2xl sm:p-7",
+                  )}
+                >
+                  <header className="mb-6 flex items-start gap-4 sm:mb-7">
+                    <div
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary/[0.14] sm:h-12 sm:w-12"
+                      aria-hidden
+                    >
+                      <Video className="size-5 sm:size-[22px]" strokeWidth={1.65} />
+                    </div>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <h2
+                        id="upload-details-title"
+                        className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
+                      >
+                        Video details
+                      </h2>
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                        Add metadata to help viewers find your video.
+                      </p>
+                      {file?.name ? (
+                        <p className="mt-2 truncate text-[12px] text-muted-foreground">
+                          <span className="font-medium text-foreground/90">File:</span> {file.name}
+                        </p>
+                      ) : null}
+                    </div>
+                  </header>
+
+                  <div className="space-y-7">
                     <div className="space-y-2">
                       <Label htmlFor="title">Title (required)</Label>
                       <Input 
@@ -505,9 +663,9 @@ export default function UploadPage() {
 
                     <div className="space-y-4">
                       <div className="flex items-center gap-2">
-                        <Label>Thumbnail (Optional)</Label>
+                        <Label>Thumbnail (Required)</Label>
                         <Sparkles className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Auto-generated if not provided</span>
+                        <span className="text-xs text-muted-foreground">Pick a frame or upload an image</span>
                       </div>
                       
                       {extractingThumbnail && (
@@ -519,12 +677,12 @@ export default function UploadPage() {
 
                       {autoThumbnails.length > 0 && (
                         <div className="space-y-3">
-                          <p className="text-sm font-medium">Select a frame from your video:</p>
-                          <div className="grid grid-cols-3 gap-3">
+                          <p className="text-[13px] font-medium text-foreground/90">Select a frame from your video</p>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                             {autoThumbnails.map((url, index) => (
                               <div
                                 key={index}
-                                className={`relative aspect-video bg-muted rounded-lg overflow-hidden border-2 cursor-pointer transition-all hover:opacity-80 ${
+                                className={`relative aspect-video bg-muted rounded-xl overflow-hidden border-2 cursor-pointer transition-all hover:opacity-90 ${
                                   thumbnailPreview === url
                                     ? 'border-primary ring-2 ring-primary ring-offset-2'
                                     : 'border-border hover:border-primary/50'
@@ -543,9 +701,9 @@ export default function UploadPage() {
                         </div>
                       )}
 
-                      <div className="space-y-3">
-                        <div className="flex gap-4 items-start">
-                          <div className="relative w-40 aspect-video bg-muted rounded-lg overflow-hidden border flex items-center justify-center">
+                      <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                          <div className="relative w-full max-w-[240px] aspect-video bg-muted rounded-xl overflow-hidden border flex items-center justify-center">
                             {thumbnailPreview ? (
                               <Image src={thumbnailPreview || "/placeholder.svg"} alt="Thumbnail preview" fill className="object-cover" />
                             ) : (
@@ -555,18 +713,19 @@ export default function UploadPage() {
                               </div>
                             )}
                           </div>
-                          <div className="flex-1 space-y-2">
-                            <p className="text-sm text-muted-foreground">
+                          <div className="flex-1 space-y-3">
+                            <p className="text-[13px] leading-relaxed text-muted-foreground">
                               {thumbnailPreview 
                                 ? "Thumbnail selected. Click to change or upload a custom image."
-                                : "Upload a custom thumbnail image, or leave empty to use an auto-generated frame from your video."}
+                                : "Select a suggested frame or upload a custom thumbnail image."}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 data-analytics-name="upload-custom-thumbnail-button"
+                                className="h-9 rounded-xl"
                                 onClick={() => thumbnailInputRef.current?.click()}
                               >
                                 <ImageIcon className="h-4 w-4 mr-2" />
@@ -578,6 +737,7 @@ export default function UploadPage() {
                                   variant="ghost"
                                   size="sm"
                                   data-analytics-name="upload-remove-thumbnail-button"
+                                  className="h-9 rounded-xl"
                                   onClick={handleRemoveThumbnail}
                                 >
                                   Remove
@@ -595,8 +755,8 @@ export default function UploadPage() {
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </section>
 
                 <div className="flex justify-end gap-4">
                   <Button
@@ -610,7 +770,12 @@ export default function UploadPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="button" onClick={handleUpload} disabled={!title} data-analytics-name="upload-submit-video-button">
+                  <Button
+                    type="button"
+                    onClick={handleUpload}
+                    disabled={!title || !thumbnail}
+                    data-analytics-name="upload-submit-video-button"
+                  >
                     Upload Video
                   </Button>
                 </div>

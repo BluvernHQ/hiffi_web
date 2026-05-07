@@ -60,6 +60,12 @@ export default function BecomeCreatorPage() {
     checkCreatorStatus()
   }, [userData, authLoading, user, router, refreshUserData])
 
+  useEffect(() => {
+    if (!authLoading && !isChecking && isCreator) {
+      router.replace("/upload")
+    }
+  }, [authLoading, isChecking, isCreator, router])
+
   const handleBecomeCreator = async () => {
     if (!userData?.username) {
       toast({
@@ -135,186 +141,12 @@ export default function BecomeCreatorPage() {
 
   // Hiffi Studio: theme-aware surfaces; mobile = stacked, lg+ = wide grid + compact status bar
   if (isCreator) {
-    const profileHref = userData?.username ? `/profile/${userData.username}` : "/"
-
     return (
-      <div
-        className={cn(
-          "min-h-[calc(100vh-4rem)] w-full antialiased selection:bg-primary/20",
-          "bg-zinc-100 text-foreground",
-          "dark:bg-zinc-900",
-        )}
-      >
-        <main
-          className={cn(
-            "mx-auto w-full pb-14 pt-6",
-            "max-w-lg px-4",
-            "sm:max-w-xl sm:px-5 sm:pt-8 sm:pb-16",
-            "lg:max-w-5xl lg:px-10 lg:pt-10",
-          )}
-        >
-          <header className="mb-6 text-left sm:mb-8 lg:mb-10">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Creator
-            </p>
-            <h1 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
-              Hiffi Studio
-            </h1>
-            <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-              Your space to publish, refine, and manage your presence on Hiffi.
-            </p>
-          </header>
-
-          {/* Status: padded card + left bar on mobile; desktop = strip with vertical accent */}
-          <section
-            className={cn(
-              "mb-5 flex overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm",
-              "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md",
-              "sm:mb-6 sm:rounded-2xl",
-              "lg:mb-8",
-            )}
-            aria-labelledby="studio-status-label"
-          >
-            <div
-              className="hidden w-1 shrink-0 bg-primary/85 lg:block"
-              aria-hidden
-            />
-            <div className="relative min-w-0 flex-1 px-4 py-4 pl-5 sm:px-6 sm:py-5 sm:pl-6 lg:py-4 lg:pl-6">
-              <div
-                className="absolute bottom-3 left-0 top-3 w-0.5 rounded-full bg-primary lg:hidden"
-                aria-hidden
-              />
-              <div className="pl-3 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:pl-0">
-                <div className="lg:flex lg:items-baseline lg:gap-3">
-                  <p
-                    id="studio-status-label"
-                    className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
-                  >
-                    Creator status
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-primary lg:mt-0 lg:text-xl">
-                    Active
-                  </p>
-                </div>
-                <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
-                  Your channel is active and ready to publish.
-                </p>
-                <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
-                  <Link href="/app" className="font-semibold text-primary underline-offset-2 hover:underline">
-                    Download Hiffi App
-                  </Link>{" "}
-                  for the best mobile studio and playback experience.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Mobile / tablet: stacked. lg: upload (wide) | profile (sidebar column) */}
-          <div
-            className={cn(
-              "flex flex-col gap-4",
-              "sm:gap-5",
-              "lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6",
-            )}
-          >
-            <section
-              aria-labelledby="upload-action-title"
-              className={cn(
-                "group rounded-xl border border-primary/25 bg-card p-5 shadow-sm",
-                "transition-[border-color,box-shadow,transform] duration-200",
-                "hover:border-primary/40 hover:shadow-md",
-                "motion-safe:hover:-translate-y-px",
-                "sm:rounded-2xl sm:p-7",
-                "lg:col-span-7 lg:flex lg:flex-col lg:p-8",
-                "xl:col-span-8",
-              )}
-            >
-              <div className="flex flex-1 flex-col gap-5 sm:gap-6 lg:flex-1">
-                <div className="flex items-start gap-4">
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary/[0.14] sm:h-12 sm:w-12"
-                    aria-hidden
-                  >
-                    <Video className="size-5 sm:size-[22px]" strokeWidth={1.65} />
-                  </div>
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    <h2
-                      id="upload-action-title"
-                      className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
-                    >
-                      Upload a video
-                    </h2>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-                      Share a new release with your audience.
-                    </p>
-                  </div>
-                </div>
-                <input
-                  ref={pickVideoInputRef}
-                  type="file"
-                  accept="video/*"
-                  className="sr-only"
-                  tabIndex={-1}
-                  aria-hidden
-                  onChange={handleStudioVideoChosen}
-                />
-                <Button
-                  type="button"
-                  size="lg"
-                  data-analytics-name="creator-studio-upload-new-video-button"
-                  className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:mt-auto lg:h-12"
-                  onClick={openStudioVideoPicker}
-                  aria-label="Choose a video file to upload"
-                >
-                  <Video className="size-4 opacity-95" aria-hidden />
-                  Upload new video
-                </Button>
-              </div>
-            </section>
-
-            <section
-              aria-labelledby="profile-action-title"
-              className={cn(
-                "rounded-xl border border-border/80 bg-muted/30 p-5 shadow-sm",
-                "transition-[border-color,background-color,box-shadow] duration-200",
-                "hover:border-border hover:bg-muted/40 hover:shadow-sm",
-                "dark:bg-card/60 dark:hover:bg-card/80",
-                "sm:rounded-2xl sm:p-6",
-                "lg:col-span-5 lg:flex lg:flex-col lg:justify-between lg:p-6",
-                "xl:col-span-4",
-              )}
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-muted-foreground dark:bg-background/50"
-                  aria-hidden
-                >
-                  <User className="size-[18px]" strokeWidth={1.65} />
-                </div>
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <h2
-                    id="profile-action-title"
-                    className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]"
-                  >
-                    Creator profile
-                  </h2>
-                  <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
-                    Update how viewers see you across Hiffi.
-                  </p>
-                </div>
-              </div>
-              <Button
-                asChild
-                variant="outline"
-                size="default"
-                data-analytics-name="creator-studio-manage-profile-button"
-                className="mt-6 h-10 w-full rounded-xl border-border bg-background/90 text-[13px] font-medium motion-safe:active:scale-[0.99] hover:bg-muted/50 dark:bg-transparent dark:hover:bg-muted/30 lg:mt-6"
-              >
-                <Link href={profileHref}>Manage profile</Link>
-              </Button>
-            </section>
-          </div>
-        </main>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Opening Hiffi Studio...</p>
+        </div>
       </div>
     )
   }
@@ -475,13 +307,6 @@ export default function BecomeCreatorPage() {
           </article>
         </div>
 
-        <p className="mt-8 text-center text-[13px] leading-relaxed text-muted-foreground sm:mt-10 sm:text-sm">
-          When you&apos;re set up,{" "}
-          <Link href="/app" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Download Hiffi App
-          </Link>{" "}
-          on iOS or Android to upload and manage content on the go.
-        </p>
       </main>
     </div>
   )
