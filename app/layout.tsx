@@ -137,6 +137,7 @@ export default function RootLayout({
   const umamiReplayEnabled =
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
+  const umamiDomains = process.env.NEXT_PUBLIC_UMAMI_DOMAINS || "hiffi.com,dev.hiffi.com,localhost"
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsSrc = apiAnalyticsEnabled
@@ -144,6 +145,7 @@ export default function RootLayout({
     : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
   const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
+  const isProd = process.env.NEXT_PUBLIC_ENV === "prod"
 
   return (
     <html lang="en">
@@ -187,17 +189,8 @@ export default function RootLayout({
             />
           </>
         )}
-        {/* Umami - ID from env only */}
-        {umamiWebsiteId && (
-          <Script
-            id="umami"
-            src="https://analytics.superlabs.co/script.js"
-            data-website-id={umamiWebsiteId}
-            strategy="afterInteractive"
-          />
-        )}
-        {/* Umami Session Replay - same website ID, opt-out via NEXT_PUBLIC_UMAMI_REPLAY_ENABLED=false */}
-        {umamiWebsiteId && umamiReplayEnabled && (
+        {/* Umami Session Replay - recorder.js must load before or with script.js */}
+        {isProd && umamiWebsiteId && umamiReplayEnabled && (
           <Script
             id="umami-replay"
             src="https://analytics.superlabs.co/recorder.js"
@@ -205,6 +198,17 @@ export default function RootLayout({
             data-sample-rate="1"
             data-mask-level="moderate"
             data-max-duration="300000"
+            data-domains={umamiDomains}
+            strategy="afterInteractive"
+          />
+        )}
+        {/* Umami Tracker */}
+        {isProd && umamiWebsiteId && (
+          <Script
+            id="umami"
+            src="https://analytics.superlabs.co/script.js"
+            data-website-id={umamiWebsiteId}
+            data-domains={umamiDomains}
             strategy="afterInteractive"
           />
         )}
