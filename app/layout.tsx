@@ -202,7 +202,7 @@ export default function RootLayout({
             id="umami-replay"
             src="https://analytics.superlabs.co/recorder.js"
             data-website-id={umamiWebsiteId}
-            data-sample-rate="0.15"
+            data-sample-rate="1"
             data-mask-level="moderate"
             data-max-duration="300000"
             strategy="afterInteractive"
