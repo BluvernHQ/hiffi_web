@@ -253,18 +253,9 @@ export function AdminReferralsTable() {
                       <ChevronRight className="h-4 w-4" />
                     </td>
                     <td className="px-3 py-3 align-middle text-sm">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedCode(group.code)
-                          setOffset(0)
-                        }}
-                        className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
-                        title="Filter by this referral code"
-                      >
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {group.code}
-                      </button>
+                      </span>
                     </td>
                     <td className="px-3 py-3 align-middle text-sm">
                       <div className="flex items-center gap-2">
@@ -310,17 +301,9 @@ export function AdminReferralsTable() {
                 >
                   <div className="flex items-center gap-2">
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedCode(group.code)
-                        setOffset(0)
-                      }}
-                      className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
-                    >
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                       {group.code}
-                    </button>
+                    </span>
                   </div>
                   <div className="text-xs font-medium bg-muted px-2 py-1 rounded-full">
                     {group.referrals.length} referred
