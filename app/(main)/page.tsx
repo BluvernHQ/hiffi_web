@@ -10,10 +10,13 @@ import { HomeFeedClient } from "./home-feed-client"
 // Disable ISR so the homepage can reshuffle immediately on refresh.
 export const dynamic = "force-dynamic"
 
+const PAGE_TITLE = "Discover — High-Fidelity Videos & Music"
+const PAGE_DESCRIPTION =
+  "Explore the Hiffi discover feed: independent artists, music videos, and lossless audio streams. No algorithms — just creator-first, high-fidelity content."
+
 export const metadata: Metadata = {
-  title: "Discover — High-Fidelity Videos & Music",
-  description:
-    "Explore the Hiffi discover feed: independent artists, music videos, and lossless audio streams. No algorithms — just creator-first, high-fidelity content.",
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
   alternates: { canonical: getSiteOrigin() },
   openGraph: {
     type: "website",
@@ -37,29 +40,60 @@ export default async function RootPage() {
   const seed = randomBytes(16).toString("hex")
   const initialVideos = await fetchHomeFeedInitial(10, seed)
 
-  // Build ItemList JSON-LD from the server-fetched videos (visible to crawlers immediately)
-  const itemListJsonLd =
+  // WebPage + ItemList @graph — ties the discover surface to WebSite/Organization for GEO / AI citations.
+  const origin = getSiteOrigin()
+  const discoverGraph =
     initialVideos.length > 0
       ? {
           "@context": "https://schema.org",
-          "@type": "ItemList",
-          name: "Hiffi Discover Feed",
-          description: "Latest high-fidelity videos and music from independent creators on Hiffi",
-          url: getSiteOrigin(),
-          numberOfItems: initialVideos.length,
-          itemListElement: initialVideos.map((v, i) => ({
-            "@type": "ListItem",
-            position: i + 1,
-            url: absoluteUrl(`/watch/${encodeURIComponent(v.video_id ?? "")}`),
-            name: v.video_title ?? "Video",
-            image: v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : undefined,
-          })),
+          "@graph": [
+            {
+              "@type": "WebPage",
+              "@id": `${origin}/#discover-page`,
+              url: origin,
+              name: PAGE_TITLE,
+              description: PAGE_DESCRIPTION,
+              inLanguage: "en",
+              isPartOf: { "@id": `${origin}/#website` },
+              about: { "@id": `${origin}/#organization` },
+              mainEntity: { "@id": `${origin}/#discover-feed` },
+            },
+            {
+              "@type": "ItemList",
+              "@id": `${origin}/#discover-feed`,
+              name: "Hiffi Discover Feed",
+              description: "Latest high-fidelity videos and music from independent creators on Hiffi",
+              url: origin,
+              numberOfItems: initialVideos.length,
+              itemListElement: initialVideos.map((v, i) => ({
+                "@type": "ListItem",
+                position: i + 1,
+                url: absoluteUrl(`/watch/${encodeURIComponent(v.video_id ?? "")}`),
+                name: v.video_title ?? "Video",
+                image: v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : undefined,
+              })),
+            },
+          ],
         }
-      : null
+      : {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebPage",
+              "@id": `${origin}/#discover-page`,
+              url: origin,
+              name: PAGE_TITLE,
+              description: PAGE_DESCRIPTION,
+              inLanguage: "en",
+              isPartOf: { "@id": `${origin}/#website` },
+              about: { "@id": `${origin}/#organization` },
+            },
+          ],
+        }
 
   return (
     <>
-      {itemListJsonLd && <JsonLd data={itemListJsonLd} />}
+      <JsonLd data={discoverGraph} />
       <Suspense
         fallback={
           <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">

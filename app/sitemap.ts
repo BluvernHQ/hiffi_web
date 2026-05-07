@@ -16,16 +16,46 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
-      url: absoluteUrl("/history"),
+      url: absoluteUrl("/faq"),
       lastModified: now,
-      changeFrequency: "never",
-      priority: 0.3,
+      changeFrequency: "weekly",
+      priority: 0.85,
     },
     {
-      url: absoluteUrl("/following"),
+      url: absoluteUrl("/support"),
       lastModified: now,
-      changeFrequency: "never",
-      priority: 0.3,
+      changeFrequency: "monthly",
+      priority: 0.75,
+    },
+    {
+      url: absoluteUrl("/terms-of-use"),
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
+      url: absoluteUrl("/payment-terms"),
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
+      url: absoluteUrl("/privacy-policy"),
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
+      url: absoluteUrl("/search"),
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.75,
+    },
+    {
+      url: absoluteUrl("/creator/apply"),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.78,
     },
   ]
 

@@ -24,7 +24,8 @@ export async function generateMetadata({
   const handle = (profile?.username || username).trim()
   const display = (profile?.name || handle).trim() || handle
 
-  const title = `@${handle} — ${display} | Hiffi`
+  // Root layout title.template is `%s | Hiffi` — do not append `| Hiffi` here.
+  const title = `@${handle} — ${display}`
   const description = profile?.bio?.length
     ? truncateMetaDescription(profile.bio)
     : `Videos and profile of @${handle} on Hiffi.`

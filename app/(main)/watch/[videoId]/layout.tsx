@@ -20,14 +20,19 @@ export async function generateMetadata({
   const { videoId } = await resolvedParams(params)
   const video = await fetchVideoForSeo(videoId)
 
+  const canonicalPath = `/watch/${encodeURIComponent(videoId)}`
+
   if (!video) {
     return {
-      title: "Video | Hiffi",
-      description: "Watch videos on Hiffi.",
+      title: "Video unavailable",
+      description: "This video could not be found on Hiffi.",
+      alternates: { canonical: absoluteUrl(canonicalPath) },
+      robots: { index: false, follow: true },
     }
   }
 
-  const title = `${video.title} | Hiffi`
+  // Root layout title.template is `%s | Hiffi` — do not append `| Hiffi` here.
+  const title = video.title
   const description =
     video.description.length > 0
       ? truncateMetaDescription(video.description)
@@ -39,6 +44,11 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    },
     openGraph: {
       type: "video.other",
       url: canonical,
