@@ -30,6 +30,7 @@ export interface Video {
   downvoted?: boolean // Added from /videos/{videoId} response
   streaming_url?: string // Streaming URL (same as video_url, for compatibility)
   userUsername?: string // Alias for user_username (for compatibility)
+  user_profile_picture?: string // Creator profile picture from video metadata
 }
 
 /** Owner playlist row from GET /playlists/list/self */

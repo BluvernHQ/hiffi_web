@@ -1449,7 +1449,7 @@ export default function WatchPage() {
                   <div className="md:hidden space-y-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {user && currentVideo ? (
+                        {currentVideo ? (
                           <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
                             <ProfilePicture user={creatorUser} size="md" />
                           </Link>
@@ -1457,11 +1457,7 @@ export default function WatchPage() {
                           <div className={cn(
                             "h-10 w-10 rounded-full bg-muted/40",
                             shouldShowMetadataSkeleton && "animate-pulse"
-                          )}>
-                            {!shouldShowMetadataSkeleton && currentVideo && (
-                              <ProfilePicture user={creatorUser} size="md" />
-                            )}
-                          </div>
+                          )} />
                         )}
                         <div className="min-w-0">
                           {shouldShowMetadataSkeleton ? (
@@ -1471,20 +1467,14 @@ export default function WatchPage() {
                             </div>
                           ) : (
                             <>
-                              {user ? (
-                                <Link
-                                  href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
-                                  className="font-semibold hover:text-primary block truncate"
-                                >
-                                  {currentVideo?.userUsername || currentVideo?.user_username}
-                                </Link>
-                              ) : (
-                                <span className="font-semibold block truncate">
-                                  {currentVideo?.userUsername || currentVideo?.user_username}
-                                </span>
-                              )}
+                              <Link
+                                href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
+                                className="font-semibold hover:text-primary block truncate"
+                              >
+                                {currentVideo?.userUsername || currentVideo?.user_username}
+                              </Link>
                               <span className="text-xs text-muted-foreground">
-                                {(videoCreator?.followers ?? 0).toLocaleString()} followers
+                                {((videoCreator?.followers ?? videoCreator?.followers_count ?? videoCreator?.followersCount ?? videoCreator?.user?.followers ?? videoCreator?.user?.followers_count ?? 0)).toLocaleString()} followers
                               </span>
                             </>
                           )}
@@ -1562,7 +1552,7 @@ export default function WatchPage() {
                   {/* Desktop/tablet metadata layout */}
                   <div className="hidden md:flex flex-row items-center justify-between gap-2 sm:gap-4 flex-wrap">
                     <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
-                      {user && currentVideo ? (
+                      {currentVideo ? (
                         <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
                           <ProfilePicture user={creatorUser} size="md" />
                         </Link>
@@ -1570,11 +1560,7 @@ export default function WatchPage() {
                         <div className={cn(
                           "h-10 w-10 rounded-full bg-muted/40",
                           shouldShowMetadataSkeleton && "animate-pulse"
-                        )}>
-                          {!shouldShowMetadataSkeleton && currentVideo && (
-                            <ProfilePicture user={creatorUser} size="md" />
-                          )}
-                        </div>
+                        )} />
                       )}
                       <div className="min-w-0">
                         {shouldShowMetadataSkeleton ? (
@@ -1584,20 +1570,14 @@ export default function WatchPage() {
                           </div>
                         ) : (
                           <>
-                            {user ? (
-                              <Link
-                                href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
-                                className="font-semibold hover:text-primary block truncate"
-                              >
-                                {currentVideo?.userUsername || currentVideo?.user_username}
-                              </Link>
-                            ) : (
-                              <span className="font-semibold block truncate">
-                                {currentVideo?.userUsername || currentVideo?.user_username}
-                              </span>
-                            )}
+                            <Link
+                              href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
+                              className="font-semibold hover:text-primary block truncate"
+                            >
+                              {currentVideo?.userUsername || currentVideo?.user_username}
+                            </Link>
                             <span className="text-xs text-muted-foreground">
-                              {(videoCreator?.followers ?? 0).toLocaleString()} followers
+                              {((videoCreator?.followers ?? videoCreator?.followers_count ?? videoCreator?.followersCount ?? videoCreator?.user?.followers ?? videoCreator?.user?.followers_count ?? 0)).toLocaleString()} followers
                             </span>
                           </>
                         )}
