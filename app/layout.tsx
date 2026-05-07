@@ -137,7 +137,7 @@ export default function RootLayout({
   const umamiReplayEnabled =
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
-  const umamiDomains = process.env.NEXT_PUBLIC_UMAMI_DOMAINS || "hiffi.com,dev.hiffi.com,localhost"
+  const umamiDomains = process.env.NEXT_PUBLIC_UMAMI_DOMAINS || "hiffi.com,www.hiffi.com"
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsSrc = apiAnalyticsEnabled
@@ -191,23 +191,23 @@ export default function RootLayout({
         )}
         {/* Umami Tracker - MUST load before recorder.js */}
         {isProd && umamiWebsiteId && (
-          <script
-            defer
+          <Script
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
             data-domains={umamiDomains}
+            strategy="afterInteractive"
           />
         )}
         {/* Umami Session Replay */}
         {isProd && umamiWebsiteId && umamiReplayEnabled && (
-          <script
-            defer
+          <Script
             src="https://analytics.superlabs.co/recorder.js"
             data-website-id={umamiWebsiteId}
-            data-sample-rate="1"
+            data-sample-rate="100"
             data-mask-level="moderate"
             data-max-duration="300000"
             data-domains={umamiDomains}
+            strategy="afterInteractive"
           />
         )}
         {/* First-party analytics script from API (same base as NEXT_PUBLIC_API_URL) */}
