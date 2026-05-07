@@ -23,7 +23,9 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
   "Hiffi is a creator-first, high-fidelity video and lossless audio streaming platform for independent artists. Discover, stream, and support creators without algorithmic interference."
-const IS_PROD_ENV = (process.env.NEXT_PUBLIC_ENV || "beta").toLowerCase() === "prod"
+const NEXT_PUBLIC_ENV_VALUE = (process.env.NEXT_PUBLIC_ENV || "beta").toLowerCase()
+const IS_PROD_ENV = NEXT_PUBLIC_ENV_VALUE === "prod"
+const IS_BETA_ENV = NEXT_PUBLIC_ENV_VALUE === "beta"
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteOrigin()),
@@ -131,9 +133,11 @@ export default function RootLayout({
   const clarityId = analyticsEnabled ? process.env.NEXT_PUBLIC_CLARITY_ID : null
   const gaId = analyticsEnabled ? process.env.NEXT_PUBLIC_GA_ID : null
   const umamiWebsiteId = analyticsEnabled ? process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID : null
-  const apiAnalyticsEnabled =
-    analyticsEnabled &&
-    (process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1")
+  // First-party batch analytics runs on both prod and beta deployments, independent of
+  // the third-party trackers above. Set NEXT_PUBLIC_API_ANALYTICS=false (or 0) to kill-switch it.
+  const apiAnalyticsKillSwitched =
+    process.env.NEXT_PUBLIC_API_ANALYTICS === "false" || process.env.NEXT_PUBLIC_API_ANALYTICS === "0"
+  const apiAnalyticsEnabled = (IS_PROD_ENV || IS_BETA_ENV) && !apiAnalyticsKillSwitched
   const apiAnalyticsSrc = apiAnalyticsEnabled
     ? `${API_BASE_URL.replace(/\/$/, "")}/tracker.js`
     : null
