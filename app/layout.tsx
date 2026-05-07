@@ -194,16 +194,15 @@ export default function RootLayout({
           <Script
             id="umami-replay"
             src="https://analytics.superlabs.co/recorder.js"
+            strategy="afterInteractive"
             data-website-id={umamiWebsiteId}
             data-sample-rate="1"
             data-mask-level="moderate"
             data-max-duration="300000"
-            data-domains={umamiDomains}
-            strategy="afterInteractive"
-          />
+          ></Script>
         )}
         {/* Umami Tracker */}
-        {isProd && umamiWebsiteId && (
+        {/* {isProd && umamiWebsiteId && (
           <Script
             id="umami"
             src="https://analytics.superlabs.co/script.js"
@@ -211,7 +210,7 @@ export default function RootLayout({
             data-domains={umamiDomains}
             strategy="afterInteractive"
           />
-        )}
+        )} */}
         {/* First-party analytics script from API (same base as NEXT_PUBLIC_API_URL) */}
         {apiAnalyticsSrc && (
           <ApiAnalyticsTracker
