@@ -46,3 +46,6 @@ next-env.d.ts
 logs/
 .next/dev/logs/
 
+# cursor agent skills (local)
+.agents/skills/*
+
