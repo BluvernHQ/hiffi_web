@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { getColorFromName } from "@/lib/utils"
 
 type ReferralRecord = {
@@ -55,6 +56,7 @@ export function AdminReferralsTable() {
   const [limit, setLimit] = useState(20)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
+  const [selectedSheetCode, setSelectedSheetCode] = useState<string | null>(null)
 
   const fetchReferrals = async (isRefresh = false) => {
     let refreshSucceeded = false
@@ -106,6 +108,43 @@ export function AdminReferralsTable() {
     })
   }, [rows, query, selectedCode])
 
+  type GroupedReferral = {
+    code: string
+    referrer_uid: string
+    referrer_username: string
+    referrer_name: string
+    referrals: ReferralRecord[]
+    latest_enrolled_at: string
+  }
+
+  const groupedRows = useMemo(() => {
+    const groups: Record<string, GroupedReferral> = {}
+    for (const item of filteredRows) {
+      if (!groups[item.code]) {
+        groups[item.code] = {
+          code: item.code,
+          referrer_uid: item.referrer_uid,
+          referrer_username: item.referrer_username,
+          referrer_name: item.referrer_name,
+          referrals: [],
+          latest_enrolled_at: item.enrolled_at,
+        }
+      }
+      groups[item.code].referrals.push(item)
+      if (new Date(item.enrolled_at) > new Date(groups[item.code].latest_enrolled_at)) {
+        groups[item.code].latest_enrolled_at = item.enrolled_at
+      }
+    }
+    return Object.values(groups).sort(
+      (a, b) => new Date(b.latest_enrolled_at).getTime() - new Date(a.latest_enrolled_at).getTime()
+    )
+  }, [filteredRows])
+
+  const selectedGroup = useMemo(() => {
+    if (!selectedSheetCode) return null
+    return groupedRows.find((g) => g.code === selectedSheetCode) || null
+  }, [selectedSheetCode, groupedRows])
+
   const canGoPrev = offset > 0
   const canGoNext = offset + rows.length < count
 
@@ -155,7 +194,7 @@ export function AdminReferralsTable() {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{filteredRows.length}</span> referrals (fetched{" "}
+          Showing <span className="font-medium text-foreground">{filteredRows.length}</span> referrals across <span className="font-medium text-foreground">{groupedRows.length}</span> codes (fetched{" "}
           <span className="font-medium text-foreground">{count}</span>)
         </div>
         {selectedCode && (
@@ -179,96 +218,77 @@ export function AdminReferralsTable() {
         <div className="hidden md:block overflow-auto">
           <table className="w-full min-w-[980px] table-fixed">
             <colgroup>
-              <col className="w-[16%]" />
-              <col className="w-[28%]" />
-              <col className="w-[28%]" />
-              <col className="w-[28%]" />
+              <col className="w-[5%]" />
+              <col className="w-[20%]" />
+              <col className="w-[30%]" />
+              <col className="w-[25%]" />
+              <col className="w-[20%]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-muted/50">
               <tr className="border-b">
+                <th className="h-11 px-3 text-left text-sm font-semibold"></th>
                 <th className="h-11 px-3 text-left text-sm font-semibold">Referral Code</th>
                 <th className="h-11 px-3 text-left text-sm font-semibold">Referrer</th>
-                <th className="h-11 px-3 text-left text-sm font-semibold">Referred User</th>
+                <th className="h-11 px-3 text-left text-sm font-semibold">Total Referrals</th>
                 <th className="sticky right-0 z-20 h-11 px-3 text-left text-sm font-semibold bg-muted/50 border-l">
-                  Enrolled At
+                  Latest Enrollment
                 </th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.length === 0 ? (
+              {groupedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="h-28 px-3 text-center text-sm text-muted-foreground">
+                  <td colSpan={5} className="h-28 px-3 text-center text-sm text-muted-foreground">
                     No referrals found for current filters
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((item) => (
+                groupedRows.map((group) => (
                   <tr
-                    key={`${item.referrer_uid}-${item.referred_uid}-${item.enrolled_at}`}
-                    className="border-b hover:bg-muted/40"
+                    key={group.code}
+                    className="border-b hover:bg-muted/40 cursor-pointer transition-colors"
+                    onClick={() => setSelectedSheetCode(group.code)}
                   >
-                    <td className="px-3 py-3 align-top text-sm">
+                    <td className="px-3 py-3 align-middle text-sm text-muted-foreground">
+                      <ChevronRight className="h-4 w-4" />
+                    </td>
+                    <td className="px-3 py-3 align-middle text-sm">
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedCode(item.code)
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedCode(group.code)
                           setOffset(0)
                         }}
                         className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
                         title="Filter by this referral code"
                       >
-                        {item.code}
+                        {group.code}
                       </button>
                     </td>
-                    <td className="px-3 py-3 align-top text-sm">
-                      <UserProfilePreview
-                        name={item.referrer_name || ""}
-                        username={item.referrer_username || "unknown"}
-                      />
-                      <Link
-                        href={`/admin/dashboard?section=users&q=${encodeURIComponent(item.referrer_username || "")}`}
-                        className="mt-1 block text-xs text-primary hover:underline break-all"
-                        title="Open in users table"
-                      >
-                        @{item.referrer_username}
-                      </Link>
-                      <Link
-                        href={`/profile/${item.referrer_username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 block text-xs text-muted-foreground hover:text-primary hover:underline break-all"
-                      >
-                        View profile
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3 align-top text-sm">
-                      <UserProfilePreview
-                        name={item.referred_name || ""}
-                        username={item.referred_username || "unknown"}
-                      />
-                      <Link
-                        href={`/admin/dashboard?section=users&q=${encodeURIComponent(item.referred_username || "")}`}
-                        className="mt-1 block text-xs text-primary hover:underline break-all"
-                        title="Open in users table"
-                      >
-                        @{item.referred_username}
-                      </Link>
-                      <Link
-                        href={`/profile/${item.referred_username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 block text-xs text-muted-foreground hover:text-primary hover:underline break-all"
-                      >
-                        View profile
-                      </Link>
-                    </td>
-                    <td className="sticky right-0 z-10 px-3 py-3 align-top text-sm bg-background border-l">
-                      <div className="font-medium whitespace-nowrap">{format(new Date(item.enrolled_at), "MMM d, yyyy")}</div>
-                      <div className="text-muted-foreground whitespace-nowrap">
-                        {format(new Date(item.enrolled_at), "h:mm:ss a")}
+                    <td className="px-3 py-3 align-middle text-sm">
+                      <div className="flex items-center gap-2">
+                        <UserProfilePreview
+                          name={group.referrer_name || ""}
+                          username={group.referrer_username || "unknown"}
+                        />
+                        <Link
+                          href={`/admin/dashboard?section=users&q=${encodeURIComponent(group.referrer_username || "")}`}
+                          className="text-xs text-primary hover:underline break-all"
+                          title="Open in users table"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          @{group.referrer_username}
+                        </Link>
                       </div>
+                    </td>
+                    <td className="px-3 py-3 align-middle text-sm">
+                      <span className="font-medium">{group.referrals.length}</span> users referred
+                    </td>
+                    <td className="sticky right-0 z-10 px-3 py-3 align-middle text-sm bg-background border-l">
+                      <div className="font-medium whitespace-nowrap">{format(new Date(group.latest_enrolled_at), "MMM d, yyyy")}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(item.enrolled_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(group.latest_enrolled_at), { addSuffix: true })}
                       </div>
                     </td>
                   </tr>
@@ -279,71 +299,46 @@ export function AdminReferralsTable() {
         </div>
 
         <div className="md:hidden divide-y">
-          {filteredRows.length === 0 ? (
+          {groupedRows.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">No referrals found for current filters</div>
           ) : (
-            filteredRows.map((item) => (
-              <div key={`${item.referrer_uid}-${item.referred_uid}-${item.enrolled_at}`} className="p-4 space-y-3">
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCode(item.code)
-                      setOffset(0)
-                    }}
-                    className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
-                  >
-                    {item.code}
-                  </button>
+            groupedRows.map((group) => (
+              <div key={group.code} className="p-4 space-y-3">
+                <div 
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => setSelectedSheetCode(group.code)}
+                >
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedCode(group.code)
+                        setOffset(0)
+                      }}
+                      className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
+                    >
+                      {group.code}
+                    </button>
+                  </div>
+                  <div className="text-xs font-medium bg-muted px-2 py-1 rounded-full">
+                    {group.referrals.length} referred
+                  </div>
                 </div>
-                <div className="space-y-1">
+
+                <div className="space-y-1 pl-6">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Referrer</div>
                   <UserProfilePreview
-                    name={item.referrer_name || ""}
-                    username={item.referrer_username || "unknown"}
+                    name={group.referrer_name || ""}
+                    username={group.referrer_username || "unknown"}
                   />
                   <Link
-                    href={`/admin/dashboard?section=users&q=${encodeURIComponent(item.referrer_username || "")}`}
-                    className="text-xs text-primary hover:underline break-all"
-                    title="Open in users table"
+                    href={`/admin/dashboard?section=users&q=${encodeURIComponent(group.referrer_username || "")}`}
+                    className="text-xs text-primary hover:underline break-all inline-block mt-1"
                   >
-                    @{item.referrer_username}
+                    @{group.referrer_username}
                   </Link>
-                  <Link
-                    href={`/profile/${item.referrer_username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-muted-foreground hover:text-primary hover:underline break-all"
-                  >
-                    View profile
-                  </Link>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Referred User</div>
-                  <UserProfilePreview
-                    name={item.referred_name || ""}
-                    username={item.referred_username || "unknown"}
-                  />
-                  <Link
-                    href={`/admin/dashboard?section=users&q=${encodeURIComponent(item.referred_username || "")}`}
-                    className="text-xs text-primary hover:underline break-all"
-                    title="Open in users table"
-                  >
-                    @{item.referred_username}
-                  </Link>
-                  <Link
-                    href={`/profile/${item.referred_username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-muted-foreground hover:text-primary hover:underline break-all"
-                  >
-                    View profile
-                  </Link>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  <div className="font-medium text-foreground">{format(new Date(item.enrolled_at), "MMM d, yyyy")}</div>
-                  <div>{format(new Date(item.enrolled_at), "h:mm:ss a")}</div>
-                  <div className="mt-0.5">{formatDistanceToNow(new Date(item.enrolled_at), { addSuffix: true })}</div>
                 </div>
               </div>
             ))
@@ -367,6 +362,77 @@ export function AdminReferralsTable() {
           </Button>
         </div>
       </div>
+
+      <Sheet open={!!selectedSheetCode} onOpenChange={(open) => !open && setSelectedSheetCode(null)}>
+        <SheetContent side="right" className="w-[90vw] sm:w-[540px] sm:max-w-[540px] overflow-y-auto">
+          <SheetHeader className="mb-6">
+            <SheetTitle>Referral Details</SheetTitle>
+            <SheetDescription>
+              Code: <span className="font-mono text-primary font-medium">{selectedSheetCode}</span>
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedGroup && (
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Referrer</h4>
+                  <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/10 h-[88px]">
+                    <Avatar className="h-12 w-12 shrink-0">
+                      <AvatarFallback style={{ backgroundColor: getColorFromName(selectedGroup.referrer_name || selectedGroup.referrer_username) }} className="text-lg text-white">
+                        {(selectedGroup.referrer_name || selectedGroup.referrer_username || "U").charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-medium text-lg truncate">{selectedGroup.referrer_name}</div>
+                      <Link href={`/admin/dashboard?section=users&q=${encodeURIComponent(selectedGroup.referrer_username)}`} className="text-sm text-primary hover:underline truncate block">
+                        @{selectedGroup.referrer_username}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 w-28">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3 text-center">Referred</h4>
+                  <div className="flex flex-col items-center justify-center p-4 rounded-lg border bg-primary/10 h-[88px]">
+                    <div className="text-3xl font-bold text-primary leading-none">{selectedGroup.referrals.length}</div>
+                    <div className="text-[10px] font-medium text-primary/70 uppercase tracking-wider mt-1">Users</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-muted-foreground">Referred Users List</h4>
+                </div>
+                <div className="space-y-3">
+                  {selectedGroup.referrals.map((ref, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="text-sm text-white" style={{ backgroundColor: getColorFromName(ref.referred_name || ref.referred_username) }}>
+                            {(ref.referred_name || ref.referred_username || "U").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">{ref.referred_name}</div>
+                          <Link href={`/admin/dashboard?section=users&q=${encodeURIComponent(ref.referred_username)}`} className="text-xs text-primary hover:underline truncate block">
+                            @{ref.referred_username}
+                          </Link>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-medium">{format(new Date(ref.enrolled_at), "MMM d, yyyy")}</div>
+                        <div className="text-[10px] text-muted-foreground">{format(new Date(ref.enrolled_at), "h:mm a")}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
