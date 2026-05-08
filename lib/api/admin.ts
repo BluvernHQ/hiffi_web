@@ -26,6 +26,17 @@ function toSearchParams(params: Record<string, string | number | undefined>) {
   return queryParams
 }
 
+/** Backend wraps payloads as `{ success: true, data: { ... } }` (see Utils.SendSuccessResponse). */
+function unwrapSuccessData<T extends Record<string, unknown>>(raw: unknown): T {
+  if (raw !== null && typeof raw === "object") {
+    const r = raw as Record<string, unknown>
+    if (r.success === true && r.data !== null && typeof r.data === "object") {
+      return r.data as T
+    }
+  }
+  return raw as T
+}
+
 function normalizeList<Row>(
   response: any,
   key: string,
@@ -221,37 +232,137 @@ export async function adminGetReferals(ctx: ApiClientContext, params: { limit?: 
   const sp = new URLSearchParams()
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
-  return ctx.proxyRequest("/proxy/admin-referals", sp)
+  const raw = (await ctx.proxyRequest<Record<string, unknown>>("/proxy/admin-referals", sp)) as Record<string, unknown>
+  // API returns `{ success, data: { count, referals, limit, offset } }`; older clients expected a flat shape.
+  const inner =
+    raw &&
+    typeof raw.data === "object" &&
+    raw.data !== null &&
+    ("referals" in (raw.data as object) || "count" in (raw.data as object))
+      ? (raw.data as Record<string, unknown>)
+      : raw
+  const fallbackLimit = params.limit ?? 20
+  const fallbackOffset = params.offset ?? 0
+  return {
+    count: Number(inner?.count ?? 0),
+    referals: (inner?.referals as unknown[]) ?? [],
+    limit: Number(inner?.limit ?? fallbackLimit),
+    offset: Number(inner?.offset ?? fallbackOffset),
+  }
 }
 
-export async function adminCreateUtmGeneratedUrl(ctx: ApiClientContext, body: { url: string; utm_source: string; label?: string }) {
-  return ctx.request("/admin/utm/generated-urls", { method: "POST", body: JSON.stringify(body) }, true)
+/**
+ * Persist a tracked campaign URL (saved links tab). Matches backend style of `utm_polls`:
+ * `POST /admin/utm_generated_urls` with JSON `{ url, utm_source, label? }`.
+ */
+export async function adminCreateUtmGeneratedUrl(
+  ctx: ApiClientContext,
+  body: { url: string; utm_source: string; label?: string },
+): Promise<{ success: boolean; error?: string }> {
+  const raw = await ctx.request<Record<string, unknown>>(
+    "/admin/utm_generated_urls",
+    { method: "POST", body: JSON.stringify(body) },
+    true,
+  )
+  const topSuccess = raw?.success === true
+  const inner = unwrapSuccessData<Record<string, unknown>>(raw)
+  const error =
+    (typeof raw?.error === "string" ? raw.error : undefined) ||
+    (typeof inner?.error === "string" ? inner.error : undefined)
+  return {
+    success: Boolean(topSuccess && !error),
+    ...(error ? { error } : {}),
+  }
 }
 
+/**
+ * List saved/generated campaign URLs: `GET /admin/utm_generated_urls`.
+ * Unwraps `{ success, data: { utm_generated_urls, count, … } }` like other admin endpoints.
+ */
 export async function adminListUtmGeneratedUrls(ctx: ApiClientContext, params: { limit?: number; offset?: number } = {}) {
   const sp = new URLSearchParams()
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
-  const endpoint = `/admin/utm/generated-urls${sp.toString() ? `?${sp.toString()}` : ""}`
-  return ctx.request(endpoint, { method: "GET" }, true)
+  const endpoint = `/admin/utm_generated_urls${sp.toString() ? `?${sp.toString()}` : ""}`
+  const raw = await ctx.request<unknown>(endpoint, { method: "GET" }, true)
+  const data = unwrapSuccessData<{
+    utm_generated_urls?: unknown[]
+    count?: number
+    limit?: number
+    offset?: number
+  }>(raw)
+  return {
+    utm_generated_urls: data.utm_generated_urls ?? [],
+    count: Number(data.count ?? 0),
+    limit: Number(data.limit ?? params.limit ?? 50),
+    offset: Number(data.offset ?? params.offset ?? 0),
+  }
 }
 
 export async function adminListUtmPollEvents(ctx: ApiClientContext, params: Record<string, string | number | undefined> = {}) {
   const sp = toSearchParams(params)
-  const endpoint = `/admin/utm/poll-events${sp.toString() ? `?${sp.toString()}` : ""}`
-  return ctx.request(endpoint, { method: "GET" }, true)
+  const endpoint = `/admin/utm_polls${sp.toString() ? `?${sp.toString()}` : ""}`
+  const raw = await ctx.request<unknown>(endpoint, { method: "GET" }, true)
+  const data = unwrapSuccessData<{
+    utm_polls?: unknown[]
+    count?: number
+    limit?: number
+    offset?: number
+  }>(raw)
+  return {
+    utm_polls: data.utm_polls ?? [],
+    count: Number(data.count ?? 0),
+    limit: Number(data.limit ?? params.limit ?? 50),
+    offset: Number(data.offset ?? params.offset ?? 0),
+  }
 }
 
 export async function adminAnalyzeUtmPollEvents(ctx: ApiClientContext, params: Record<string, string | number | undefined> = {}) {
   const sp = toSearchParams(params)
-  const endpoint = `/admin/utm/poll-events/analyze${sp.toString() ? `?${sp.toString()}` : ""}`
-  return ctx.request(endpoint, { method: "GET" }, true)
+  const endpoint = `/admin/utm_polls/analyze${sp.toString() ? `?${sp.toString()}` : ""}`
+  const raw = await ctx.request<unknown>(endpoint, { method: "GET" }, true)
+  const data = unwrapSuccessData<{
+    analysis?: Array<{ utm_source: string; utm_medium?: string | null; utm_campaign?: string | null; event_count: number }>
+    total_events?: number
+    group_limit?: number
+  }>(raw)
+  return {
+    analysis: data.analysis ?? [],
+    total_events: Number(data.total_events ?? 0),
+    group_limit: data.group_limit != null ? Number(data.group_limit) : undefined,
+  }
 }
 
-export async function pollUtmPoll(
-  ctx: ApiClientContext,
-  body: { id: string; option: string; fingerprint: string },
-) {
-  return ctx.request("/poll/utm-poll", { method: "POST", body: JSON.stringify(body) }, false)
+/** Ingest UTM parameters from marketing links (session + path); not the UTM admin vote API. */
+export type UtmPollIngestBody = {
+  utm_source: string
+  utm_medium?: string
+  utm_campaign?: string
+  utm_term?: string
+  utm_content?: string
+  session_id: string
+  path: string
+}
+
+export async function pollUtmPoll(ctx: ApiClientContext, body: UtmPollIngestBody): Promise<{ success: boolean }> {
+  if (typeof window !== "undefined") {
+    const res = await fetch("/proxy/utm-poll", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    const text = await res.text()
+    if (!res.ok) {
+      throw new Error(text || `UTM poll failed (${res.status})`)
+    }
+    try {
+      return JSON.parse(text) as { success: boolean }
+    } catch {
+      return { success: res.ok } as { success: boolean }
+    }
+  }
+  return ctx.request("/utm/poll", { method: "POST", body: JSON.stringify(body) }, false) as Promise<{
+    success: boolean
+  }>
 }
 

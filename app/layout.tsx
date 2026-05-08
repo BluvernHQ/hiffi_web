@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
@@ -11,6 +12,7 @@ import { GATracker } from '@/components/analytics/ga-tracker'
 import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
+import { UtmPoll } from '@/components/marketing/utm-poll'
 import { API_BASE_URL } from '@/lib/config'
 import './globals.css'
 
@@ -240,6 +242,9 @@ export default function RootLayout({
           </VideoProvider>
         </AuthProvider>
         <Toaster />
+        <Suspense fallback={null}>
+          <UtmPoll />
+        </Suspense>
         {/* Analytics */}
         {clarityId && <ClarityTracker />}
         {gaId && <GATracker gaId={gaId} />}

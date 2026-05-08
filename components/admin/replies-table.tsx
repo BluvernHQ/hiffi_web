@@ -209,6 +209,18 @@ export function AdminRepliesTable() {
     setPage(1)
   }
 
+  /** Click @username in the table to set the search filter (same as sidebar / quick search). */
+  const applyUserFilter = (username: string) => {
+    const trimmed = username.trim()
+    if (!trimmed) return
+    setFilter(trimmed)
+    setPage(1)
+    toast({
+      title: "Filter by user",
+      description: `Search is set to “${trimmed}” (matches username, reply text, or comment).`,
+    })
+  }
+
   const totalPages = Math.ceil(total / limit)
 
   const handleDeleteClick = (reply: any) => {
@@ -376,12 +388,25 @@ export function AdminRepliesTable() {
                           </Avatar>
                           <div>
                             {username ? (
-                              <Link
-                                href={`/profile/${username}`}
-                                className="text-primary hover:underline font-medium"
-                              >
-                                @{username}
-                              </Link>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => applyUserFilter(String(username))}
+                                  className="text-primary hover:text-primary/80 hover:underline font-medium text-left"
+                                  title="Filter replies by this user"
+                                >
+                                  @{username}
+                                </button>
+                                <Link
+                                  href={`/profile/${encodeURIComponent(username)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                                  title="Open profile in new tab"
+                                >
+                                  Profile
+                                </Link>
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">Unknown</span>
                             )}

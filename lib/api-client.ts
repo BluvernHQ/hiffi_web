@@ -2951,7 +2951,7 @@ class ApiClient {
     session_id: string
     path: string
   }): Promise<{ success: boolean }> {
-    return adminPollUtmPoll(this, body as any) as any
+    return adminPollUtmPoll(this, body)
   }
 }
 

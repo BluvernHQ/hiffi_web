@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
-import { Loader2, RefreshCw, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, RefreshCw, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 type AnalyticsEvent = {
   timestamp: string
@@ -28,7 +29,40 @@ type VideoMeta = {
 
 const HOUR_OPTIONS = [1, 6, 12, 24, 48, 72, 168]
 const LIMIT_OPTIONS = [25, 50, 100, 200]
-type ConversionFilter = "all" | "play" | "next" | "like" | "signup"
+
+/** Activity type presets for admin filtering (beyond raw event names). */
+type ActivityLogFilter =
+  | "all"
+  | "conversions"
+  | "play"
+  | "next"
+  | "like"
+  | "signup"
+  | "pageview"
+  | "share"
+  | "follow"
+  | "playlist"
+  | "dislike"
+  | "comment"
+  | "login"
+  | "search"
+  | "upload"
+  | "player"
+
+const PLAYER_UI_NAMES = new Set([
+  "backward",
+  "fast-forward",
+  "next",
+  "played_video",
+  "paused_video",
+  "played-video",
+  "unmuted-video",
+  "muted_video",
+  "unmuted_video",
+  "entered_fullscreen",
+  "exited_fullscreen",
+  "opened-quality-settings",
+])
 
 function toTitleCase(value: string): string {
   return value
@@ -142,10 +176,69 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
   }
 }
 
-function matchesConversionFilter(item: AnalyticsEvent, filter: ConversionFilter): boolean {
+function matchesActivityLogFilter(item: AnalyticsEvent, filter: ActivityLogFilter): boolean {
   if (filter === "all") return true
+
   const eventName = String(item.event || "").toLowerCase()
-  const uiName = String((item as any).element_ui_name || item.properties?.element_ui_name || "").toLowerCase()
+  const uiRaw = String((item as any).element_ui_name || item.properties?.element_ui_name || "")
+  const uiName = uiRaw.toLowerCase()
+
+  if (filter === "conversions") {
+    return eventName.startsWith("conversion_")
+  }
+
+  if (filter === "pageview") {
+    return eventName === "$pageview"
+  }
+
+  if (filter === "share") {
+    return uiName === "shared-video"
+  }
+
+  if (filter === "follow") {
+    return uiName === "followed_creator" || uiName === "unfollowed_creator"
+  }
+
+  if (filter === "playlist") {
+    return uiName === "added-to-playlist" || uiName.includes("opened-video-from-playlist")
+  }
+
+  if (filter === "dislike") {
+    return uiName === "disliked" || uiName === "dislike"
+  }
+
+  if (filter === "comment") {
+    return uiName === "opened-comments"
+  }
+
+  if (filter === "login") {
+    return (
+      uiName.includes("login-") ||
+      uiName.includes("navbar-login") ||
+      uiName === "login-submit-button" ||
+      (eventName === "$click" && uiName.endsWith("login-button") && !uiName.includes("signup"))
+    )
+  }
+
+  if (filter === "search") {
+    return uiName.startsWith("search-overlay") || (eventName === "$click" && uiName.includes("search-overlay"))
+  }
+
+  if (filter === "upload") {
+    return (
+      uiName.includes("upload-") ||
+      uiName.includes("creator-studio") ||
+      uiName.includes("creator-become") ||
+      uiName.includes("navbar-open-hiffi-studio") ||
+      uiName.includes("navbar-open-become-creator") ||
+      uiName.includes("navbar-user-menu-hiffi-studio") ||
+      uiName.includes("navbar-user-menu-become-creator")
+    )
+  }
+
+  if (filter === "player") {
+    return eventName === "$click" && (PLAYER_UI_NAMES.has(uiName) || uiName.startsWith("opened-quality"))
+  }
 
   if (filter === "play") {
     return (
@@ -155,16 +248,52 @@ function matchesConversionFilter(item: AnalyticsEvent, filter: ConversionFilter)
       uiName === "played-video"
     )
   }
+
   if (filter === "next") {
-    return eventName === "conversion_next_clicked" || uiName === "fast-forward" || uiName === "next"
+    return (
+      eventName === "conversion_next_clicked" ||
+      uiName === "fast-forward" ||
+      uiName === "next"
+    )
   }
+
   if (filter === "like") {
-    return eventName === "conversion_like_success" || uiName === "liked" || uiName === "like"
+    return (
+      eventName === "conversion_like_success" ||
+      uiName === "liked" ||
+      uiName === "like" ||
+      uiName === "unliked"
+    )
   }
+
   if (filter === "signup") {
     return eventName === "conversion_signup_completed" || uiName.includes("signup")
   }
+
   return true
+}
+
+/** Page numbers for navigation with ellipses (1 … 4 5 6 … 20). */
+function getVisiblePageNumbers(current: number, total: number, maxButtons = 7): Array<number | "gap"> {
+  if (total <= maxButtons) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  const pages: Array<number | "gap"> = []
+  const half = Math.floor(maxButtons / 2)
+  let start = Math.max(1, current - half)
+  let end = Math.min(total, start + maxButtons - 1)
+  start = Math.max(1, end - maxButtons + 1)
+
+  if (start > 1) {
+    pages.push(1)
+    if (start > 2) pages.push("gap")
+  }
+  for (let p = start; p <= end; p++) pages.push(p)
+  if (end < total) {
+    if (end < total - 1) pages.push("gap")
+    pages.push(total)
+  }
+  return pages
 }
 
 function safePathFromUrl(url?: string): string {
@@ -237,8 +366,9 @@ export function AdminActivityLogsTable() {
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
   const [query, setQuery] = useState("")
-  const [conversionFilter, setConversionFilter] = useState<ConversionFilter>("all")
+  const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
+  const [pageJump, setPageJump] = useState("")
 
   const fetchEvents = async (isRefresh = false) => {
     let refreshSucceeded = false
@@ -277,6 +407,10 @@ export function AdminActivityLogsTable() {
   useEffect(() => {
     fetchEvents()
   }, [hours, limit, offset])
+
+  useEffect(() => {
+    setPageJump("")
+  }, [offset, limit])
 
   useEffect(() => {
     const ids = Array.from(
@@ -320,10 +454,44 @@ export function AdminActivityLogsTable() {
     }
   }, [events, videoMetaById])
 
+  const { currentPage, totalPages, visiblePages, rangeLabel, canGoNext, canGoPrev, goToPage } = useMemo(() => {
+    const limitSafe = Math.max(1, limit)
+    const current = Math.floor(offset / limitSafe) + 1
+    const hasServerTotal = typeof count === "number" && count > 0
+    const total = hasServerTotal ? Math.max(1, Math.ceil(count / limitSafe)) : Math.max(1, current + (events.length === limitSafe ? 1 : 0))
+    const pages = getVisiblePageNumbers(Math.min(current, total), total)
+    const from = events.length === 0 ? 0 : offset + 1
+    const to = offset + events.length
+    const range =
+      events.length === 0
+        ? "No rows on this page"
+        : hasServerTotal
+          ? `Rows ${from.toLocaleString()}–${to.toLocaleString()} of ${count.toLocaleString()}`
+          : `Rows ${from.toLocaleString()}–${to.toLocaleString()} on this page`
+    const next =
+      hasServerTotal
+        ? offset + limitSafe < count
+        : events.length === limitSafe
+    const prev = offset > 0
+
+    return {
+      currentPage: Math.min(current, total),
+      totalPages: total,
+      visiblePages: pages,
+      rangeLabel: range,
+      canGoNext: next,
+      canGoPrev: prev,
+      goToPage: (page: number) => {
+        const p = Math.min(Math.max(1, page), total)
+        setOffset((p - 1) * limitSafe)
+      },
+    }
+  }, [count, offset, limit, events.length])
+
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
     return events.filter((item) => {
-      if (!matchesConversionFilter(item, conversionFilter)) return false
+      if (!matchesActivityLogFilter(item, activityFilter)) return false
       if (!q) return true
       const ip = String(item.properties?._ingest_ip || "").toLowerCase()
       const title = String(item.properties?.title || "").toLowerCase()
@@ -343,10 +511,21 @@ export function AdminActivityLogsTable() {
         .toLowerCase()
       return composed.includes(q)
     })
-  }, [events, query, conversionFilter])
+  }, [events, query, activityFilter])
 
-  const canGoPrev = offset > 0
-  const canGoNext = events.length === limit
+  const hasClientFilter =
+    query.trim() !== "" || activityFilter !== "all"
+  const filteredShortfall = events.length > 0 && filteredEvents.length < events.length
+
+  const handlePageJump = () => {
+    const parsed = Number.parseInt(pageJump.replace(/\D/g, ""), 10)
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      toast({ title: "Invalid page", description: "Enter a page number.", variant: "destructive" })
+      return
+    }
+    goToPage(parsed)
+    setPageJump(String(Math.min(parsed, totalPages)))
+  }
 
   if (loading) {
     return (
@@ -372,15 +551,28 @@ export function AdminActivityLogsTable() {
 
           <div className="flex flex-wrap items-center gap-2">
             <select
-              value={conversionFilter}
-              onChange={(e) => setConversionFilter(e.target.value as ConversionFilter)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={activityFilter}
+              onChange={(e) => setActivityFilter(e.target.value as ActivityLogFilter)}
+              className="h-9 max-w-[min(100%,280px)] rounded-md border border-input bg-background px-3 text-sm"
+              title="Filter by activity type"
+              aria-label="Filter activity by type"
             >
               <option value="all">All events</option>
-              <option value="play">Play</option>
-              <option value="next">Next</option>
-              <option value="like">Like</option>
-              <option value="signup">Signup</option>
+              <option value="conversions">All conversion_* (play, next, like, signup)</option>
+              <option value="play">Play started / opened video</option>
+              <option value="next">Next / skip forward</option>
+              <option value="like">Like / unlike</option>
+              <option value="signup">Signup (completed + funnel clicks)</option>
+              <option value="pageview">Page views</option>
+              <option value="share">Share video</option>
+              <option value="follow">Follow / unfollow creator</option>
+              <option value="playlist">Playlist (add, open from playlist)</option>
+              <option value="dislike">Dislike</option>
+              <option value="comment">Comments (open thread)</option>
+              <option value="login">Login (navbar + form)</option>
+              <option value="search">Search overlay</option>
+              <option value="upload">Upload &amp; creator studio</option>
+              <option value="player">Player controls (play/pause/seek/sound/fullscreen)</option>
             </select>
 
             <select
@@ -421,9 +613,16 @@ export function AdminActivityLogsTable() {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{filteredEvents.length}</span> events (fetched{" "}
-          <span className="font-medium text-foreground">{count}</span>) for last{" "}
-          <span className="font-medium text-foreground">{hours}</span> hours
+          <span className="font-medium text-foreground">{filteredEvents.length}</span> shown
+          {hasClientFilter && events.length !== filteredEvents.length ? (
+            <>
+              {" "}
+              (filtered from <span className="font-medium text-foreground">{events.length}</span> on this page)
+            </>
+          ) : null}
+          {" · "}
+          API window: <span className="font-medium text-foreground">{count.toLocaleString()}</span> events for last{" "}
+          <span className="font-medium text-foreground">{hours}</span>h
         </div>
       </div>
 
@@ -629,20 +828,118 @@ export function AdminActivityLogsTable() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          Offset <span className="font-medium text-foreground">{offset}</span> to{" "}
-          <span className="font-medium text-foreground">{offset + events.length}</span>
+      <div className="flex flex-col gap-4 border-t pt-4">
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div>
+            <span className="font-medium text-foreground">
+              Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
+            </span>
+            <span className="mx-2 text-border">·</span>
+            {rangeLabel}
+          </div>
+          {filteredShortfall && (
+            <div className="text-xs text-amber-700 dark:text-amber-400">
+              Search or activity filter is hiding {(events.length - filteredEvents.length).toLocaleString()} row(s) on
+              this page only.
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={!canGoPrev} onClick={() => setOffset(Math.max(0, offset - limit))}>
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" disabled={!canGoNext} onClick={() => setOffset(offset + limit)}>
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-start">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-2"
+              disabled={!canGoPrev}
+              onClick={() => goToPage(1)}
+              title="First page"
+              aria-label="First page"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-2"
+              disabled={!canGoPrev}
+              onClick={() => setOffset(Math.max(0, offset - limit))}
+              title="Previous page"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <div className="mx-1 flex flex-wrap items-center justify-center gap-1">
+              {visiblePages.map((item, idx) =>
+                item === "gap" ? (
+                  <span key={`gap-${idx}`} className="px-1 text-muted-foreground">
+                    …
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    key={item}
+                    variant={item === currentPage ? "default" : "outline"}
+                    size="sm"
+                    className={cn("h-9 min-w-9 px-2", item === currentPage && "pointer-events-none")}
+                    onClick={() => goToPage(item)}
+                    aria-label={`Page ${item}`}
+                    aria-current={item === currentPage ? "page" : undefined}
+                  >
+                    {item.toLocaleString()}
+                  </Button>
+                ),
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-2"
+              disabled={!canGoNext}
+              onClick={() => setOffset(offset + limit)}
+              title="Next page"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 px-2"
+              disabled={!canGoNext}
+              onClick={() => goToPage(totalPages)}
+              title="Last page"
+              aria-label="Last page"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="whitespace-nowrap">Go to</span>
+              <Input
+                inputMode="numeric"
+                className="h-9 w-16 text-center"
+                placeholder={String(currentPage)}
+                value={pageJump}
+                onChange={(e) => setPageJump(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handlePageJump()
+                }}
+                aria-label="Page number"
+              />
+              <Button type="button" variant="secondary" size="sm" className="h-9" onClick={handlePageJump}>
+                Go
+              </Button>
+            </label>
+          </div>
         </div>
       </div>
     </div>

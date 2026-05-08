@@ -238,6 +238,23 @@ export function AdminVideosTable() {
     setSelectedVideoIds([]) // Clear selection when filtering
   }
 
+  /** Click creator in the table to filter the list to that creator (same as sidebar "Creator Username"). */
+  const applyCreatorFilter = (username: string) => {
+    const trimmed = username.trim()
+    if (!trimmed) return
+    setFilters((prev) => ({
+      ...prev,
+      user_username: trimmed,
+      user_uid: "",
+    }))
+    setPage(1)
+    setSelectedVideoIds([])
+    toast({
+      title: "Filter by creator",
+      description: `Showing videos for @${trimmed}.`,
+    })
+  }
+
   // Handle number input changes with debouncing to prevent page refresh on arrow clicks
   const handleNumberFilterChange = (key: string, value: string) => {
     // Prevent negative values - if value is negative or would become negative, set to empty or 0
@@ -859,12 +876,26 @@ export function AdminVideosTable() {
                       </td>
                       <td className="px-4 py-3">
                         {username ? (
-                          <Link
-                            href={`/profile/${username}`}
-                            className="text-primary hover:text-primary/80 hover:underline font-medium transition-colors"
-                          >
-                            @{username}
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <button
+                              type="button"
+                              onClick={() => applyCreatorFilter(String(username))}
+                              className="text-primary hover:text-primary/80 hover:underline font-medium transition-colors text-left"
+                              title="Filter videos by this creator"
+                            >
+                              @{username}
+                            </button>
+                            <Link
+                              href={`/profile/${encodeURIComponent(username)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                              title="Open profile in new tab"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Profile
+                            </Link>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">N/A</span>
                         )}

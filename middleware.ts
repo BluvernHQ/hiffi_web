@@ -24,6 +24,7 @@ export function middleware(req: NextRequest) {
     normalizedPathname.startsWith("/maintenance") ||
     normalizedPathname.startsWith("/_next") ||
     normalizedPathname.startsWith("/api") ||
+    normalizedPathname.startsWith("/proxy") ||
     normalizedPathname.startsWith("/favicon") ||
     normalizedPathname.startsWith("/robots.txt") ||
     normalizedPathname.startsWith("/sitemap") ||
