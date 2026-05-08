@@ -146,7 +146,9 @@ export default function RootLayout({
   const umamiReplayEnabled =
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
-  const umamiDomains = process.env.NEXT_PUBLIC_UMAMI_DOMAINS || "hiffi.com,www.hiffi.com"
+  const umamiDomains =
+    process.env.NEXT_PUBLIC_UMAMI_DOMAINS ||
+    (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com")
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsSrc = apiAnalyticsEnabled
