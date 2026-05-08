@@ -134,6 +134,9 @@ export default function RootLayout({
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
   const gaId = process.env.NEXT_PUBLIC_GA_ID
   const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const umamiPerformanceEnabled =
+    process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "false" &&
+    process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "0"
   const umamiReplayEnabled =
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
@@ -195,6 +198,7 @@ export default function RootLayout({
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
             data-domains={umamiDomains}
+            data-performance={umamiPerformanceEnabled ? "true" : undefined}
             strategy="afterInteractive"
           />
         )}
