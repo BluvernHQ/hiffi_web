@@ -470,10 +470,11 @@ export function AddToPlaylistDialog({
         video_id: vid,
       })
       if (!res.success || !res.playlist_id) throw new Error(res.message || "Create failed")
+      const playlistId = res.playlist_id
       // API currently creates playlist with the video already attached.
       // Roll this back so video assignment only happens when user presses Done.
       try {
-        await apiClient.removePlaylistItem(res.playlist_id, vid)
+        await apiClient.removePlaylistItem(playlistId, vid)
       } catch {
         // If rollback fails here, we keep UI in deferred state and retry on cancel if needed.
       }
@@ -485,23 +486,23 @@ export function AddToPlaylistDialog({
       notifyCuratedPlaylistsUpdated()
       setDeferredCreatedPlaylistIds((prev) => {
         const next = new Set(prev)
-        next.add(res.playlist_id)
+        next.add(playlistId)
         return next
       })
       setBasePlaylistIds((prev) => {
         const next = new Set(prev)
-        next.delete(res.playlist_id)
+        next.delete(playlistId)
         return next
       })
       setPendingAddPlaylistIds((prev) => {
         const next = new Set(prev)
-        next.add(res.playlist_id)
+        next.add(playlistId)
         return next
       })
       setPendingRemovePlaylistIds((prev) => {
-        if (!prev.has(res.playlist_id)) return prev
+        if (!prev.has(playlistId)) return prev
         const next = new Set(prev)
-        next.delete(res.playlist_id)
+        next.delete(playlistId)
         return next
       })
       setCreateTitle("")
