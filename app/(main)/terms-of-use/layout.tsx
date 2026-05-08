@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { routeMetadata } from "@/lib/seo/route-metadata"
+import { SiteFooter } from "@/components/layout/site-footer"
 
 export const metadata = routeMetadata({
   title: "Terms of Use",
@@ -8,5 +9,10 @@ export const metadata = routeMetadata({
 })
 
 export default function TermsOfUseSegmentLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <SiteFooter />
+    </>
+  )
 }

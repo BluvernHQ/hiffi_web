@@ -1,14 +1,13 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import { randomBytes } from "crypto"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
 import { getThumbnailUrl } from "@/lib/storage"
 import { HomeFeedClient } from "./home-feed-client"
 
-// Disable ISR so the homepage can reshuffle immediately on refresh.
-export const dynamic = "force-dynamic"
+// Cache the initial HTML for better TTFB (no CDN). Client can still paginate/refresh.
+export const revalidate = 60
 
 const PAGE_TITLE = "Discover — High-Fidelity Videos & Music"
 const PAGE_DESCRIPTION =
@@ -37,7 +36,7 @@ export const metadata: Metadata = {
 
 export default async function RootPage() {
   // Fetch first page server-side so crawlers & LLMs see real content, not "Loading..."
-  const seed = randomBytes(16).toString("hex")
+  const seed = "hiffi_home_v1"
   const initialVideos = await fetchHomeFeedInitial(10, seed)
 
   // WebPage + ItemList @graph — ties the discover surface to WebSite/Organization for GEO / AI citations.

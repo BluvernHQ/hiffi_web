@@ -96,6 +96,21 @@ class ApiClient {
   private isRefreshing = false
   private refreshPromise: Promise<string | null> | null = null
 
+  private async proxyRequest<T>(pathname: string, searchParams?: URLSearchParams): Promise<T> {
+    const qs = searchParams?.toString()
+    const url = qs ? `${pathname}?${qs}` : pathname
+    const headers: Record<string, string> = {}
+    const token = this.getAuthToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(url, { method: "GET", headers, cache: "no-store" })
+    const text = await res.text()
+    try {
+      return JSON.parse(text) as T
+    } catch {
+      return { success: false, status: "error", message: text } as unknown as T
+    }
+  }
+
   // Store and retrieve JWT token
   setAuthToken(token: string): void {
     if (typeof window !== "undefined") {
@@ -1909,6 +1924,103 @@ class ApiClient {
   }
 
   // --- Playlists (owner-only, /playlists) ---
+  async listCuratedPlaylists(params: { limit?: number; offset?: number } = {}): Promise<{
+    success: boolean
+    playlists: PlaylistSummary[]
+  }> {
+    const limit = params.limit ?? 20
+    const offset = params.offset ?? 0
+
+    const queryParams = new URLSearchParams()
+    if (limit !== 20) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+
+    const qs = queryParams.toString()
+    const endpoint = `/playlists/curated${qs ? `?${qs}` : ""}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: any
+      playlists?: PlaylistSummary[]
+    }>(endpoint, { method: "GET" }, false)
+
+    const ok = response.success === true || response.status === "success"
+    const rawPlaylists: any[] =
+      (response as any).playlists ||
+      (response as any).data?.playlists ||
+      (response as any).data?.items ||
+      (response as any).data?.data ||
+      []
+
+    const playlists: PlaylistSummary[] = Array.isArray(rawPlaylists)
+      ? rawPlaylists.map((p: any) => ({
+          playlist_id: String(p.playlist_id || p.playlistId || ""),
+          owner_uid: p.owner_uid,
+          title: String(p.title || p.playlist_title || ""),
+          description: p.description,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+          item_count: p.total_videos ?? p.item_count,
+        }))
+      : []
+
+    const nonEmpty = playlists.filter((p) => p.playlist_id && p.title)
+    return { success: ok || nonEmpty.length > 0, playlists: nonEmpty }
+  }
+
+  async getCuratedPlaylist(
+    playlistId: string,
+    itemsParams: { limit?: number; offset?: number } = {},
+  ): Promise<{ success: boolean; playlist?: PlaylistSummary; items?: PlaylistItem[] }> {
+    if (!playlistId || playlistId.trim() === "") return { success: false, items: [] }
+
+    const limit = itemsParams.limit ?? 100
+    const offset = itemsParams.offset ?? 0
+
+    const queryParams = new URLSearchParams()
+    if (limit !== 100) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+
+    const qs = queryParams.toString()
+    const endpoint = `/playlists/curated/${encodeURIComponent(playlistId)}${qs ? `?${qs}` : ""}`
+
+    const response = await this.request<any>(endpoint, { method: "GET" }, false)
+    const ok = response.success === true || response.status === "success"
+
+    const rawPlaylist = response.data?.playlist ?? response.playlist
+    if (!ok || !rawPlaylist) return { success: false, items: [] }
+
+    const playlist: PlaylistSummary = {
+      ...rawPlaylist,
+      playlist_id: String(rawPlaylist.playlist_id || rawPlaylist.playlistId || playlistId),
+      title: String(rawPlaylist.title || rawPlaylist.playlist_title || ""),
+      item_count: rawPlaylist.total_videos ?? rawPlaylist.item_count,
+      description: rawPlaylist.description,
+      created_at: rawPlaylist.created_at,
+      updated_at: rawPlaylist.updated_at,
+    }
+
+    const rawItems: any[] = response.data?.items || response.items || []
+    const items: PlaylistItem[] = Array.isArray(rawItems)
+      ? rawItems
+          .map((item: any, index: number): PlaylistItem | null => {
+            const videoId = item.video_id || item.video?.video_id || item.videoId || ""
+            if (!videoId) return null
+            const addedAt = item.added_at ?? item.addedAt
+            const added_at = typeof addedAt === "string" && addedAt.trim().length > 0 ? addedAt : undefined
+            return {
+              video_id: String(videoId),
+              position: typeof item.position === "number" ? item.position : index + 1,
+              ...(added_at ? { added_at } : {}),
+            }
+          })
+          .filter((it): it is PlaylistItem => it !== null)
+      : []
+
+    return { success: true, playlist, items }
+  }
+
   async listMyPlaylists(): Promise<{ success: boolean; playlists: PlaylistSummary[] }> {
     type PlaylistListRow = PlaylistSummary & { total_videos?: number }
     const response = await this.request<{
@@ -3622,6 +3734,149 @@ class ApiClient {
       videos: [],
       count: 0,
     }
+  }
+
+  async adminGetAnalyticsEvents(params: { hours?: number; limit?: number; offset?: number } = {}): Promise<{
+    count: number
+    events: Array<{
+      timestamp: string
+      event: string
+      distinct_id?: string
+      session_id?: string
+      platform?: string
+      url?: string
+      path?: string
+      properties?: Record<string, any>
+      device_type?: string
+    }>
+    hours: number
+    limit: number
+    offset: number
+  }> {
+    const hours = params.hours ?? 24
+    const limit = params.limit ?? 100
+    const offset = params.offset ?? 0
+    const qs = new URLSearchParams({
+      hours: String(hours),
+      limit: String(limit),
+      offset: String(offset),
+    })
+    const res = await this.proxyRequest<any>("/proxy/admin-events", qs)
+    return {
+      count: Number(res.count ?? 0),
+      events: Array.isArray(res.events) ? res.events : [],
+      hours,
+      limit,
+      offset,
+    }
+  }
+
+  async adminGetReferals(params: { limit?: number; offset?: number } = {}): Promise<{
+    count: number
+    referals: Array<any>
+    limit: number
+    offset: number
+  }> {
+    const limit = params.limit ?? 20
+    const offset = params.offset ?? 0
+    const qs = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    })
+    const res = await this.proxyRequest<any>("/proxy/admin-referals", qs)
+    return {
+      count: Number(res.count ?? 0),
+      referals: Array.isArray(res.referals) ? res.referals : [],
+      limit,
+      offset,
+    }
+  }
+
+  async adminCreateUtmGeneratedUrl(body: { url: string; utm_source: string; label?: string }): Promise<{
+    success: boolean
+    error?: string
+  }> {
+    const response = await this.request<any>(
+      "/admin/utm/generated-urls",
+      { method: "POST", body: JSON.stringify(body) },
+      true,
+    )
+    const ok = response.success === true || response.status === "success"
+    return { success: ok, error: response.error || response.message }
+  }
+
+  async adminListUtmGeneratedUrls(params: { limit?: number; offset?: number } = {}): Promise<{
+    count: number
+    utm_generated_urls: any[]
+    limit: number
+    offset: number
+  }> {
+    const limit = params.limit ?? 50
+    const offset = params.offset ?? 0
+    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    const response = await this.request<any>(`/admin/utm/generated-urls?${qs.toString()}`, { method: "GET" }, true)
+    const raw = response.data?.utm_generated_urls ?? response.utm_generated_urls ?? response.items ?? []
+    return {
+      count: Number(response.data?.count ?? response.count ?? 0),
+      utm_generated_urls: Array.isArray(raw) ? raw : [],
+      limit,
+      offset,
+    }
+  }
+
+  async adminListUtmPollEvents(params: Record<string, string | number | undefined> = {}): Promise<{
+    count: number
+    utm_polls: any[]
+  }> {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null || String(v).trim() === "") continue
+      qs.append(k, String(v))
+    }
+    const response = await this.request<any>(`/admin/utm/polls?${qs.toString()}`, { method: "GET" }, true)
+    const raw = response.data?.utm_polls ?? response.utm_polls ?? response.items ?? []
+    return {
+      count: Number(response.data?.count ?? response.count ?? 0),
+      utm_polls: Array.isArray(raw) ? raw : [],
+    }
+  }
+
+  async adminAnalyzeUtmPollEvents(params: Record<string, string | number | undefined> = {}): Promise<{
+    total_events?: number
+    analysis: Array<{ utm_source: string; utm_medium?: string | null; utm_campaign?: string | null; event_count: number }>
+  }> {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null || String(v).trim() === "") continue
+      qs.append(k, String(v))
+    }
+    const response = await this.request<any>(`/admin/utm/polls/analyze?${qs.toString()}`, { method: "GET" }, true)
+    const analysis = response.data?.analysis ?? response.analysis ?? []
+    return {
+      total_events: response.data?.total_events ?? response.total_events,
+      analysis: Array.isArray(analysis) ? analysis : [],
+    }
+  }
+
+  async pollUtmPoll(body: {
+    utm_source: string
+    utm_medium?: string
+    utm_campaign?: string
+    utm_term?: string
+    utm_content?: string
+    session_id: string
+    path: string
+  }): Promise<{ success: boolean }> {
+    const headers: Record<string, string> = {}
+    const key = process.env.NEXT_PUBLIC_UTM_POLL_INGEST_KEY?.trim()
+    if (key) headers["X-Utm-Poll-Ingest-Key"] = key
+    const response = await this.request<any>(
+      "/utm/poll",
+      { method: "POST", headers, body: JSON.stringify(body) },
+      false,
+    )
+    const ok = response.success === true || response.status === "success"
+    return { success: ok }
   }
 }
 

@@ -133,7 +133,13 @@ export default function RootLayout({
 }>) {
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
   const gaId = process.env.NEXT_PUBLIC_GA_ID
-  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const appEnv = process.env.NEXT_PUBLIC_ENV || "beta"
+  const isProd = appEnv === "prod"
+  const isBeta = appEnv === "beta"
+  // Beta-only Umami website id (performance only; no replay)
+  const umamiWebsiteId = isBeta
+    ? "c4c06e01-881a-4dcc-9357-969c56942952"
+    : process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
   const umamiPerformanceEnabled =
     process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "false" &&
     process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "0"
@@ -148,7 +154,6 @@ export default function RootLayout({
     : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
   const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
-  const isProd = process.env.NEXT_PUBLIC_ENV === "prod"
 
   return (
     <html lang="en">
@@ -193,12 +198,12 @@ export default function RootLayout({
           </>
         )}
         {/* Umami Tracker - MUST load before recorder.js */}
-        {isProd && umamiWebsiteId && (
+        {umamiWebsiteId && (isProd || isBeta) && (
           <Script
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
             data-domains={umamiDomains}
-            data-performance={umamiPerformanceEnabled ? "true" : undefined}
+            data-performance={isBeta ? "true" : umamiPerformanceEnabled ? "true" : undefined}
             strategy="afterInteractive"
           />
         )}

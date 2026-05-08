@@ -226,7 +226,7 @@ export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<Ho
     const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
     const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
+      next: { revalidate: REVALIDATE_SECONDS },
     })
     if (!res.ok) return []
     const json = await res.json()
