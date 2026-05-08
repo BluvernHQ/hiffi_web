@@ -109,7 +109,7 @@ export function SiteFooter() {
         <div className="mt-10 border-t border-border/40 pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <Image src="/hiffi_logo.png" alt="Hiffi" width={96} height={32} className="h-8 w-auto" />
+              <Image src="/appbarlogo.png" alt="Hiffi" width={120} height={40} className="h-8 w-auto" />
             </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">

@@ -28,6 +28,8 @@ import { takePendingVideoFile } from '@/lib/upload-pending-video';
 import { registerUploadNavigationGuard } from '@/lib/upload-navigation-guard';
 import { useVideoUploadQueue } from '@/lib/video-upload-queue-context';
 import { cn } from '@/lib/utils';
+import { UploadProgressCard } from '@/components/upload/upload-progress-card';
+import { UploadSuccessCard } from '@/components/upload/upload-success-card';
 
 export default function UploadPage() {
   const { user, userData, loading: authLoading } = useAuth();
@@ -782,84 +784,25 @@ export default function UploadPage() {
               </div>
             )}
 
-            {uploadStep === 'uploading_background' && (
-              <Card>
-                <CardContent className="pt-6 text-center space-y-4 sm:space-y-6">
-                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                    <Upload className="h-10 w-10 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">Upload in progress</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      You can browse the rest of Hiffi — progress appears in the bar at the bottom of the screen.
-                      When the upload finishes, use <span className="font-medium text-foreground">Watch Video</span> here
-                      or in the bar at the bottom. Don&apos;t close this tab until the upload finishes.
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap">
-                    {uploadingWatchVideoId ? (
-                      <Button type="button" asChild className="sm:min-w-[160px]" data-analytics-name="upload-progress-watch-video-button">
-                        <Link href={`/watch/${encodeURIComponent(uploadingWatchVideoId)}`}>Watch Video</Link>
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled
-                        className="sm:min-w-[160px]"
-                        title="Available when the upload finishes"
-                      >
-                        Watch Video
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {uploadStep === 'uploading_background' && <UploadProgressCard uploadingWatchVideoId={uploadingWatchVideoId} />}
 
             {uploadStep === 'success' && (
-              <Card>
-                <CardContent className="pt-6 text-center space-y-6">
-                  <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="h-10 w-10 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold">Upload Complete!</h3>
-                    <p className="text-muted-foreground mt-2">
-                      Your video has been uploaded and is processing. You can open it now — the watch page will show
-                      progress until playback is ready.
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-stretch gap-3 pt-4 sm:flex-row sm:flex-wrap sm:justify-center">
-                    {successVideoId ? (
-                      <Button type="button" asChild className="sm:min-w-[140px]" data-analytics-name="upload-success-watch-video-button">
-                        <Link href={`/watch/${encodeURIComponent(successVideoId)}`}>Watch Video</Link>
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="sm:min-w-[140px]"
-                      data-analytics-name="upload-another-video-button"
-                      onClick={() => {
-                        setSuccessVideoId(null);
-                        setFile(null);
-                        setThumbnail(null);
-                        setThumbnailPreview(null);
-                        autoThumbnails.forEach((url) => URL.revokeObjectURL(url));
-                        setAutoThumbnails([]);
-                        setAutoThumbnailBlobs([]);
-                        setTitle("");
-                        setDescription("");
-                        setTags("");
-                        setUploadStep("select");
-                      }}
-                    >
-                      Upload Another
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <UploadSuccessCard
+                successVideoId={successVideoId}
+                onUploadAnother={() => {
+                  setSuccessVideoId(null);
+                  setFile(null);
+                  setThumbnail(null);
+                  setThumbnailPreview(null);
+                  autoThumbnails.forEach((url) => URL.revokeObjectURL(url));
+                  setAutoThumbnails([]);
+                  setAutoThumbnailBlobs([]);
+                  setTitle("");
+                  setDescription("");
+                  setTags("");
+                  setUploadStep("select");
+                }}
+              />
             )}
           </div>
 

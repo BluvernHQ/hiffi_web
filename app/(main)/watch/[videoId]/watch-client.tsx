@@ -30,6 +30,8 @@ import { captureConversionEvent } from "@/lib/conversion-tracking"
 import dynamic from "next/dynamic"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
+import { DescriptionWithLinks } from "@/components/watch/description-with-links"
+import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
 
 const AddToPlaylistDialog = dynamic(
   () =>
@@ -102,95 +104,6 @@ let persistedWatchUiState: {
 const videoResponseCache = new Map<string, any>()
 const inFlightVideoResponse = new Map<string, Promise<any>>()
 
-const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
-const URL_EXACT_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+)$/i
-
-function resolveVoteState(
-  source: any,
-  fallback: { upvoted: boolean; downvoted: boolean } = { upvoted: false, downvoted: false },
-) {
-  if (!source) return fallback
-
-  if (typeof source.upvoted === "boolean" || typeof source.downvoted === "boolean") {
-    return {
-      upvoted: source.upvoted === true,
-      downvoted: source.downvoted === true,
-    }
-  }
-
-  const voteStatus = source.uservotestatus || source.user_vote_status
-  if (typeof voteStatus === "string") {
-    if (voteStatus === "upvoted") return { upvoted: true, downvoted: false }
-    if (voteStatus === "downvoted") return { upvoted: false, downvoted: true }
-  }
-
-  if (source.upvoted_at || source.liked_at) {
-    return { upvoted: true, downvoted: false }
-  }
-
-  return fallback
-}
-
-function hasVoteMetadata(source: any): boolean {
-  if (!source) return false
-  if (typeof source.upvoted === "boolean" || typeof source.downvoted === "boolean") return true
-  if (typeof source.uservotestatus === "string" || typeof source.user_vote_status === "string") return true
-  if (source.upvoted_at || source.liked_at) return true
-  return false
-}
-
-function getSourceVideoId(source: any): string {
-  if (!source) return ""
-  return source.video_id || source.videoId || ""
-}
-
-function resolveVoteStateForVideo(
-  source: any,
-  expectedVideoId: string,
-  fallback: { upvoted: boolean; downvoted: boolean } = { upvoted: false, downvoted: false },
-) {
-  if (!source) return fallback
-  const sourceId = getSourceVideoId(source)
-  if (!sourceId || sourceId !== expectedVideoId) return fallback
-  return resolveVoteState(source, fallback)
-}
-
-function renderDescriptionWithClickableLinks(text?: string | null) {
-  if (!text) {
-    return null
-  }
-
-  const parts = text.split(URL_REGEX)
-
-  return parts.map((part, index) => {
-    const trimmedPart = part.trim()
-    const isUrl = URL_EXACT_REGEX.test(trimmedPart)
-
-    if (!isUrl) {
-      return <span key={`text-${index}`}>{part}</span>
-    }
-
-    // Keep punctuation outside the link to avoid malformed URLs.
-    const match = part.match(/^(.*?)([.,!?;:)]*)$/)
-    const urlText = match?.[1] ?? part
-    const trailingPunctuation = match?.[2] ?? ""
-    const href = urlText.startsWith("http://") || urlText.startsWith("https://") ? urlText : `https://${urlText}`
-
-    return (
-      <span key={`link-${index}`}>
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline break-all"
-        >
-          {urlText}
-        </a>
-        {trailingPunctuation}
-      </span>
-    )
-  })
-}
 
 async function getVideoResponseOnce(videoId: string, forceFresh = false) {
   if (!forceFresh && videoResponseCache.has(videoId)) {
@@ -1729,7 +1642,9 @@ export default function WatchPage() {
                         </span>
                       </div>
                       <div className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}>
-                        {renderDescriptionWithClickableLinks(currentVideo?.videoDescription || currentVideo?.video_description)}
+                        <DescriptionWithLinks
+                          text={currentVideo?.videoDescription || currentVideo?.video_description}
+                        />
                       </div>
                       <button
                         onClick={() => setShowFullDescription(!showFullDescription)}

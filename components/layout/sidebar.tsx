@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api-client"
 import { setPlaylistSession } from "@/lib/playlist-session"
 import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
+import { CuratedMixSection, type CuratedPlaylistSummary } from "@/components/layout/sidebar/curated-mix-section"
 
 interface SidebarProps {
   className?: string
@@ -49,13 +50,6 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     const params = new URLSearchParams(window.location.search)
     setActiveCuratedPlaylistId(params.get("playlist"))
   }, [pathname])
-
-  type CuratedPlaylistSummary = {
-    playlistId: string
-    title: string
-    description?: string
-    item_count?: number
-  }
 
   const [curatedPlaylists, setCuratedPlaylists] = useState<CuratedPlaylistSummary[]>([])
   const [curatedLoading, setCuratedLoading] = useState(true)
@@ -259,6 +253,75 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     )
   }
 
+  const handleCuratedClick = useCallback(
+    async (p: CuratedPlaylistSummary) => {
+      const requestSeq = ++curatedClickRequestSeqRef.current
+      setActiveCuratedPlaylistId(p.playlistId)
+      setCuratedActionLoadingId(p.playlistId)
+      try {
+        const timeoutMs = 7000
+        const detail = await Promise.race([
+          apiClient.getCuratedPlaylist(p.playlistId, { limit: 100, offset: 0 }),
+          new Promise<null>((resolve) => {
+            setTimeout(() => resolve(null), timeoutMs)
+          }),
+        ])
+
+        const fetchedVideoIds = detail && detail.items ? detail.items.map((it) => it.video_id).filter(Boolean) : []
+        const fallbackFirstVideoId = curatedFirstVideoById[p.playlistId]
+        let firstVideoId: string | undefined = fetchedVideoIds[0] || fallbackFirstVideoId
+
+        // If full fetch timed out and cache is cold, do a small targeted fetch for first playable item.
+        if (!firstVideoId) {
+          const firstDetail = await Promise.race([
+            apiClient.getCuratedPlaylist(p.playlistId, { limit: 1, offset: 0 }),
+            new Promise<null>((resolve) => {
+              setTimeout(() => resolve(null), 3500)
+            }),
+          ])
+          firstVideoId = firstDetail && firstDetail.items ? firstDetail.items.map((it) => it.video_id).find(Boolean) : undefined
+        }
+
+        if (!firstVideoId) return
+        const ensuredFirstVideoId = firstVideoId
+
+        const sessionVideoIds = fetchedVideoIds.length ? fetchedVideoIds : [ensuredFirstVideoId]
+        if (requestSeq !== curatedClickRequestSeqRef.current) return
+
+        setPlaylistSession({
+          playlistId: p.playlistId,
+          title: detail?.playlist?.title || p.title || "Curated Mix",
+          videoIds: sessionVideoIds,
+          currentIndex: 0,
+          autoplay: true,
+        })
+
+        closeSidebar()
+        router.push(`/watch/${encodeURIComponent(ensuredFirstVideoId)}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`)
+      } catch {
+        const fallbackFirstVideoId = curatedFirstVideoById[p.playlistId]
+        if (fallbackFirstVideoId) {
+          if (requestSeq !== curatedClickRequestSeqRef.current) return
+          setActiveCuratedPlaylistId(p.playlistId)
+          setPlaylistSession({
+            playlistId: p.playlistId,
+            title: p.title || "Curated Mix",
+            videoIds: [fallbackFirstVideoId],
+            currentIndex: 0,
+            autoplay: true,
+          })
+          closeSidebar()
+          router.push(`/watch/${encodeURIComponent(fallbackFirstVideoId)}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`)
+        }
+      } finally {
+        if (requestSeq === curatedClickRequestSeqRef.current) {
+          setCuratedActionLoadingId(null)
+        }
+      }
+    },
+    [closeSidebar, curatedFirstVideoById, router],
+  )
+
   return (
     <>
       {/* Mobile Sidebar Overlay */}
@@ -360,79 +423,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                           <button
                             key={p.playlistId}
                             type="button"
-                            onClick={async () => {
-                              const requestSeq = ++curatedClickRequestSeqRef.current
-                              setActiveCuratedPlaylistId(p.playlistId)
-                              setCuratedActionLoadingId(p.playlistId)
-                              try {
-                                const timeoutMs = 7000
-                                const detail = await Promise.race([
-                                  apiClient.getCuratedPlaylist(p.playlistId, { limit: 100, offset: 0 }),
-                                  new Promise<null>((resolve) => {
-                                    setTimeout(() => resolve(null), timeoutMs)
-                                  }),
-                                ])
-
-                                const fetchedVideoIds =
-                                  detail && detail.items ? detail.items.map((it) => it.video_id).filter(Boolean) : []
-                                const fallbackFirstVideoId = curatedFirstVideoById[p.playlistId]
-                                let firstVideoId: string | undefined = fetchedVideoIds[0] || fallbackFirstVideoId
-
-                                // If full fetch timed out and cache is cold, do a small targeted fetch for first playable item.
-                                if (!firstVideoId) {
-                                  const firstDetail = await Promise.race([
-                                    apiClient.getCuratedPlaylist(p.playlistId, { limit: 1, offset: 0 }),
-                                    new Promise<null>((resolve) => {
-                                      setTimeout(() => resolve(null), 3500)
-                                    }),
-                                  ])
-                                  firstVideoId =
-                                    firstDetail && firstDetail.items
-                                      ? firstDetail.items.map((it) => it.video_id).find(Boolean)
-                                      : undefined
-                                }
-
-                                if (!firstVideoId) return
-                                const ensuredFirstVideoId = firstVideoId
-
-                                const sessionVideoIds = fetchedVideoIds.length ? fetchedVideoIds : [ensuredFirstVideoId]
-                                if (requestSeq !== curatedClickRequestSeqRef.current) return
-
-                                setPlaylistSession({
-                                  playlistId: p.playlistId,
-                                  title: detail?.playlist?.title || p.title || "Curated Mix",
-                                  videoIds: sessionVideoIds,
-                                  currentIndex: 0,
-                                  autoplay: true,
-                                })
-
-                                closeSidebar()
-                                router.push(
-                                  `/watch/${encodeURIComponent(ensuredFirstVideoId)}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`,
-                                )
-                              } catch {
-                                const fallbackFirstVideoId = curatedFirstVideoById[p.playlistId]
-                                if (fallbackFirstVideoId) {
-                                  if (requestSeq !== curatedClickRequestSeqRef.current) return
-                                  setActiveCuratedPlaylistId(p.playlistId)
-                                  setPlaylistSession({
-                                    playlistId: p.playlistId,
-                                    title: p.title || "Curated Mix",
-                                    videoIds: [fallbackFirstVideoId],
-                                    currentIndex: 0,
-                                    autoplay: true,
-                                  })
-                                  closeSidebar()
-                                  router.push(
-                                    `/watch/${encodeURIComponent(fallbackFirstVideoId)}?playlist=${encodeURIComponent(p.playlistId)}&pindex=0`,
-                                  )
-                                }
-                              } finally {
-                                if (requestSeq === curatedClickRequestSeqRef.current) {
-                                  setCuratedActionLoadingId(null)
-                                }
-                              }
-                            }}
+                            onClick={() => void handleCuratedClick(p)}
                             className={cn(
                               "group relative flex w-full items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200",
                               isAppDownloadPage
