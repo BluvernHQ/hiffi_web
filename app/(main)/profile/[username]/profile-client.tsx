@@ -157,12 +157,28 @@ export default function ProfilePage() {
           console.log("[hiffi] Normalizing: setting profile_picture from image field");
           profileData.profile_picture = profileData.image;
         }
+
+        // Fetch videos using getUserVideos endpoint
+        // This endpoint is public and often returns the user's profile picture in the metadata
+        const videosResponse = await apiClient.getUserVideos(username, { limit: 12 });
+        
+        // RESCUE LOGIC: If profile_picture is missing (common for guest users), 
+        // try to find it in the public videos response
+        if (!profileData.profile_picture && videosResponse.success && videosResponse.videos.length > 0) {
+          const videoWithPicture = videosResponse.videos.find((v: any) => v.user_profile_picture && v.user_profile_picture.trim() !== "");
+          if (videoWithPicture) {
+            console.log("[hiffi] Rescuing profile_picture from public video metadata:", videoWithPicture.user_profile_picture);
+            profileData.profile_picture = videoWithPicture.user_profile_picture;
+          }
+        }
         
         // Log final profile picture value before setting state
         console.log("[hiffi] Final profile_picture value before setting state:", profileData?.profile_picture);
         
         setProfileUser(profileData);
         
+        // Set videos from the public response
+        const videosArray = videosResponse.videos || [];        
         // Increment profile picture version if profile_picture path changed OR if force refresh
         // This forces AvatarImage to re-render with new cache buster
         if (forceRefresh || (newProfilePicture && newProfilePicture !== previousProfilePicture)) {
@@ -869,6 +885,12 @@ export default function ProfilePage() {
               />
             </>
           )}
+          <AuthDialog
+            open={authDialogOpen}
+            onOpenChange={setAuthDialogOpen}
+            title="Sign in to follow creators"
+            description="Create an account or sign in to follow creators and stay updated with their latest videos."
+          />
         </div>
       </>
     );
@@ -1066,15 +1088,24 @@ export default function ProfilePage() {
                         <h3 className="font-semibold mb-2 sm:mb-3 text-xs sm:text-sm">Stats</h3>
                         <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
                           <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
-                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">{(profileUser?.total_videos || profileUser?.totalVideos || profileUser?.totalvideos || userVideos.length || 0).toLocaleString()}</div>
+                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
+                              {((profileUser?.total_videos ?? profileUser?.totalVideos ?? profileUser?.totalvideos ?? profileUser?.user?.total_videos ?? profileUser?.user?.totalVideos ?? userVideos.length ?? 0)).toLocaleString()}
+                            </div>
                             <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">Videos</div>
                           </div>
                           <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
-                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">{(profileUser?.followers ?? 0).toLocaleString()}</div>
+                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
+                              {((profileUser?.followers ?? profileUser?.followers_count ?? profileUser?.followersCount ?? profileUser?.user?.followers ?? profileUser?.user?.followers_count ?? 0)).toLocaleString()}
+                            </div>
                             <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">Followers</div>
                           </div>
                           <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
-                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">{(profileUser?.following ?? 0).toLocaleString()}</div>
+                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
+                              {(() => {
+                                const following = profileUser?.following ?? profileUser?.following_count ?? profileUser?.followingCount ?? profileUser?.user?.following ?? profileUser?.user?.following_count ?? 0;
+                                return (typeof following === 'number' ? following : 0).toLocaleString();
+                              })()}
+                            </div>
                             <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">Following</div>
                           </div>
                         </div>
@@ -1147,14 +1178,14 @@ export default function ProfilePage() {
                   await fetchUserData(true)
                 }}
               />
-              <AuthDialog
-                open={authDialogOpen}
-                onOpenChange={setAuthDialogOpen}
-                title="Sign in to follow creators"
-                description="Create an account or sign in to follow creators and stay updated with their latest videos."
-              />
             </>
           )}
+          <AuthDialog
+            open={authDialogOpen}
+            onOpenChange={setAuthDialogOpen}
+            title="Sign in to follow creators"
+            description="Create an account or sign in to follow creators and stay updated with their latest videos."
+          />
         </div>
       </>
     );

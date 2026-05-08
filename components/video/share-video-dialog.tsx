@@ -123,6 +123,8 @@ export function ShareVideoDialog({
     startAtSeconds != null && startAtSeconds > 0
       ? `${url}${url.includes("?") ? "&" : "?"}t=${Math.round(startAtSeconds)}`
       : url
+  const canNativeShare =
+    typeof navigator !== "undefined" && typeof (navigator as unknown as { share?: unknown }).share === "function"
 
   const handleCopy = async () => {
     try {
@@ -165,7 +167,7 @@ export function ShareVideoDialog({
       onOpenChange(false)
     } else if (result.success && result.method === "clipboard") {
       toast({ title: "Link copied!", description: "Video link copied to clipboard." })
-    } else if (!result.success && !result.cancelled) {
+    } else if (!result.success) {
       toast({
         title: "Could not share",
         description: "Try copying the link below instead.",
@@ -200,7 +202,7 @@ export function ShareVideoDialog({
                 </a>
               ))}
               {/* Native share (opens system sheet on mobile) */}
-              {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+              {canNativeShare && (
                 <button
                   type="button"
                   onClick={handleNativeShare}

@@ -76,7 +76,7 @@ export default function LikedVideosPage() {
         limit: VIDEOS_PER_PAGE,
       })
 
-      const likedVideos = response.videos || []
+      const likedVideos = (response.videos || []) as LikedVideo[]
 
       console.log(`[hiffi] Received ${likedVideos.length} liked videos at offset ${currentOffset}`)
 

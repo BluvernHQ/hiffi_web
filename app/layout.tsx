@@ -1,5 +1,4 @@
-import type { Metadata } from "next"
-import { Suspense } from "react"
+import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
@@ -9,9 +8,7 @@ import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
 import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
-import { ApiAnalyticsTracker } from "@/components/analytics/api-analytics-tracker"
-import { UtmPoll } from "@/components/marketing/utm-poll"
-import { RuntimeGuards } from "@/components/system/runtime-guards"
+import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
 import { API_BASE_URL } from '@/lib/config'
@@ -23,9 +20,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
   "Hiffi is a creator-first, high-fidelity video and lossless audio streaming platform for independent artists. Discover, stream, and support creators without algorithmic interference."
-const NEXT_PUBLIC_ENV_VALUE = (process.env.NEXT_PUBLIC_ENV || "beta").toLowerCase()
-const IS_PROD_ENV = NEXT_PUBLIC_ENV_VALUE === "prod"
-const IS_BETA_ENV = NEXT_PUBLIC_ENV_VALUE === "beta"
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteOrigin()),
@@ -49,9 +43,9 @@ export const metadata: Metadata = {
   generator: "Next.js",
   referrer: "origin-when-cross-origin",
   robots: {
-    index: IS_PROD_ENV,
-    follow: IS_PROD_ENV,
-    googleBot: { index: IS_PROD_ENV, follow: IS_PROD_ENV, "max-image-preview": "large" },
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
   alternates: {
     canonical: getSiteOrigin(),
@@ -137,20 +131,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const analyticsEnabled = IS_PROD_ENV
-  const clarityId = analyticsEnabled ? process.env.NEXT_PUBLIC_CLARITY_ID : null
-  const gaId = analyticsEnabled ? process.env.NEXT_PUBLIC_GA_ID : null
-  const umamiWebsiteId = analyticsEnabled ? process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID : null
-  // First-party batch analytics runs on both prod and beta deployments, independent of
-  // the third-party trackers above. Set NEXT_PUBLIC_API_ANALYTICS=false (or 0) to kill-switch it.
-  const apiAnalyticsKillSwitched =
-    process.env.NEXT_PUBLIC_API_ANALYTICS === "false" || process.env.NEXT_PUBLIC_API_ANALYTICS === "0"
-  const apiAnalyticsEnabled = (IS_PROD_ENV || IS_BETA_ENV) && !apiAnalyticsKillSwitched
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
+  const gaId = process.env.NEXT_PUBLIC_GA_ID
+  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const umamiPerformanceEnabled =
+    process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "false" &&
+    process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "0"
+  const umamiReplayEnabled =
+    process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
+    process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
+  const umamiDomains = process.env.NEXT_PUBLIC_UMAMI_DOMAINS || "hiffi.com,www.hiffi.com"
+  const apiAnalyticsEnabled =
+    process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsSrc = apiAnalyticsEnabled
     ? `${API_BASE_URL.replace(/\/$/, "")}/tracker.js`
     : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
   const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
+  const isProd = process.env.NEXT_PUBLIC_ENV === "prod"
 
   return (
     <html lang="en">
@@ -194,12 +192,25 @@ export default function RootLayout({
             />
           </>
         )}
-        {/* Umami - ID from env only */}
-        {umamiWebsiteId && (
+        {/* Umami Tracker - MUST load before recorder.js */}
+        {isProd && umamiWebsiteId && (
           <Script
-            id="umami"
             src="https://analytics.superlabs.co/script.js"
             data-website-id={umamiWebsiteId}
+            data-domains={umamiDomains}
+            data-performance={umamiPerformanceEnabled ? "true" : undefined}
+            strategy="afterInteractive"
+          />
+        )}
+        {/* Umami Session Replay */}
+        {isProd && umamiWebsiteId && umamiReplayEnabled && (
+          <Script
+            src="https://analytics.superlabs.co/recorder.js"
+            data-website-id={umamiWebsiteId}
+            data-sample-rate="100"
+            data-mask-level="moderate"
+            data-max-duration="300000"
+            data-domains={umamiDomains}
             strategy="afterInteractive"
           />
         )}
@@ -217,13 +228,7 @@ export default function RootLayout({
         <AuthProvider>
           <VideoProvider>
             <SidebarProvider>
-              <VideoUploadQueueProvider>
-                {children}
-                <Suspense fallback={null}>
-                  <UtmPoll />
-                </Suspense>
-                <RuntimeGuards />
-              </VideoUploadQueueProvider>
+              <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
             </SidebarProvider>
           </VideoProvider>
         </AuthProvider>
