@@ -1,4 +1,30 @@
 import { API_BASE_URL } from "./config"
+import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
+import { uploadVideo as uploadUploadVideo, acknowledgeUpload as uploadAcknowledgeUpload, uploadFile as uploadUploadFile } from "@/lib/api/upload"
+import { getVideo as publicGetVideo, followUser as publicFollowUser, unfollowUser as publicUnfollowUser, type VideoApiShape } from "@/lib/api/public"
+import {
+  adminListUsers as adminAdminListUsers,
+  adminListVideos as adminAdminListVideos,
+  adminListComments as adminAdminListComments,
+  adminListReplies as adminAdminListReplies,
+  adminCounters as adminAdminCounters,
+  adminListFollowers as adminAdminListFollowers,
+  adminDisableUser as adminAdminDisableUser,
+  adminEnableUser as adminAdminEnableUser,
+  adminGetAnalyticsEvents as adminAdminGetAnalyticsEvents,
+  adminGetReferals as adminAdminGetReferals,
+  adminCreateUtmGeneratedUrl as adminAdminCreateUtmGeneratedUrl,
+  adminListUtmGeneratedUrls as adminAdminListUtmGeneratedUrls,
+  adminListUtmPollEvents as adminAdminListUtmPollEvents,
+  adminAnalyzeUtmPollEvents as adminAdminAnalyzeUtmPollEvents,
+  pollUtmPoll as adminPollUtmPoll,
+  type AdminListResult,
+  type AdminUserRow,
+  type AdminVideoRow,
+  type AdminFollowerRow,
+  type AdminCommentRow,
+  type AdminReplyRow,
+} from "@/lib/api/admin"
 const TOKEN_KEY = "hiffi_auth_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
@@ -7,6 +33,12 @@ export interface ApiError {
   message: string
   status: number
   responseBody?: string
+}
+
+export type ApiUser = Record<string, unknown>
+
+export function isApiUser(value: unknown): value is ApiUser {
+  return typeof value === "object" && value !== null
 }
 
 // Video Types
@@ -96,7 +128,8 @@ class ApiClient {
   private isRefreshing = false
   private refreshPromise: Promise<string | null> | null = null
 
-  private async proxyRequest<T>(pathname: string, searchParams?: URLSearchParams): Promise<T> {
+  // Used by api/* modules too
+  async proxyRequest<T>(pathname: string, searchParams?: URLSearchParams): Promise<T> {
     const qs = searchParams?.toString()
     const url = qs ? `${pathname}?${qs}` : pathname
     const headers: Record<string, string> = {}
@@ -193,7 +226,8 @@ class ApiClient {
     return this.refreshPromise
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth = false): Promise<T> {
+  // Used by api/* modules too
+  async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth = false): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`
     const method = options.method || "GET"
     const headers: Record<string, string> = {
@@ -378,13 +412,14 @@ class ApiClient {
       }
 
       return data
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime
       
       // Check if this is a disabled account error (403) - don't log as error
-      const isDisabledAccount = error?.status === 403 && error?.responseBody && (() => {
+      const err = error as Partial<ApiError> | null
+      const isDisabledAccount = err?.status === 403 && err?.responseBody && (() => {
         try {
-          const errorData = JSON.parse(error.responseBody)
+          const errorData = JSON.parse(err.responseBody)
           return errorData.disabled === true && errorData.success === false
         } catch {
           return false
@@ -441,50 +476,8 @@ class ApiClient {
     return response
   }
 
-  async verifyOtp(data: { id: string; otp: string }): Promise<{
-    success: boolean
-    data?: {
-      expires_in: number
-      id: number
-      token: string
-      uid: string
-      user: {
-        name: string
-        uid: string
-        username: string
-      }
-    }
-    error?: string
-  }> {
-    const response = await this.request<{
-      success: boolean
-      data?: {
-        expires_in: number
-        id: number
-        token: string
-        uid: string
-        user: {
-          name: string
-          uid: string
-          username: string
-        }
-      }
-      error?: string
-    }>(
-      "/auth/verify",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-      false,
-    )
-    
-    // Store the token if verification is successful
-    if (response.success && response.data?.token) {
-      this.setAuthToken(response.data.token)
-    }
-    
-    return response
+  async verifyOtp(data: { id: string; otp: string }) {
+    return authVerifyOtp(this, data)
   }
 
   async requestPasswordReset(email: string): Promise<{
@@ -531,45 +524,8 @@ class ApiClient {
     return response
   }
 
-  async login(data: { username?: string; email?: string; password: string }): Promise<{
-    success: boolean
-    data: {
-      token: string
-      user: {
-        name: string
-        uid: string
-        username: string
-      }
-    }
-  }> {
-    const response = await this.request<{
-      success: boolean
-      data: {
-        token: string
-        user: {
-          name: string
-          uid: string
-          username: string
-        }
-      }
-    }>(
-      "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-      false,
-    )
-    
-    // Store the token
-    if (response.success && response.data.token) {
-      this.setAuthToken(response.data.token)
-      // Store credentials in cookies for auto-login
-      // Use the username returned by the server for consistency
-      this.setCredentials(response.data.user.username, data.password)
-    }
-    
-    return response
+  async login(data: { username?: string; email?: string; password: string }) {
+    return authLogin(this, data)
   }
 
   // User endpoints
@@ -619,7 +575,7 @@ class ApiClient {
     }
   }
 
-  async createUser(data: { username: string; name: string }): Promise<any> {
+  async createUser(data: { username: string; name: string }): Promise<{ success: boolean; user?: ApiUser; message?: string }> {
     return this.request(
       "/users/create",
       {
@@ -630,7 +586,7 @@ class ApiClient {
     )
   }
 
-  async getCurrentUser(): Promise<{ success: boolean; user?: any; following?: boolean; data?: { user: any } }> {
+  async getCurrentUser(): Promise<{ success: boolean; user?: ApiUser | null; following?: boolean; data?: { user: ApiUser } }> {
     // DEPRECATED: This method is deprecated. Use getUserByUsername(username) instead.
     // This method is kept for backward compatibility but will try to get username from localStorage
     console.warn("[API] getCurrentUser is deprecated. Use getUserByUsername(username) instead.")
@@ -664,7 +620,7 @@ class ApiClient {
 
   async getUserByUsername(username: string): Promise<{ 
     success: boolean
-    user: any
+    user?: ApiUser | null
     following?: boolean
     disabled?: boolean
   }> {
@@ -674,10 +630,10 @@ class ApiClient {
         status?: string
         disabled?: boolean
         data?: {
-          user: any
+          user: ApiUser
           following?: boolean
         }
-        user?: any
+        user?: ApiUser
         following?: boolean
       }>(`/users/${username}`, {}, true)
       
@@ -719,11 +675,12 @@ class ApiClient {
         following: false,
         disabled: false,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle 403 errors that may indicate a disabled account
-      if (error?.status === 403 && error?.responseBody) {
+      const err = error as Partial<ApiError> | null
+      if (err?.status === 403 && err?.responseBody) {
         try {
-          const errorData = JSON.parse(error.responseBody)
+          const errorData = JSON.parse(err.responseBody)
           // Check if the error response indicates a disabled account
           if (errorData.disabled === true && errorData.success === false) {
             return {
@@ -740,7 +697,7 @@ class ApiClient {
 
       // Gracefully handle 401 unauthorised when looking up users by username.
       // This commonly happens for logged-out sessions or private/removed accounts.
-      if (error?.status === 401) {
+      if (err?.status === 401) {
         console.warn(`[API] getUserByUsername(${username}) - unauthorized (401). Returning null user.`)
         return {
           success: false,
@@ -1399,107 +1356,13 @@ class ApiClient {
   }
 
   // POST /videos/upload - Initiate video upload
-  async uploadVideo(data: { video_title: string; video_description: string; video_tags: string[] }): Promise<{
-    success: boolean
-    bridge_id: string
-    gateway_url: string
-    gateway_url_thumbnail: string
-    message?: string
-  }> {
-    const response = await this.request<{
-      success?: boolean
-    status?: string
-      data?: {
-        bridge_id?: string
-        gateway_url?: string
-        gateway_url_thumbnail?: string
-      }
-      bridge_id?: string
-      gateway_url?: string
-      gateway_url_thumbnail?: string
-      message?: string
-    }>(
-      "/videos/upload",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-      true,
-    )
-    
-    // Normalize response structure
-    // API may return: 
-    // - { status: "success", message: "bridge created", bridge_id: "...", gateway_url: "...", gateway_url_thumbnail: "..." }
-    // - { success: true, data: { bridge_id: "...", gateway_url: "...", gateway_url_thumbnail: "..." } }
-    const isSuccess = response.status === "success" || response.success
-    
-    if (isSuccess) {
-      // Extract fields from either response.data or directly from response
-      const bridgeId = response.data?.bridge_id || response.bridge_id
-      const gatewayUrl = response.data?.gateway_url || response.gateway_url
-      const gatewayUrlThumbnail = response.data?.gateway_url_thumbnail || response.gateway_url_thumbnail
-      
-      // Validate required fields are present
-      if (!bridgeId || bridgeId.trim() === "") {
-        throw new Error("Upload bridge created but bridge_id is missing from response. Please try again.")
-      }
-      if (!gatewayUrl || gatewayUrl.trim() === "") {
-        throw new Error("Upload bridge created but gateway_url is missing from response. Please try again.")
-      }
-
-      console.log("[API] Upload bridge created successfully:", {
-        bridge_id: bridgeId,
-        has_gateway_url: !!gatewayUrl,
-        has_thumbnail_url: !!gatewayUrlThumbnail,
-      })
-
-      return {
-        success: true,
-        bridge_id: bridgeId,
-        gateway_url: gatewayUrl,
-        gateway_url_thumbnail: gatewayUrlThumbnail || "",
-        message: response.message,
-      }
-    }
-    
-    throw new Error(response.message || "Failed to initiate video upload")
+  async uploadVideo(data: { video_title: string; video_description: string; video_tags: string[] }) {
+    return uploadUploadVideo(this, data)
   }
 
   // POST /videos/upload/ack/{videoID} - Acknowledge video upload
-  async acknowledgeUpload(bridgeId: string): Promise<{ success: boolean; message: string }> {
-    // Validate bridgeId is provided and not empty
-    if (!bridgeId || bridgeId.trim() === "") {
-      throw new Error("Bridge ID is required to acknowledge upload. Please try uploading again.")
-    }
-
-    console.log("[API] Acknowledging upload with bridge_id:", bridgeId)
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      message?: string
-    }>(
-      `/videos/upload/ack/${bridgeId}`,
-      {
-        method: "POST",
-        body: JSON.stringify({}),
-      },
-      true,
-    )
-    
-    // Normalize response structure
-    // API returns: { status: "success", message: "video uploaded" }
-    if (response.status === "success" || response.success) {
-      return {
-        success: true,
-        message: response.message || "Video uploaded successfully",
-      }
-    }
-    
-    return {
-      success: false,
-      message: response.message || "Failed to acknowledge upload",
-    }
+  async acknowledgeUpload(bridgeId: string) {
+    return uploadAcknowledgeUpload(this, bridgeId)
   }
 
   // GET /videos/{videoID} - Get video information and streaming URL
@@ -1507,75 +1370,14 @@ class ApiClient {
   async getVideo(videoId: string): Promise<{
     success: boolean
     video_url: string
-    video?: any // Full video object with all metadata
+    video?: VideoApiShape
     upvoted?: boolean
     downvoted?: boolean
     following?: boolean
     profile_picture?: string
     put_view_error?: string
   }> {
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        video?: any
-        video_url?: string
-        upvoted?: boolean
-        downvoted?: boolean
-        following?: boolean
-        profile_picture?: string
-        put_view_error?: string
-      }
-      video?: any
-      video_url?: string
-      upvoted?: boolean
-      downvoted?: boolean
-      following?: boolean
-      profile_picture?: string
-      put_view_error?: string
-    }>(
-      `/videos/${videoId}`,
-      {},
-      true, // Authentication required to get user-specific states (following, upvoted, downvoted)
-    )
-    
-    // Normalize response structure
-    // New API format: { success: true, data: { video: {...}, video_url: "...", upvoted: false, downvoted: false, following: false, profile_picture: "" } }
-    // Legacy format: { status: "success", video_url: "...", upvoted: false, downvoted: false, following: false }
-    const isSuccess = response.status === "success" || response.success
-    
-    if (isSuccess) {
-      // Extract from data object if present (new format)
-      if (response.data) {
-        return {
-          success: true,
-          video_url: response.data.video_url || "",
-          video: response.data.video,
-          upvoted: response.data.upvoted,
-          downvoted: response.data.downvoted,
-          following: response.data.following,
-          profile_picture: response.data.profile_picture || "",
-          put_view_error: response.data.put_view_error,
-        }
-      }
-      
-      // Legacy format - extract from top level
-      return {
-        success: true,
-        video_url: response.video_url || "",
-        video: response.video,
-        upvoted: response.upvoted,
-        downvoted: response.downvoted,
-        following: response.following,
-        profile_picture: response.profile_picture || "",
-        put_view_error: response.put_view_error,
-      }
-    }
-    
-    return {
-      success: false,
-      video_url: "",
-    }
+    return publicGetVideo(this, videoId)
   }
 
   // Legacy method - kept for backward compatibility
@@ -2441,60 +2243,12 @@ class ApiClient {
   // Social endpoints - User Social
   // POST /social/users/follow/{username} - Follow a user
   async followUser(username: string): Promise<{ success: boolean; message: string }> {
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        message?: string
-      }
-      message?: string
-    }>(
-      `/social/users/follow/${username}`,
-      {
-        method: "POST",
-        body: JSON.stringify({}),
-      },
-      true,
-    )
-    
-    // Normalize response structure
-    // API returns: { success: true, data: { message: "Followed successfully" } }
-    const isSuccess = Boolean(response.status === "success" || response.success)
-    const message = response.data?.message || response.message || ""
-    
-    return {
-      success: isSuccess,
-      message: message,
-    }
+    return publicFollowUser(this, username)
   }
 
   // POST /social/users/unfollow/{username} - Unfollow a user
   async unfollowUser(username: string): Promise<{ success: boolean; message: string }> {
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        message?: string
-      }
-      message?: string
-    }>(
-      `/social/users/unfollow/${username}`,
-      {
-        method: "POST",
-        body: JSON.stringify({}),
-      },
-      true,
-    )
-    
-    // Normalize response structure
-    // API returns: { success: true, data: { message: "Unfollowed successfully" } }
-    const isSuccess = Boolean(response.status === "success" || response.success)
-    const message = response.data?.message || response.message || ""
-    
-    return {
-      success: isSuccess,
-      message: message,
-    }
+    return publicUnfollowUser(this, username)
   }
 
   // GET /social/users/following - List users that the current authenticated user is following
@@ -2696,106 +2450,7 @@ class ApiClient {
     onProgress?: (progress: number) => void,
     onXhrReady?: (xhr: XMLHttpRequest) => void,
   ): Promise<void> {
-    // Log file upload start
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2)
-    const fileName = file.name || "unknown"
-    console.log(`[API] PUT ${url.substring(0, 100)}...`)
-    console.log(`[API] Uploading file: ${fileName} (${fileSizeMB} MB, ${file.type || "no type"})`)
-    
-    // Convert File to ArrayBuffer - this prevents browser from auto-setting Content-Type
-    // Pre-signed URLs with only 'host' in signed headers can't have Content-Type header
-    // ArrayBuffer doesn't have a MIME type, so browser won't auto-set Content-Type
-    const fileBuffer = await file.arrayBuffer()
-    const startTime = Date.now()
-    
-    // Use XMLHttpRequest if progress tracking is needed, otherwise use fetch
-    if (onProgress) {
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-
-        // Track upload progress
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable && onProgress) {
-            const percentComplete = (e.loaded / e.total) * 100
-            onProgress(percentComplete)
-          }
-        })
-
-        xhr.addEventListener('load', () => {
-          const duration = Date.now() - startTime
-          if (xhr.status >= 200 && xhr.status < 300) {
-            console.log(`[API] PUT ${url.substring(0, 100)}... - SUCCESS (${xhr.status}) in ${duration}ms`)
-            console.log(`[API] File uploaded: ${fileName} (${fileSizeMB} MB)`)
-            resolve()
-          } else {
-            const errorMessage = xhr.responseText || xhr.statusText || `HTTP ${xhr.status}`
-            console.error(`[API] PUT ${url.substring(0, 100)}... - FAILED (${xhr.status}) in ${duration}ms`)
-            console.error(`[API] Error: ${errorMessage}`)
-            reject(new Error(`Upload failed with status ${xhr.status}: ${errorMessage}`))
-          }
-        })
-
-        xhr.addEventListener('error', () => {
-          const duration = Date.now() - startTime
-          console.error(`[API] PUT ${url.substring(0, 100)}... - ERROR after ${duration}ms`)
-          console.error('[API] Upload error details:', {
-            status: xhr.status,
-            statusText: xhr.statusText,
-            responseText: xhr.responseText?.substring(0, 200),
-            readyState: xhr.readyState,
-            fileName,
-            fileSize: `${fileSizeMB} MB`
-          })
-          const errorMessage = xhr.responseText || xhr.statusText || 'Network error occurred'
-          reject(new Error(`Upload failed: ${errorMessage}`))
-        })
-
-        xhr.addEventListener('abort', () => {
-          reject(new Error('Upload was aborted'))
-        })
-
-        try {
-          xhr.open('PUT', url, true)
-          onXhrReady?.(xhr)
-          // Send ArrayBuffer directly - no Content-Type header will be set
-          // Pre-signed URL only has 'host' in signed headers, so no other headers allowed
-          // ArrayBuffer doesn't have MIME type, preventing Content-Type header
-          xhr.send(fileBuffer)
-        } catch (error) {
-          const duration = Date.now() - startTime
-          console.error(`[API] PUT ${url.substring(0, 100)}... - ERROR opening request after ${duration}ms:`, error)
-          reject(new Error(`Failed to initiate upload: ${error instanceof Error ? error.message : 'Unknown error'}`))
-        }
-      })
-    } else {
-      // Use fetch for simpler upload without progress tracking
-      try {
-        const response = await fetch(url, {
-          method: 'PUT',
-          body: fileBuffer, // Send ArrayBuffer directly - no Content-Type header
-          // Don't set any headers - pre-signed URL signature only includes 'host'
-        })
-
-        const duration = Date.now() - startTime
-
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => response.statusText)
-          console.error(`[API] PUT ${url.substring(0, 100)}... - FAILED (${response.status}) in ${duration}ms`)
-          console.error(`[API] Error: ${errorText.substring(0, 200)}`)
-          throw new Error(`Upload failed with status ${response.status}: ${errorText}`)
-        }
-
-        console.log(`[API] PUT ${url.substring(0, 100)}... - SUCCESS (${response.status}) in ${duration}ms`)
-        console.log(`[API] File uploaded: ${fileName} (${fileSizeMB} MB)`)
-      } catch (error) {
-        const duration = Date.now() - startTime
-        console.error(`[API] PUT ${url.substring(0, 100)}... - ERROR after ${duration}ms:`, error)
-        if (error instanceof Error) {
-          throw error
-        }
-        throw new Error(`Upload failed: ${error}`)
-      }
-    }
+    return uploadUploadFile(this, url, file, onProgress, onXhrReady)
   }
 
   // Admin endpoints - List Users
@@ -2817,91 +2472,9 @@ class ApiClient {
     created_before?: string
     updated_after?: string
     updated_before?: string
-  }): Promise<{
-    status: string
-    users: any[]
-    limit: number
-    offset: number
-    count: number
-    filters?: any
-  }> {
-    const queryParams = new URLSearchParams()
-    
-    // Pagination
-    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
-    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
-    
-    // Text filters
-    if (params.username) queryParams.append("username", params.username)
-    if (params.name) queryParams.append("name", params.name)
-    if (params.role) queryParams.append("role", params.role)
-    if (params.uid) queryParams.append("uid", params.uid)
-    
-    // Numeric range filters
-    if (params.followers_min !== undefined) queryParams.append("followers_min", params.followers_min.toString())
-    if (params.followers_max !== undefined) queryParams.append("followers_max", params.followers_max.toString())
-    if (params.following_min !== undefined) queryParams.append("following_min", params.following_min.toString())
-    if (params.following_max !== undefined) queryParams.append("following_max", params.following_max.toString())
-    if (params.total_videos_min !== undefined) queryParams.append("total_videos_min", params.total_videos_min.toString())
-    if (params.total_videos_max !== undefined) queryParams.append("total_videos_max", params.total_videos_max.toString())
-    
-    // Date range filters
-    if (params.created_after) queryParams.append("created_after", params.created_after)
-    if (params.created_before) queryParams.append("created_before", params.created_before)
-    if (params.updated_after) queryParams.append("updated_after", params.updated_after)
-    if (params.updated_before) queryParams.append("updated_before", params.updated_before)
-    
-    const queryString = queryParams.toString()
-    const endpoint = `/admin/users${queryString ? `?${queryString}` : ""}`
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        users?: any[]
-        limit?: number
-        offset?: number
-        count?: number
-        filters?: any
-      }
-      users?: any[]
-      limit?: number
-      offset?: number
-      count?: number
-      filters?: any
-    }>(endpoint, { method: "GET" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        status: "success",
-        users: response.data.users || [],
-        limit: response.data.limit || params.limit || 20,
-        offset: response.data.offset || params.offset || 0,
-        count: response.data.count || 0,
-        filters: response.data.filters || {},
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        status: response.status || "success",
-        users: response.users || [],
-        limit: response.limit || params.limit || 20,
-        offset: response.offset || params.offset || 0,
-        count: response.count || 0,
-        filters: response.filters || {},
-      }
-    }
-    
-    return {
-      status: "error",
-      users: [],
-      limit: params.limit || 20,
-      offset: params.offset || 0,
-      count: 0,
-      filters: {},
-    }
+  }): Promise<{ status: string; users: AdminUserRow[]; limit: number; offset: number; count: number; filters?: Record<string, unknown> }> {
+    const res: AdminListResult<AdminUserRow> = await adminAdminListUsers(this, params as any)
+    return { status: res.status, users: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
   }
 
   // Admin endpoints - List Videos
@@ -2927,95 +2500,9 @@ class ApiClient {
     created_before?: string
     updated_after?: string
     updated_before?: string
-  }): Promise<{
-    status: string
-    videos: any[]
-    limit: number
-    offset: number
-    count: number
-    filters?: any
-  }> {
-    const queryParams = new URLSearchParams()
-    
-    // Pagination
-    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
-    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
-    
-    // Text filters
-    if (params.video_id) queryParams.append("video_id", params.video_id)
-    if (params.video_title) queryParams.append("video_title", params.video_title)
-    if (params.video_description) queryParams.append("video_description", params.video_description)
-    if (params.user_username) queryParams.append("user_username", params.user_username)
-    if (params.user_uid) queryParams.append("user_uid", params.user_uid)
-    if (params.video_tag) queryParams.append("video_tag", params.video_tag)
-    
-    // Numeric range filters
-    if (params.video_views_min !== undefined) queryParams.append("video_views_min", params.video_views_min.toString())
-    if (params.video_views_max !== undefined) queryParams.append("video_views_max", params.video_views_max.toString())
-    if (params.video_upvotes_min !== undefined) queryParams.append("video_upvotes_min", params.video_upvotes_min.toString())
-    if (params.video_upvotes_max !== undefined) queryParams.append("video_upvotes_max", params.video_upvotes_max.toString())
-    if (params.video_downvotes_min !== undefined) queryParams.append("video_downvotes_min", params.video_downvotes_min.toString())
-    if (params.video_downvotes_max !== undefined) queryParams.append("video_downvotes_max", params.video_downvotes_max.toString())
-    if (params.video_comments_min !== undefined) queryParams.append("video_comments_min", params.video_comments_min.toString())
-    if (params.video_comments_max !== undefined) queryParams.append("video_comments_max", params.video_comments_max.toString())
-    
-    // Date range filters
-    if (params.created_after) queryParams.append("created_after", params.created_after)
-    if (params.created_before) queryParams.append("created_before", params.created_before)
-    if (params.updated_after) queryParams.append("updated_after", params.updated_after)
-    if (params.updated_before) queryParams.append("updated_before", params.updated_before)
-    
-    const queryString = queryParams.toString()
-    const endpoint = `/admin/videos${queryString ? `?${queryString}` : ""}`
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        videos?: any[]
-        limit?: number
-        offset?: number
-        count?: number
-        filters?: any
-      }
-      videos?: any[]
-      limit?: number
-      offset?: number
-      count?: number
-      filters?: any
-    }>(endpoint, { method: "GET" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        status: "success",
-        videos: response.data.videos || [],
-        limit: response.data.limit || params.limit || 20,
-        offset: response.data.offset || params.offset || 0,
-        count: response.data.count || 0,
-        filters: response.data.filters || {},
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        status: response.status || "success",
-        videos: response.videos || [],
-        limit: response.limit || params.limit || 20,
-        offset: response.offset || params.offset || 0,
-        count: response.count || 0,
-        filters: response.filters || {},
-      }
-    }
-    
-    return {
-      status: "error",
-      videos: [],
-      limit: params.limit || 20,
-      offset: params.offset || 0,
-      count: 0,
-      filters: {},
-    }
+  }): Promise<{ status: string; videos: AdminVideoRow[]; limit: number; offset: number; count: number; filters?: Record<string, unknown> }> {
+    const res: AdminListResult<AdminVideoRow> = await adminAdminListVideos(this, params as any)
+    return { status: res.status, videos: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
   }
 
   // Admin endpoints - List Comments
@@ -3026,69 +2513,13 @@ class ApiClient {
     filter?: string
   }): Promise<{
     status: string
-    comments: any[]
+    comments: AdminCommentRow[]
     limit: number
     offset: number
     count: number
     filter?: string
   }> {
-    const queryParams = new URLSearchParams()
-    
-    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
-    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
-    if (params.filter) queryParams.append("filter", params.filter)
-    
-    const queryString = queryParams.toString()
-    const endpoint = `/admin/comments${queryString ? `?${queryString}` : ""}`
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        comments?: any[]
-        limit?: number
-        offset?: number
-        count?: number
-        filter?: string
-      }
-      comments?: any[]
-      limit?: number
-      offset?: number
-      count?: number
-      filter?: string
-    }>(endpoint, { method: "GET" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        status: "success",
-        comments: response.data.comments || [],
-        limit: response.data.limit || params.limit || 20,
-        offset: response.data.offset || params.offset || 0,
-        count: response.data.count || 0,
-        filter: response.data.filter || params.filter,
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        status: response.status || "success",
-        comments: response.comments || [],
-        limit: response.limit || params.limit || 20,
-        offset: response.offset || params.offset || 0,
-        count: response.count || 0,
-        filter: response.filter || params.filter,
-      }
-    }
-    
-    return {
-      status: "error",
-      comments: [],
-      limit: params.limit || 20,
-      offset: params.offset || 0,
-      count: 0,
-      filter: params.filter,
-    }
+    return adminAdminListComments(this, params)
   }
 
   // Admin endpoints - List Replies
@@ -3099,69 +2530,13 @@ class ApiClient {
     filter?: string
   }): Promise<{
     status: string
-    replies: any[]
+    replies: AdminReplyRow[]
     limit: number
     offset: number
     count: number
     filter?: string
   }> {
-    const queryParams = new URLSearchParams()
-    
-    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
-    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
-    if (params.filter) queryParams.append("filter", params.filter)
-    
-    const queryString = queryParams.toString()
-    const endpoint = `/admin/replies${queryString ? `?${queryString}` : ""}`
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        replies?: any[]
-        limit?: number
-        offset?: number
-        count?: number
-        filter?: string
-      }
-      replies?: any[]
-      limit?: number
-      offset?: number
-      count?: number
-      filter?: string
-    }>(endpoint, { method: "GET" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        status: "success",
-        replies: response.data.replies || [],
-        limit: response.data.limit || params.limit || 20,
-        offset: response.data.offset || params.offset || 0,
-        count: response.data.count || 0,
-        filter: response.data.filter || params.filter,
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        status: response.status || "success",
-        replies: response.replies || [],
-        limit: response.limit || params.limit || 20,
-        offset: response.offset || params.offset || 0,
-        count: response.count || 0,
-        filter: response.filter || params.filter,
-      }
-    }
-    
-    return {
-      status: "error",
-      replies: [],
-      limit: params.limit || 20,
-      offset: params.offset || 0,
-      count: 0,
-      filter: params.filter,
-    }
+    return adminAdminListReplies(this, params)
   }
 
   // Admin endpoints - Get Counters
@@ -3180,97 +2555,7 @@ class ApiClient {
       updated_at: string
     }
   }> {
-    let endpoint = "/admin/counters"
-    // Add cache-busting query parameter if requested
-    if (noCache) {
-      endpoint += `?t=${Date.now()}`
-    }
-    
-    const headers: Record<string, string> = {}
-    if (noCache) {
-      headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-      headers["Pragma"] = "no-cache"
-      headers["Expires"] = "0"
-    }
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        counters?: {
-          users?: number
-          videos?: number
-          comments?: number
-          replies?: number
-          upvotes?: number
-          downvotes?: number
-          views?: number
-          watch_hours?: number
-          updated_at?: string
-        }
-      }
-      counters?: {
-        users?: number
-        videos?: number
-        comments?: number
-        replies?: number
-        upvotes?: number
-        downvotes?: number
-        views?: number
-        watch_hours?: number
-        updated_at?: string
-      }
-    }>(endpoint, { method: "GET", headers }, true)
-    
-    // Handle both response formats: {"success":true,"data":{counters:{...}}} and {"status":"success",counters:{...}}
-    if (response.success && response.data?.counters) {
-      return {
-        success: true,
-        counters: {
-          users: response.data.counters.users || 0,
-          videos: response.data.counters.videos || 0,
-          comments: response.data.counters.comments || 0,
-          replies: response.data.counters.replies || 0,
-          upvotes: response.data.counters.upvotes || 0,
-          downvotes: response.data.counters.downvotes || 0,
-          views: response.data.counters.views || 0,
-          watch_hours: response.data.counters.watch_hours,
-          updated_at: response.data.counters.updated_at || new Date().toISOString(),
-        },
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      const counters = response.counters || response.data?.counters || {}
-      return {
-        success: true,
-        counters: {
-          users: counters.users || 0,
-          videos: counters.videos || 0,
-          comments: counters.comments || 0,
-          replies: counters.replies || 0,
-          upvotes: counters.upvotes || 0,
-          downvotes: counters.downvotes || 0,
-          views: counters.views || 0,
-          watch_hours: counters.watch_hours,
-          updated_at: counters.updated_at || new Date().toISOString(),
-        },
-      }
-    }
-    
-    return {
-      success: false,
-      counters: {
-        users: 0,
-        videos: 0,
-        comments: 0,
-        replies: 0,
-        upvotes: 0,
-        downvotes: 0,
-        views: 0,
-        updated_at: new Date().toISOString(),
-      },
-    }
+    return adminAdminCounters(this, noCache)
   }
 
   // Admin endpoints - List Followers
@@ -3284,81 +2569,9 @@ class ApiClient {
     followed_to?: string
     followed_after?: string
     followed_before?: string
-  }): Promise<{
-    status: string
-    followers: any[]
-    limit: number
-    offset: number
-    count: number
-    filters?: any
-  }> {
-    const queryParams = new URLSearchParams()
-    
-    // Pagination
-    if (params.limit !== undefined) queryParams.append("limit", params.limit.toString())
-    if (params.offset !== undefined) queryParams.append("offset", params.offset.toString())
-    
-    // Text filters
-    if (params.followed_by_username) queryParams.append("followed_by_username", params.followed_by_username)
-    if (params.followed_to_username) queryParams.append("followed_to_username", params.followed_to_username)
-    if (params.followed_by) queryParams.append("followed_by", params.followed_by)
-    if (params.followed_to) queryParams.append("followed_to", params.followed_to)
-    
-    // Date range filters
-    if (params.followed_after) queryParams.append("followed_after", params.followed_after)
-    if (params.followed_before) queryParams.append("followed_before", params.followed_before)
-    
-    const queryString = queryParams.toString()
-    const endpoint = `/admin/followers${queryString ? `?${queryString}` : ""}`
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        followers?: any[]
-        limit?: number
-        offset?: number
-        count?: number
-        filters?: any
-      }
-      followers?: any[]
-      limit?: number
-      offset?: number
-      count?: number
-      filters?: any
-    }>(endpoint, { method: "GET" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        status: "success",
-        followers: response.data.followers || [],
-        limit: response.data.limit || params.limit || 20,
-        offset: response.data.offset || params.offset || 0,
-        count: response.data.count || 0,
-        filters: response.data.filters || {},
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        status: response.status || "success",
-        followers: response.followers || [],
-        limit: response.limit || params.limit || 20,
-        offset: response.offset || params.offset || 0,
-        count: response.count || 0,
-        filters: response.filters || {},
-      }
-    }
-    
-    return {
-      status: "error",
-      followers: [],
-      limit: params.limit || 20,
-      offset: params.offset || 0,
-      count: 0,
-      filters: {},
-    }
+  }): Promise<{ status: string; followers: AdminFollowerRow[]; limit: number; offset: number; count: number; filters?: Record<string, unknown> }> {
+    const res: AdminListResult<AdminFollowerRow> = await adminAdminListFollowers(this, params as any)
+    return { status: res.status, followers: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
   }
 
   // Admin endpoints - Delete User
@@ -3408,40 +2621,7 @@ class ApiClient {
     }
     message?: string
   }> {
-    if (!username || username.trim() === "") {
-      throw new Error("Username is required")
-    }
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        message?: string
-      }
-      message?: string
-    }>(`/admin/users/${encodeURIComponent(username)}/disable`, { method: "POST" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        success: true,
-        data: {
-          message: response.data.message || response.message || "User disabled successfully",
-        },
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        success: true,
-        message: response.message || "User disabled successfully",
-      }
-    }
-    
-    return {
-      success: false,
-      message: response.message || "Failed to disable user",
-    }
+    return adminAdminDisableUser(this, username) as any
   }
 
   // Admin endpoints - Enable User
@@ -3453,40 +2633,7 @@ class ApiClient {
     }
     message?: string
   }> {
-    if (!username || username.trim() === "") {
-      throw new Error("Username is required")
-    }
-    
-    const response = await this.request<{
-      success?: boolean
-      status?: string
-      data?: {
-        message?: string
-      }
-      message?: string
-    }>(`/admin/users/${encodeURIComponent(username)}/enable`, { method: "POST" }, true)
-    
-    // Handle both response formats: {"success":true,"data":{...}} and {"status":"success",...}
-    if (response.success && response.data) {
-      return {
-        success: true,
-        data: {
-          message: response.data.message || response.message || "User enabled successfully",
-        },
-      }
-    }
-    
-    if (response.status === "success" || response.success) {
-      return {
-        success: true,
-        message: response.message || "User enabled successfully",
-      }
-    }
-    
-    return {
-      success: false,
-      message: response.message || "Failed to enable user",
-    }
+    return adminAdminEnableUser(this, username) as any
   }
 
   // Admin endpoints - Delete Video
@@ -3753,22 +2900,7 @@ class ApiClient {
     limit: number
     offset: number
   }> {
-    const hours = params.hours ?? 24
-    const limit = params.limit ?? 100
-    const offset = params.offset ?? 0
-    const qs = new URLSearchParams({
-      hours: String(hours),
-      limit: String(limit),
-      offset: String(offset),
-    })
-    const res = await this.proxyRequest<any>("/proxy/admin-events", qs)
-    return {
-      count: Number(res.count ?? 0),
-      events: Array.isArray(res.events) ? res.events : [],
-      hours,
-      limit,
-      offset,
-    }
+    return adminAdminGetAnalyticsEvents(this, params) as any
   }
 
   async adminGetReferals(params: { limit?: number; offset?: number } = {}): Promise<{
@@ -3777,32 +2909,14 @@ class ApiClient {
     limit: number
     offset: number
   }> {
-    const limit = params.limit ?? 20
-    const offset = params.offset ?? 0
-    const qs = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
-    })
-    const res = await this.proxyRequest<any>("/proxy/admin-referals", qs)
-    return {
-      count: Number(res.count ?? 0),
-      referals: Array.isArray(res.referals) ? res.referals : [],
-      limit,
-      offset,
-    }
+    return adminAdminGetReferals(this, params) as any
   }
 
   async adminCreateUtmGeneratedUrl(body: { url: string; utm_source: string; label?: string }): Promise<{
     success: boolean
     error?: string
   }> {
-    const response = await this.request<any>(
-      "/admin/utm/generated-urls",
-      { method: "POST", body: JSON.stringify(body) },
-      true,
-    )
-    const ok = response.success === true || response.status === "success"
-    return { success: ok, error: response.error || response.message }
+    return adminAdminCreateUtmGeneratedUrl(this, body) as any
   }
 
   async adminListUtmGeneratedUrls(params: { limit?: number; offset?: number } = {}): Promise<{
@@ -3811,51 +2925,21 @@ class ApiClient {
     limit: number
     offset: number
   }> {
-    const limit = params.limit ?? 50
-    const offset = params.offset ?? 0
-    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) })
-    const response = await this.request<any>(`/admin/utm/generated-urls?${qs.toString()}`, { method: "GET" }, true)
-    const raw = response.data?.utm_generated_urls ?? response.utm_generated_urls ?? response.items ?? []
-    return {
-      count: Number(response.data?.count ?? response.count ?? 0),
-      utm_generated_urls: Array.isArray(raw) ? raw : [],
-      limit,
-      offset,
-    }
+    return adminAdminListUtmGeneratedUrls(this, params) as any
   }
 
   async adminListUtmPollEvents(params: Record<string, string | number | undefined> = {}): Promise<{
     count: number
     utm_polls: any[]
   }> {
-    const qs = new URLSearchParams()
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null || String(v).trim() === "") continue
-      qs.append(k, String(v))
-    }
-    const response = await this.request<any>(`/admin/utm/polls?${qs.toString()}`, { method: "GET" }, true)
-    const raw = response.data?.utm_polls ?? response.utm_polls ?? response.items ?? []
-    return {
-      count: Number(response.data?.count ?? response.count ?? 0),
-      utm_polls: Array.isArray(raw) ? raw : [],
-    }
+    return adminAdminListUtmPollEvents(this, params) as any
   }
 
   async adminAnalyzeUtmPollEvents(params: Record<string, string | number | undefined> = {}): Promise<{
     total_events?: number
     analysis: Array<{ utm_source: string; utm_medium?: string | null; utm_campaign?: string | null; event_count: number }>
   }> {
-    const qs = new URLSearchParams()
-    for (const [k, v] of Object.entries(params)) {
-      if (v === undefined || v === null || String(v).trim() === "") continue
-      qs.append(k, String(v))
-    }
-    const response = await this.request<any>(`/admin/utm/polls/analyze?${qs.toString()}`, { method: "GET" }, true)
-    const analysis = response.data?.analysis ?? response.analysis ?? []
-    return {
-      total_events: response.data?.total_events ?? response.total_events,
-      analysis: Array.isArray(analysis) ? analysis : [],
-    }
+    return adminAdminAnalyzeUtmPollEvents(this, params) as any
   }
 
   async pollUtmPoll(body: {
@@ -3867,16 +2951,7 @@ class ApiClient {
     session_id: string
     path: string
   }): Promise<{ success: boolean }> {
-    const headers: Record<string, string> = {}
-    const key = process.env.NEXT_PUBLIC_UTM_POLL_INGEST_KEY?.trim()
-    if (key) headers["X-Utm-Poll-Ingest-Key"] = key
-    const response = await this.request<any>(
-      "/utm/poll",
-      { method: "POST", headers, body: JSON.stringify(body) },
-      false,
-    )
-    const ok = response.success === true || response.status === "success"
-    return { success: ok }
+    return adminPollUtmPoll(this, body as any) as any
   }
 }
 

@@ -40,7 +40,7 @@ export default function FollowingPage() {
   const fetchVideos = async (currentOffset: number, isInitialLoad: boolean = false) => {
     // Prevent duplicate requests
     if (isFetching) {
-      console.log("[hiffi] Already fetching following videos, skipping duplicate request")
+      // noisy debug removed
       return
     }
 
@@ -89,7 +89,7 @@ export default function FollowingPage() {
 
       // Retry logic for pagination (but not for initial load)
       if (currentOffset > 0) {
-        console.log("[hiffi] Retrying pagination request...")
+        // noisy debug removed
         setHasMore(false)
       } else {
         // Set empty array on error for initial load

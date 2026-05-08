@@ -20,6 +20,7 @@ import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialo
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { ProfilePersonalView } from '@/components/profile/profile-personal-view';
 import { ProfilePublicView } from '@/components/profile/profile-public-view';
+import { debugLog, debugWarn } from '@/lib/debug';
 
 export default function ProfilePage() {
   const params = useParams();
@@ -75,12 +76,11 @@ export default function ProfilePage() {
     [getVideoUpdatedTimestamp],
   );
   
-  // Debug: Log current user data to check if it's interfering
-  console.log("[hiffi] Current user data (auth context):", {
-    username: currentUserData?.username,
-    profile_picture: currentUserData?.profile_picture,
-    image: currentUserData?.image
-  });
+  debugLog("[hiffi] Current user data (auth context):", {
+    username: (currentUserData as any)?.username,
+    profile_picture: (currentUserData as any)?.profile_picture,
+    image: (currentUserData as any)?.image,
+  })
 
   const fetchUserData = useCallback(async (forceRefresh: boolean = false) => {
       if (!username) {
@@ -112,10 +112,9 @@ export default function ProfilePage() {
         
         // Use /users/{username} for all profiles (including own profile)
         // /users/self is deprecated
-        console.log("[hiffi] Fetching profile using /users/{username}", forceRefresh ? "(force refresh)" : "");
+        debugLog("[hiffi] Fetching profile using /users/{username}", forceRefresh ? "(force refresh)" : "")
         const response = await apiClient.getUserByUsername(username);
-        
-        console.log("[hiffi] User data from API (raw response):", JSON.stringify(response, null, 2));
+        debugLog("[hiffi] User data from API (raw response):", JSON.stringify(response, null, 2))
         
         // Handle API response format: { success: true, user: {...}, following?: boolean }
         // or: { success: true, data: { user: {...} } }
@@ -124,14 +123,14 @@ export default function ProfilePage() {
           ? response.user 
           : (responseAny?.data?.user || response?.user || (responseAny?.data && typeof responseAny.data === 'object' && !responseAny.data.user ? responseAny.data : null) || response);
         
-        console.log("[hiffi] Extracted profile data:", JSON.stringify(profileData, null, 2));
-        console.log("[hiffi] Profile picture field:", profileData?.profile_picture);
-        console.log("[hiffi] Image field:", profileData?.image);
-        console.log("[hiffi] Profile picture type:", typeof profileData?.profile_picture);
-        console.log("[hiffi] Profile picture is URL:", profileData?.profile_picture?.startsWith?.("http"));
-        console.log("[hiffi] Profile picture value:", profileData?.profile_picture);
-        console.log("[hiffi] Updated at:", profileData?.updated_at);
-        console.log("[hiffi] All profile data keys:", Object.keys(profileData || {}));
+        debugLog("[hiffi] Extracted profile data:", JSON.stringify(profileData, null, 2))
+        debugLog("[hiffi] Profile picture field:", (profileData as any)?.profile_picture)
+        debugLog("[hiffi] Image field:", (profileData as any)?.image)
+        debugLog("[hiffi] Profile picture type:", typeof (profileData as any)?.profile_picture)
+        debugLog("[hiffi] Profile picture is URL:", (profileData as any)?.profile_picture?.startsWith?.("http"))
+        debugLog("[hiffi] Profile picture value:", (profileData as any)?.profile_picture)
+        debugLog("[hiffi] Updated at:", (profileData as any)?.updated_at)
+        debugLog("[hiffi] All profile data keys:", Object.keys(profileData || {}))
         
         // Check for any other image-related fields
         const imageFields = Object.keys(profileData || {}).filter(key => 
@@ -140,13 +139,12 @@ export default function ProfilePage() {
           key.toLowerCase().includes('picture') ||
           key.toLowerCase().includes('photo')
         );
-        console.log("[hiffi] All image-related fields:", imageFields);
+        debugLog("[hiffi] All image-related fields:", imageFields)
         imageFields.forEach(field => {
-          console.log(`[hiffi] ${field}:`, profileData?.[field]);
+          debugLog(`[hiffi] ${field}:`, (profileData as any)?.[field])
         });
-        
-        console.log("[hiffi] Followers:", profileData?.followers);
-        console.log("[hiffi] Following:", profileData?.following);
+        debugLog("[hiffi] Followers:", (profileData as any)?.followers)
+        debugLog("[hiffi] Following:", (profileData as any)?.following)
         
         // Update profile user state
         // Check if profile_picture changed before updating state
@@ -156,7 +154,7 @@ export default function ProfilePage() {
         
         // Normalize: if API returns 'image', also set it as 'profile_picture' for consistency
         if (profileData?.image && !profileData?.profile_picture) {
-          console.log("[hiffi] Normalizing: setting profile_picture from image field");
+          debugLog("[hiffi] Normalizing: setting profile_picture from image field")
           profileData.profile_picture = profileData.image;
         }
 
@@ -169,13 +167,13 @@ export default function ProfilePage() {
         if (!profileData.profile_picture && videosResponse.success && videosResponse.videos.length > 0) {
           const videoWithPicture = videosResponse.videos.find((v: any) => v.user_profile_picture && v.user_profile_picture.trim() !== "");
           if (videoWithPicture) {
-            console.log("[hiffi] Rescuing profile_picture from public video metadata:", videoWithPicture.user_profile_picture);
+            debugLog("[hiffi] Rescuing profile_picture from public video metadata:", videoWithPicture.user_profile_picture)
             profileData.profile_picture = videoWithPicture.user_profile_picture;
           }
         }
         
         // Log final profile picture value before setting state
-        console.log("[hiffi] Final profile_picture value before setting state:", profileData?.profile_picture);
+        debugLog("[hiffi] Final profile_picture value before setting state:", (profileData as any)?.profile_picture)
         
         setProfileUser(profileData);
         
@@ -184,7 +182,7 @@ export default function ProfilePage() {
         // Increment profile picture version if profile_picture path changed OR if force refresh
         // This forces AvatarImage to re-render with new cache buster
         if (forceRefresh || (newProfilePicture && newProfilePicture !== previousProfilePicture)) {
-          console.log("[hiffi] Profile picture changed or force refresh, incrementing version", {
+          debugLog("[hiffi] Profile picture changed or force refresh, incrementing version", {
             previous: previousProfilePicture,
             new: newProfilePicture,
             forceRefresh
@@ -198,7 +196,7 @@ export default function ProfilePage() {
         if (currentUserData?.username && currentUserData.username !== username) {
           // Use the following field from the API response (NEW)
           const followingStatus = response?.following ?? false;
-          console.log("[hiffi] Following status from API:", followingStatus);
+          debugLog("[hiffi] Following status from API:", followingStatus)
           setIsFollowing(followingStatus);
         } else {
           setIsFollowing(false); // Can't follow yourself
@@ -219,7 +217,7 @@ export default function ProfilePage() {
         const authToken = apiClient.getAuthToken();
         const isAuthError = errorStatus === 401 && !authToken;
         
-        console.log("[hiffi] Error handling:", {
+        debugLog("[hiffi] Error handling:", {
           errorStatus,
           hasAuthToken: !!authToken,
           isAuthError,
@@ -252,7 +250,7 @@ export default function ProfilePage() {
   const fetchUserVideos = useCallback(async (currentOffset: number, isInitialLoad: boolean, isOwnProfile: boolean) => {
     // Prevent duplicate requests
     if (isFetching) {
-      console.log("[hiffi] Already fetching videos, skipping duplicate request");
+      debugLog("[hiffi] Already fetching videos, skipping duplicate request")
       return;
     }
 
@@ -338,7 +336,7 @@ export default function ProfilePage() {
       
       // Retry logic for pagination (but not for initial load)
       if (currentOffset > 0) {
-        console.log("[hiffi] Retrying pagination request...");
+        debugLog("[hiffi] Retrying pagination request...")
         // Don't retry immediately, let user try scrolling again
         // Just set hasMore to false to prevent infinite retry loops
         setHasMore(false);
@@ -491,7 +489,7 @@ export default function ProfilePage() {
           // Use /users/{username} for all profiles (including own profile)
           // /users/self is deprecated
           const refreshedResponse = await apiClient.getUserByUsername(username);
-          console.log("[hiffi] Refreshed user data after unfollow:", refreshedResponse);
+      debugLog("[hiffi] Refreshed user data after unfollow:", refreshedResponse)
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);
@@ -528,7 +526,7 @@ export default function ProfilePage() {
           // Use /users/{username} for all profiles (including own profile)
           // /users/self is deprecated
           const refreshedResponse = await apiClient.getUserByUsername(username);
-          console.log("[hiffi] Refreshed user data after follow:", refreshedResponse);
+      debugLog("[hiffi] Refreshed user data after follow:", refreshedResponse)
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const profileData = (refreshedResponse?.success && refreshedResponse?.user) ? refreshedResponse.user : (refreshedResponse?.user || refreshedResponse);
           setProfileUser(profileData);

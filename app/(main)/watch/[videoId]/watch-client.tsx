@@ -32,6 +32,7 @@ import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
 import { DescriptionWithLinks } from "@/components/watch/description-with-links"
 import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
+import { debugLog, debugWarn } from "@/lib/debug"
 
 const AddToPlaylistDialog = dynamic(
   () =>
@@ -762,7 +763,7 @@ export default function WatchPage() {
 
       // Prevent duplicate calls - check synchronously before any async operations
       if (hasFetchedVideoRef.current === videoId || isFetchingRef.current) {
-        console.log("[hiffi] Video already fetched or currently fetching, skipping duplicate call")
+        debugLog("[hiffi] Video already fetched or currently fetching, skipping duplicate call")
         return
       }
 
@@ -792,7 +793,7 @@ export default function WatchPage() {
           setIsLoading(true)
         }
         
-        console.log("[hiffi] Fetching video data for:", videoId)
+        debugLog("[hiffi] Fetching video data for:", videoId)
 
         // Call GET /videos/{videoID} directly - this returns full video object with metadata
         let videoResponse: any
@@ -812,7 +813,7 @@ export default function WatchPage() {
             cachedVoteMismatch
           videoResponse = await getVideoResponseOnce(videoId, shouldForceFreshVoteFetch)
           if (latestVideoRequestIdRef.current !== videoId) return
-          console.log("[hiffi] Video response from API:", videoResponse)
+          debugLog("[hiffi] Video response from API:", videoResponse)
           
           // Use video object directly from API response (no need to search through lists)
           const videoData = videoResponse.video
@@ -917,7 +918,7 @@ export default function WatchPage() {
                 }
               })
             }).catch(creatorError => {
-              if (creatorError?.status !== 401) console.warn("[hiffi] Failed to fetch creator data:", creatorError)
+            if ((creatorError as any)?.status !== 401) debugWarn("[hiffi] Failed to fetch creator data:", creatorError)
               const fallbackProfile = {
                 username: videoCreatorUsername,
                 name: videoCreatorUsername,
@@ -989,7 +990,7 @@ export default function WatchPage() {
           setIsRelatedLoading(true)
         }
 
-        console.log("[hiffi] Fetching updated recommendations for:", videoId)
+        debugLog("[hiffi] Fetching updated recommendations for:", videoId)
         const nextRelatedVideos = await getRelatedVideosOnce(videoId)
         if (latestRelatedRequestIdRef.current !== videoId) return
 
@@ -1013,7 +1014,7 @@ export default function WatchPage() {
           }
         }
       } catch (suggestionsError) {
-        console.warn("[hiffi] Failed to fetch related videos:", suggestionsError)
+        debugWarn("[hiffi] Failed to fetch related videos:", suggestionsError)
       } finally {
         if (isInitialRelatedLoad) {
           setIsRelatedLoading(false)
@@ -1079,7 +1080,7 @@ export default function WatchPage() {
         const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 6, seed })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
-          console.log("[hiffi] Updated video data after upvote:", updatedVideo);
+          debugLog("[hiffi] Updated video data after upvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
@@ -1160,7 +1161,7 @@ export default function WatchPage() {
         const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 6, seed })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
-          console.log("[hiffi] Updated video data after downvote:", updatedVideo);
+          debugLog("[hiffi] Updated video data after downvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
@@ -1229,7 +1230,7 @@ export default function WatchPage() {
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
           const creatorResponse = await apiClient.getUserByUsername(username)
-          console.log("[hiffi] Refreshed creator data after unfollow:", creatorResponse);
+          debugLog("[hiffi] Refreshed creator data after unfollow:", creatorResponse);
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
@@ -1240,7 +1241,7 @@ export default function WatchPage() {
         } catch (refreshError: any) {
           // Only log as warning if it's not a 401 (expected when not authenticated)
           if (refreshError?.status !== 401) {
-            console.warn("[hiffi] Failed to refresh creator data:", refreshError)
+            debugWarn("[hiffi] Failed to refresh creator data:", refreshError)
           }
           // Update optimistically if refresh fails
           if (videoCreator) {
@@ -1266,7 +1267,7 @@ export default function WatchPage() {
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
           const creatorResponse = await apiClient.getUserByUsername(username)
-          console.log("[hiffi] Refreshed creator data after follow:", creatorResponse);
+          debugLog("[hiffi] Refreshed creator data after follow:", creatorResponse);
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
@@ -1277,7 +1278,7 @@ export default function WatchPage() {
         } catch (refreshError: any) {
           // Only log as warning if it's not a 401 (expected when not authenticated)
           if (refreshError?.status !== 401) {
-            console.warn("[hiffi] Failed to refresh creator data:", refreshError)
+            debugWarn("[hiffi] Failed to refresh creator data:", refreshError)
           }
           // Update optimistically if refresh fails
           if (videoCreator) {
@@ -1352,7 +1353,7 @@ export default function WatchPage() {
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
         resetSeed()
-        console.log("[hiffi] Autoplaying next video:", nextVideoId)
+        debugLog("[hiffi] Autoplaying next video:", nextVideoId)
         router.push(`/watch/${nextVideoId}`)
       }
     }

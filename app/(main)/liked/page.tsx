@@ -56,7 +56,7 @@ export default function LikedVideosPage() {
 
   const fetchVideos = async (currentOffset: number, isInitialLoad = false) => {
     if (isFetching) {
-      console.log("[hiffi] Already fetching liked videos, skipping duplicate request")
+      // noisy debug removed
       return
     }
 

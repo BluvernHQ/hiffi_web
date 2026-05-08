@@ -62,8 +62,10 @@ interface VideoPlayerProps {
 }
 
 const STORAGE_KEYS = {
-  WATCH_DEVICE_ID: 'hiffi_watch_device_id',
-}
+  VOLUME: "hiffi_player_volume",
+  MUTED: "hiffi_player_muted",
+  WATCH_DEVICE_ID: "hiffi_watch_device_id",
+} as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
 
 export function VideoPlayer({ 

@@ -10,6 +10,7 @@
     "postbuild": "mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/",
     "dev": "next dev",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "start": "next start -p 3001",
     "start:standalone": "bash ./scripts/start-standalone.sh"
   },

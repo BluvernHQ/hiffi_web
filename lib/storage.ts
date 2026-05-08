@@ -93,7 +93,7 @@ export async function fetchVideoWithAuth(videoUrl: string): Promise<string> {
     throw new Error("API key not configured")
   }
 
-  console.log("[hiffi] Fetching video from Workers with x-api-key header")
+  // noisy debug removed
   try {
     const response = await fetch(videoUrl, {
       headers: {

@@ -43,7 +43,7 @@ function initializeSeedOnPageLoad(): void {
     // Check if there's an existing seed - if so, it's a refresh, clear it
     const existingSeed = sessionStorage.getItem(SEED_STORAGE_KEY)
     if (existingSeed) {
-      console.log('[hiffi] Page refresh detected, clearing old seed')
+      // noisy debug removed
       sessionStorage.removeItem(SEED_STORAGE_KEY)
     }
     // Set page load flag for this session
@@ -74,7 +74,7 @@ export function getSeed(): string {
   if (!seed) {
     seed = generateSeed()
     sessionStorage.setItem(SEED_STORAGE_KEY, seed)
-    console.log('[hiffi] Generated new seed:', seed)
+    // noisy debug removed
   }
   
   return seed
@@ -91,7 +91,7 @@ export function resetSeed(): string {
   
   const newSeed = generateSeed()
   sessionStorage.setItem(SEED_STORAGE_KEY, newSeed)
-  console.log('[hiffi] Reset seed to:', newSeed)
+  // noisy debug removed
   return newSeed
 }
 
