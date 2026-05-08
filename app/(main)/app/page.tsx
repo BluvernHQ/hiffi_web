@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
+import { SiteFooter } from "@/components/layout/site-footer"
 import { AppDownloadChrome, type PlatformHint } from "@/components/app/app-download-chrome"
 import { absoluteUrl } from "@/lib/seo/site"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
@@ -295,6 +296,8 @@ export default async function AppDownloadPage() {
           </section>
         </div>
       </AppDownloadChrome>
+
+      <SiteFooter variant="app" />
     </div>
   )
 }
