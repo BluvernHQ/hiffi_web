@@ -14,8 +14,8 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { API_BASE_URL } from '@/lib/config'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" })
+const _geistMono = Geist_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" })
 
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
@@ -158,7 +158,7 @@ export default function RootLayout({
   const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${_geist.variable} ${_geistMono.variable}`}>
       <head>
         <JsonLd data={siteJsonLd} />
         {/* Microsoft Clarity - ID from env only, never in source */}
@@ -231,7 +231,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={`font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <AuthProvider>
           <VideoProvider>
             <SidebarProvider>
