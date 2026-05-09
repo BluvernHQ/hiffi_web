@@ -1,6 +1,12 @@
 import { API_BASE_URL } from "./config"
 import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
-import { uploadVideo as uploadUploadVideo, acknowledgeUpload as uploadAcknowledgeUpload, uploadFile as uploadUploadFile } from "@/lib/api/upload"
+import {
+  uploadVideo as uploadUploadVideo,
+  acknowledgeUpload as uploadAcknowledgeUpload,
+  uploadHeartbeat as uploadUploadHeartbeat,
+  reportUploadFailed as uploadReportUploadFailed,
+  uploadFile as uploadUploadFile,
+} from "@/lib/api/upload"
 import { getVideo as publicGetVideo, followUser as publicFollowUser, unfollowUser as publicUnfollowUser, type VideoApiShape } from "@/lib/api/public"
 import {
   adminListUsers as adminAdminListUsers,
@@ -1363,6 +1369,16 @@ class ApiClient {
   // POST /videos/upload/ack/{videoID} - Acknowledge video upload
   async acknowledgeUpload(bridgeId: string) {
     return uploadAcknowledgeUpload(this, bridgeId)
+  }
+
+  // POST /videos/upload/heartbeat/{videoID} - Keep upload bridge alive
+  async uploadHeartbeat(bridgeId: string) {
+    return uploadUploadHeartbeat(this, bridgeId)
+  }
+
+  // DELETE /videos/upload/failed/{videoID} - Report failure and cleanup bridge
+  async reportUploadFailed(bridgeId: string) {
+    return uploadReportUploadFailed(this, bridgeId)
   }
 
   // GET /videos/{videoID} - Get video information and streaming URL

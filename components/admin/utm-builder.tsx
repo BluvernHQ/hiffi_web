@@ -15,10 +15,65 @@ function formatUtmParam(val: string) {
   return val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '')
 }
 
+function parseBaseDestinationUrl(
+  raw: string,
+  opts?: { requiredOrigin?: string },
+): { ok: true; base: URL } | { ok: false; error: string } {
+  const input = raw.trim()
+  if (!input) return { ok: false, error: "" }
+
+  let parsed: URL
+  try {
+    parsed = new URL(input.includes("://") ? input : `https://${input}`)
+  } catch {
+    return { ok: false, error: "Enter valid domain (example: hiffi.app)" }
+  }
+
+  const protocol = parsed.protocol.toLowerCase()
+  if (protocol !== "http:" && protocol !== "https:") {
+    return { ok: false, error: "Only http/https URLs allowed" }
+  }
+
+  if (opts?.requiredOrigin) {
+    try {
+      const required = new URL(opts.requiredOrigin)
+      if (parsed.hostname !== required.hostname) {
+        return { ok: false, error: `Destination domain must match current site (${required.hostname})` }
+      }
+      // If current site has explicit port, require it. Helps avoid cross-origin surprises in dev.
+      if (required.port && parsed.port !== required.port) {
+        return { ok: false, error: `Destination port must match current site (${required.port})` }
+      }
+    } catch {
+      // ignore invalid requiredOrigin
+    }
+  }
+
+  // Destination must be base domain/origin only (no path/query/hash).
+  const path = parsed.pathname || "/"
+  if (path !== "/" && path !== "") {
+    return { ok: false, error: "Destination URL must be domain only (no path). Example: hiffi.app" }
+  }
+  if (parsed.search && parsed.search !== "?") {
+    return { ok: false, error: "Destination URL must not include query params" }
+  }
+  if (parsed.hash) {
+    return { ok: false, error: "Destination URL must not include hash (#...)" }
+  }
+
+  // Normalize to origin (keeps protocol + host + optional port).
+  return { ok: true, base: new URL(parsed.origin) }
+}
+
 export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
   const { toast } = useToast()
   const [url, setUrl] = useState("")
   const [urlError, setUrlError] = useState("")
+
+  const requiredOrigin = useMemo(() => {
+    if (typeof window === "undefined") return undefined
+    return window.location.origin
+  }, [])
   
   const [source, setSource] = useState("")
   const [medium, setMedium] = useState("")
@@ -36,13 +91,9 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
       setUrlError("")
       return
     }
-    try {
-      new URL(url.includes("http") ? url : `https://${url}`)
-      setUrlError("")
-    } catch {
-      setUrlError("Please enter a valid URL")
-    }
-  }, [url])
+    const parsed = parseBaseDestinationUrl(url, { requiredOrigin })
+    setUrlError(parsed.ok ? "" : parsed.error)
+  }, [url, requiredOrigin])
 
   const isValid = useMemo(() => {
     const isUrlValid = url.length > 0 && urlError === ""
@@ -52,7 +103,9 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
   const generatedUrl = useMemo(() => {
     if (!isValid) return ""
     try {
-      const parsedUrl = new URL(url.includes("http") ? url : `https://${url}`)
+      const parsedBase = parseBaseDestinationUrl(url, { requiredOrigin })
+      if (!parsedBase.ok) return ""
+      const parsedUrl = new URL(parsedBase.base.toString())
       parsedUrl.searchParams.set("utm_source", source)
       parsedUrl.searchParams.set("utm_medium", medium)
       parsedUrl.searchParams.set("utm_campaign", campaign)
@@ -158,7 +211,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
             </Label>
             <Input
               id="base_url"
-              placeholder="https://hiffi.app/watch/cypher2025"
+              placeholder={requiredOrigin ? new URL(requiredOrigin).host : "hiffi.app"}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className={cn("font-mono text-sm", urlError && "border-destructive focus-visible:ring-destructive")}

@@ -62,13 +62,21 @@ function SignupForm() {
   // Validate full name
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    // Only allow letters and spaces
-    if (value === "" || nameRegex.test(value)) {
-      setName(value)
+    // Keep input controlled even when invalid, so next keystroke re-validates immediately.
+    setName(value)
+
+    if (!value) {
       setNameError("")
-    } else {
-      setNameError("Full name must contain only letters and spaces")
+      return
     }
+
+    // Only letters and spaces
+    if (!nameRegex.test(value)) {
+      setNameError("Full name must contain only letters and spaces")
+      return
+    }
+
+    setNameError("")
   }
 
   // Validate username format and check availability

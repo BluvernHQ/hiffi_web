@@ -70,6 +70,58 @@ export async function acknowledgeUpload(
   return { success: false, message: response.message || "Failed to acknowledge upload" }
 }
 
+export async function uploadHeartbeat(
+  ctx: ApiClientContext,
+  bridgeId: string,
+): Promise<{ success: boolean; message: string; video_id?: string; timeout_seconds?: number }> {
+  if (!bridgeId || bridgeId.trim() === "") {
+    throw new Error("Bridge ID is required to record upload heartbeat.")
+  }
+
+  const response = await ctx.request<{
+    success?: boolean
+    status?: string
+    message?: string
+    video_id?: string
+    timeout_seconds?: number
+  }>(`/videos/upload/heartbeat/${bridgeId}`, { method: "POST" }, true)
+
+  if (response.status === "success" || response.success) {
+    return {
+      success: true,
+      message: response.message || "heartbeat recorded",
+      video_id: response.video_id,
+      timeout_seconds: response.timeout_seconds,
+    }
+  }
+
+  return {
+    success: false,
+    message: response.message || "Failed to record heartbeat",
+  }
+}
+
+export async function reportUploadFailed(
+  ctx: ApiClientContext,
+  bridgeId: string,
+): Promise<{ success: boolean; message: string }> {
+  if (!bridgeId || bridgeId.trim() === "") {
+    throw new Error("Bridge ID is required to report upload failure.")
+  }
+
+  const response = await ctx.request<{ success?: boolean; status?: string; message?: string }>(
+    `/videos/upload/failed/${bridgeId}`,
+    { method: "DELETE" },
+    true,
+  )
+
+  if (response.status === "success" || response.success) {
+    return { success: true, message: response.message || "upload bridge deleted" }
+  }
+
+  return { success: false, message: response.message || "Failed to cleanup upload bridge" }
+}
+
 export async function uploadFile(
   _ctx: ApiClientContext,
   url: string,

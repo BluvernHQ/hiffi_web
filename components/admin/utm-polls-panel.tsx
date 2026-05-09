@@ -49,6 +49,32 @@ const emptySavedFilters: SavedLinksFilterForm = {
   url: "",
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, "0")
+}
+
+function rfc3339ToLocalInput(value: string): string {
+  const raw = value.trim()
+  if (!raw) return ""
+  try {
+    const d = new Date(raw)
+    if (Number.isNaN(d.getTime())) return ""
+    // datetime-local expects local time without seconds.
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  } catch {
+    return ""
+  }
+}
+
+function localInputToRfc3339(value: string): string {
+  const raw = value.trim()
+  if (!raw) return ""
+  // `YYYY-MM-DDTHH:mm` interpreted as local time by Date constructor.
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toISOString()
+}
+
 function isFilterFormEmpty<T extends Record<string, string>>(form: T) {
   return Object.values(form).every((value) => value.trim() === "")
 }
@@ -412,8 +438,17 @@ export function AdminUtmPollsPanel() {
                   <Input id="utm_campaign" className="h-8 text-sm" value={draft.utm_campaign} onChange={(e) => setDraft((d) => ({ ...d, utm_campaign: e.target.value }))} placeholder="summer_drop" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="created_after" className="text-xs">After Date (RFC3339)</Label>
-                  <Input id="created_after" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_after} onChange={(e) => setDraft((d) => ({ ...d, created_after: e.target.value }))} placeholder="2025-01-01T00:00:00Z" />
+                  <Label htmlFor="created_after" className="text-xs">After</Label>
+                  <Input
+                    id="created_after"
+                    type="datetime-local"
+                    className="h-8 text-sm font-mono text-muted-foreground"
+                    value={rfc3339ToLocalInput(draft.created_after)}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, created_after: localInputToRfc3339(e.target.value) }))
+                    }
+                  />
+                  <p className="text-[11px] leading-tight text-muted-foreground/70">Local time</p>
                 </div>
               </div>
 
@@ -432,8 +467,17 @@ export function AdminUtmPollsPanel() {
                     <Input id="client_ip" className="h-8 text-sm font-mono" value={draft.client_ip} onChange={(e) => setDraft((d) => ({ ...d, client_ip: e.target.value }))} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="created_before" className="text-xs">Before Date</Label>
-                    <Input id="created_before" className="h-8 text-sm font-mono text-muted-foreground" value={draft.created_before} onChange={(e) => setDraft((d) => ({ ...d, created_before: e.target.value }))} placeholder="2025-12-31T00:00:00Z" />
+                    <Label htmlFor="created_before" className="text-xs">Before</Label>
+                    <Input
+                      id="created_before"
+                      type="datetime-local"
+                      className="h-8 text-sm font-mono text-muted-foreground"
+                      value={rfc3339ToLocalInput(draft.created_before)}
+                      onChange={(e) =>
+                        setDraft((d) => ({ ...d, created_before: localInputToRfc3339(e.target.value) }))
+                      }
+                    />
+                    <p className="text-[11px] leading-tight text-muted-foreground/70">Local time</p>
                   </div>
                 </div>
               )}
