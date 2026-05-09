@@ -484,7 +484,6 @@ export function AdminActivityLogsTable() {
     showingFrom,
     showingTo,
     limitSafe,
-    rawApiCount,
     canUseLastPage,
   } = useMemo(() => {
     const limitSafe = Math.max(1, limit)
@@ -532,7 +531,6 @@ export function AdminActivityLogsTable() {
       showingFrom,
       showingTo,
       limitSafe,
-      rawApiCount,
       canUseLastPage,
       goToPage: (page: number) => {
         const p = Math.min(Math.max(1, page), total)
@@ -883,75 +881,29 @@ export function AdminActivityLogsTable() {
 
       <div className="flex flex-col gap-4 border-t pt-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {events.length === 0 ? (
-              <span>
-                {offset > 0 ? (
-                  <>
-                    No events on this page — try <span className="font-medium text-foreground">Previous</span> or
-                    reduce offset.
-                  </>
-                ) : (
-                  "No events on this page."
-                )}
-              </span>
+              <span>No events on this page.</span>
             ) : hasReliableTotal ? (
               <>
-                <div>
-                  Showing{" "}
-                  <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
-                  <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span> of{" "}
-                  <span className="font-medium text-foreground">{adjustedTotal.toLocaleString()}</span> events
-                  {totalPages > 1 ? (
-                    <span className="ml-2">
-                      (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
-                    </span>
-                  ) : null}
-                </div>
-                <div className="text-xs flex flex-wrap gap-x-4 gap-y-1">
-                  <span>
-                    Page size: <span className="font-medium text-foreground/90">{limitSafe.toLocaleString()}</span>{" "}
-                    (limit)
+                Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
+                <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span> of{" "}
+                <span className="font-medium text-foreground">{adjustedTotal.toLocaleString()}</span> events
+                {totalPages > 1 ? (
+                  <span className="ml-2">
+                    (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
                   </span>
-                  <span>
-                    Skipped rows: <span className="font-medium text-foreground/90">{offset.toLocaleString()}</span>{" "}
-                    (offset)
-                  </span>
-                  <span title="Total matching events reported by the API for this time window and query.">
-                    Total (count):{" "}
-                    <span className="font-medium text-foreground/90">{rawApiCount.toLocaleString()}</span>
-                  </span>
-                </div>
+                ) : null}
               </>
             ) : (
               <>
-                <div>
-                  Showing{" "}
-                  <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
-                  <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span>
-                  {totalPages > 1 ? (
-                    <span className="ml-2 text-muted-foreground">
-                      · Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}+ (estimate)
-                    </span>
-                  ) : null}
-                  <span className="ml-2 text-amber-700 dark:text-amber-400">
-                    Exact total unknown — use Next if this page is full.
+                Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
+                <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span>
+                {totalPages > 1 ? (
+                  <span className="ml-2">
+                    (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
                   </span>
-                </div>
-                <div className="text-xs flex flex-wrap gap-x-4 gap-y-1">
-                  <span>
-                    Page size: <span className="font-medium text-foreground/90">{limitSafe.toLocaleString()}</span>{" "}
-                    (limit)
-                  </span>
-                  <span>
-                    Skipped rows: <span className="font-medium text-foreground/90">{offset.toLocaleString()}</span>{" "}
-                    (offset)
-                  </span>
-                  <span title="The API count field; may equal page size—full total may be larger.">
-                    API count: <span className="font-medium text-foreground/90">{rawApiCount.toLocaleString()}</span>{" "}
-                    (may not reflect full total)
-                  </span>
-                </div>
+                ) : null}
               </>
             )}
           </div>
@@ -1043,15 +995,9 @@ export function AdminActivityLogsTable() {
                     if (e.key === "Enter") handlePageJump()
                   }}
                   aria-label="Page number"
-                  title={
-                    canUseLastPage
-                      ? `Pages 1–${totalPages}`
-                      : "Jump within estimated pages; total may extend further."
-                  }
+                  title={`Pages 1–${totalPages}`}
                 />
-                <span className="text-xs whitespace-nowrap">
-                  {canUseLastPage ? `of ${totalPages}` : `(≤${totalPages} est.)`}
-                </span>
+                <span className="text-xs whitespace-nowrap">of {totalPages}</span>
                 <Button type="button" variant="secondary" size="sm" className="h-9" onClick={handlePageJump}>
                   Go
                 </Button>
