@@ -375,10 +375,11 @@ export function AdminActivityLogsTable() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [hours, setHours] = useState(24)
+  /** Request page size (API `limit`); pagination uses API `offset` + `count`. */
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
-  /** Rows in the last API response before client-side filters (used like server row count for pagination). */
+  /** Raw `response.events.length` before noise filters — needed for `offset + rows < count`. */
   const [apiPageLength, setApiPageLength] = useState(0)
   const [query, setQuery] = useState("")
   const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
@@ -396,14 +397,15 @@ export function AdminActivityLogsTable() {
       const response = await apiClient.adminGetAnalyticsEvents({ hours, limit, offset })
       const rawEvents = response.events || []
       setApiPageLength(rawEvents.length)
-      const normalizedEvents = rawEvents
+      setCount(Number(response.count) || 0)
+      const normalized = rawEvents
         .filter((item) => !isAdminLoginEvent(item))
         .filter((item) => !isLowSignalAutocaptureClick(item))
-      setEvents(normalizedEvents)
-      setCount(response.count || 0)
+      setEvents(normalized)
       refreshSucceeded = true
     } catch (error) {
       setApiPageLength(0)
+      setCount(0)
       console.error("[admin] Failed to fetch activity logs:", error)
       toast({
         title: "Error",
@@ -427,13 +429,101 @@ export function AdminActivityLogsTable() {
   }, [hours, limit, offset])
 
   useEffect(() => {
+    setOffset(0)
+  }, [query, activityFilter, hours, limit])
+
+  useEffect(() => {
     setPageJump("")
   }, [offset, limit])
+
+  const filteredEvents = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return events.filter((item) => {
+      if (!matchesActivityLogFilter(item, activityFilter)) return false
+      if (!q) return true
+      const ip = String(item.properties?._ingest_ip || "").toLowerCase()
+      const title = String(item.properties?.title || "").toLowerCase()
+      const composed = [
+        item.event,
+        item.distinct_id,
+        item.session_id,
+        item.path,
+        item.url,
+        item.device_type,
+        item.platform,
+        ip,
+        title,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return composed.includes(q)
+    })
+  }, [events, query, activityFilter])
+
+  const {
+    currentPage,
+    totalPages,
+    visiblePages,
+    canGoNext,
+    canGoPrev,
+    showingFrom,
+    showingTo,
+    adjustedTotal,
+    hasReliableTotal,
+    goToPage,
+    canUseLastPage,
+  } = useMemo(() => {
+    const limitSafe = Math.max(1, limit)
+    const current = Math.floor(offset / limitSafe) + 1
+    const rawApiCount = count
+    const pageRows = apiPageLength
+
+    let totalCount = rawApiCount
+    let hasReliableTotal = totalCount > 0
+
+    if (pageRows === limitSafe) {
+      if (totalCount === 0 || totalCount === limitSafe || totalCount === pageRows) {
+        hasReliableTotal = false
+        totalCount = offset + limitSafe + 1
+      }
+    } else if (pageRows < limitSafe) {
+      hasReliableTotal = true
+      totalCount = offset + pageRows
+    }
+
+    const total = Math.max(1, Math.ceil(Math.max(0, totalCount) / limitSafe))
+    const byServerTotal = rawApiCount > 0 && offset + pageRows < rawApiCount
+    const heuristicMore =
+      pageRows === limitSafe &&
+      (rawApiCount === 0 || rawApiCount === limitSafe || rawApiCount === pageRows)
+    const next = byServerTotal || heuristicMore
+
+    const showingFrom = pageRows === 0 ? 0 : offset + 1
+    const showingTo = offset + pageRows
+
+    return {
+      currentPage: Math.min(current, total),
+      totalPages: total,
+      visiblePages: getVisiblePageNumbers(Math.min(current, total), total),
+      canGoNext: next,
+      canGoPrev: offset > 0,
+      hasReliableTotal,
+      adjustedTotal: Math.max(0, totalCount),
+      showingFrom,
+      showingTo,
+      canUseLastPage: hasReliableTotal,
+      goToPage: (p: number) => {
+        const tp = Math.min(Math.max(1, p), total)
+        setOffset((tp - 1) * limitSafe)
+      },
+    }
+  }, [count, offset, limit, apiPageLength])
 
   useEffect(() => {
     const ids = Array.from(
       new Set(
-        events
+        filteredEvents
           .map((item) => getVideoIdFromEvent(item))
           .filter((id): id is string => Boolean(id)),
       ),
@@ -470,103 +560,7 @@ export function AdminActivityLogsTable() {
     return () => {
       cancelled = true
     }
-  }, [events, videoMetaById])
-
-  const {
-    currentPage,
-    totalPages,
-    visiblePages,
-    canGoNext,
-    canGoPrev,
-    goToPage,
-    hasReliableTotal,
-    adjustedTotal,
-    showingFrom,
-    showingTo,
-    limitSafe,
-    canUseLastPage,
-  } = useMemo(() => {
-    const limitSafe = Math.max(1, limit)
-    const current = Math.floor(offset / limitSafe) + 1
-    const rawApiCount = typeof count === "number" ? count : 0
-    // Prefer server row count from the response; filtered `events.length` breaks Next when we drop rows client-side.
-    const pageRows = apiPageLength
-
-    // API may return `count` as page size (or 0) instead of true total — same idea as Users table.
-    let totalCount = rawApiCount
-    let hasReliableTotal = totalCount > 0
-
-    if (pageRows === limitSafe) {
-      if (totalCount === 0 || totalCount === limitSafe || totalCount === pageRows) {
-        hasReliableTotal = false
-        totalCount = offset + limitSafe + 1
-      }
-    } else if (pageRows < limitSafe) {
-      hasReliableTotal = true
-      totalCount = offset + pageRows
-    }
-
-    const total = Math.max(1, Math.ceil(Math.max(0, totalCount) / limitSafe))
-    const pages = getVisiblePageNumbers(Math.min(current, total), total)
-    const showingFrom = events.length === 0 ? 0 : offset + 1
-    const showingTo = offset + events.length
-    // Users-style: more rows exist when offset + rows on this page is still below API total.
-    const byServerTotal = rawApiCount > 0 && offset + pageRows < rawApiCount
-    // Full page but count looks like "this page only" — may still be more (some backends misreport count).
-    const heuristicMore =
-      pageRows === limitSafe &&
-      (rawApiCount === 0 || rawApiCount === limitSafe || rawApiCount === pageRows)
-    const next = byServerTotal || heuristicMore
-    const prev = offset > 0
-    const canUseLastPage = hasReliableTotal
-
-    return {
-      currentPage: Math.min(current, total),
-      totalPages: total,
-      visiblePages: pages,
-      canGoNext: next,
-      canGoPrev: prev,
-      hasReliableTotal,
-      adjustedTotal: Math.max(0, totalCount),
-      showingFrom,
-      showingTo,
-      limitSafe,
-      canUseLastPage,
-      goToPage: (page: number) => {
-        const p = Math.min(Math.max(1, page), total)
-        setOffset((p - 1) * limitSafe)
-      },
-    }
-  }, [count, offset, limit, events.length, apiPageLength])
-
-  const filteredEvents = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return events.filter((item) => {
-      if (!matchesActivityLogFilter(item, activityFilter)) return false
-      if (!q) return true
-      const ip = String(item.properties?._ingest_ip || "").toLowerCase()
-      const title = String(item.properties?.title || "").toLowerCase()
-      const composed = [
-        item.event,
-        item.distinct_id,
-        item.session_id,
-        item.path,
-        item.url,
-        item.device_type,
-        item.platform,
-        ip,
-        title,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-      return composed.includes(q)
-    })
-  }, [events, query, activityFilter])
-
-  const hasClientFilter =
-    query.trim() !== "" || activityFilter !== "all"
-  const filteredShortfall = events.length > 0 && filteredEvents.length < events.length
+  }, [filteredEvents, videoMetaById])
 
   const handlePageJump = () => {
     const parsed = Number.parseInt(pageJump.replace(/\D/g, ""), 10)
@@ -629,7 +623,6 @@ export function AdminActivityLogsTable() {
             <select
               value={hours}
               onChange={(e) => {
-                setOffset(0)
                 setHours(Number(e.target.value))
               }}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -644,10 +637,10 @@ export function AdminActivityLogsTable() {
             <select
               value={limit}
               onChange={(e) => {
-                setOffset(0)
                 setLimit(Number(e.target.value))
               }}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              aria-label="Events per API page"
             >
               {LIMIT_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -664,16 +657,9 @@ export function AdminActivityLogsTable() {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{filteredEvents.length}</span> shown
-          {hasClientFilter && events.length !== filteredEvents.length ? (
-            <>
-              {" "}
-              (filtered from <span className="font-medium text-foreground">{events.length}</span> on this page)
-            </>
-          ) : null}
-          {" · "}
-          API window: <span className="font-medium text-foreground">{count.toLocaleString()}</span> events for last{" "}
-          <span className="font-medium text-foreground">{hours}</span>h
+          API reports <span className="font-medium text-foreground">{count.toLocaleString()}</span> events (last{" "}
+          <span className="font-medium text-foreground">{hours}</span>h). Search/activity filters apply to the current page
+          only.
         </div>
       </div>
 
@@ -699,10 +685,16 @@ export function AdminActivityLogsTable() {
               </tr>
             </thead>
             <tbody>
-              {filteredEvents.length === 0 ? (
+              {apiPageLength === 0 ? (
                 <tr>
                   <td colSpan={5} className="h-28 px-3 text-center text-sm text-muted-foreground">
-                    No activity logs found for current filters
+                    No events in this window for this page offset.
+                  </td>
+                </tr>
+              ) : filteredEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="h-28 px-3 text-center text-sm text-muted-foreground">
+                    No events match your search or activity filter on this page.
                   </td>
                 </tr>
               ) : (
@@ -812,9 +804,13 @@ export function AdminActivityLogsTable() {
         </div>
 
         <div className="md:hidden divide-y">
-          {filteredEvents.length === 0 ? (
+          {apiPageLength === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-              No activity logs found for current filters
+              No events in this window for this page offset.
+            </div>
+          ) : filteredEvents.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              No events match your search or activity filter on this page.
             </div>
           ) : (
             filteredEvents.map((item, idx) => {
@@ -882,40 +878,30 @@ export function AdminActivityLogsTable() {
       <div className="flex flex-col gap-4 border-t pt-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="text-sm text-muted-foreground">
-            {events.length === 0 ? (
-              <span>No events on this page.</span>
+            {apiPageLength === 0 ? (
+              <span>No rows returned for this request.</span>
             ) : hasReliableTotal ? (
               <>
                 Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
                 <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span> of{" "}
                 <span className="font-medium text-foreground">{adjustedTotal.toLocaleString()}</span> events
-                {totalPages > 1 ? (
-                  <span className="ml-2">
-                    (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
-                  </span>
-                ) : null}
+                <span className="ml-2">
+                  (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
+                </span>
               </>
             ) : (
               <>
                 Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
                 <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span>
-                {totalPages > 1 ? (
-                  <span className="ml-2">
-                    (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
-                  </span>
-                ) : null}
+                <span className="ml-2">
+                  (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
+                </span>
               </>
             )}
           </div>
-          {filteredShortfall && (
-            <div className="text-xs text-amber-700 dark:text-amber-400">
-              Search or activity filter is hiding {(events.length - filteredEvents.length).toLocaleString()} row(s) on
-              this page only.
-            </div>
-          )}
         </div>
 
-        {totalPages > 1 || canGoPrev || canGoNext ? (
+        {count > 0 || offset > 0 || apiPageLength > 0 ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Button
@@ -967,7 +953,7 @@ export function AdminActivityLogsTable() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
 
-              {canUseLastPage ? (
+              {canUseLastPage && totalPages > 1 ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -1004,11 +990,7 @@ export function AdminActivityLogsTable() {
               </label>
             </div>
           </div>
-        ) : (
-          <div className="text-xs text-muted-foreground">
-            {events.length > 0 && events.length <= limitSafe ? "Everything in this result fits on one page." : null}
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
