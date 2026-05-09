@@ -154,7 +154,7 @@ export default function RootLayout({
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsSrc = apiAnalyticsEnabled
-    ? `${API_BASE_URL.replace(/\/$/, "")}/tracker.js`
+    ? `/proxy/tracker.js`
     : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
   const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
@@ -227,7 +227,7 @@ export default function RootLayout({
         {apiAnalyticsSrc && (
           <ApiAnalyticsTracker
             src={apiAnalyticsSrc}
-            baseUrl={API_BASE_URL}
+            baseUrl="/proxy"
             ingestKey={analyticsIngestKey}
             appVersion={analyticsAppVersion}
           />

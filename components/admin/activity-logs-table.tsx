@@ -37,12 +37,12 @@ type ActivityLogFilter =
   | "play"
   | "next"
   | "like"
+  | "unlike"
   | "signup"
   | "pageview"
   | "share"
   | "follow"
   | "playlist"
-  | "dislike"
   | "comment"
   | "login"
   | "search"
@@ -148,6 +148,20 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
     }
   }
 
+  if (eventName === "conversion_unlike_success") {
+    return {
+      title: "Unliked video",
+      detail: targetPath || "Video unliked successfully",
+    }
+  }
+
+  if (eventName === "conversion_dislike_success") {
+    return {
+      title: "Disliked video",
+      detail: targetPath || "Video disliked successfully",
+    }
+  }
+
   if (eventName === "conversion_signup_completed") {
     return {
       title: "Completed signup",
@@ -201,10 +215,6 @@ function matchesActivityLogFilter(item: AnalyticsEvent, filter: ActivityLogFilte
 
   if (filter === "playlist") {
     return uiName === "added-to-playlist" || uiName.includes("opened-video-from-playlist")
-  }
-
-  if (filter === "dislike") {
-    return uiName === "disliked" || uiName === "dislike"
   }
 
   if (filter === "comment") {
@@ -261,9 +271,12 @@ function matchesActivityLogFilter(item: AnalyticsEvent, filter: ActivityLogFilte
     return (
       eventName === "conversion_like_success" ||
       uiName === "liked" ||
-      uiName === "like" ||
-      uiName === "unliked"
+      uiName === "like"
     )
+  }
+
+  if (filter === "unlike") {
+    return eventName === "conversion_unlike_success" || uiName === "unliked"
   }
 
   if (filter === "signup") {
@@ -457,21 +470,35 @@ export function AdminActivityLogsTable() {
   const { currentPage, totalPages, visiblePages, rangeLabel, canGoNext, canGoPrev, goToPage } = useMemo(() => {
     const limitSafe = Math.max(1, limit)
     const current = Math.floor(offset / limitSafe) + 1
-    const hasServerTotal = typeof count === "number" && count > 0
-    const total = hasServerTotal ? Math.max(1, Math.ceil(count / limitSafe)) : Math.max(1, current + (events.length === limitSafe ? 1 : 0))
+    // API may return `count` as page size (or 0) instead of true total.
+    // Match Users table behavior: infer "has next page" from page fullness when total unreliable.
+    let totalCount = typeof count === "number" ? count : 0
+    let hasReliableTotal = totalCount > 0
+
+    if (events.length === limitSafe) {
+      // Full page: if API count looks like page-size, treat as unknown total → allow next.
+      if (totalCount === 0 || totalCount === limitSafe || totalCount === events.length) {
+        hasReliableTotal = false
+        totalCount = offset + limitSafe + 1 // sentinel: implies at least one more page
+      }
+    } else if (events.length < limitSafe) {
+      // Partial page: this is last page.
+      hasReliableTotal = true
+      totalCount = offset + events.length
+    }
+
+    const total = Math.max(1, Math.ceil(Math.max(0, totalCount) / limitSafe))
     const pages = getVisiblePageNumbers(Math.min(current, total), total)
     const from = events.length === 0 ? 0 : offset + 1
     const to = offset + events.length
     const range =
       events.length === 0
         ? "No rows on this page"
-        : hasServerTotal
-          ? `Rows ${from.toLocaleString()}–${to.toLocaleString()} of ${count.toLocaleString()}`
+        : hasReliableTotal
+          ? `Rows ${from.toLocaleString()}–${to.toLocaleString()} of ${Math.max(0, totalCount).toLocaleString()}`
           : `Rows ${from.toLocaleString()}–${to.toLocaleString()} on this page`
     const next =
-      hasServerTotal
-        ? offset + limitSafe < count
-        : events.length === limitSafe
+      hasReliableTotal ? offset + limitSafe < Math.max(0, totalCount) : events.length === limitSafe
     const prev = offset > 0
 
     return {
@@ -561,13 +588,13 @@ export function AdminActivityLogsTable() {
               <option value="conversions">All conversion_* (play, next, like, signup)</option>
               <option value="play">Play started / opened video</option>
               <option value="next">Next / skip forward</option>
-              <option value="like">Like / unlike</option>
+              <option value="like">Like</option>
+              <option value="unlike">Unlike</option>
               <option value="signup">Signup (completed + funnel clicks)</option>
               <option value="pageview">Page views</option>
               <option value="share">Share video</option>
               <option value="follow">Follow / unfollow creator</option>
               <option value="playlist">Playlist (add, open from playlist)</option>
-              <option value="dislike">Dislike</option>
               <option value="comment">Comments (open thread)</option>
               <option value="login">Login (navbar + form)</option>
               <option value="search">Search overlay</option>
@@ -865,7 +892,7 @@ export function AdminActivityLogsTable() {
               size="sm"
               className="h-9 px-2"
               disabled={!canGoPrev}
-              onClick={() => setOffset(Math.max(0, offset - limit))}
+              onClick={() => goToPage(currentPage - 1)}
               title="Previous page"
               aria-label="Previous page"
             >
@@ -901,7 +928,7 @@ export function AdminActivityLogsTable() {
               size="sm"
               className="h-9 px-2"
               disabled={!canGoNext}
-              onClick={() => setOffset(offset + limit)}
+              onClick={() => goToPage(currentPage + 1)}
               title="Next page"
               aria-label="Next page"
             >

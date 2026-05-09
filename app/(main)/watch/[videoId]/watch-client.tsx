@@ -436,6 +436,8 @@ export default function WatchPage() {
   const [upvoteState, setUpvoteState] = useState<{ upvoted: boolean; downvoted: boolean }>(
     () => (shouldUsePersistedUiState ? persistedWatchUiState?.upvoteState : undefined) ?? activeVideoInitialVoteState,
   )
+  const isLikeActionInFlightRef = useRef(false)
+  const isDislikeActionInFlightRef = useRef(false)
   const hasFetchedVideoRef = useRef<string | null>(null)
   const isFetchingRef = useRef<boolean>(false)
   const latestVideoRequestIdRef = useRef<string | null>(null)
@@ -1040,11 +1042,16 @@ export default function WatchPage() {
 
     if (!video) return
 
+    if (isLikeActionInFlightRef.current) return
+    isLikeActionInFlightRef.current = true
+
     try {
       const videoId = video.video_id || video.videoId
-      const wasLiked = isLiked
+      // Use vote state as source of truth to avoid stale UI state causing inverted events.
+      const wasLiked = upvoteState.upvoted
       const wasDisliked = isDisliked
       const isRemovingLike = wasLiked
+      const nextLiked = !isRemovingLike
 
       if (isRemovingLike) {
         // Product requirement: heart button must toggle using downvote endpoint when already upvoted.
@@ -1056,9 +1063,9 @@ export default function WatchPage() {
       videoResponseCache.delete(videoId)
       
       // Update state
-      setIsLiked(!isRemovingLike)
+      setIsLiked(nextLiked)
       setIsDisliked(false)
-      setUpvoteState({ upvoted: !isRemovingLike, downvoted: false })
+      setUpvoteState({ upvoted: nextLiked, downvoted: false })
       
       // Update video counts optimistically while refreshing
       if (video) {
@@ -1101,13 +1108,11 @@ export default function WatchPage() {
           ? "This video is no longer in your Liked library."
           : "You can find it anytime under Liked videos.",
       })
-      if (!isRemovingLike) {
-        captureConversionEvent("conversion_like_success", {
-          video_id: videoId,
-          source: playlistContext ? "playlist" : "recommended",
-          playlist_id: playlistContext?.playlistId,
-        })
-      }
+      captureConversionEvent(nextLiked ? "conversion_like_success" : "conversion_unlike_success", {
+        video_id: videoId,
+        source: playlistContext ? "playlist" : "recommended",
+        playlist_id: playlistContext?.playlistId,
+      })
     } catch (error) {
       console.error("[hiffi] Failed to toggle like for video:", error)
       toast({
@@ -1115,6 +1120,8 @@ export default function WatchPage() {
         description: "Couldn’t update Liked videos. Try again.",
         variant: "destructive",
       })
+    } finally {
+      isLikeActionInFlightRef.current = false
     }
   }
 
@@ -1128,6 +1135,9 @@ export default function WatchPage() {
     }
 
     if (!video) return
+
+    if (isDislikeActionInFlightRef.current) return
+    isDislikeActionInFlightRef.current = true
 
     try {
       const videoId = video.video_id || video.videoId
@@ -1182,6 +1192,13 @@ export default function WatchPage() {
           ? "We won’t tune recommendations from that signal anymore."
           : "We’ll show you fewer recommendations like this one.",
       })
+
+      captureConversionEvent("conversion_dislike_success", {
+        video_id: videoId,
+        source: playlistContext ? "playlist" : "recommended",
+        playlist_id: playlistContext?.playlistId,
+        action: wasDisliked ? "undislike" : "dislike",
+      })
     } catch (error) {
       console.error("[hiffi] Failed to downvote video:", error)
       toast({
@@ -1189,6 +1206,8 @@ export default function WatchPage() {
         description: "Couldn’t save that feedback. Try again.",
         variant: "destructive",
       })
+    } finally {
+      isDislikeActionInFlightRef.current = false
     }
   }
 
@@ -1424,7 +1443,6 @@ export default function WatchPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        data-analytics-name={isLiked ? "unliked" : "liked"}
                         className={cn(
                           "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                           isLiked && "text-primary hover:text-primary",
@@ -1509,7 +1527,6 @@ export default function WatchPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            data-analytics-name={isLiked ? "unliked" : "liked"}
                             className={cn(
                               "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                               isLiked && "text-primary hover:text-primary",

@@ -2,6 +2,8 @@ export type ConversionEventName =
   | "conversion_play_started"
   | "conversion_next_clicked"
   | "conversion_like_success"
+  | "conversion_unlike_success"
+  | "conversion_dislike_success"
   | "conversion_signup_completed"
 
 export type ConversionSource = "home" | "recommended" | "playlist" | "search" | "profile"

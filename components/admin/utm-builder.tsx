@@ -15,10 +15,10 @@ function formatUtmParam(val: string) {
   return val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '')
 }
 
-function parseBaseDestinationUrl(
+function parseDestinationUrl(
   raw: string,
   opts?: { requiredOrigin?: string },
-): { ok: true; base: URL } | { ok: false; error: string } {
+): { ok: true; url: URL; origin: URL } | { ok: false; error: string } {
   const input = raw.trim()
   if (!input) return { ok: false, error: "" }
 
@@ -49,20 +49,7 @@ function parseBaseDestinationUrl(
     }
   }
 
-  // Destination must be base domain/origin only (no path/query/hash).
-  const path = parsed.pathname || "/"
-  if (path !== "/" && path !== "") {
-    return { ok: false, error: "Destination URL must be domain only (no path). Example: hiffi.app" }
-  }
-  if (parsed.search && parsed.search !== "?") {
-    return { ok: false, error: "Destination URL must not include query params" }
-  }
-  if (parsed.hash) {
-    return { ok: false, error: "Destination URL must not include hash (#...)" }
-  }
-
-  // Normalize to origin (keeps protocol + host + optional port).
-  return { ok: true, base: new URL(parsed.origin) }
+  return { ok: true, url: parsed, origin: new URL(parsed.origin) }
 }
 
 export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
@@ -91,7 +78,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
       setUrlError("")
       return
     }
-    const parsed = parseBaseDestinationUrl(url, { requiredOrigin })
+    const parsed = parseDestinationUrl(url, { requiredOrigin })
     setUrlError(parsed.ok ? "" : parsed.error)
   }, [url, requiredOrigin])
 
@@ -103,9 +90,9 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
   const generatedUrl = useMemo(() => {
     if (!isValid) return ""
     try {
-      const parsedBase = parseBaseDestinationUrl(url, { requiredOrigin })
-      if (!parsedBase.ok) return ""
-      const parsedUrl = new URL(parsedBase.base.toString())
+      const parsed = parseDestinationUrl(url, { requiredOrigin })
+      if (!parsed.ok) return ""
+      const parsedUrl = new URL(parsed.url.toString())
       parsedUrl.searchParams.set("utm_source", source)
       parsedUrl.searchParams.set("utm_medium", medium)
       parsedUrl.searchParams.set("utm_campaign", campaign)
