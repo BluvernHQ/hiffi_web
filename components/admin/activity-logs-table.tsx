@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
-import { Loader2, RefreshCw, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Loader2, RefreshCw, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -375,9 +375,11 @@ export function AdminActivityLogsTable() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [hours, setHours] = useState(24)
-  const [limit, setLimit] = useState(100)
+  const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
+  /** Rows in the last API response before client-side filters (used like server row count for pagination). */
+  const [apiPageLength, setApiPageLength] = useState(0)
   const [query, setQuery] = useState("")
   const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
@@ -392,13 +394,16 @@ export function AdminActivityLogsTable() {
         setLoading(true)
       }
       const response = await apiClient.adminGetAnalyticsEvents({ hours, limit, offset })
-      const normalizedEvents = (response.events || [])
+      const rawEvents = response.events || []
+      setApiPageLength(rawEvents.length)
+      const normalizedEvents = rawEvents
         .filter((item) => !isAdminLoginEvent(item))
         .filter((item) => !isLowSignalAutocaptureClick(item))
       setEvents(normalizedEvents)
       setCount(response.count || 0)
       refreshSucceeded = true
     } catch (error) {
+      setApiPageLength(0)
       console.error("[admin] Failed to fetch activity logs:", error)
       toast({
         title: "Error",
@@ -467,53 +472,74 @@ export function AdminActivityLogsTable() {
     }
   }, [events, videoMetaById])
 
-  const { currentPage, totalPages, visiblePages, rangeLabel, canGoNext, canGoPrev, goToPage } = useMemo(() => {
+  const {
+    currentPage,
+    totalPages,
+    visiblePages,
+    canGoNext,
+    canGoPrev,
+    goToPage,
+    hasReliableTotal,
+    adjustedTotal,
+    showingFrom,
+    showingTo,
+    limitSafe,
+    rawApiCount,
+    canUseLastPage,
+  } = useMemo(() => {
     const limitSafe = Math.max(1, limit)
     const current = Math.floor(offset / limitSafe) + 1
-    // API may return `count` as page size (or 0) instead of true total.
-    // Match Users table behavior: infer "has next page" from page fullness when total unreliable.
-    let totalCount = typeof count === "number" ? count : 0
+    const rawApiCount = typeof count === "number" ? count : 0
+    // Prefer server row count from the response; filtered `events.length` breaks Next when we drop rows client-side.
+    const pageRows = apiPageLength
+
+    // API may return `count` as page size (or 0) instead of true total — same idea as Users table.
+    let totalCount = rawApiCount
     let hasReliableTotal = totalCount > 0
 
-    if (events.length === limitSafe) {
-      // Full page: if API count looks like page-size, treat as unknown total → allow next.
-      if (totalCount === 0 || totalCount === limitSafe || totalCount === events.length) {
+    if (pageRows === limitSafe) {
+      if (totalCount === 0 || totalCount === limitSafe || totalCount === pageRows) {
         hasReliableTotal = false
-        totalCount = offset + limitSafe + 1 // sentinel: implies at least one more page
+        totalCount = offset + limitSafe + 1
       }
-    } else if (events.length < limitSafe) {
-      // Partial page: this is last page.
+    } else if (pageRows < limitSafe) {
       hasReliableTotal = true
-      totalCount = offset + events.length
+      totalCount = offset + pageRows
     }
 
     const total = Math.max(1, Math.ceil(Math.max(0, totalCount) / limitSafe))
     const pages = getVisiblePageNumbers(Math.min(current, total), total)
-    const from = events.length === 0 ? 0 : offset + 1
-    const to = offset + events.length
-    const range =
-      events.length === 0
-        ? "No rows on this page"
-        : hasReliableTotal
-          ? `Rows ${from.toLocaleString()}–${to.toLocaleString()} of ${Math.max(0, totalCount).toLocaleString()}`
-          : `Rows ${from.toLocaleString()}–${to.toLocaleString()} on this page`
-    const next =
-      hasReliableTotal ? offset + limitSafe < Math.max(0, totalCount) : events.length === limitSafe
+    const showingFrom = events.length === 0 ? 0 : offset + 1
+    const showingTo = offset + events.length
+    // Users-style: more rows exist when offset + rows on this page is still below API total.
+    const byServerTotal = rawApiCount > 0 && offset + pageRows < rawApiCount
+    // Full page but count looks like "this page only" — may still be more (some backends misreport count).
+    const heuristicMore =
+      pageRows === limitSafe &&
+      (rawApiCount === 0 || rawApiCount === limitSafe || rawApiCount === pageRows)
+    const next = byServerTotal || heuristicMore
     const prev = offset > 0
+    const canUseLastPage = hasReliableTotal
 
     return {
       currentPage: Math.min(current, total),
       totalPages: total,
       visiblePages: pages,
-      rangeLabel: range,
       canGoNext: next,
       canGoPrev: prev,
+      hasReliableTotal,
+      adjustedTotal: Math.max(0, totalCount),
+      showingFrom,
+      showingTo,
+      limitSafe,
+      rawApiCount,
+      canUseLastPage,
       goToPage: (page: number) => {
         const p = Math.min(Math.max(1, page), total)
         setOffset((p - 1) * limitSafe)
       },
     }
-  }, [count, offset, limit, events.length])
+  }, [count, offset, limit, events.length, apiPageLength])
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -856,13 +882,78 @@ export function AdminActivityLogsTable() {
       </div>
 
       <div className="flex flex-col gap-4 border-t pt-4">
-        <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div>
-            <span className="font-medium text-foreground">
-              Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
-            </span>
-            <span className="mx-2 text-border">·</span>
-            {rangeLabel}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {events.length === 0 ? (
+              <span>
+                {offset > 0 ? (
+                  <>
+                    No events on this page — try <span className="font-medium text-foreground">Previous</span> or
+                    reduce offset.
+                  </>
+                ) : (
+                  "No events on this page."
+                )}
+              </span>
+            ) : hasReliableTotal ? (
+              <>
+                <div>
+                  Showing{" "}
+                  <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
+                  <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span> of{" "}
+                  <span className="font-medium text-foreground">{adjustedTotal.toLocaleString()}</span> events
+                  {totalPages > 1 ? (
+                    <span className="ml-2">
+                      (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-xs flex flex-wrap gap-x-4 gap-y-1">
+                  <span>
+                    Page size: <span className="font-medium text-foreground/90">{limitSafe.toLocaleString()}</span>{" "}
+                    (limit)
+                  </span>
+                  <span>
+                    Skipped rows: <span className="font-medium text-foreground/90">{offset.toLocaleString()}</span>{" "}
+                    (offset)
+                  </span>
+                  <span title="Total matching events reported by the API for this time window and query.">
+                    Total (count):{" "}
+                    <span className="font-medium text-foreground/90">{rawApiCount.toLocaleString()}</span>
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  Showing{" "}
+                  <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
+                  <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span>
+                  {totalPages > 1 ? (
+                    <span className="ml-2 text-muted-foreground">
+                      · Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}+ (estimate)
+                    </span>
+                  ) : null}
+                  <span className="ml-2 text-amber-700 dark:text-amber-400">
+                    Exact total unknown — use Next if this page is full.
+                  </span>
+                </div>
+                <div className="text-xs flex flex-wrap gap-x-4 gap-y-1">
+                  <span>
+                    Page size: <span className="font-medium text-foreground/90">{limitSafe.toLocaleString()}</span>{" "}
+                    (limit)
+                  </span>
+                  <span>
+                    Skipped rows: <span className="font-medium text-foreground/90">{offset.toLocaleString()}</span>{" "}
+                    (offset)
+                  </span>
+                  <span title="The API count field; may equal page size—full total may be larger.">
+                    API count: <span className="font-medium text-foreground/90">{rawApiCount.toLocaleString()}</span>{" "}
+                    (may not reflect full total)
+                  </span>
+                </div>
+              </>
+            )}
           </div>
           {filteredShortfall && (
             <div className="text-xs text-amber-700 dark:text-amber-400">
@@ -872,102 +963,106 @@ export function AdminActivityLogsTable() {
           )}
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-start">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 px-2"
-              disabled={!canGoPrev}
-              onClick={() => goToPage(1)}
-              title="First page"
-              aria-label="First page"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 px-2"
-              disabled={!canGoPrev}
-              onClick={() => goToPage(currentPage - 1)}
-              title="Previous page"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
+        {totalPages > 1 || canGoPrev || canGoNext ? (
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1 h-9"
+                disabled={!canGoPrev}
+                onClick={() => goToPage(currentPage - 1)}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
 
-            <div className="mx-1 flex flex-wrap items-center justify-center gap-1">
-              {visiblePages.map((item, idx) =>
-                item === "gap" ? (
-                  <span key={`gap-${idx}`} className="px-1 text-muted-foreground">
-                    …
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    key={item}
-                    variant={item === currentPage ? "default" : "outline"}
-                    size="sm"
-                    className={cn("h-9 min-w-9 px-2", item === currentPage && "pointer-events-none")}
-                    onClick={() => goToPage(item)}
-                    aria-label={`Page ${item}`}
-                    aria-current={item === currentPage ? "page" : undefined}
-                  >
-                    {item.toLocaleString()}
-                  </Button>
-                ),
-              )}
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                {visiblePages.map((item, idx) =>
+                  item === "gap" ? (
+                    <span key={`gap-${idx}`} className="px-1 text-muted-foreground">
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      key={item}
+                      variant={item === currentPage ? "default" : "outline"}
+                      size="sm"
+                      className={cn("h-9 min-w-9 px-2", item === currentPage && "pointer-events-none")}
+                      onClick={() => goToPage(item)}
+                      aria-label={`Page ${item}`}
+                      aria-current={item === currentPage ? "page" : undefined}
+                    >
+                      {item.toLocaleString()}
+                    </Button>
+                  ),
+                )}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1 h-9"
+                disabled={!canGoNext}
+                onClick={() => goToPage(currentPage + 1)}
+                aria-label="Next page"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+
+              {canUseLastPage ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(totalPages)}
+                  aria-label="Last page"
+                >
+                  Last
+                </Button>
+              ) : null}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 px-2"
-              disabled={!canGoNext}
-              onClick={() => goToPage(currentPage + 1)}
-              title="Next page"
-              aria-label="Next page"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 px-2"
-              disabled={!canGoNext}
-              onClick={() => goToPage(totalPages)}
-              title="Last page"
-              aria-label="Last page"
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="whitespace-nowrap">Go to page</span>
+                <Input
+                  inputMode="numeric"
+                  className="h-9 w-16 text-center"
+                  placeholder={String(currentPage)}
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handlePageJump()
+                  }}
+                  aria-label="Page number"
+                  title={
+                    canUseLastPage
+                      ? `Pages 1–${totalPages}`
+                      : "Jump within estimated pages; total may extend further."
+                  }
+                />
+                <span className="text-xs whitespace-nowrap">
+                  {canUseLastPage ? `of ${totalPages}` : `(≤${totalPages} est.)`}
+                </span>
+                <Button type="button" variant="secondary" size="sm" className="h-9" onClick={handlePageJump}>
+                  Go
+                </Button>
+              </label>
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="whitespace-nowrap">Go to</span>
-              <Input
-                inputMode="numeric"
-                className="h-9 w-16 text-center"
-                placeholder={String(currentPage)}
-                value={pageJump}
-                onChange={(e) => setPageJump(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handlePageJump()
-                }}
-                aria-label="Page number"
-              />
-              <Button type="button" variant="secondary" size="sm" className="h-9" onClick={handlePageJump}>
-                Go
-              </Button>
-            </label>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            {events.length > 0 && events.length <= limitSafe ? "Everything in this result fits on one page." : null}
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
