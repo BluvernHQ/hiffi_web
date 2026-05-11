@@ -3,14 +3,13 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import Link from "next/link"
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
-import { getColorFromName } from "@/lib/utils"
+import { ProfilePicture } from "@/components/profile/profile-picture"
 
 type ReferralRecord = {
   code: string
@@ -18,29 +17,107 @@ type ReferralRecord = {
   referrer_uid: string
   referrer_username: string
   referrer_name: string
+  /** Path or URL when the admin referrals API includes it */
+  referrer_profile_picture?: string
   referred_uid: string
   referred_username: string
   referred_name: string
+  referred_profile_picture?: string
 }
 
 const LIMIT_OPTIONS = [20, 50, 100]
 
-function UserProfilePreview({ name, username }: { name: string; username: string }) {
-  const displayName = name || username || "Unknown"
-  const initial = displayName.charAt(0).toUpperCase()
+/** Canonical storage path for a user's profile image (used when API does not send a path). */
+function referralProfilePicturePathForUid(uid: string): string {
+  const id = String(uid || "").trim()
+  if (!id) return ""
+  return `ProfileProto/users/${id}.jpg`
+}
 
+function resolveReferralProfilePicture(apiPath: string | undefined, uid: string): string {
+  const fromApi = String(apiPath || "").trim()
+  if (fromApi) return fromApi
+  return referralProfilePicturePathForUid(uid)
+}
+
+type ReferralAvatarUser = {
+  username: string
+  name: string
+  profile_picture: string
+}
+
+/** One stable user object per uid on the current page — list + sheet reuse the same reference. */
+function buildReferralAvatarMaps(rows: ReferralRecord[]) {
+  const referrers = new Map<string, ReferralAvatarUser>()
+  const referred = new Map<string, ReferralAvatarUser>()
+
+  for (const row of rows) {
+    const rUid = String(row.referrer_uid || "").trim()
+    if (rUid && !referrers.has(rUid)) {
+      referrers.set(rUid, {
+        username: row.referrer_username || "unknown",
+        name: (row.referrer_name || row.referrer_username || "Unknown").trim() || "Unknown",
+        profile_picture: resolveReferralProfilePicture(row.referrer_profile_picture, rUid),
+      })
+    }
+    const dUid = String(row.referred_uid || "").trim()
+    if (dUid && !referred.has(dUid)) {
+      referred.set(dUid, {
+        username: row.referred_username || "unknown",
+        name: (row.referred_name || row.referred_username || "Unknown").trim() || "Unknown",
+        profile_picture: resolveReferralProfilePicture(row.referred_profile_picture, dUid),
+      })
+    }
+  }
+
+  return { referrers, referred }
+}
+
+function fallbackAvatarUser(username: string, name: string): ReferralAvatarUser {
+  const u = username || "unknown"
+  const n = (name || username || "Unknown").trim() || "Unknown"
+  return { username: u, name: n, profile_picture: "" }
+}
+
+function normalizeReferralRow(raw: Record<string, unknown>): ReferralRecord {
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "")
+  const pic = (...keys: string[]) => {
+    for (const k of keys) {
+      const s = str(raw[k])
+      if (s) return s
+    }
+    return undefined
+  }
+  return {
+    code: String(raw.code ?? ""),
+    enrolled_at: String(raw.enrolled_at ?? ""),
+    referrer_uid: String(raw.referrer_uid ?? ""),
+    referrer_username: String(raw.referrer_username ?? ""),
+    referrer_name: String(raw.referrer_name ?? ""),
+    referrer_profile_picture: pic(
+      "referrer_profile_picture",
+      "referrerProfilePicture",
+      "referrer_image",
+      "referrerImage",
+    ),
+    referred_uid: String(raw.referred_uid ?? ""),
+    referred_username: String(raw.referred_username ?? ""),
+    referred_name: String(raw.referred_name ?? ""),
+    referred_profile_picture: pic(
+      "referred_profile_picture",
+      "referredProfilePicture",
+      "referred_image",
+      "referredImage",
+    ),
+  }
+}
+
+function UserProfilePreview({ user }: { user: ReferralAvatarUser }) {
   return (
     <div className="flex items-center gap-2">
-      <Avatar className="h-7 w-7">
-        <AvatarFallback
-          className="text-[11px] font-semibold text-white"
-          style={{ backgroundColor: getColorFromName(displayName) }}
-        >
-          {initial}
-        </AvatarFallback>
-      </Avatar>
+      <ProfilePicture user={user} size="sm" className="h-7 w-7 shrink-0" fallbackClassName="text-[11px]" />
       <div className="min-w-0">
-        <div className="font-medium break-words leading-tight">{displayName}</div>
+        <div className="font-medium break-words leading-tight">{user.name}</div>
       </div>
     </div>
   )
@@ -68,7 +145,8 @@ export function AdminReferralsTable() {
       }
 
       const response = await apiClient.adminGetReferals({ limit, offset })
-      setRows(response.referals || [])
+      const raw = (response.referals || []) as Record<string, unknown>[]
+      setRows(raw.map(normalizeReferralRow))
       setCount(response.count || 0)
       refreshSucceeded = true
     } catch (error) {
@@ -93,6 +171,8 @@ export function AdminReferralsTable() {
   useEffect(() => {
     fetchReferrals()
   }, [limit, offset])
+
+  const avatarMaps = useMemo(() => buildReferralAvatarMaps(rows), [rows])
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -130,9 +210,10 @@ export function AdminReferralsTable() {
           latest_enrolled_at: item.enrolled_at,
         }
       }
-      groups[item.code].referrals.push(item)
-      if (new Date(item.enrolled_at) > new Date(groups[item.code].latest_enrolled_at)) {
-        groups[item.code].latest_enrolled_at = item.enrolled_at
+      const g = groups[item.code]
+      g.referrals.push(item)
+      if (new Date(item.enrolled_at) > new Date(g.latest_enrolled_at)) {
+        g.latest_enrolled_at = item.enrolled_at
       }
     }
     return Object.values(groups).sort(
@@ -260,8 +341,10 @@ export function AdminReferralsTable() {
                     <td className="px-3 py-3 align-middle text-sm">
                       <div className="flex items-center gap-2">
                         <UserProfilePreview
-                          name={group.referrer_name || ""}
-                          username={group.referrer_username || "unknown"}
+                          user={
+                            avatarMaps.referrers.get(String(group.referrer_uid || "").trim()) ||
+                            fallbackAvatarUser(group.referrer_username || "unknown", group.referrer_name || "")
+                          }
                         />
                         <Link
                           href={`/admin/dashboard?section=users&q=${encodeURIComponent(group.referrer_username || "")}`}
@@ -313,8 +396,10 @@ export function AdminReferralsTable() {
                 <div className="space-y-1 pl-6">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Referrer</div>
                   <UserProfilePreview
-                    name={group.referrer_name || ""}
-                    username={group.referrer_username || "unknown"}
+                    user={
+                      avatarMaps.referrers.get(String(group.referrer_uid || "").trim()) ||
+                      fallbackAvatarUser(group.referrer_username || "unknown", group.referrer_name || "")
+                    }
                   />
                   <Link
                     href={`/admin/dashboard?section=users&q=${encodeURIComponent(group.referrer_username || "")}`}
@@ -361,11 +446,17 @@ export function AdminReferralsTable() {
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium text-muted-foreground mb-3">Referrer</h4>
                   <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/10 h-[88px]">
-                    <Avatar className="h-12 w-12 shrink-0">
-                      <AvatarFallback style={{ backgroundColor: getColorFromName(selectedGroup.referrer_name || selectedGroup.referrer_username) }} className="text-lg text-white">
-                        {(selectedGroup.referrer_name || selectedGroup.referrer_username || "U").charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <ProfilePicture
+                      user={
+                        avatarMaps.referrers.get(String(selectedGroup.referrer_uid || "").trim()) ||
+                        fallbackAvatarUser(
+                          selectedGroup.referrer_username || "unknown",
+                          selectedGroup.referrer_name || "",
+                        )
+                      }
+                      size="lg"
+                      className="shrink-0"
+                    />
                     <div className="min-w-0">
                       <div className="font-medium text-lg truncate">{selectedGroup.referrer_name}</div>
                       <Link href={`/admin/dashboard?section=users&q=${encodeURIComponent(selectedGroup.referrer_username)}`} className="text-sm text-primary hover:underline truncate block">
@@ -392,11 +483,14 @@ export function AdminReferralsTable() {
                   {selectedGroup.referrals.map((ref, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-sm">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="text-sm text-white" style={{ backgroundColor: getColorFromName(ref.referred_name || ref.referred_username) }}>
-                            {(ref.referred_name || ref.referred_username || "U").charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
+                        <ProfilePicture
+                          user={
+                            avatarMaps.referred.get(String(ref.referred_uid || "").trim()) ||
+                            fallbackAvatarUser(ref.referred_username || "unknown", ref.referred_name || "")
+                          }
+                          size="md"
+                          className="shrink-0"
+                        />
                         <div className="min-w-0">
                           <div className="text-sm font-medium truncate">{ref.referred_name}</div>
                           <Link href={`/admin/dashboard?section=users&q=${encodeURIComponent(ref.referred_username)}`} className="text-xs text-primary hover:underline truncate block">

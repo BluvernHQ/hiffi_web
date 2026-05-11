@@ -218,6 +218,63 @@ function getVideoIdFromEvent(item: AnalyticsEvent): string | null {
   return match?.[1] || null
 }
 
+/**
+ * Normalize `GET /analytics/events` JSON.
+ * Matches standard API envelope `{ "success": true, "data": { events, count, has_more, … } }`
+ * (see analytics docs); still accepts a flat `{ events, … }` body for older proxies.
+ */
+function parseAdminAnalyticsEventsResponse(raw: unknown): {
+  events: AnalyticsEvent[]
+  count: number
+  hasMoreFromApi: boolean | undefined
+} {
+  if (!raw || typeof raw !== "object") {
+    return { events: [], count: 0, hasMoreFromApi: undefined }
+  }
+  const top = raw as Record<string, unknown>
+  const data = top.data
+  const inner: Record<string, unknown> =
+    data != null && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : top
+
+  const events = Array.isArray(inner.events) ? (inner.events as AnalyticsEvent[]) : []
+  const c = Number(inner.count ?? top.count ?? 0)
+  const count = Number.isFinite(c) ? c : 0
+
+  const rawHas = inner.has_more ?? inner.hasMore ?? top.has_more ?? top.hasMore
+  let hasMoreFromApi: boolean | undefined
+  if (rawHas === true || rawHas === "true" || rawHas === 1) hasMoreFromApi = true
+  else if (rawHas === false || rawHas === "false" || rawHas === 0) hasMoreFromApi = false
+
+  return { events, count, hasMoreFromApi }
+}
+
+/**
+ * Whether another page may exist after this one.
+ * - Prefer explicit `has_more` from the API when present.
+ * - Otherwise: if `count` looks like a **total** (greater than this page), use offset math.
+ * - Else if this page is **full** (`pageLen === limit`), assume more may exist (new APIs often echo page size as `count`).
+ */
+function computeHasMorePage(
+  hasMoreFromApi: boolean | undefined,
+  pageLen: number,
+  apiLimit: number,
+  offset: number,
+  count: number,
+): boolean {
+  if (hasMoreFromApi !== undefined) return hasMoreFromApi
+
+  const fullPage = pageLen > 0 && pageLen === apiLimit
+  if (!fullPage) return false
+
+  // Legacy: `count` is total matches — stop when this page ends past the total.
+  if (count > pageLen) {
+    return offset + pageLen < count
+  }
+
+  // New API: `count` is often only this page's length — a full page means "try next".
+  return true
+}
+
 export function AdminActivityLogsTable() {
   const { toast } = useToast()
   const [events, setEvents] = useState<AnalyticsEvent[]>([])
@@ -249,18 +306,36 @@ export function AdminActivityLogsTable() {
         offset,
         filter: activityFilter,
       })
-      const rawEvents = response.events || []
+      const envelope = response as Record<string, unknown>
+      if (envelope.success === false) {
+        const data = envelope.data
+        const dataMsg =
+          data && typeof data === "object" && !Array.isArray(data) && "message" in data
+            ? String((data as Record<string, unknown>).message || "")
+            : ""
+        const msg =
+          (typeof envelope.message === "string" && envelope.message.trim()) ||
+          (typeof envelope.error === "string" && envelope.error.trim()) ||
+          dataMsg.trim() ||
+          "Analytics rejected this request."
+        setApiPageLength(0)
+        setHasMore(false)
+        setEvents([])
+        toast({
+          title: "Activity logs",
+          description: msg,
+          variant: "destructive",
+        })
+        return
+      }
+
+      const parsed = parseAdminAnalyticsEventsResponse(response as unknown)
+      const rawEvents = parsed.events
       setApiPageLength(rawEvents.length)
       setEvents(rawEvents)
 
       const pageLen = rawEvents.length
-      let nextHasMore = false
-      if (typeof response.has_more === "boolean") {
-        nextHasMore = response.has_more
-      } else {
-        const c = Number(response.count) || 0
-        nextHasMore = pageLen === apiLimit && offset + pageLen < c
-      }
+      const nextHasMore = computeHasMorePage(parsed.hasMoreFromApi, pageLen, apiLimit, offset, parsed.count)
       setHasMore(nextHasMore)
       refreshSucceeded = true
     } catch (error) {
@@ -704,8 +779,11 @@ export function AdminActivityLogsTable() {
                 Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
                 <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span>
                 <span className="ml-2">
-                  (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
-                  {hasMore ? ", more available" : ""})
+                  · Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
+                  {hasMore ? " (next page may have rows)" : ""}
+                  {" · "}
+                  offset <span className="font-medium text-foreground">{offset.toLocaleString()}</span>, limit{" "}
+                  <span className="font-medium text-foreground">{Math.min(Math.max(1, limit), 100).toLocaleString()}</span>
                 </span>
               </>
             )}
