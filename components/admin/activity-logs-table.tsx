@@ -384,7 +384,6 @@ export function AdminActivityLogsTable() {
   const [query, setQuery] = useState("")
   const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
-  const [pageJump, setPageJump] = useState("")
 
   const fetchEvents = async (isRefresh = false) => {
     let refreshSucceeded = false
@@ -431,10 +430,6 @@ export function AdminActivityLogsTable() {
   useEffect(() => {
     setOffset(0)
   }, [query, activityFilter, hours, limit])
-
-  useEffect(() => {
-    setPageJump("")
-  }, [offset, limit])
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -561,16 +556,6 @@ export function AdminActivityLogsTable() {
       cancelled = true
     }
   }, [filteredEvents, videoMetaById])
-
-  const handlePageJump = () => {
-    const parsed = Number.parseInt(pageJump.replace(/\D/g, ""), 10)
-    if (!Number.isFinite(parsed) || parsed < 1) {
-      toast({ title: "Invalid page", description: "Enter a page number.", variant: "destructive" })
-      return
-    }
-    goToPage(parsed)
-    setPageJump(String(Math.min(parsed, totalPages)))
-  }
 
   if (loading) {
     return (
@@ -966,28 +951,6 @@ export function AdminActivityLogsTable() {
                   Last
                 </Button>
               ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="whitespace-nowrap">Go to page</span>
-                <Input
-                  inputMode="numeric"
-                  className="h-9 w-16 text-center"
-                  placeholder={String(currentPage)}
-                  value={pageJump}
-                  onChange={(e) => setPageJump(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handlePageJump()
-                  }}
-                  aria-label="Page number"
-                  title={`Pages 1–${totalPages}`}
-                />
-                <span className="text-xs whitespace-nowrap">of {totalPages}</span>
-                <Button type="button" variant="secondary" size="sm" className="h-9" onClick={handlePageJump}>
-                  Go
-                </Button>
-              </label>
             </div>
           </div>
         ) : null}
