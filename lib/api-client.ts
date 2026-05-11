@@ -2899,7 +2899,7 @@ class ApiClient {
     }
   }
 
-  async adminGetAnalyticsEvents(params: { hours?: number; limit?: number; offset?: number } = {}): Promise<{
+  async adminGetAnalyticsEvents(params: { hours?: number; limit?: number; offset?: number; filter?: string } = {}): Promise<{
     count: number
     events: Array<{
       timestamp: string
@@ -2915,6 +2915,9 @@ class ApiClient {
     hours: number
     limit: number
     offset: number
+    filter?: string
+    filter_requested?: string
+    has_more?: boolean
   }> {
     return adminAdminGetAnalyticsEvents(this, params) as any
   }

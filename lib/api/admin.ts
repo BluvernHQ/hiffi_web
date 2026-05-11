@@ -220,11 +220,15 @@ export async function adminEnableUser(ctx: ApiClientContext, username: string) {
   return ctx.request(`/admin/enable/${encodeURIComponent(username)}`, { method: "POST", body: JSON.stringify({}) }, true)
 }
 
-export async function adminGetAnalyticsEvents(ctx: ApiClientContext, params: { hours?: number; limit?: number; offset?: number } = {}) {
+export async function adminGetAnalyticsEvents(
+  ctx: ApiClientContext,
+  params: { hours?: number; limit?: number; offset?: number; filter?: string } = {},
+) {
   const sp = new URLSearchParams()
   if (params.hours != null) sp.set("hours", String(params.hours))
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
+  if (params.filter != null) sp.set("filter", params.filter.trim() || "all")
   return ctx.proxyRequest("/proxy/admin-events", sp)
 }
 

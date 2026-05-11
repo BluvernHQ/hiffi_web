@@ -28,7 +28,8 @@ type VideoMeta = {
 }
 
 const HOUR_OPTIONS = [1, 6, 12, 24, 48, 72, 168]
-const LIMIT_OPTIONS = [25, 50, 100, 200]
+/** `GET /analytics/events` accepts limit 1–100. */
+const LIMIT_OPTIONS = [25, 50, 100]
 
 /** Activity type presets for admin filtering (beyond raw event names). */
 type ActivityLogFilter =
@@ -48,21 +49,6 @@ type ActivityLogFilter =
   | "search"
   | "upload"
   | "player"
-
-const PLAYER_UI_NAMES = new Set([
-  "backward",
-  "fast-forward",
-  "next",
-  "played_video",
-  "paused_video",
-  "played-video",
-  "unmuted-video",
-  "muted_video",
-  "unmuted_video",
-  "entered_fullscreen",
-  "exited_fullscreen",
-  "opened-quality-settings",
-])
 
 function toTitleCase(value: string): string {
   return value
@@ -190,102 +176,6 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
   }
 }
 
-function matchesActivityLogFilter(item: AnalyticsEvent, filter: ActivityLogFilter): boolean {
-  if (filter === "all") return true
-
-  const eventName = String(item.event || "").toLowerCase()
-  const uiRaw = String((item as any).element_ui_name || item.properties?.element_ui_name || "")
-  const uiName = uiRaw.toLowerCase()
-
-  if (filter === "conversions") {
-    return eventName.startsWith("conversion_")
-  }
-
-  if (filter === "pageview") {
-    return eventName === "$pageview"
-  }
-
-  if (filter === "share") {
-    return uiName === "shared-video"
-  }
-
-  if (filter === "follow") {
-    return uiName === "followed_creator" || uiName === "unfollowed_creator"
-  }
-
-  if (filter === "playlist") {
-    return uiName === "added-to-playlist" || uiName.includes("opened-video-from-playlist")
-  }
-
-  if (filter === "comment") {
-    return uiName === "opened-comments"
-  }
-
-  if (filter === "login") {
-    return (
-      uiName.includes("login-") ||
-      uiName.includes("navbar-login") ||
-      uiName === "login-submit-button" ||
-      (eventName === "$click" && uiName.endsWith("login-button") && !uiName.includes("signup"))
-    )
-  }
-
-  if (filter === "search") {
-    return uiName.startsWith("search-overlay") || (eventName === "$click" && uiName.includes("search-overlay"))
-  }
-
-  if (filter === "upload") {
-    return (
-      uiName.includes("upload-") ||
-      uiName.includes("creator-studio") ||
-      uiName.includes("creator-become") ||
-      uiName.includes("navbar-open-hiffi-studio") ||
-      uiName.includes("navbar-open-become-creator") ||
-      uiName.includes("navbar-user-menu-hiffi-studio") ||
-      uiName.includes("navbar-user-menu-become-creator")
-    )
-  }
-
-  if (filter === "player") {
-    return eventName === "$click" && (PLAYER_UI_NAMES.has(uiName) || uiName.startsWith("opened-quality"))
-  }
-
-  if (filter === "play") {
-    return (
-      eventName === "conversion_play_started" ||
-      eventName === "opened-video" ||
-      uiName === "played_video" ||
-      uiName === "played-video"
-    )
-  }
-
-  if (filter === "next") {
-    return (
-      eventName === "conversion_next_clicked" ||
-      uiName === "fast-forward" ||
-      uiName === "next"
-    )
-  }
-
-  if (filter === "like") {
-    return (
-      eventName === "conversion_like_success" ||
-      uiName === "liked" ||
-      uiName === "like"
-    )
-  }
-
-  if (filter === "unlike") {
-    return eventName === "conversion_unlike_success" || uiName === "unliked"
-  }
-
-  if (filter === "signup") {
-    return eventName === "conversion_signup_completed" || uiName.includes("signup")
-  }
-
-  return true
-}
-
 /** Page numbers for navigation with ellipses (1 … 4 5 6 … 20). */
 function getVisiblePageNumbers(current: number, total: number, maxButtons = 7): Array<number | "gap"> {
   if (total <= maxButtons) {
@@ -328,59 +218,18 @@ function getVideoIdFromEvent(item: AnalyticsEvent): string | null {
   return match?.[1] || null
 }
 
-function isAdminLoginEvent(item: AnalyticsEvent): boolean {
-  const eventName = String(item.event || "").toLowerCase()
-  const path = (item.path || safePathFromUrl(item.url) || "").toLowerCase()
-  const sourcePath = String(item.properties?.source_path || "").toLowerCase()
-
-  const isAdminEntryPage = path === "/admin" || path.startsWith("/admin?")
-  const isAuthLikeEvent = eventName.includes("login") || eventName.includes("auth")
-  const cameFromAdmin = sourcePath.startsWith("/admin")
-
-  // Hide all admin-surface noise from activity report.
-  if (path.startsWith("/admin") || sourcePath.startsWith("/admin")) return true
-  if (isAdminEntryPage) return true
-  if (isAuthLikeEvent && (path.startsWith("/admin") || cameFromAdmin)) return true
-  return false
-}
-
-function isLowSignalAutocaptureClick(item: AnalyticsEvent): boolean {
-  const eventName = String(item.event || "").toLowerCase()
-  if (eventName !== "$click") return false
-
-  const uiName = String((item as any).element_ui_name || item.properties?.element_ui_name || "").trim()
-  const elementText = String((item as any).element_text || item.properties?.element_text || "").trim()
-  const elementTag = String((item as any).element_tag || item.properties?.element_tag || "").toLowerCase().trim()
-  const elementChain = String((item as any).element_chain || item.properties?.element_chain || "").toLowerCase().trim()
-  const targetPath = item.path || safePathFromUrl(item.url)
-
-  if (uiName || elementText) return false
-
-  // Keep button/link clicks if chain indicates a likely actionable element.
-  if (elementTag === "button" || elementTag === "a") return false
-  if (elementChain.includes("button") || elementChain.includes("> a")) return false
-
-  // Noise clicks from wrapper div/span are not actionable in logs.
-  if (elementTag === "div" || elementTag === "span") return true
-
-  // On watch pages, unknown unlabeled clicks are usually bubbling noise.
-  if (targetPath.startsWith("/watch/")) return true
-
-  return false
-}
-
 export function AdminActivityLogsTable() {
   const { toast } = useToast()
   const [events, setEvents] = useState<AnalyticsEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [hours, setHours] = useState(24)
-  /** Request page size (API `limit`); pagination uses API `offset` + `count`. */
+  /** Request page size (API `limit`); pagination uses `offset` + `has_more`. */
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
-  const [count, setCount] = useState(0)
-  /** Raw `response.events.length` before noise filters — needed for `offset + rows < count`. */
+  /** Raw `response.events.length` for this page. */
   const [apiPageLength, setApiPageLength] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [query, setQuery] = useState("")
   const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
@@ -393,18 +242,30 @@ export function AdminActivityLogsTable() {
       } else {
         setLoading(true)
       }
-      const response = await apiClient.adminGetAnalyticsEvents({ hours, limit, offset })
+      const apiLimit = Math.min(Math.max(1, limit), 100)
+      const response = await apiClient.adminGetAnalyticsEvents({
+        hours,
+        limit: apiLimit,
+        offset,
+        filter: activityFilter,
+      })
       const rawEvents = response.events || []
       setApiPageLength(rawEvents.length)
-      setCount(Number(response.count) || 0)
-      const normalized = rawEvents
-        .filter((item) => !isAdminLoginEvent(item))
-        .filter((item) => !isLowSignalAutocaptureClick(item))
-      setEvents(normalized)
+      setEvents(rawEvents)
+
+      const pageLen = rawEvents.length
+      let nextHasMore = false
+      if (typeof response.has_more === "boolean") {
+        nextHasMore = response.has_more
+      } else {
+        const c = Number(response.count) || 0
+        nextHasMore = pageLen === apiLimit && offset + pageLen < c
+      }
+      setHasMore(nextHasMore)
       refreshSucceeded = true
     } catch (error) {
       setApiPageLength(0)
-      setCount(0)
+      setHasMore(false)
       console.error("[admin] Failed to fetch activity logs:", error)
       toast({
         title: "Error",
@@ -425,7 +286,7 @@ export function AdminActivityLogsTable() {
 
   useEffect(() => {
     fetchEvents()
-  }, [hours, limit, offset])
+  }, [hours, limit, offset, activityFilter])
 
   useEffect(() => {
     setOffset(0)
@@ -434,7 +295,6 @@ export function AdminActivityLogsTable() {
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
     return events.filter((item) => {
-      if (!matchesActivityLogFilter(item, activityFilter)) return false
       if (!q) return true
       const ip = String(item.properties?._ingest_ip || "").toLowerCase()
       const title = String(item.properties?.title || "").toLowerCase()
@@ -454,7 +314,7 @@ export function AdminActivityLogsTable() {
         .toLowerCase()
       return composed.includes(q)
     })
-  }, [events, query, activityFilter])
+  }, [events, query])
 
   const {
     currentPage,
@@ -464,56 +324,31 @@ export function AdminActivityLogsTable() {
     canGoPrev,
     showingFrom,
     showingTo,
-    adjustedTotal,
-    hasReliableTotal,
     goToPage,
-    canUseLastPage,
   } = useMemo(() => {
-    const limitSafe = Math.max(1, limit)
+    const limitSafe = Math.min(Math.max(1, limit), 100)
     const current = Math.floor(offset / limitSafe) + 1
-    const rawApiCount = count
     const pageRows = apiPageLength
 
-    let totalCount = rawApiCount
-    let hasReliableTotal = totalCount > 0
-
-    if (pageRows === limitSafe) {
-      if (totalCount === 0 || totalCount === limitSafe || totalCount === pageRows) {
-        hasReliableTotal = false
-        totalCount = offset + limitSafe + 1
-      }
-    } else if (pageRows < limitSafe) {
-      hasReliableTotal = true
-      totalCount = offset + pageRows
-    }
-
-    const total = Math.max(1, Math.ceil(Math.max(0, totalCount) / limitSafe))
-    const byServerTotal = rawApiCount > 0 && offset + pageRows < rawApiCount
-    const heuristicMore =
-      pageRows === limitSafe &&
-      (rawApiCount === 0 || rawApiCount === limitSafe || rawApiCount === pageRows)
-    const next = byServerTotal || heuristicMore
+    const totalPages = Math.max(1, current + (hasMore ? 1 : 0))
 
     const showingFrom = pageRows === 0 ? 0 : offset + 1
     const showingTo = offset + pageRows
 
     return {
-      currentPage: Math.min(current, total),
-      totalPages: total,
-      visiblePages: getVisiblePageNumbers(Math.min(current, total), total),
-      canGoNext: next,
+      currentPage: Math.min(current, totalPages),
+      totalPages,
+      visiblePages: getVisiblePageNumbers(Math.min(current, totalPages), totalPages),
+      canGoNext: hasMore,
       canGoPrev: offset > 0,
-      hasReliableTotal,
-      adjustedTotal: Math.max(0, totalCount),
       showingFrom,
       showingTo,
-      canUseLastPage: hasReliableTotal,
       goToPage: (p: number) => {
-        const tp = Math.min(Math.max(1, p), total)
+        const tp = Math.min(Math.max(1, p), totalPages)
         setOffset((tp - 1) * limitSafe)
       },
     }
-  }, [count, offset, limit, apiPageLength])
+  }, [offset, limit, apiPageLength, hasMore])
 
   useEffect(() => {
     const ids = Array.from(
@@ -642,9 +477,8 @@ export function AdminActivityLogsTable() {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          API reports <span className="font-medium text-foreground">{count.toLocaleString()}</span> events (last{" "}
-          <span className="font-medium text-foreground">{hours}</span>h). Search/activity filters apply to the current page
-          only.
+          Activity type is filtered on the server for the selected preset. Last{" "}
+          <span className="font-medium text-foreground">{hours}</span>h window. Search applies to the current page only.
         </div>
       </div>
 
@@ -679,7 +513,7 @@ export function AdminActivityLogsTable() {
               ) : filteredEvents.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="h-28 px-3 text-center text-sm text-muted-foreground">
-                    No events match your search or activity filter on this page.
+                    No events match your search on this page.
                   </td>
                 </tr>
               ) : (
@@ -795,7 +629,7 @@ export function AdminActivityLogsTable() {
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-              No events match your search or activity filter on this page.
+              No events match your search on this page.
             </div>
           ) : (
             filteredEvents.map((item, idx) => {
@@ -865,28 +699,20 @@ export function AdminActivityLogsTable() {
           <div className="text-sm text-muted-foreground">
             {apiPageLength === 0 ? (
               <span>No rows returned for this request.</span>
-            ) : hasReliableTotal ? (
-              <>
-                Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
-                <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span> of{" "}
-                <span className="font-medium text-foreground">{adjustedTotal.toLocaleString()}</span> events
-                <span className="ml-2">
-                  (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
-                </span>
-              </>
             ) : (
               <>
                 Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
                 <span className="font-medium text-foreground">{showingTo.toLocaleString()}</span>
                 <span className="ml-2">
-                  (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()})
+                  (Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
+                  {hasMore ? ", more available" : ""})
                 </span>
               </>
             )}
           </div>
         </div>
 
-        {count > 0 || offset > 0 || apiPageLength > 0 ? (
+        {hasMore || offset > 0 || apiPageLength > 0 ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Button
@@ -937,20 +763,6 @@ export function AdminActivityLogsTable() {
                 Next
                 <ChevronRight className="h-4 w-4" />
               </Button>
-
-              {canUseLastPage && totalPages > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => goToPage(totalPages)}
-                  aria-label="Last page"
-                >
-                  Last
-                </Button>
-              ) : null}
             </div>
           </div>
         ) : null}
