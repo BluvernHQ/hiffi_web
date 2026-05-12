@@ -16,7 +16,17 @@ export function middleware(req: NextRequest) {
   }
 
   if (!MAINTENANCE_MODE) {
-    return NextResponse.next()
+    const res = NextResponse.next()
+    // Reduce stale HTML after deploys (old shell pointing at new server / Server Actions).
+    // RSC/Flight fetches typically do not prioritize `text/html` in Accept the same way.
+    const accept = req.headers.get("accept") || ""
+    if (accept.includes("text/html") && !normalizedPathname.startsWith("/_next")) {
+      res.headers.set(
+        "Cache-Control",
+        "private, no-cache, no-store, max-age=0, must-revalidate",
+      )
+    }
+    return res
   }
 
   // Allow maintenance page itself and essential assets/APIs

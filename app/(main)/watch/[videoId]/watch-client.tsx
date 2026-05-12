@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
-import { VideoCard } from "@/components/video/video-card"
 import { CompactVideoCard } from "@/components/video/compact-video-card"
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { ProfilePicture } from "@/components/profile/profile-picture"
@@ -13,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { ChevronRight, Heart, ListPlus, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
+import { Bookmark, ChevronRight, Heart, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -29,7 +28,7 @@ import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import dynamic from "next/dynamic"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
-import { AuthDialog } from "@/components/auth/auth-dialog"
+import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
 import { DescriptionWithLinks } from "@/components/watch/description-with-links"
 import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
@@ -408,6 +407,7 @@ export default function WatchPage() {
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [authDialogCopyKey, setAuthDialogCopyKey] = useState<AuthDialogCopyKey>("follow")
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false)
@@ -1033,10 +1033,8 @@ export default function WatchPage() {
 
   const handleLike = async () => {
     if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Sign in to save videos to your Liked library.",
-      })
+      setAuthDialogCopyKey("like")
+      setAuthDialogOpen(true)
       return
     }
 
@@ -1211,8 +1209,18 @@ export default function WatchPage() {
     }
   }
 
+  const openAddToPlaylist = () => {
+    if (!user) {
+      setAuthDialogCopyKey("playlist")
+      setAuthDialogOpen(true)
+      return
+    }
+    setAddToPlaylistOpen(true)
+  }
+
   const handleFollow = async () => {
     if (!user || !userData) {
+      setAuthDialogCopyKey("follow")
       setAuthDialogOpen(true)
       return
     }
@@ -1429,7 +1437,7 @@ export default function WatchPage() {
               />
 
               <div className={cn("px-4 lg:px-0 space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
-                <div className="flex items-start gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   {shouldShowMetadataSkeleton ? (
                     <div className="h-9 flex-1 bg-muted/40 rounded-md max-w-2xl animate-pulse" />
                   ) : (
@@ -1438,7 +1446,7 @@ export default function WatchPage() {
                     </h1>
                   )}
                   {!shouldShowMetadataSkeleton && currentVideo && (
-                    <div className="hidden shrink-0 items-center gap-0.5 pt-0.5 md:flex">
+                    <div className="hidden shrink-0 items-center gap-0.5 md:flex">
                       <Button
                         type="button"
                         variant="ghost"
@@ -1466,20 +1474,18 @@ export default function WatchPage() {
                       >
                         <Share2 className="h-5 w-5" />
                       </Button>
-                      {user ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          data-analytics-name="added-to-playlist"
-                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                          onClick={() => setAddToPlaylistOpen(true)}
-                          aria-label="Add to playlist"
-                          title="Add to playlist"
-                        >
-                          <ListPlus className="h-5 w-5" />
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        data-analytics-name="added-to-playlist"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                        onClick={openAddToPlaylist}
+                        aria-label="Add to playlist"
+                        title="Add to playlist"
+                      >
+                        <Bookmark className="h-5 w-5" />
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1550,20 +1556,18 @@ export default function WatchPage() {
                           >
                             <Share2 className="h-5 w-5" />
                           </Button>
-                          {user ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              data-analytics-name="added-to-playlist"
-                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                              onClick={() => setAddToPlaylistOpen(true)}
-                              aria-label="Add to playlist"
-                              title="Add to playlist"
-                            >
-                              <ListPlus className="h-5 w-5" />
-                            </Button>
-                          ) : null}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            data-analytics-name="added-to-playlist"
+                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                            onClick={openAddToPlaylist}
+                            aria-label="Add to playlist"
+                            title="Add to playlist"
+                          >
+                            <Bookmark className="h-5 w-5" />
+                          </Button>
                           {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) ? (
                             <Button
                               variant={isFollowing ? "secondary" : "default"}
@@ -1654,10 +1658,6 @@ export default function WatchPage() {
                     <>
                       <div className="flex gap-2 font-medium mb-2">
                         <span>{(currentVideo?.videoViews || currentVideo?.video_views || 0).toLocaleString()} views</span>
-                        <span>•</span>
-                        <span>
-                          {currentVideo?.createdAt || currentVideo?.created_at ? formatDistanceToNow(new Date(currentVideo.createdAt || currentVideo.created_at), { addSuffix: true }) : ""}
-                        </span>
                       </div>
                       <div className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}>
                         <DescriptionWithLinks
@@ -1892,6 +1892,7 @@ export default function WatchPage() {
                     <CompactVideoCard
                       key={v.videoId || v.video_id}
                       video={v}
+                      hideTimestamp
                       openVideoUiName="opened-video-from-recommended"
                     />
                    ))
@@ -1916,8 +1917,8 @@ export default function WatchPage() {
       <AuthDialog
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
-        title="Sign in to follow creators"
-        description="Create an account or sign in to follow creators and stay updated with their latest videos."
+        title={AUTH_DIALOG_COPY[authDialogCopyKey].title}
+        description={AUTH_DIALOG_COPY[authDialogCopyKey].description}
       />
       <ShareVideoDialog
         open={shareDialogOpen}

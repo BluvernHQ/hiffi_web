@@ -42,20 +42,36 @@ export default function GlobalError({
             <p style={{ margin: "0 0 16px", color: "#6b7280", fontSize: "14px" }}>
               Please refresh or try again. If the issue continues, contact support.
             </p>
-            <button
-              type="button"
-              onClick={reset}
-              style={{
-                border: "1px solid #111827",
-                background: "#111827",
-                color: "#ffffff",
-                padding: "10px 14px",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-            >
-              Try again
-            </button>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{
+                  border: "1px solid #111827",
+                  background: "#ffffff",
+                  color: "#111827",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                Reload page
+              </button>
+              <button
+                type="button"
+                onClick={reset}
+                style={{
+                  border: "1px solid #111827",
+                  background: "#111827",
+                  color: "#ffffff",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                Try again
+              </button>
+            </div>
           </div>
         </div>
       </body>

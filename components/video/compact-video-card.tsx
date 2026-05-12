@@ -28,9 +28,15 @@ interface CompactVideoCardProps {
     status?: string
   }
   openVideoUiName?: string
+  /** When true, omit relative upload time under the title. */
+  hideTimestamp?: boolean
 }
 
-export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: CompactVideoCardProps) {
+export function CompactVideoCard({
+  video,
+  openVideoUiName = "opened-video",
+  hideTimestamp = false,
+}: CompactVideoCardProps) {
   const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
   const videoId = video.videoId || video.video_id || ""
@@ -43,7 +49,7 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = isVideoProcessing(video)
 
-  const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+  const timeAgo = hideTimestamp ? "" : formatDistanceToNow(new Date(createdAt), { addSuffix: true })
   
   const thumbnailUrl = thumbnail && thumbnail.length > 0
     ? getThumbnailUrl(thumbnail)
@@ -137,9 +143,11 @@ export function CompactVideoCard({ video, openVideoUiName = "opened-video" }: Co
             @{username || "unknown"}
           </Link>
         </div>
-        <div className="text-xs text-muted-foreground flex items-center min-w-0">
-          <span className="flex-shrink-0">{timeAgo}</span>
-        </div>
+        {timeAgo ? (
+          <div className="text-xs text-muted-foreground flex items-center min-w-0">
+            <span className="flex-shrink-0">{timeAgo}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   )

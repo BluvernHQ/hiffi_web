@@ -6,6 +6,27 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 
+/** Shared copy for gated actions (follow, playlists, likes, etc.). */
+export const AUTH_DIALOG_COPY = {
+  follow: {
+    title: "Sign in to follow creators",
+    description:
+      "Create an account or sign in to follow creators and stay updated with their latest videos.",
+  },
+  playlist: {
+    title: "Sign in to save to playlists",
+    description:
+      "Create an account or sign in to add videos to your playlists and manage them anytime.",
+  },
+  like: {
+    title: "Sign in to save to Liked",
+    description:
+      "Create an account or sign in to save videos to your Liked library and find them anytime.",
+  },
+} as const
+
+export type AuthDialogCopyKey = keyof typeof AUTH_DIALOG_COPY
+
 interface AuthDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void

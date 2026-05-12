@@ -34,6 +34,8 @@ interface VideoGridProps {
   showDeleteOption?: boolean
   /** Analytics label for video-open clicks from this grid context. */
   openVideoUiName?: string
+  /** Hide relative upload / watched time under the title (e.g. discover feed). */
+  hideTimestamp?: boolean
 }
 
 export function VideoGrid({
@@ -44,6 +46,7 @@ export function VideoGrid({
   onVideoDeleted,
   showDeleteOption = false,
   openVideoUiName = "opened_video",
+  hideTimestamp = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const lastLoadTime = useRef<number>(0)
@@ -119,6 +122,7 @@ export function VideoGrid({
                   video={video} 
                   priority={index < 4} // First 4 videos load eagerly for better LCP
                   showDeleteOption={showDeleteOption}
+                  hideTimestamp={hideTimestamp}
                   openVideoUiName={openVideoUiName}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id

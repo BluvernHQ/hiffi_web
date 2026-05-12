@@ -13,6 +13,7 @@ import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracke
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
+import { DeployStaleGuard } from '@/components/deploy-stale-guard'
 import { API_BASE_URL } from '@/lib/config'
 import './globals.css'
 
@@ -234,6 +235,7 @@ export default function RootLayout({
         )}
       </head>
       <body className="font-sans antialiased">
+        <DeployStaleGuard />
         <AuthProvider>
           <VideoProvider>
             <SidebarProvider>

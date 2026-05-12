@@ -8,13 +8,14 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { format, formatDistanceToNow } from "date-fns"
-import { Play, MoreVertical, Trash2, ListPlus } from "lucide-react"
+import { Bookmark, Play, MoreVertical, Trash2 } from "lucide-react"
 import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
 import { useToast } from "@/hooks/use-toast"
+import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { DeleteVideoDialog } from "./delete-video-dialog"
 import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 import {
@@ -84,6 +85,7 @@ export function VideoCard({
   const { toast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
+  const [playlistAuthDialogOpen, setPlaylistAuthDialogOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
@@ -193,7 +195,7 @@ export function VideoCard({
             )}
             <span className="sr-only">{title || "Untitled Video"}</span>
           </Link>
-          <div className="flex gap-3 px-1 relative">
+          <div className="flex gap-2 sm:gap-3 px-1 relative w-full min-w-0 items-start">
             <div className="flex-shrink-0">
               <ProfilePicture 
                 user={{
@@ -204,9 +206,8 @@ export function VideoCard({
                 size="sm"
               />
             </div>
-            <div className="flex-1 min-w-0 flex flex-col pr-6">
-              <div className="flex items-start gap-1.5">
-                <h3 className="min-w-0 flex-1 font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
+            <div className="min-w-0 flex-1 flex flex-col">
+              <h3 className="min-w-0 font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
                 <Link
                   href={watchPath}
                   prefetch={!isEncoding}
@@ -225,25 +226,7 @@ export function VideoCard({
                 >
                   {title || "Untitled Video"}
                 </Link>
-                </h3>
-                {user && !isEncoding && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    data-analytics-name="video-card-add-to-playlist-button"
-                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setAddToPlaylistOpen(true)
-                    }}
-                    aria-label="Add to playlist"
-                    title="Add to playlist"
-                  >
-                    <ListPlus className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              </h3>
               <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal">
                 {timestampKind === "watched" && watchedTimeFormat === "clock" && watchedClock ? (
                   <div className="flex items-center justify-between gap-2 min-w-0 py-0.5">
@@ -284,14 +267,14 @@ export function VideoCard({
               </div>
             </div>
 
-            {showDeleteOption && isOwner && !isEncoding && (
-              <div className="absolute right-0 top-0">
+            <div className="flex shrink-0 items-start gap-0">
+              {showDeleteOption && isOwner && !isEncoding && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
+                      className="h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
                     >
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">Video options</span>
@@ -310,8 +293,29 @@ export function VideoCard({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
+              )}
+              {!isEncoding && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  data-analytics-name="video-card-add-to-playlist-button"
+                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!user) {
+                      setPlaylistAuthDialogOpen(true)
+                      return
+                    }
+                    setAddToPlaylistOpen(true)
+                  }}
+                  aria-label="Add to playlist"
+                  title="Add to playlist"
+                >
+                  <Bookmark className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {showDeleteOption && isOwner && (
@@ -323,7 +327,7 @@ export function VideoCard({
               onDeleted={onDeleted}
             />
           )}
-          {user && !isEncoding && (
+          {!isEncoding && (
             <AddToPlaylistDialog
               open={addToPlaylistOpen}
               onOpenChange={setAddToPlaylistOpen}
@@ -332,6 +336,12 @@ export function VideoCard({
               thumbnailUrl={thumbnailUrl || undefined}
             />
           )}
+          <AuthDialog
+            open={playlistAuthDialogOpen}
+            onOpenChange={setPlaylistAuthDialogOpen}
+            title={AUTH_DIALOG_COPY.playlist.title}
+            description={AUTH_DIALOG_COPY.playlist.description}
+          />
         </CardContent>
       </Card>
     </div>

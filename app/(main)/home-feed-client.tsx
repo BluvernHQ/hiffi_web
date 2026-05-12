@@ -173,28 +173,15 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   return (
     <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
       <div className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div>
-            <div className="flex items-center justify-between mb-1 sm:justify-start">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
-            </div>
-            <p className="text-sm text-muted-foreground hidden sm:block">
-              Independent creators, high-fidelity video &amp; lossless audio
-            </p>
-          </div>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
         </div>
-
-        {videos.length > 0 && !loading && (
-          <div className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 text-center sm:text-left">
-            Showing {videos.length} {videos.length === 1 ? "video" : "videos"}
-            {hasMore && " · Scroll for more"}
-          </div>
-        )}
 
         <VideoGrid
           videos={videos}
           loading={loading || loadingMore}
           hasMore={hasMore}
+          hideTimestamp
           openVideoUiName="opened-video-from-home"
           onLoadMore={loadMore}
           onVideoDeleted={(videoId) =>
