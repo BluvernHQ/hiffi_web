@@ -219,14 +219,14 @@ export type HomeFeedVideo = {
 /**
  * Fetches the first page of public videos for the homepage.
  * Used by the server component to provide initial HTML for crawlers.
- * Revalidates every 5 minutes.
+ * Not cached — matches live backend order and new uploads on every request.
  */
 export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
   try {
     const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
     const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
       headers: { "Content-Type": "application/json" },
-      next: { revalidate: REVALIDATE_SECONDS },
+      cache: "no-store",
     })
     if (!res.ok) return []
     const json = await res.json()

@@ -6,8 +6,8 @@ import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
 import { getThumbnailUrl } from "@/lib/storage"
 import { HomeFeedClient } from "./home-feed-client"
 
-// Cache the initial HTML for better TTFB (no CDN). Client can still paginate/refresh.
-export const revalidate = 60
+// Always fetch fresh feed from the API (no static / ISR cache for this route).
+export const dynamic = "force-dynamic"
 
 const PAGE_TITLE = "Discover — High-Fidelity Videos & Music"
 const PAGE_DESCRIPTION =
