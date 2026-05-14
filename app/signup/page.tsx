@@ -569,7 +569,7 @@ function SignupForm() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="6+ characters, no spaces"
+                  placeholder="Create a password (min. 6 characters, no spaces)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"

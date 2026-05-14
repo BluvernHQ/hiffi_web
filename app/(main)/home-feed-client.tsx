@@ -137,6 +137,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
           hideTimestamp
           openVideoUiName="opened-video-from-home"
           onLoadMore={loadMore}
+          suppressEmptyState={Boolean(feedError && videos.length === 0)}
           onVideoDeleted={(videoId) =>
             setVideos((prev) => prev.filter((v: any) => (v.videoId || v.video_id) !== videoId))
           }

@@ -36,6 +36,8 @@ interface VideoGridProps {
   openVideoUiName?: string
   /** Hide relative upload / watched time under the title (e.g. discover feed). */
   hideTimestamp?: boolean
+  /** When true, do not show the default “no videos” empty state (parent shows error UI). */
+  suppressEmptyState?: boolean
 }
 
 export function VideoGrid({
@@ -47,6 +49,7 @@ export function VideoGrid({
   showDeleteOption = false,
   openVideoUiName = "opened_video",
   hideTimestamp = false,
+  suppressEmptyState = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const lastLoadTime = useRef<number>(0)
@@ -167,7 +170,7 @@ export function VideoGrid({
       )}
 
       {/* Empty state */}
-      {!loading && safeVideos.length === 0 && (
+      {!loading && safeVideos.length === 0 && !suppressEmptyState && (
         <EmptyVideoState />
       )}
     </div>

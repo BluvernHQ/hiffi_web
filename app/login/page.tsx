@@ -134,7 +134,7 @@ function LoginForm() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="No spaces"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="off"

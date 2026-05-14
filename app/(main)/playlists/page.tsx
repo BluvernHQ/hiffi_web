@@ -39,6 +39,11 @@ import { getThumbnailUrl } from "@/lib/storage"
 import { setPlaylistSession } from "@/lib/playlist-session"
 import { notifyCuratedPlaylistsUpdated } from "@/lib/curated-playlists-events"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
+import {
+  DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
+  hasDuplicatePlaylistTitle,
+  MAX_PLAYLIST_TITLE_LEN,
+} from "@/lib/playlist-title"
 
 type VideoMeta = { title: string; thumbnail?: string }
 type PlaylistPreview = { videoIds: string[]; totalVideos: number }
@@ -506,6 +511,22 @@ function PlaylistsPageContent() {
     if (!t) {
       toast({ title: "Title required", variant: "destructive" })
       setTitleEdit(detailPlaylist.title || "")
+      return
+    }
+    if (t.length > MAX_PLAYLIST_TITLE_LEN) {
+      toast({
+        title: "Title too long",
+        description: `Use ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`,
+        variant: "destructive",
+      })
+      return
+    }
+    if (hasDuplicatePlaylistTitle(t, playlists, { excludePlaylistId: selectedId })) {
+      toast({
+        title: "Name already in use",
+        description: DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
+        variant: "destructive",
+      })
       return
     }
     if (t === (detailPlaylist.title || "").trim() && nextDesc.trim() === (detailPlaylist.description || "").trim()) {

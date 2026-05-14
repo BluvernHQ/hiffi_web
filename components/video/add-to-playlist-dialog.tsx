@@ -14,6 +14,11 @@ import {
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { apiClient, type ApiError, type PlaylistSummary } from "@/lib/api-client"
+import {
+  DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
+  hasDuplicatePlaylistTitle,
+  MAX_PLAYLIST_TITLE_LEN,
+} from "@/lib/playlist-title"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -48,7 +53,6 @@ function parseApiError(err: unknown): ApiError | null {
 type Step = "pick" | "create"
 
 const SEARCH_DEBOUNCE_MS = 280
-const MAX_PLAYLIST_TITLE_LEN = 100
 
 function countLine(p: PlaylistSummary): string {
   if (typeof p.item_count === "number") {
@@ -327,6 +331,12 @@ export function AddToPlaylistDialog({
     return playlists.filter((p) => p.title.toLowerCase().includes(q))
   }, [playlists, playlistQuery])
 
+  const createTitleTrimmed = createTitle.trim()
+  const createTitleIsDuplicate = useMemo(
+    () => hasDuplicatePlaylistTitle(createTitleTrimmed, playlists),
+    [createTitleTrimmed, playlists],
+  )
+
   const isPlaylistAdded = useCallback(
     (playlistId: string) => {
       const inBase = basePlaylistIds.has(playlistId)
@@ -456,6 +466,10 @@ export function AddToPlaylistDialog({
       setCreateTitleError(`Title must be ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`)
       return
     }
+    if (hasDuplicatePlaylistTitle(title, playlists)) {
+      setCreateTitleError(DUPLICATE_PLAYLIST_NAME_USER_MESSAGE)
+      return
+    }
     setCreateTitleError("")
     setCreateSubmitting(true)
     try {
@@ -496,6 +510,8 @@ export function AddToPlaylistDialog({
       const raw = err?.message || (e as Error).message || ""
       if (/too long/i.test(raw)) {
         setCreateTitleError(`Title must be ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`)
+      } else if (/duplicate|already exists|same name|unique constraint|already have/i.test(raw)) {
+        setCreateTitleError(DUPLICATE_PLAYLIST_NAME_USER_MESSAGE)
       }
       toast({
         title: "Couldn’t create playlist",
@@ -509,7 +525,9 @@ export function AddToPlaylistDialog({
 
   const displayTitle = (videoTitle || "This video").trim() || "This video"
   const createValid =
-    createTitle.trim().length > 0 && createTitle.trim().length <= MAX_PLAYLIST_TITLE_LEN
+    createTitleTrimmed.length > 0 &&
+    createTitleTrimmed.length <= MAX_PLAYLIST_TITLE_LEN &&
+    !createTitleIsDuplicate
   const listBusy = savingChanges
   const pendingChangeCount = pendingAddPlaylistIds.size + pendingRemovePlaylistIds.size
   const doneLabel = pendingChangeCount > 0 ? `Done (${pendingChangeCount})` : "Done"
@@ -657,6 +675,7 @@ export function AddToPlaylistDialog({
           <Input
             id="atp-title"
             value={createTitle}
+            maxLength={MAX_PLAYLIST_TITLE_LEN}
             onChange={(e) => {
               setCreateTitle(e.target.value)
               setCreateTitleError("")
@@ -668,10 +687,9 @@ export function AddToPlaylistDialog({
             )}
             autoFocus
           />
-          {createTitleError ? <p className="text-xs text-destructive">{createTitleError}</p> : null}
-          {createTitle.trim().length > MAX_PLAYLIST_TITLE_LEN ? (
-            <p className="text-xs text-muted-foreground">
-              {createTitle.trim().length}/{MAX_PLAYLIST_TITLE_LEN} — shorten title to create.
+          {createTitleError || (createTitleIsDuplicate && createTitleTrimmed.length > 0) ? (
+            <p className="text-xs text-destructive">
+              {createTitleError || DUPLICATE_PLAYLIST_NAME_USER_MESSAGE}
             </p>
           ) : null}
         </div>

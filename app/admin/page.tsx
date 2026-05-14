@@ -227,6 +227,7 @@ export default function AdminLoginPage() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-11 pr-10 transition-all focus:ring-2 focus:ring-primary/20"
