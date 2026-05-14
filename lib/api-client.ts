@@ -442,13 +442,22 @@ class ApiClient {
       // Log other errors normally
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       
-      // Provide more helpful error messages for common fetch failures
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      // Fetch failed before HTTP response (offline, DNS, CORS, etc.)
+      const errMsg = error instanceof Error ? error.message.toLowerCase() : ""
+      const looksLikeConnectivityFailure =
+        error instanceof TypeError ||
+        (error instanceof Error &&
+          (errMsg.includes("failed to fetch") ||
+            errMsg.includes("networkerror") ||
+            errMsg.includes("load failed") ||
+            errMsg.includes("network request failed")))
+      if (looksLikeConnectivityFailure) {
         const networkError: ApiError = {
-          message: `Unable to connect to the API server at ${API_BASE_URL}. Please check your internet connection or try again later.`,
+          message:
+            "Cannot reach the server. Check your internet connection, then try again. If you are online, the service may be temporarily unavailable.",
           status: 0,
         }
-        console.error(`[API] Network error - API server may be unreachable: ${API_BASE_URL}`)
+        console.error(`[API] Connectivity failure (${API_BASE_URL}):`, error)
         throw networkError
       }
       

@@ -8,7 +8,12 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
-import { validateRedirect, buildLoginUrl } from "@/lib/auth-utils"
+import {
+  validateRedirect,
+  buildLoginUrl,
+  isValidEmailFormat,
+  passwordContainsWhitespace,
+} from "@/lib/auth-utils"
 import { clearReferralRedirectProfile } from "@/lib/referral-cookie"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,8 +49,6 @@ function SignupForm() {
   // Validation regex patterns
   const nameRegex = /^[a-zA-Z\s]*$/ // Only letters and spaces
   const usernameRegex = /^[a-z0-9_]*$/ // Lowercase letters, numbers, and underscores only
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/ // Basic email format validation
-
   // Get redirect parameter from URL (preserved from where user came from)
   const redirectParam = searchParams.get('redirect')
   const redirectPath = validateRedirect(redirectParam)
@@ -98,7 +101,7 @@ function SignupForm() {
     
     if (value === "") {
       setEmailError("")
-    } else if (!emailRegex.test(value)) {
+    } else if (!isValidEmailFormat(value)) {
       setEmailError("Please enter a valid email address")
     } else {
       setEmailError("")
@@ -246,8 +249,14 @@ function SignupForm() {
       setIsLoading(false)
       return
     }
-    if (!emailRegex.test(email.trim())) {
+    if (!isValidEmailFormat(email.trim())) {
       setEmailError("Please enter a valid email address")
+      setIsLoading(false)
+      return
+    }
+
+    if (passwordContainsWhitespace(password)) {
+      setError("Password cannot contain spaces.")
       setIsLoading(false)
       return
     }
@@ -453,7 +462,12 @@ function SignupForm() {
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">
+                  Full Name{" "}
+                  <span className="text-destructive" aria-hidden="true">
+                    *
+                  </span>
+                </Label>
                 <Input
                   id="name"
                   placeholder="John Doe"
@@ -471,7 +485,12 @@ function SignupForm() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">
+                  Username{" "}
+                  <span className="text-destructive" aria-hidden="true">
+                    *
+                  </span>
+                </Label>
                 <div className="relative">
                   <Input
                     id="username"
@@ -516,7 +535,12 @@ function SignupForm() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">
+                Email{" "}
+                <span className="text-destructive" aria-hidden="true">
+                  *
+                </span>
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -530,16 +554,22 @@ function SignupForm() {
               {emailError && (
                 <p className="text-xs text-destructive">{emailError}</p>
               )}
-              {!emailError && email && emailRegex.test(email) && (
+              {!emailError && email && isValidEmailFormat(email) && (
                 <p className="text-xs text-muted-foreground">Valid email address</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">
+                Password{" "}
+                <span className="text-destructive" aria-hidden="true">
+                  *
+                </span>
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="6+ characters, no spaces"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
@@ -561,6 +591,9 @@ function SignupForm() {
                   )}
                 </button>
               </div>
+              {passwordContainsWhitespace(password) && (
+                <p className="text-xs text-destructive">Password cannot contain spaces.</p>
+              )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button 
@@ -579,7 +612,8 @@ function SignupForm() {
                 username.length > 30 ||
                 (username.length > 0 && !usernameRegex.test(username)) ||
                 usernameAvailable === false ||
-                !emailRegex.test(email.trim())
+                !isValidEmailFormat(email.trim()) ||
+                passwordContainsWhitespace(password)
               }
             >
               {isLoading ? (

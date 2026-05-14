@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
-import { sanitizeInternalPath } from "@/lib/auth-utils"
+import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import {
   clearReferralCode,
@@ -292,13 +292,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     options?: { forceAdminDashboardRedirect?: boolean },
   ) => {
     try {
-      debugLog("[hiffi] Attempting login for:", identifier)
+      const trimmedIdentifier = identifier.trim()
+      debugLog("[hiffi] Attempting login for:", trimmedIdentifier)
 
-      // Determine if identifier is an email or username
-      const isEmail = identifier.includes("@") && identifier.includes(".")
-      const loginData = isEmail
-        ? { email: identifier, password }
-        : { username: identifier, password }
+      if (!password) {
+        throw new Error("Enter your password.")
+      }
+      if (passwordContainsWhitespace(password)) {
+        throw new Error("Password cannot contain spaces.")
+      }
+
+      if (trimmedIdentifier.includes("@")) {
+        if (!isValidEmailFormat(trimmedIdentifier)) {
+          throw new Error("Enter a valid email address (include @ and a domain, e.g. name@example.com).")
+        }
+      }
+
+      const loginData = trimmedIdentifier.includes("@")
+        ? { email: trimmedIdentifier, password }
+        : { username: trimmedIdentifier, password }
 
       const response = await apiClient.login(loginData)
 
@@ -416,6 +428,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (username: string, password: string, name: string, email: string) => {
     try {
       debugLog("[hiffi] Attempting signup for:", username)
+
+      if (passwordContainsWhitespace(password)) {
+        return { success: false, error: "Password cannot contain spaces." }
+      }
 
       // Register user with backend - returns registration ID for OTP verification
       const response = await apiClient.register({ username, password, name, email })
