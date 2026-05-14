@@ -11,6 +11,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  isSuspiciousSqlLikeQuery,
+  normalizeSearchQueryForRequest,
+} from '@/lib/search-query';
+import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors';
 
 const VIDEOS_PER_PAGE = 10;
 const USERS_PER_PAGE = 50;
@@ -55,10 +60,17 @@ function SearchPageContent() {
       setVideoOffset(0);
       setHasMoreVideos(false);
 
+      const q = normalizeSearchQueryForRequest(searchQuery);
+      if (isSuspiciousSqlLikeQuery(q)) {
+        setVideoCount(0);
+        setUserCount(0);
+        return;
+      }
+
       // Fetch both users and videos in parallel
       const [usersResponse, videosResponse] = await Promise.all([
-        apiClient.searchUsers(searchQuery, USERS_PER_PAGE, 0).catch(() => ({ success: false, users: [], count: 0 })),
-        apiClient.searchVideos(searchQuery, VIDEOS_PER_PAGE, 0).catch(() => ({ success: false, videos: [], count: 0 }))
+        apiClient.searchUsers(q, USERS_PER_PAGE, 0).catch(() => ({ success: false, users: [], count: 0 })),
+        apiClient.searchVideos(q, VIDEOS_PER_PAGE, 0).catch(() => ({ success: false, videos: [], count: 0 }))
       ]);
 
       // Process User Results
@@ -93,9 +105,9 @@ function SearchPageContent() {
     } catch (error: any) {
       console.error('[hiffi] Failed to fetch search results:', error);
       toast({
-        title: "Error",
-        description: "Failed to load search results.",
-        variant: "destructive",
+        title: isConnectivityError(error) ? 'No internet connection' : 'Error',
+        description: isConnectivityError(error) ? userFacingNetworkMessage() : 'Failed to load search results.',
+        variant: 'destructive',
       });
     } finally {
       setLoadingInitial(false);
@@ -106,11 +118,17 @@ function SearchPageContent() {
   const loadMoreVideos = async () => {
     if (!currentQuery?.trim() || loadingInitial || loadingMoreVideos || !hasMoreVideos || isFetchingVideos) return;
 
+    const q = normalizeSearchQueryForRequest(currentQuery);
+    if (isSuspiciousSqlLikeQuery(q)) {
+      setHasMoreVideos(false);
+      return;
+    }
+
     try {
       setLoadingMoreVideos(true);
       setIsFetchingVideos(true);
 
-      const videosResponse = await apiClient.searchVideos(currentQuery, VIDEOS_PER_PAGE, videoOffset);
+      const videosResponse = await apiClient.searchVideos(q, VIDEOS_PER_PAGE, videoOffset);
       if (!videosResponse.success) {
         setHasMoreVideos(false);
         return;

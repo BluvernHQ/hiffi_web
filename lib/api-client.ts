@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./config"
+import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
 import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
 import {
   uploadVideo as uploadUploadVideo,
@@ -453,8 +454,7 @@ class ApiClient {
             errMsg.includes("network request failed")))
       if (looksLikeConnectivityFailure) {
         const networkError: ApiError = {
-          message:
-            "Cannot reach the server. Check your internet connection, then try again. If you are online, the service may be temporarily unavailable.",
+          message: NO_INTERNET_USER_MESSAGE,
           status: 0,
         }
         console.error(`[API] Connectivity failure (${API_BASE_URL}):`, error)

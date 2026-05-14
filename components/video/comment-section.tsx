@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { usePathname, useSearchParams } from "next/navigation"
 import { buildLoginUrl } from "@/lib/auth-utils"
+import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useCallback, useRef } from "react"
 
 interface Comment {
@@ -116,8 +117,8 @@ export function CommentSection({ videoId }: { videoId: string }) {
     } catch (error) {
       console.error("[hiffi] Failed to fetch comments:", error)
       toast({
-        title: "Error",
-        description: "Failed to load comments",
+        title: isConnectivityError(error) ? "No internet connection" : "Error",
+        description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load comments",
         variant: "destructive",
       })
       setComments([])

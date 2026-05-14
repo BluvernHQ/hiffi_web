@@ -340,7 +340,10 @@ function AdminDashboardContent() {
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent overlayClassName="bg-black/35 backdrop-blur-sm">
+        <DialogContent
+          className="z-[100]"
+          overlayClassName="z-[100] bg-black/35 backdrop-blur-sm"
+        >
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>

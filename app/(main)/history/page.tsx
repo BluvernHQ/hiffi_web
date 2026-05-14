@@ -11,6 +11,7 @@ import { EmptyVideoState } from "@/components/video/empty-video-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 
 const VIDEOS_PER_PAGE = 20
 
@@ -148,6 +149,23 @@ export default function HistoryPage() {
     if (isFetchingRef.current) return
     const silentRefresh = options?.silent === true
 
+    if (typeof navigator !== "undefined" && navigator.onLine === false && !silentRefresh) {
+      isFetchingRef.current = false
+      setIsFetching(false)
+      setLoading(false)
+      setLoadingMore(false)
+      setHasMore(false)
+      if (currentOffset === 0) {
+        setVideos([])
+        toast({
+          title: "No internet connection",
+          description: userFacingNetworkMessage(),
+          variant: "destructive",
+        })
+      }
+      return
+    }
+
     try {
       isFetchingRef.current = true
       setIsFetching(true)
@@ -190,8 +208,8 @@ export default function HistoryPage() {
       if (currentOffset === 0 && !silentRefresh) {
         setVideos([])
         toast({
-          title: "Error",
-          description: "Failed to load watch history",
+          title: isConnectivityError(error) ? "No internet connection" : "Error",
+          description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load watch history",
           variant: "destructive",
         })
       } else if (!silentRefresh) {

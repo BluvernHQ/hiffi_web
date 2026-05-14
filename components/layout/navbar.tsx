@@ -266,7 +266,8 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       onSelect={(e) => {
                         e.preventDefault()
                         setUserMenuOpen(false)
-                        setLogoutDialogOpen(true)
+                        // Open after dropdown unmounts — same-tick open often prevents dialog from showing (Radix stacking / focus).
+                        queueMicrotask(() => setLogoutDialogOpen(true))
                       }}
                       className="text-destructive focus:text-destructive"
                     >
@@ -303,7 +304,10 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={handleLogoutDialogOpenChange}>
-        <DialogContent overlayClassName="bg-black/35 backdrop-blur-sm">
+        <DialogContent
+          className="z-[100]"
+          overlayClassName="z-[100] bg-black/35 backdrop-blur-sm"
+        >
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>

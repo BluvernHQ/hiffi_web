@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { apiClient, type ApiError, type PlaylistSummary } from "@/lib/api-client"
+import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import {
@@ -47,6 +48,7 @@ function parseApiError(err: unknown): ApiError | null {
 type Step = "pick" | "create"
 
 const SEARCH_DEBOUNCE_MS = 280
+const MAX_PLAYLIST_TITLE_LEN = 100
 
 function countLine(p: PlaylistSummary): string {
   if (typeof p.item_count === "number") {
@@ -219,6 +221,7 @@ export function AddToPlaylistDialog({
   const [createTitle, setCreateTitle] = useState("")
   const [createDescription, setCreateDescription] = useState("")
   const [createSubmitting, setCreateSubmitting] = useState(false)
+  const [createTitleError, setCreateTitleError] = useState("")
 
   useEffect(() => {
     if (!open) return
@@ -230,6 +233,16 @@ export function AddToPlaylistDialog({
 
   const loadPlaylists = useCallback(async (): Promise<PlaylistSummary[]> => {
     setListLoading(true)
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setPlaylists([])
+      setListLoading(false)
+      toast({
+        title: "No internet connection",
+        description: userFacingNetworkMessage(),
+        variant: "destructive",
+      })
+      return []
+    }
     try {
       const res = await apiClient.listMyPlaylists()
       if (!res.success) {
@@ -247,7 +260,7 @@ export function AddToPlaylistDialog({
       }
       toast({
         title: "Couldn’t load playlists",
-        description: err?.message,
+        description: isConnectivityError(e) ? userFacingNetworkMessage() : err?.message,
         variant: "destructive",
       })
       return []
@@ -269,6 +282,7 @@ export function AddToPlaylistDialog({
     setPlaylistQuery("")
     setCreateTitle("")
     setCreateDescription("")
+    setCreateTitleError("")
 
     if (!vid) return
 
@@ -438,6 +452,11 @@ export function AddToPlaylistDialog({
     const title = createTitle.trim()
     const vid = videoId.trim()
     if (!title || !vid) return
+    if (title.length > MAX_PLAYLIST_TITLE_LEN) {
+      setCreateTitleError(`Title must be ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`)
+      return
+    }
+    setCreateTitleError("")
     setCreateSubmitting(true)
     try {
       const res = await apiClient.createPlaylist({
@@ -474,9 +493,13 @@ export function AddToPlaylistDialog({
       await loadPlaylists()
     } catch (e) {
       const err = parseApiError(e)
+      const raw = err?.message || (e as Error).message || ""
+      if (/too long/i.test(raw)) {
+        setCreateTitleError(`Title must be ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`)
+      }
       toast({
         title: "Couldn’t create playlist",
-        description: err?.message || (e as Error).message,
+        description: isConnectivityError(e) ? userFacingNetworkMessage() : raw,
         variant: "destructive",
       })
     } finally {
@@ -485,7 +508,8 @@ export function AddToPlaylistDialog({
   }
 
   const displayTitle = (videoTitle || "This video").trim() || "This video"
-  const createValid = createTitle.trim().length > 0
+  const createValid =
+    createTitle.trim().length > 0 && createTitle.trim().length <= MAX_PLAYLIST_TITLE_LEN
   const listBusy = savingChanges
   const pendingChangeCount = pendingAddPlaylistIds.size + pendingRemovePlaylistIds.size
   const doneLabel = pendingChangeCount > 0 ? `Done (${pendingChangeCount})` : "Done"
@@ -633,11 +657,23 @@ export function AddToPlaylistDialog({
           <Input
             id="atp-title"
             value={createTitle}
-            onChange={(e) => setCreateTitle(e.target.value)}
+            onChange={(e) => {
+              setCreateTitle(e.target.value)
+              setCreateTitleError("")
+            }}
             placeholder="e.g. Late night listens"
-            className="h-12 rounded-xl border-border/80 bg-background text-base shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30"
+            className={cn(
+              "h-12 rounded-xl border-border/80 bg-background text-base shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30",
+              createTitleError && "border-destructive",
+            )}
             autoFocus
           />
+          {createTitleError ? <p className="text-xs text-destructive">{createTitleError}</p> : null}
+          {createTitle.trim().length > MAX_PLAYLIST_TITLE_LEN ? (
+            <p className="text-xs text-muted-foreground">
+              {createTitle.trim().length}/{MAX_PLAYLIST_TITLE_LEN} — shorten title to create.
+            </p>
+          ) : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="atp-desc" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

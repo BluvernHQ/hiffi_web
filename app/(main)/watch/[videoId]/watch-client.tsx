@@ -32,6 +32,8 @@ import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/componen
 import { DescriptionWithLinks } from "@/components/watch/description-with-links"
 import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
+import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
+import { OfflineState } from "@/components/network/offline-state"
 
 const AddToPlaylistDialog = dynamic(
   () =>
@@ -405,7 +407,7 @@ export default function WatchPage() {
   const [isLoading, setIsLoading] = useState(!video)
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
-  const [urlError, setUrlError] = useState<string | null>(null)
+  const [pageGateError, setPageGateError] = useState<{ headline: string; detail: string } | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [authDialogCopyKey, setAuthDialogCopyKey] = useState<AuthDialogCopyKey>("follow")
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -773,6 +775,7 @@ export default function WatchPage() {
       isFetchingRef.current = true
       hasFetchedVideoRef.current = videoId
       latestVideoRequestIdRef.current = videoId
+      setPageGateError(null)
       const currentDisplayedVideoId = video ? (video.video_id || video.videoId) : null
       const isVideoSwitch = !!currentDisplayedVideoId && currentDisplayedVideoId !== videoId
       const isInitialVideoLoad = !video || !isVideoSwitch
@@ -957,7 +960,17 @@ export default function WatchPage() {
           console.error("[hiffi] Failed to get video:", videoError)
           hasFetchedVideoRef.current = null
           isFetchingRef.current = false
-          setUrlError("Video not found")
+          if (isConnectivityError(videoError)) {
+            setPageGateError({
+              headline: "No internet connection",
+              detail: NO_INTERNET_USER_MESSAGE,
+            })
+          } else {
+            setPageGateError({
+              headline: "Video not found",
+              detail: "This video isn't available or may have been removed.",
+            })
+          }
           setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
           setIsPlayerReadyForPending(false)
           setIsLoading(false)
@@ -968,7 +981,17 @@ export default function WatchPage() {
         console.error("[hiffi] Failed to fetch video data:", error)
         hasFetchedVideoRef.current = null
         isFetchingRef.current = false
-        setUrlError("Failed to load video")
+        if (isConnectivityError(error)) {
+          setPageGateError({
+            headline: "No internet connection",
+            detail: NO_INTERNET_USER_MESSAGE,
+          })
+        } else {
+          setPageGateError({
+            headline: "Something went wrong",
+            detail: "Could not load this video. Please try again.",
+          })
+        }
         setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
         setIsPlayerReadyForPending(false)
       } finally {
@@ -1398,17 +1421,19 @@ export default function WatchPage() {
     }
   }, [videoCreator, currentVideo])
 
-  if (urlError && !video) {
+  if (pageGateError && !video) {
+    const isNet =
+      pageGateError.headline === "No internet connection" ||
+      pageGateError.detail === NO_INTERNET_USER_MESSAGE
+
     return (
-      <div className="flex items-center justify-center min-h-full p-4 lg:p-6">
-        <div className="text-center">
-          <div className="text-4xl mb-4">😕</div>
-          <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
-          <p className="text-muted-foreground mb-6">{urlError}</p>
-          <Button onClick={() => router.push("/")} variant="default">
-            Go to Home
-          </Button>
-        </div>
+      <div className="flex min-h-[55vh] w-full items-center justify-center px-4 py-16 lg:min-h-[60vh] lg:px-8">
+        <OfflineState
+          title={pageGateError.headline}
+          description={pageGateError.detail}
+          onRetry={isNet ? () => window.location.reload() : () => router.push("/")}
+          retryLabel={isNet ? "Try again" : "Go to Home"}
+        />
       </div>
     )
   }

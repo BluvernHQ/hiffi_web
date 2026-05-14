@@ -38,6 +38,7 @@ import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { getThumbnailUrl } from "@/lib/storage"
 import { setPlaylistSession } from "@/lib/playlist-session"
 import { notifyCuratedPlaylistsUpdated } from "@/lib/curated-playlists-events"
+import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 
 type VideoMeta = { title: string; thumbnail?: string }
 type PlaylistPreview = { videoIds: string[]; totalVideos: number }
@@ -253,7 +254,11 @@ function PlaylistsPageContent() {
         router.push("/login")
         return
       }
-      toast({ title: "Couldn’t load playlists", description: err?.message, variant: "destructive" })
+      toast({
+        title: "Couldn’t load playlists",
+        description: isConnectivityError(e) ? userFacingNetworkMessage() : err?.message,
+        variant: "destructive",
+      })
     } finally {
       setListLoading(false)
     }
@@ -324,7 +329,11 @@ function PlaylistsPageContent() {
           setItems([])
           return
         }
-        toast({ title: "Couldn’t load playlist", description: err?.message, variant: "destructive" })
+        toast({
+          title: "Couldn’t load playlist",
+          description: isConnectivityError(e) ? userFacingNetworkMessage() : err?.message,
+          variant: "destructive",
+        })
       } finally {
         setDetailLoading(false)
       }

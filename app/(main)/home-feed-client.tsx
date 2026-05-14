@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { VideoGrid } from "@/components/video/video-grid"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
+import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
+import { OfflineState } from "@/components/network/offline-state"
 
 const VIDEOS_PER_PAGE = 10
 
@@ -22,10 +24,23 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const [offset, setOffset] = useState(initialVideos.length)
   const [hasMore, setHasMore] = useState(initialVideos.length === VIDEOS_PER_PAGE)
   const [isFetching, setIsFetching] = useState(false)
+  const [feedError, setFeedError] = useState<string | null>(null)
 
   const fetchVideos = async (currentOffset: number, isInitialLoad = false) => {
     if (isFetching) return
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setFeedError(userFacingNetworkMessage())
+      setIsFetching(false)
+      setLoading(false)
+      setLoadingMore(false)
+      setHasMore(false)
+      if (currentOffset === 0) setVideos([])
+      return
+    }
+
     try {
+      setFeedError(null)
       setIsFetching(true)
       if (isInitialLoad) setLoading(true)
       else setLoadingMore(true)
@@ -58,7 +73,11 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     } catch (err) {
       console.error("[hiffi] Failed to fetch videos:", err)
       if (currentOffset > 0) setHasMore(false)
-      else { setVideos([]); setHasMore(false) }
+      else {
+        setVideos([])
+        setHasMore(false)
+        setFeedError(isConnectivityError(err) ? userFacingNetworkMessage() : "Could not load videos. Please try again.")
+      }
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -98,6 +117,18 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Discover</h1>
         </div>
+
+        {feedError && videos.length === 0 ? (
+          <OfflineState
+            className="mx-auto w-full max-w-lg"
+            title={feedError === userFacingNetworkMessage() ? "No internet connection" : "Couldn’t load videos"}
+            description={feedError}
+            onRetry={() => {
+              setFeedError(null)
+              void fetchVideos(0, true)
+            }}
+          />
+        ) : null}
 
         <VideoGrid
           videos={videos}

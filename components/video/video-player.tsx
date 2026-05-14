@@ -21,6 +21,8 @@ import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, WORKERS_BASE_URL } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
+import { NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
+import { OfflineState } from "@/components/network/offline-state"
 import { NextUpOverlay } from "./next-up-overlay"
 import { AuthenticatedImage } from "./authenticated-image"
 import { usePlayerAudioSettings } from "@/components/video/hooks/use-player-audio-settings"
@@ -114,6 +116,16 @@ export function VideoPlayer({
   const [currentProfile, setCurrentProfile] = useState<string>("original")
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const [urlError, setUrlError] = useState<string>("")
+  const [playbackNetworkBanner, setPlaybackNetworkBanner] = useState("")
+  const connectivityStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearConnectivityStallTimer = () => {
+    if (connectivityStallTimerRef.current) {
+      clearTimeout(connectivityStallTimerRef.current)
+      connectivityStallTimerRef.current = null
+    }
+  }
+
   const [isBuffering, setIsBuffering] = useState(false)
   const [bufferPercentage, setBufferPercentage] = useState(0)
 
@@ -509,6 +521,8 @@ export function VideoPlayer({
       setDuration(0)   // Immediate UI reset
       durationRef.current = 0
       setUrlError("")
+      setPlaybackNetworkBanner("")
+      clearConnectivityStallTimer()
       setHasEnded(false)
       setShowNextUpOverlay(false)
       if (autoPlay) setAutoplayInProgress(true)
@@ -690,6 +704,7 @@ export function VideoPlayer({
     return () => {
       void reportWatchProgress(true)
       stopOtherMediaElements()
+      clearConnectivityStallTimer()
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
         autoplayAttemptTimeoutRef.current = null
@@ -879,8 +894,42 @@ export function VideoPlayer({
       // Note: onVideoEnd will be called by NextUpOverlay when countdown completes
       // or when user clicks play
     }
-    const handleWaiting = () => setIsBuffering(true)
+    const handleWaiting = () => {
+      setIsBuffering(true)
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        clearConnectivityStallTimer()
+        setPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        return
+      }
+      clearConnectivityStallTimer()
+      connectivityStallTimerRef.current = setTimeout(() => {
+        connectivityStallTimerRef.current = null
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          setPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+          return
+        }
+        try {
+          if (!player || player.paused()) return
+          const t = player.currentTime()
+          const buf = player.buffered()
+          let ahead = 0
+          for (let i = 0; i < buf.length; i++) {
+            if (t >= buf.start(i) && t <= buf.end(i)) {
+              ahead = buf.end(i) - t
+              break
+            }
+          }
+          if (ahead < 0.35) {
+            setPlaybackNetworkBanner("Connection interrupted. Check your network and try again.")
+          }
+        } catch {
+          // ignore
+        }
+      }, 18000)
+    }
     const handleLoadedMetadata = () => {
+      clearConnectivityStallTimer()
+      setPlaybackNetworkBanner("")
       // Ensure stale "ended" visual state never hides a freshly loaded source.
       setHasEnded(false)
       setShowNextUpOverlay(false)
@@ -897,10 +946,14 @@ export function VideoPlayer({
       // Keep hook for future diagnostics.
     }
     const handleCanPlay = () => {
+      clearConnectivityStallTimer()
+      setPlaybackNetworkBanner("")
       setHasEnded(false)
       notifyMediaReady()
     }
     const handlePlaying = () => {
+      clearConnectivityStallTimer()
+      setPlaybackNetworkBanner("")
       setIsBuffering(false)
       notifyMediaReady()
       
@@ -974,6 +1027,14 @@ export function VideoPlayer({
       const code = error.code
       const message = error.message
 
+      // MEDIA_ERR_NETWORK (2)
+      if (code === 2) {
+        setIsBuffering(false)
+        clearConnectivityStallTimer()
+        setPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        return
+      }
+
       // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try fallback to original MP4
       if (code === 4 || code === 3) {
         let baseUrl = baseUrlRef.current
@@ -1029,6 +1090,7 @@ export function VideoPlayer({
     return () => {
       // Listeners are removed when player is disposed in the separate cleanup effect
       isInitializingRef.current = false
+      clearConnectivityStallTimer()
     }
   }, [isReady, autoPlay, signedPosterUrl, poster])
 
@@ -1047,6 +1109,8 @@ export function VideoPlayer({
     // Reset state for new source
     setIsPlaying(false)
     setIsBuffering(true)
+    setPlaybackNetworkBanner("")
+    clearConnectivityStallTimer()
     setCurrentTime(0)
     setDuration(0)
     durationRef.current = 0
@@ -1666,11 +1730,42 @@ export function VideoPlayer({
         </div>
       )}
 
-      {(isBuffering || isAutoplayInProgress) && !hasEnded && (
+      {(isBuffering || isAutoplayInProgress) && !hasEnded && !playbackNetworkBanner && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
         </div>
       )}
+
+      {playbackNetworkBanner ? (
+        <div
+          className="absolute inset-0 z-[45] flex items-center justify-center bg-black/80 px-4 text-center pointer-events-auto animate-in fade-in duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <OfflineState
+            variant="embed"
+            title={
+              playbackNetworkBanner === NO_INTERNET_USER_MESSAGE
+                ? "No internet connection"
+                : "Playback interrupted"
+            }
+            description={playbackNetworkBanner}
+            onRetry={() => {
+              clearConnectivityStallTimer()
+              setPlaybackNetworkBanner("")
+              const p = playerRef.current
+              if (p) {
+                try {
+                  p.error(null)
+                  p.load()
+                  void p.play().catch(() => {})
+                } catch {
+                  // ignore
+                }
+              }
+            }}
+          />
+        </div>
+      ) : null}
 
       {/* Tap to Unmute Overlay (YouTube style) */}
       {isForcedMute && isPlaying && !isAutoplayInProgress && (

@@ -7,6 +7,7 @@ import { FollowingEmptyState } from '@/components/video/following-empty-state'
 import { useAuth } from '@/lib/auth-context'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
+import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors'
 import { Loader2, Video } from 'lucide-react'
 
 const VIDEOS_PER_PAGE = 10
@@ -41,6 +42,22 @@ export default function FollowingPage() {
     // Prevent duplicate requests
     if (isFetching) {
       // noisy debug removed
+      return
+    }
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setLoading(false)
+      setLoadingMore(false)
+      setIsFetching(false)
+      setHasMore(false)
+      if (isInitialLoad || currentOffset === 0) {
+        setVideos([])
+        toast({
+          title: "No internet connection",
+          description: userFacingNetworkMessage(),
+          variant: "destructive",
+        })
+      }
       return
     }
 
@@ -96,8 +113,10 @@ export default function FollowingPage() {
         setVideos([])
         setHasMore(false)
         toast({
-          title: "Error",
-          description: "Failed to load videos from creators you follow",
+          title: isConnectivityError(error) ? "No internet connection" : "Error",
+          description: isConnectivityError(error)
+            ? userFacingNetworkMessage()
+            : "Failed to load videos from creators you follow",
           variant: "destructive",
         })
       }
