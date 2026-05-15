@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo, startTransition } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, startTransition } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
@@ -29,7 +29,11 @@ import { captureConversionEvent } from "@/lib/conversion-tracking"
 import dynamic from "next/dynamic"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
-import { DescriptionWithLinks } from "@/components/watch/description-with-links"
+import {
+  DescriptionWithLinks,
+  getVideoDescriptionFromRecord,
+  hasDisplayableVideoDescription,
+} from "@/components/watch/description-with-links"
 import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
@@ -374,6 +378,8 @@ export default function WatchPage() {
       (shouldUsePersistedUiState ? persistedWatchUiState?.isDisliked : undefined) ?? activeVideoInitialVoteState.downvoted,
   )
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [isDescriptionTruncated, setIsDescriptionTruncated] = useState(false)
+  const descriptionRef = useRef<HTMLDivElement>(null)
   
   // currentVideo: what is currently rendered in title/description/channel UI.
   const [video, setVideo] = useState<any>(() => {
@@ -1372,7 +1378,25 @@ export default function WatchPage() {
   }
 
   const currentVideo = video || persistedWatchUiState?.video // Alias for readability
+  const descriptionText = getVideoDescriptionFromRecord(currentVideo)
+  const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
   const shouldShowMetadataSkeleton = !currentVideo && (isMetadataLoading || isLoading)
+
+  useEffect(() => {
+    setShowFullDescription(false)
+    if (!hasVideoDescription) setIsDescriptionTruncated(false)
+  }, [currentVideoId, descriptionText, hasVideoDescription])
+
+  useLayoutEffect(() => {
+    if (!hasVideoDescription || shouldShowMetadataSkeleton) {
+      setIsDescriptionTruncated(false)
+      return
+    }
+    if (showFullDescription) return
+    const el = descriptionRef.current
+    if (!el) return
+    setIsDescriptionTruncated(el.scrollHeight > el.clientHeight + 1)
+  }, [descriptionText, hasVideoDescription, showFullDescription, shouldShowMetadataSkeleton])
   const shouldShowRelatedSkeleton = sidebarSuggestedVideos.length === 0 && visibleRelatedVideos.length === 0
 
   // Player source is allowed to update before UI metadata to avoid visual flicker.
@@ -1684,17 +1708,27 @@ export default function WatchPage() {
                       <div className="flex gap-2 font-medium mb-2">
                         <span>{(currentVideo?.videoViews || currentVideo?.video_views || 0).toLocaleString()} views</span>
                       </div>
-                      <div className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}>
-                        <DescriptionWithLinks
-                          text={currentVideo?.videoDescription || currentVideo?.video_description}
-                        />
-                      </div>
-                      <button
-                        onClick={() => setShowFullDescription(!showFullDescription)}
-                        className="text-primary font-medium mt-1 hover:underline"
-                      >
-                        {showFullDescription ? "Show less" : "Show more"}
-                      </button>
+                      {hasVideoDescription ? (
+                        <>
+                          <div
+                            ref={descriptionRef}
+                            className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}
+                          >
+                            <DescriptionWithLinks text={descriptionText} />
+                          </div>
+                          {hasVideoDescription && (showFullDescription || isDescriptionTruncated) ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowFullDescription(!showFullDescription)}
+                              className="text-primary font-medium mt-1 hover:underline"
+                            >
+                              {showFullDescription ? "Show less" : "Show more"}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">No description available</p>
+                      )}
 
                       {currentVideo?.tags && currentVideo?.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">

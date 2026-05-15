@@ -16,8 +16,10 @@ import { formatDistanceToNow } from "date-fns"
 import { apiClient, type ApiError, type PlaylistSummary } from "@/lib/api-client"
 import {
   DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
+  getPlaylistTitleValidationError,
   hasDuplicatePlaylistTitle,
-  MAX_PLAYLIST_TITLE_LEN,
+  parsePlaylistMetadataApiFieldErrors,
+  resolvePlaylistTitleErrorOnChange,
 } from "@/lib/playlist-title"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useToast } from "@/hooks/use-toast"
@@ -226,6 +228,7 @@ export function AddToPlaylistDialog({
   const [createDescription, setCreateDescription] = useState("")
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [createTitleError, setCreateTitleError] = useState("")
+  const [createDescError, setCreateDescError] = useState("")
 
   useEffect(() => {
     if (!open) return
@@ -287,6 +290,7 @@ export function AddToPlaylistDialog({
     setCreateTitle("")
     setCreateDescription("")
     setCreateTitleError("")
+    setCreateDescError("")
 
     if (!vid) return
 
@@ -461,16 +465,20 @@ export function AddToPlaylistDialog({
   const handleCreate = async () => {
     const title = createTitle.trim()
     const vid = videoId.trim()
-    if (!title || !vid) return
-    if (title.length > MAX_PLAYLIST_TITLE_LEN) {
-      setCreateTitleError(`Title must be ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`)
+    if (!vid) return
+
+    setCreateTitleError("")
+    setCreateDescError("")
+
+    const titleError = getPlaylistTitleValidationError(createTitle)
+    if (titleError) {
+      setCreateTitleError(titleError)
       return
     }
     if (hasDuplicatePlaylistTitle(title, playlists)) {
       setCreateTitleError(DUPLICATE_PLAYLIST_NAME_USER_MESSAGE)
       return
     }
-    setCreateTitleError("")
     setCreateSubmitting(true)
     try {
       const res = await apiClient.createPlaylist({
@@ -508,9 +516,10 @@ export function AddToPlaylistDialog({
     } catch (e) {
       const err = parseApiError(e)
       const raw = err?.message || (e as Error).message || ""
-      if (/too long/i.test(raw)) {
-        setCreateTitleError(`Title must be ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`)
-      } else if (/duplicate|already exists|same name|unique constraint|already have/i.test(raw)) {
+      const fieldErrors = parsePlaylistMetadataApiFieldErrors(raw)
+      if (fieldErrors.title) setCreateTitleError(fieldErrors.title)
+      if (fieldErrors.description) setCreateDescError(fieldErrors.description)
+      if (/duplicate|already exists|same name|unique constraint|already have/i.test(raw)) {
         setCreateTitleError(DUPLICATE_PLAYLIST_NAME_USER_MESSAGE)
       }
       toast({
@@ -524,10 +533,7 @@ export function AddToPlaylistDialog({
   }
 
   const displayTitle = (videoTitle || "This video").trim() || "This video"
-  const createValid =
-    createTitleTrimmed.length > 0 &&
-    createTitleTrimmed.length <= MAX_PLAYLIST_TITLE_LEN &&
-    !createTitleIsDuplicate
+  const createValid = createTitleTrimmed.length > 0 && !createTitleIsDuplicate
   const listBusy = savingChanges
   const pendingChangeCount = pendingAddPlaylistIds.size + pendingRemovePlaylistIds.size
   const doneLabel = pendingChangeCount > 0 ? `Done (${pendingChangeCount})` : "Done"
@@ -675,16 +681,21 @@ export function AddToPlaylistDialog({
           <Input
             id="atp-title"
             value={createTitle}
-            maxLength={MAX_PLAYLIST_TITLE_LEN}
             onChange={(e) => {
-              setCreateTitle(e.target.value)
-              setCreateTitleError("")
+              const value = e.target.value
+              setCreateTitle(value)
+              setCreateTitleError((prev) => resolvePlaylistTitleErrorOnChange(value, prev))
+            }}
+            onBlur={() => {
+              const err = getPlaylistTitleValidationError(createTitle)
+              if (err) setCreateTitleError(err)
             }}
             placeholder="e.g. Late night listens"
             className={cn(
               "h-12 rounded-xl border-border/80 bg-background text-base shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30",
               createTitleError && "border-destructive",
             )}
+            aria-invalid={Boolean(createTitleError)}
             autoFocus
           />
           {createTitleError || (createTitleIsDuplicate && createTitleTrimmed.length > 0) ? (
@@ -700,10 +711,18 @@ export function AddToPlaylistDialog({
           <Input
             id="atp-desc"
             value={createDescription}
-            onChange={(e) => setCreateDescription(e.target.value)}
+            onChange={(e) => {
+              setCreateDescription(e.target.value)
+              if (createDescError) setCreateDescError("")
+            }}
             placeholder="What’s this list for?"
-            className="h-12 rounded-xl border-border/80 bg-background text-base shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30"
+            className={cn(
+              "h-12 rounded-xl border-border/80 bg-background text-base shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30",
+              createDescError && "border-destructive",
+            )}
+            aria-invalid={Boolean(createDescError)}
           />
+          {createDescError ? <p className="text-xs text-destructive">{createDescError}</p> : null}
         </div>
         <Button
           type="button"

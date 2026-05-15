@@ -41,8 +41,10 @@ import { notifyCuratedPlaylistsUpdated } from "@/lib/curated-playlists-events"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import {
   DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
+  getPlaylistTitleValidationError,
   hasDuplicatePlaylistTitle,
-  MAX_PLAYLIST_TITLE_LEN,
+  parsePlaylistMetadataApiFieldErrors,
+  resolvePlaylistTitleErrorOnChange,
 } from "@/lib/playlist-title"
 
 type VideoMeta = { title: string; thumbnail?: string }
@@ -232,6 +234,8 @@ function PlaylistsPageContent() {
 
   const [titleEdit, setTitleEdit] = useState("")
   const [descEdit, setDescEdit] = useState("")
+  const [titleEditError, setTitleEditError] = useState("")
+  const [descEditError, setDescEditError] = useState("")
   const [metaSaving, setMetaSaving] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
 
@@ -505,33 +509,27 @@ function PlaylistsPageContent() {
     [navigatePlaylistSession, router],
   )
 
-  const saveMetadata = async (nextTitle: string, nextDesc: string) => {
-    if (!selectedId || !detailPlaylist) return
+  const saveMetadata = async (nextTitle: string, nextDesc: string): Promise<boolean> => {
+    if (!selectedId || !detailPlaylist) return false
+
+    setTitleEditError("")
+    setDescEditError("")
+
+    const titleError = getPlaylistTitleValidationError(nextTitle)
+    if (titleError) {
+      setTitleEditError(titleError)
+      return false
+    }
+
     const t = nextTitle.trim()
-    if (!t) {
-      toast({ title: "Title required", variant: "destructive" })
-      setTitleEdit(detailPlaylist.title || "")
-      return
-    }
-    if (t.length > MAX_PLAYLIST_TITLE_LEN) {
-      toast({
-        title: "Title too long",
-        description: `Use ${MAX_PLAYLIST_TITLE_LEN} characters or fewer.`,
-        variant: "destructive",
-      })
-      return
-    }
     if (hasDuplicatePlaylistTitle(t, playlists, { excludePlaylistId: selectedId })) {
-      toast({
-        title: "Name already in use",
-        description: DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
-        variant: "destructive",
-      })
-      return
+      setTitleEditError(DUPLICATE_PLAYLIST_NAME_USER_MESSAGE)
+      return false
     }
     if (t === (detailPlaylist.title || "").trim() && nextDesc.trim() === (detailPlaylist.description || "").trim()) {
-      return
+      return true
     }
+
     setMetaSaving(true)
     try {
       const res = await apiClient.updatePlaylistMetadata(selectedId, {
@@ -544,11 +542,19 @@ function PlaylistsPageContent() {
         prev.map((p) => (p.playlist_id === selectedId ? { ...p, title: t, description: nextDesc.trim() } : p)),
       )
       bumpPlaylistInList(selectedId)
+      return true
     } catch (e) {
       const err = parseApiError(e)
-      toast({ title: "Couldn’t save", description: err?.message || (e as Error).message, variant: "destructive" })
-      setTitleEdit(detailPlaylist.title || "")
-      setDescEdit(detailPlaylist.description || "")
+      const raw = err?.message || (e as Error).message || ""
+      const fieldErrors = parsePlaylistMetadataApiFieldErrors(raw)
+      if (fieldErrors.title) setTitleEditError(fieldErrors.title)
+      if (fieldErrors.description) setDescEditError(fieldErrors.description)
+      if (!fieldErrors.title && !fieldErrors.description) {
+        toast({ title: "Couldn’t save", description: raw, variant: "destructive" })
+        setTitleEdit(detailPlaylist.title || "")
+        setDescEdit(detailPlaylist.description || "")
+      }
+      return false
     } finally {
       setMetaSaving(false)
     }
@@ -574,19 +580,24 @@ function PlaylistsPageContent() {
   }
 
   const handleSaveEdit = async () => {
-    await saveMetadata(titleEdit, descEdit)
-    setEditOpen(false)
+    const saved = await saveMetadata(titleEdit, descEdit)
+    if (saved) setEditOpen(false)
   }
 
   const resetEditDraft = useCallback(() => {
     setTitleEdit(detailPlaylist?.title || "")
     setDescEdit(detailPlaylist?.description || "")
+    setTitleEditError("")
+    setDescEditError("")
   }, [detailPlaylist])
 
   const handleEditOpenChange = useCallback(
     (open: boolean) => {
       setEditOpen(open)
-      if (!open) {
+      if (open) {
+        setTitleEditError("")
+        setDescEditError("")
+      } else {
         resetEditDraft()
       }
     },
@@ -1106,10 +1117,21 @@ function PlaylistsPageContent() {
               <Input
                 id="playlist-title-edit"
                 value={titleEdit}
-                onChange={(e) => setTitleEdit(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setTitleEdit(value)
+                  setTitleEditError((prev) => resolvePlaylistTitleErrorOnChange(value, prev))
+                }}
+                onBlur={() => {
+                  const err = getPlaylistTitleValidationError(titleEdit)
+                  if (err) setTitleEditError(err)
+                }}
                 placeholder="Playlist title"
                 disabled={metaSaving}
+                aria-invalid={Boolean(titleEditError)}
+                className={cn(titleEditError && "border-destructive")}
               />
+              {titleEditError ? <p className="text-xs text-destructive">{titleEditError}</p> : null}
             </div>
             <div className="grid gap-2">
               <label htmlFor="playlist-description-edit" className="text-xs font-medium text-muted-foreground">
@@ -1118,10 +1140,16 @@ function PlaylistsPageContent() {
               <Input
                 id="playlist-description-edit"
                 value={descEdit}
-                onChange={(e) => setDescEdit(e.target.value)}
+                onChange={(e) => {
+                  setDescEdit(e.target.value)
+                  if (descEditError) setDescEditError("")
+                }}
                 placeholder="Description"
                 disabled={metaSaving}
+                aria-invalid={Boolean(descEditError)}
+                className={cn(descEditError && "border-destructive")}
               />
+              {descEditError ? <p className="text-xs text-destructive">{descEditError}</p> : null}
             </div>
           </div>
           <DialogFooter>
