@@ -7,6 +7,9 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 ### Changed
 - UI revamp (in progress on `hiffi_dev_v2`)
 
+### Fixed
+- Save-to-playlist “Add (N)” count wrong after unselecting playlists while membership was still loading
+
 ## [1.0.0] - 2026-05-16
 
 Frozen at tag `web-v1.0.0` / branch `release/1.0.0`. Use these to roll back dev or prod to pre-revamp behavior.

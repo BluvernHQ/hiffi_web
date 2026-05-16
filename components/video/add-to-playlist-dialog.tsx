@@ -215,6 +215,29 @@ export function AddToPlaylistDialog({
     }
   }, [open, videoId, loadPlaylists])
 
+  /** Membership loads in chunks; drop stale pending ops when base set updates. */
+  useEffect(() => {
+    setPendingAddPlaylistIds((prev) => {
+      const next = new Set(prev)
+      let changed = false
+      for (const id of basePlaylistIds) {
+        if (next.delete(id)) changed = true
+      }
+      return changed ? next : prev
+    })
+    setPendingRemovePlaylistIds((prev) => {
+      const next = new Set(prev)
+      let changed = false
+      for (const id of prev) {
+        if (!basePlaylistIds.has(id)) {
+          next.delete(id)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [basePlaylistIds])
+
   const createTitleTrimmed = createTitle.trim()
   const createTitleIsDuplicate = useMemo(
     () => hasDuplicatePlaylistTitle(createTitleTrimmed, playlists),
@@ -234,6 +257,7 @@ export function AddToPlaylistDialog({
   )
 
   const handleTogglePlaylist = (playlistId: string) => {
+    if (membershipLoading) return
     const inBase = basePlaylistIds.has(playlistId)
     if (inBase) {
       setPendingAddPlaylistIds((prev) => {
@@ -418,7 +442,18 @@ export function AddToPlaylistDialog({
   const displayTitle = (videoTitle || "This video").trim() || "This video"
   const createValid = createTitleTrimmed.length > 0 && !createTitleIsDuplicate
   const listBusy = savingChanges
-  const pendingChangeCount = pendingAddPlaylistIds.size + pendingRemovePlaylistIds.size
+
+  const pendingChangeCount = useMemo(() => {
+    let count = 0
+    for (const p of playlists) {
+      const id = p.playlist_id
+      const inBase = basePlaylistIds.has(id)
+      const selected = isPlaylistAdded(id)
+      if (selected !== inBase) count++
+    }
+    return count
+  }, [playlists, basePlaylistIds, isPlaylistAdded])
+
   const panelWidth = "w-[min(calc(100vw-2rem),400px)]"
 
   const pickViewShared = {
