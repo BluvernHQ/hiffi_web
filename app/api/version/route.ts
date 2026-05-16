@@ -1,6 +1,7 @@
 import { readFileSync } from "fs"
 import { join } from "path"
 import { NextResponse } from "next/server"
+import { APP_VERSION } from "@/lib/app-version"
 
 export const dynamic = "force-dynamic"
 
@@ -19,7 +20,7 @@ export function GET() {
     }
   }
   return NextResponse.json(
-    { buildId },
+    { version: APP_VERSION, buildId },
     {
       headers: {
         "Cache-Control": "no-store, must-revalidate",

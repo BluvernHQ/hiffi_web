@@ -6,6 +6,8 @@ on:
     branches:
       - main
       - master
+      - new-main
+      - hiffi_dev_v2
 
 jobs:
   build:
@@ -28,5 +30,7 @@ jobs:
         run: npm run typecheck
 
       - name: Build
+        env:
+          NEXT_PUBLIC_APP_BUILD_ID: ${{ github.sha }}
         run: npm run build
 
