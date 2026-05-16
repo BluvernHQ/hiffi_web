@@ -6,6 +6,7 @@ import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import type { PlaylistSummary } from "@/lib/api-client"
 import {
@@ -78,7 +79,7 @@ export function CreateView({
       className={cn(
         sheet ? atpSheetClass : atpPanelClass,
         !sheet && panelWidthClass,
-        sheet ? "w-full overflow-y-auto" : "relative max-h-[min(520px,85dvh)] overflow-hidden",
+        sheet ? "w-full overflow-y-auto" : "relative max-h-[min(520px,85dvh)] overflow-y-auto",
       )}
     >
       {thumbnailUrl ? (
@@ -134,26 +135,26 @@ export function CreateView({
                 aria-invalid={Boolean(createTitleError)}
                 autoFocus
               />
-              <div className="relative">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-11 shrink-0 rounded-xl border-black/[0.08] dark:border-white/[0.08]"
-                  onClick={() => setEmojiOpen((o) => !o)}
-                  aria-label="Add emoji"
-                  aria-expanded={emojiOpen}
-                >
-                  <Smile className="h-5 w-5 text-muted-foreground" />
-                </Button>
-                {emojiOpen ? (
-                  <div
-                    className={cn(
-                      "absolute right-0 top-full z-10 mt-1 grid grid-cols-4 gap-1 rounded-xl border border-black/[0.08]",
-                      "bg-popover p-2 shadow-lg dark:border-white/[0.08]",
-                    )}
-                    role="listbox"
+              <Popover open={emojiOpen} onOpenChange={setEmojiOpen} modal>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 shrink-0 rounded-xl border-black/[0.08] dark:border-white/[0.08]"
+                    aria-label="Add emoji"
                   >
+                    <Smile className="h-5 w-5 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  collisionPadding={12}
+                  className="z-[300] w-auto border-black/[0.08] p-2 dark:border-white/[0.08]"
+                >
+                  <div className="grid grid-cols-4 gap-1" role="listbox" aria-label="Emoji">
                     {EMOJI_OPTIONS.map((e) => (
                       <button
                         key={e}
@@ -166,8 +167,8 @@ export function CreateView({
                       </button>
                     ))}
                   </div>
-                ) : null}
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
             {suggestions.length > 0 ? (
               <div className="flex flex-wrap gap-2 pt-1">
