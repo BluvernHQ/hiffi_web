@@ -2,6 +2,11 @@
 
 All notable web releases are documented here. Tags use the format `web-vMAJOR.MINOR.PATCH`.
 
+## [1.0.1] - 2026-05-16
+
+### Fixed
+- Save-to-playlist “Add (N)” count wrong after unselecting playlists while membership was still loading
+
 ## [1.0.0] - 2026-05-16
 
 ### Added
@@ -16,5 +21,7 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 - Playlist name suggestion chips no longer show false “Title is required” on first click
 - Save-to-playlist list scrolling in popover and mobile sheet
 - Caching and connectivity-related issues
+- Create-playlist emoji picker layout (portaled Popover)
 
-[1.0.0]: #100---2026-05-16
+[1.0.1]: https://github.com/BluvernHQ/hiffi_web/releases/tag/web-v1.0.1
+[1.0.0]: https://github.com/BluvernHQ/hiffi_web/releases/tag/web-v1.0.0
