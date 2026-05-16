@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { VideoGrid } from '@/components/video/video-grid';
@@ -13,43 +13,84 @@ import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, Share2, Calendar, UserPlus, UserCheck, Copy, Check, Mail } from 'lucide-react';
 import { format } from 'date-fns';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
+import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl, isCreator } from '@/lib/utils';
 import { shareUrl } from '@/lib/share';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialog';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { ProfilePersonalView } from '@/components/profile/profile-personal-view';
 import { ProfilePublicView } from '@/components/profile/profile-public-view';
+import { ProfileMemberView } from '@/components/profile/profile-member-view';
 import { debugLog, debugWarn } from '@/lib/debug';
 
-export default function ProfilePage() {
+const VIDEOS_PER_PAGE = 10;
+
+export type ProfilePageProps = {
+  /** Public profile from server (GET /users/{username}). */
+  initialProfileUser?: Record<string, unknown> | null;
+  /** First page of public videos from server. */
+  initialVideos?: Record<string, unknown>[];
+};
+
+function sortVideosByUpdatedDateStatic(videos: Record<string, unknown>[]): Record<string, unknown>[] {
+  const ts = (video: Record<string, unknown>) => {
+    const raw =
+      video.updated_at ??
+      video.updatedAt ??
+      video.video_updated_at ??
+      video.videoUpdatedAt ??
+      video.created_at ??
+      video.createdAt ??
+      video.createdat;
+    if (!raw) return 0;
+    const t = new Date(String(raw)).getTime();
+    return Number.isNaN(t) ? 0 : t;
+  };
+  return [...videos].sort((a, b) => ts(b) - ts(a));
+}
+
+export default function ProfilePage({
+  initialProfileUser = null,
+  initialVideos = [],
+}: ProfilePageProps = {}) {
   const params = useParams();
   const router = useRouter();
   const { userData: currentUserData, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const sortedInitialVideos = useMemo(
+    () => sortVideosByUpdatedDateStatic(initialVideos),
+    [initialVideos],
+  );
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingAction, setIsFollowingAction] = useState(false);
   const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null);
-  const [profileUser, setProfileUser] = useState<any>(null);
-  const [userVideos, setUserVideos] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [profileUser, setProfileUser] = useState<any>(() => initialProfileUser ?? null);
+  const [userVideos, setUserVideos] = useState<any[]>(() => sortedInitialVideos);
+  const [isLoading, setIsLoading] = useState(() => !initialProfileUser);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(() => sortedInitialVideos.length === VIDEOS_PER_PAGE);
+  const [offset, setOffset] = useState(() => sortedInitialVideos.length);
   const [isFetching, setIsFetching] = useState(false);
-  const [hasTriedFetch, setHasTriedFetch] = useState(false);
+  const [hasTriedFetch, setHasTriedFetch] = useState(() => !!initialProfileUser);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isProfilePictureDialogOpen, setIsProfilePictureDialogOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [profilePictureVersion, setProfilePictureVersion] = useState(0);
   const [isUnauthenticated, setIsUnauthenticated] = useState(false);
-  
-  const VIDEOS_PER_PAGE = 10;
-  
+
+  const serverHasProfileRef = useRef(!!initialProfileUser);
+  const serverHasVideosRef = useRef(sortedInitialVideos.length > 0);
+  const profileSyncInFlightRef = useRef(false);
+  const ownProfileVideosSyncedRef = useRef(false);
+  const profileUserRef = useRef<any>(initialProfileUser ?? null);
+  const userVideosRef = useRef<any[]>(sortedInitialVideos);
+  profileUserRef.current = profileUser;
+  userVideosRef.current = userVideos;
+
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
-  const isRegularUser = profileUser?.role === "user" || profileUser?.role === undefined;
+  const profileIsCreator = isCreator(profileUser ?? initialProfileUser);
   const referralUrl =
     typeof window !== "undefined" ? `${window.location.origin}/referrar/${username}` : `/referrar/${username}`;
   const profileUrl =
@@ -89,25 +130,29 @@ export default function ProfilePage() {
         return;
       }
 
-      // Wait for auth to be ready before making API call
       if (authLoading) {
         return;
       }
-      
-      // Check if user is authenticated - if not, we'll show login prompt
-      const isAuthenticated = !!apiClient.getAuthToken();
-      
-      // If force refresh, clear any cached data to ensure fresh fetch
-      if (forceRefresh && typeof window !== "undefined") {
-        // Clear auth context cache for current user if viewing own profile
-        if (currentUserData?.username === username) {
-          localStorage.removeItem("hiffi_user_data");
-          localStorage.removeItem("hiffi_user_data_timestamp");
-        }
+
+      if (profileSyncInFlightRef.current && !forceRefresh) {
+        return;
+      }
+      profileSyncInFlightRef.current = true;
+
+      const viewingOwnProfile = currentUserData?.username === username;
+
+      if (forceRefresh && typeof window !== "undefined" && viewingOwnProfile) {
+        localStorage.removeItem("hiffi_user_data");
+        localStorage.removeItem("hiffi_user_data_timestamp");
       }
 
+      const hasServerSeed =
+        !forceRefresh && (serverHasProfileRef.current || !!profileUserRef.current);
+
       try {
-        setIsLoading(true);
+        if (!hasServerSeed) {
+          setIsLoading(true);
+        }
         setHasTriedFetch(true);
         
         // Use /users/{username} for all profiles (including own profile)
@@ -146,39 +191,33 @@ export default function ProfilePage() {
         debugLog("[hiffi] Followers:", (profileData as any)?.followers)
         debugLog("[hiffi] Following:", (profileData as any)?.following)
         
-        // Update profile user state
-        // Check if profile_picture changed before updating state
-        // Also check 'image' field as it might be used in API responses
-        const previousProfilePicture = profileUser?.profile_picture || profileUser?.image;
+        const previousProfilePicture =
+          profileUserRef.current?.profile_picture || profileUserRef.current?.image;
         const newProfilePicture = profileData?.profile_picture || profileData?.image;
-        
-        // Normalize: if API returns 'image', also set it as 'profile_picture' for consistency
+
         if (profileData?.image && !profileData?.profile_picture) {
           debugLog("[hiffi] Normalizing: setting profile_picture from image field")
           profileData.profile_picture = profileData.image;
         }
 
-        // Fetch videos using getUserVideos endpoint
-        // This endpoint is public and often returns the user's profile picture in the metadata
-        const videosResponse = await apiClient.getUserVideos(username, { limit: 12 });
-        
-        // RESCUE LOGIC: If profile_picture is missing (common for guest users), 
-        // try to find it in the public videos response
-        if (!profileData.profile_picture && videosResponse.success && videosResponse.videos.length > 0) {
-          const videoWithPicture = videosResponse.videos.find((v: any) => v.user_profile_picture && v.user_profile_picture.trim() !== "");
-          if (videoWithPicture) {
-            debugLog("[hiffi] Rescuing profile_picture from public video metadata:", videoWithPicture.user_profile_picture)
+        if (!profileData.profile_picture && userVideosRef.current.length > 0) {
+          const videoWithPicture = userVideosRef.current.find(
+            (v: any) => v.user_profile_picture && String(v.user_profile_picture).trim() !== "",
+          );
+          if (videoWithPicture?.user_profile_picture) {
+            debugLog(
+              "[hiffi] Rescuing profile_picture from seeded video metadata:",
+              videoWithPicture.user_profile_picture,
+            );
             profileData.profile_picture = videoWithPicture.user_profile_picture;
           }
         }
-        
-        // Log final profile picture value before setting state
+
         debugLog("[hiffi] Final profile_picture value before setting state:", (profileData as any)?.profile_picture)
-        
+
         setProfileUser(profileData);
-        
-        // Set videos from the public response
-        const videosArray = videosResponse.videos || [];        
+        serverHasProfileRef.current = true;
+
         // Increment profile picture version if profile_picture path changed OR if force refresh
         // This forces AvatarImage to re-render with new cache buster
         if (forceRefresh || (newProfilePicture && newProfilePicture !== previousProfilePicture)) {
@@ -202,13 +241,19 @@ export default function ProfilePage() {
           setIsFollowing(false); // Can't follow yourself
         }
         
-        // Reset video state
-        setUserVideos([]);
-        setOffset(0);
-        setHasMore(true);
-        
-        // Fetch initial page of user's videos
-        await fetchUserVideos(0, true, isOwnProfile);
+        const needsVideoFetch =
+          isCreator(profileData) &&
+          (forceRefresh ||
+            (!serverHasVideosRef.current && userVideosRef.current.length === 0));
+
+        if (needsVideoFetch) {
+          setUserVideos([]);
+          setOffset(0);
+          setHasMore(true);
+          serverHasVideosRef.current = false;
+          await fetchUserVideos(0, true, viewingOwnProfile);
+          serverHasVideosRef.current = userVideosRef.current.length > 0;
+        }
       } catch (error: any) {
         console.error("[hiffi] Failed to fetch user data:", error);
         // Check if it's an authentication error (401)
@@ -226,9 +271,10 @@ export default function ProfilePage() {
         });
         
         if (isAuthError) {
-          // User is not authenticated and got 401 - show login prompt
           setIsUnauthenticated(true);
-          setProfileUser(null);
+          if (!profileUserRef.current) {
+            setProfileUser(null);
+          }
         } else {
           setIsUnauthenticated(false);
           // Only show error toast if it's not an auth error or if auth is still loading
@@ -243,6 +289,7 @@ export default function ProfilePage() {
         }
       } finally {
         setIsLoading(false);
+        profileSyncInFlightRef.current = false;
       }
   }, [username, toast, authLoading, currentUserData?.username]);
 
@@ -369,9 +416,35 @@ export default function ProfilePage() {
     }
   }, [isLoading, loadingMore, isFetching, hasMore, userVideos.length, username, isOwnProfile, fetchUserVideos]);
 
+  // Reset SSR seed refs when navigating to another profile (new server props).
   useEffect(() => {
-    fetchUserData(false);
-  }, [fetchUserData]);
+    serverHasProfileRef.current = !!initialProfileUser;
+    serverHasVideosRef.current = sortedInitialVideos.length > 0;
+    profileSyncInFlightRef.current = false;
+    ownProfileVideosSyncedRef.current = false;
+    setProfileUser(initialProfileUser ?? null);
+    setUserVideos(sortedInitialVideos);
+    setIsLoading(!initialProfileUser);
+    setHasTriedFetch(!!initialProfileUser);
+    setHasMore(sortedInitialVideos.length === VIDEOS_PER_PAGE);
+    setOffset(sortedInitialVideos.length);
+  }, [username, initialProfileUser, sortedInitialVideos, initialVideos]);
+
+  // Single profile sync when auth is ready — do not depend on profileUser/videos (avoids fetch loops).
+  useEffect(() => {
+    if (authLoading || !username) return;
+    void fetchUserData(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, authLoading, currentUserData?.username]);
+
+  // Own profile: refresh videos once via /videos/list/self after auth (SSR uses public list).
+  useEffect(() => {
+    if (authLoading || !username || !isOwnProfile || !profileIsCreator) return;
+    if (!serverHasVideosRef.current || ownProfileVideosSyncedRef.current) return;
+    ownProfileVideosSyncedRef.current = true;
+    void fetchUserVideos(0, false, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, isOwnProfile, username]);
 
   // Update videos with profile user's profile picture when profileUser is loaded
   // This ensures videos loaded before profileUser is available get the profile picture
@@ -579,7 +652,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (authLoading || isLoading) {
+  if ((authLoading && !profileUser) || (isLoading && !profileUser)) {
     return (
       <>
         <div className="flex items-center justify-center min-h-full">
@@ -633,8 +706,8 @@ export default function ProfilePage() {
     return null;
   }
 
-  // Show personal profile view for regular users viewing their own profile
-  if (isRegularUser && isOwnProfile) {
+  // Members viewing their own profile — personal settings layout (no creator videos grid)
+  if (!profileIsCreator && isOwnProfile) {
     return (
       <ProfilePersonalView
         profileUser={profileUser}
@@ -674,7 +747,25 @@ export default function ProfilePage() {
     );
   }
 
-  // Show standard profile view for creators/admins or when viewing other users
+  // Members (non-creators) viewed by someone else — no videos / creator chrome
+  if (!profileIsCreator && !isOwnProfile) {
+    return (
+      <ProfileMemberView
+        profileUser={profileUser}
+        username={username}
+        isFollowing={isFollowing}
+        isFollowingAction={isFollowingAction}
+        followActionType={followActionType}
+        profilePictureVersion={profilePictureVersion}
+        authDialogOpen={authDialogOpen}
+        setAuthDialogOpen={setAuthDialogOpen}
+        handleShare={handleShare}
+        handleFollow={handleFollow}
+      />
+    );
+  }
+
+  // Creator profiles — videos grid, stats, follow
   return (
     <ProfilePublicView
       profileUser={profileUser}

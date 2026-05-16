@@ -202,23 +202,29 @@ export function ProfilePublicView(props: {
                             {profileUser.email || currentUserData?.email}
                           </a>
                         </div>
-                        <div className="mt-3">
-                          <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Referral URL</Label>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="min-w-0 flex-1 truncate whitespace-nowrap text-xs sm:text-sm font-medium text-foreground" title={referralUrl}>
-                              {referralUrl}
-                            </p>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7 shrink-0"
-                              onClick={handleCopy}
-                              aria-label="Copy referral URL"
-                            >
-                              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                            </Button>
-                          </div>
+                      </div>
+                    )}
+
+                    {isOwnProfile && (
+                      <div className="pt-3 border-t">
+                        <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Referral URL</Label>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p
+                            className="min-w-0 flex-1 truncate whitespace-nowrap text-xs sm:text-sm font-medium text-foreground"
+                            title={referralUrl}
+                          >
+                            {referralUrl}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={handleCopy}
+                            aria-label="Copy referral URL"
+                          >
+                            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          </Button>
                         </div>
                       </div>
                     )}

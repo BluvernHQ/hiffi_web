@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
-import dynamic from "next/dynamic"
+import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
 import {
@@ -38,64 +38,10 @@ import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./w
 import { debugLog, debugWarn } from "@/lib/debug"
 import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
-
-const AddToPlaylistDialog = dynamic(
-  () =>
-    import("@/components/video/add-to-playlist-dialog").then((m) => ({
-      default: m.AddToPlaylistDialog,
-    })),
-  { ssr: false },
-)
+import type { SeoVideo } from "@/lib/seo/fetch-public"
 
 // Mock video data
-const MOCK_VIDEO = {
-  videoId: "1",
-  videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-  videoThumbnail: "/placeholder.svg?key=uvova",
-  videoTitle: "Big Buck Bunny - Official Trailer",
-  videoDescription:
-    "Big Buck Bunny tells the story of a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely harass him, something snaps... and the bunny ain't no bunny anymore! In the typical cartoon tradition he prepares the nasty rodents a comical revenge.\n\nLicensed under the Creative Commons Attribution license\nhttp://www.bigbuckbunny.org",
-  videoViews: 12453,
-  videoLikes: 1240,
-  userUsername: "blender_foundation",
-  userAvatar: "/placeholder.svg?key=blender",
-  userFollowers: 54000,
-  createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  tags: ["animation", "short film", "blender", "3d"],
-}
 
-const RELATED_VIDEOS = [
-  {
-    videoId: "2",
-    videoUrl: "video2.mp4",
-    videoThumbnail: "/placeholder.svg?key=cxy6v",
-    videoTitle: "Epic Gaming Moments - Best Highlights This Week",
-    videoDescription: "Check out the most insane gaming moments from this week",
-    videoViews: 45231,
-    userUsername: "pro_gamer_x",
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    videoId: "3",
-    videoUrl: "video3.mp4",
-    videoThumbnail: "/placeholder.svg?key=p72zr",
-    videoTitle: "Beautiful Beach Sunset | Travel Vlog Day 5",
-    videoDescription: "Exploring the most beautiful beaches in Bali",
-    videoViews: 8934,
-    userUsername: "wanderlust_jen",
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    videoId: "4",
-    videoUrl: "video4.mp4",
-    videoThumbnail: "/placeholder.svg?key=gbfmy",
-    videoTitle: "Music Production 101: Creating Your First Beat",
-    videoDescription: "Complete beginner guide to music production",
-    videoViews: 23467,
-    userUsername: "beat_maker_pro",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
 
 let persistedWatchUiState: {
   video: any
@@ -173,7 +119,32 @@ async function getRelatedVideosOnce(videoId: string) {
   return request
 }
 
-export default function WatchPage() {
+function mapSeoVideoToClient(seo: SeoVideo) {
+  const artist = (seo.creatorDisplayName || seo.creatorUsername || "").trim()
+  return {
+    video_id: seo.videoId,
+    videoId: seo.videoId,
+    video_title: seo.title,
+    videoTitle: seo.title,
+    video_description: seo.description,
+    videoDescription: seo.description,
+    video_url: seo.contentUrl,
+    streaming_url: seo.contentUrl,
+    user_username: seo.creatorUsername,
+    userUsername: seo.creatorUsername,
+    user_name: artist,
+    userName: artist,
+    video_thumbnail: seo.thumbnailUrl,
+    videoThumbnail: seo.thumbnailUrl,
+  }
+}
+
+type WatchPageProps = {
+  /** Server-fetched video for instant metadata + crawler-visible HTML (no login required). */
+  initialSeoVideo?: SeoVideo | null
+}
+
+export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -383,11 +354,16 @@ export default function WatchPage() {
   
   // currentVideo: what is currently rendered in title/description/channel UI.
   const [video, setVideo] = useState<any>(() => {
-    const persistedVideo = persistedWatchUiState?.video
-    if (!persistedVideo) return null
-    const persistedId = persistedVideo.video_id || persistedVideo.videoId
     const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
-    return persistedId && routeId && persistedId === routeId ? persistedVideo : null
+    const persistedVideo = persistedWatchUiState?.video
+    if (persistedVideo) {
+      const persistedId = persistedVideo.video_id || persistedVideo.videoId
+      if (persistedId && routeId && persistedId === routeId) return persistedVideo
+    }
+    if (initialSeoVideo?.videoId && initialSeoVideo.videoId === routeId) {
+      return mapSeoVideoToClient(initialSeoVideo)
+    }
+    return null
   })
   const [playerVideo, setPlayerVideo] = useState<any>(() => {
     if (activeVideo && (activeVideo.videoId === params.videoId || activeVideo.video_id === params.videoId)) {
@@ -397,10 +373,20 @@ export default function WatchPage() {
   })
   
   const [videoCreator, setVideoCreator] = useState<any>(() => {
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
     const persistedVideo = persistedWatchUiState?.video
     const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
-    if (!persistedId || persistedId !== routeVideoId) return null
-    return persistedWatchUiState?.videoCreator ?? null
+    if (persistedId && persistedId === routeId && persistedWatchUiState?.videoCreator) {
+      return persistedWatchUiState.videoCreator
+    }
+    if (initialSeoVideo?.videoId === routeId && initialSeoVideo.creatorUsername) {
+      return {
+        username: initialSeoVideo.creatorUsername,
+        name: initialSeoVideo.creatorDisplayName || initialSeoVideo.creatorUsername,
+        profile_picture: "",
+      }
+    }
+    return null
   })
   const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
     const persistedVideo = persistedWatchUiState?.video
@@ -409,8 +395,15 @@ export default function WatchPage() {
     return persistedWatchUiState?.relatedVideos ?? []
   })
   
-  // Only show initial loading spinner if we don't even have context data
-  const [isLoading, setIsLoading] = useState(!video)
+  // Only show initial loading spinner if we don't have SSR seed or persisted context
+  const [isLoading, setIsLoading] = useState(() => {
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
+    if (initialSeoVideo?.videoId === routeId) return false
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (persistedId && persistedId === routeId) return false
+    return true
+  })
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
   const [pageGateError, setPageGateError] = useState<{ headline: string; detail: string } | null>(null)
@@ -1523,18 +1516,31 @@ export default function WatchPage() {
                       >
                         <Share2 className="h-5 w-5" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        data-analytics-name="added-to-playlist"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                        onClick={openAddToPlaylist}
-                        aria-label="Add to playlist"
-                        title="Add to playlist"
+                      <AddToPlaylistDialogLazy
+                        open={addToPlaylistOpen}
+                        onOpenChange={setAddToPlaylistOpen}
+                        videoId={String(playerVideoId || currentVideoId || "")}
+                        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+                        artistName={
+                          currentVideo?.userUsername ||
+                          currentVideo?.user_username ||
+                          undefined
+                        }
+                        thumbnailUrl={thumbnailUrl || undefined}
                       >
-                        <Bookmark className="h-5 w-5" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          data-analytics-name="added-to-playlist"
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={openAddToPlaylist}
+                          aria-label="Add to playlist"
+                          title="Add to playlist"
+                        >
+                          <Bookmark className="h-5 w-5" />
+                        </Button>
+                      </AddToPlaylistDialogLazy>
                     </div>
                   )}
                 </div>
@@ -1990,13 +1996,6 @@ export default function WatchPage() {
           })()
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
-      />
-      <AddToPlaylistDialog
-        open={addToPlaylistOpen}
-        onOpenChange={setAddToPlaylistOpen}
-        videoId={String(playerVideoId || currentVideoId || "")}
-        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
-        thumbnailUrl={thumbnailUrl || undefined}
       />
     </>
   )
