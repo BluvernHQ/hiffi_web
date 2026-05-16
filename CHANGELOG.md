@@ -8,7 +8,7 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 - UI revamp (in progress on `hiffi_dev_v2`)
 
 ### Fixed
-- Save-to-playlist “Add (N)” count wrong after unselecting playlists while membership was still loading
+- Save to playlist: “Add” button only enables for new playlist adds; unchecking already-saved rows no longer shows a false count
 
 ## [1.0.0] - 2026-05-16
 
