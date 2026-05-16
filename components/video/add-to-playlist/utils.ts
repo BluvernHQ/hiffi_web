@@ -40,6 +40,22 @@ export function getPlaylistNameSuggestions(existing: PlaylistSummary[], limit = 
   return NAME_SUGGESTIONS.filter((s) => !taken.has(s.toLowerCase())).slice(0, limit)
 }
 
+/** Pending adds (not in base) + pending removes (in base) — toggling back to initial state yields 0. */
+export function countPlaylistPendingChanges(
+  basePlaylistIds: ReadonlySet<string>,
+  pendingAddPlaylistIds: ReadonlySet<string>,
+  pendingRemovePlaylistIds: ReadonlySet<string>,
+): number {
+  let count = 0
+  for (const id of pendingRemovePlaylistIds) {
+    if (basePlaylistIds.has(id)) count += 1
+  }
+  for (const id of pendingAddPlaylistIds) {
+    if (!basePlaylistIds.has(id)) count += 1
+  }
+  return count
+}
+
 /** Filter by query, sort newest-updated first (no UI sections). */
 export function sortPlaylistsForPicker(playlists: PlaylistSummary[], query: string): PlaylistSummary[] {
   const q = query.trim().toLowerCase()

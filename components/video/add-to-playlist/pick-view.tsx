@@ -209,7 +209,7 @@ export function PickView({
           {listBusy ? (
             <Loader2 className={cn("animate-spin", sheet ? "mr-2 h-5 w-5" : "mr-2 h-4 w-4")} aria-hidden />
           ) : null}
-          {pendingChangeCount > 0 ? `Add (${pendingChangeCount})` : "Add to playlist"}
+          Save to playlist
         </Button>
       </div>
     </div>
