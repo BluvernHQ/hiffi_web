@@ -95,7 +95,10 @@ export function AddToPlaylistDialog({
   const [basePlaylistIds, setBasePlaylistIds] = useState<Set<string>>(new Set())
   const [membershipLoading, setMembershipLoading] = useState(false)
   const [pendingAddPlaylistIds, setPendingAddPlaylistIds] = useState<Set<string>>(new Set())
-  const [pendingRemovePlaylistIds, setPendingRemovePlaylistIds] = useState<Set<string>>(new Set())
+  /** UI-only: user hid bookmark for playlists that already contain the video (no remove on confirm). */
+  const [deselectedBasePlaylistIds, setDeselectedBasePlaylistIds] = useState<Set<string>>(
+    new Set(),
+  )
   const [savingChanges, setSavingChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
@@ -159,7 +162,7 @@ export function AddToPlaylistDialog({
     setBasePlaylistIds(new Set())
     setMembershipLoading(false)
     setPendingAddPlaylistIds(new Set())
-    setPendingRemovePlaylistIds(new Set())
+    setDeselectedBasePlaylistIds(new Set())
     setSavingChanges(false)
     setSaveSuccess(false)
     setPlaylistSearchInput("")
@@ -215,29 +218,6 @@ export function AddToPlaylistDialog({
     }
   }, [open, videoId, loadPlaylists])
 
-  /** Membership loads in chunks; drop stale pending ops when base set updates. */
-  useEffect(() => {
-    setPendingAddPlaylistIds((prev) => {
-      const next = new Set(prev)
-      let changed = false
-      for (const id of basePlaylistIds) {
-        if (next.delete(id)) changed = true
-      }
-      return changed ? next : prev
-    })
-    setPendingRemovePlaylistIds((prev) => {
-      const next = new Set(prev)
-      let changed = false
-      for (const id of prev) {
-        if (!basePlaylistIds.has(id)) {
-          next.delete(id)
-          changed = true
-        }
-      }
-      return changed ? next : prev
-    })
-  }, [basePlaylistIds])
-
   const createTitleTrimmed = createTitle.trim()
   const createTitleIsDuplicate = useMemo(
     () => hasDuplicatePlaylistTitle(createTitleTrimmed, playlists),
@@ -246,18 +226,16 @@ export function AddToPlaylistDialog({
 
   const isPlaylistAdded = useCallback(
     (playlistId: string) => {
-      const inBase = basePlaylistIds.has(playlistId)
-      const willBeRemoved = pendingRemovePlaylistIds.has(playlistId)
-      const willBeAdded = pendingAddPlaylistIds.has(playlistId)
-      if (inBase && !willBeRemoved) return true
-      if (!inBase && willBeAdded) return true
+      if (pendingAddPlaylistIds.has(playlistId)) return true
+      if (basePlaylistIds.has(playlistId) && !deselectedBasePlaylistIds.has(playlistId)) {
+        return true
+      }
       return false
     },
-    [basePlaylistIds, pendingAddPlaylistIds, pendingRemovePlaylistIds],
+    [basePlaylistIds, pendingAddPlaylistIds, deselectedBasePlaylistIds],
   )
 
   const handleTogglePlaylist = (playlistId: string) => {
-    if (membershipLoading) return
     const inBase = basePlaylistIds.has(playlistId)
     if (inBase) {
       setPendingAddPlaylistIds((prev) => {
@@ -266,7 +244,7 @@ export function AddToPlaylistDialog({
         next.delete(playlistId)
         return next
       })
-      setPendingRemovePlaylistIds((prev) => {
+      setDeselectedBasePlaylistIds((prev) => {
         const next = new Set(prev)
         if (next.has(playlistId)) {
           next.delete(playlistId)
@@ -278,12 +256,6 @@ export function AddToPlaylistDialog({
       return
     }
 
-    setPendingRemovePlaylistIds((prev) => {
-      if (!prev.has(playlistId)) return prev
-      const next = new Set(prev)
-      next.delete(playlistId)
-      return next
-    })
     setPendingAddPlaylistIds((prev) => {
       const next = new Set(prev)
       if (next.has(playlistId)) {
@@ -298,23 +270,21 @@ export function AddToPlaylistDialog({
   const closeAndDiscard = useCallback(() => {
     setBasePlaylistIds(new Set())
     setPendingAddPlaylistIds(new Set())
-    setPendingRemovePlaylistIds(new Set())
+    setDeselectedBasePlaylistIds(new Set())
     onOpenChange(false)
   }, [onOpenChange])
 
   const handleConfirmAdds = useCallback(async () => {
     const vid = videoId.trim()
     if (!vid) return
-    if (pendingAddPlaylistIds.size === 0 && pendingRemovePlaylistIds.size === 0) {
+    if (pendingAddPlaylistIds.size === 0) {
       onOpenChange(false)
       return
     }
 
     const addIds = Array.from(pendingAddPlaylistIds)
-    const removeIds = Array.from(pendingRemovePlaylistIds)
     setSavingChanges(true)
     let addSuccessCount = 0
-    let removeSuccessCount = 0
     let failureCount = 0
 
     await Promise.all(
@@ -329,22 +299,9 @@ export function AddToPlaylistDialog({
       }),
     )
 
-    await Promise.all(
-      removeIds.map(async (playlistId) => {
-        try {
-          const res = await apiClient.removePlaylistItem(playlistId, vid)
-          if (!res.success) throw new Error(res.message || "Could not remove video")
-          removeSuccessCount += 1
-        } catch {
-          failureCount += 1
-        }
-      }),
-    )
-
     setSavingChanges(false)
 
-    const successCount = addSuccessCount + removeSuccessCount
-    if (successCount > 0) {
+    if (addSuccessCount > 0) {
       if (failureCount > 0) {
         toast({
           title: "Some updates failed",
@@ -353,7 +310,12 @@ export function AddToPlaylistDialog({
         })
       }
       setPendingAddPlaylistIds(new Set())
-      setPendingRemovePlaylistIds(new Set())
+      setDeselectedBasePlaylistIds(new Set())
+      setBasePlaylistIds((prev) => {
+        const next = new Set(prev)
+        addIds.forEach((id) => next.add(id))
+        return next
+      })
       setSaveSuccess(true)
       window.setTimeout(() => {
         setSaveSuccess(false)
@@ -367,7 +329,7 @@ export function AddToPlaylistDialog({
       description: "No playlist updates were saved.",
       variant: "destructive",
     })
-  }, [onOpenChange, pendingAddPlaylistIds, pendingRemovePlaylistIds, toast, videoId])
+  }, [onOpenChange, pendingAddPlaylistIds, toast, videoId])
 
   const handleCreate = async () => {
     const title = createTitle.trim()
@@ -410,7 +372,7 @@ export function AddToPlaylistDialog({
         next.delete(playlistId)
         return next
       })
-      setPendingRemovePlaylistIds((prev) => {
+      setDeselectedBasePlaylistIds((prev) => {
         if (!prev.has(playlistId)) return prev
         const next = new Set(prev)
         next.delete(playlistId)
@@ -442,18 +404,8 @@ export function AddToPlaylistDialog({
   const displayTitle = (videoTitle || "This video").trim() || "This video"
   const createValid = createTitleTrimmed.length > 0 && !createTitleIsDuplicate
   const listBusy = savingChanges
-
-  const pendingChangeCount = useMemo(() => {
-    let count = 0
-    for (const p of playlists) {
-      const id = p.playlist_id
-      const inBase = basePlaylistIds.has(id)
-      const selected = isPlaylistAdded(id)
-      if (selected !== inBase) count++
-    }
-    return count
-  }, [playlists, basePlaylistIds, isPlaylistAdded])
-
+  /** Only new playlist adds enable confirm — unchecking already-saved rows is not a pending change. */
+  const pendingChangeCount = pendingAddPlaylistIds.size
   const panelWidth = "w-[min(calc(100vw-2rem),400px)]"
 
   const pickViewShared = {
