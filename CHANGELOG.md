@@ -4,14 +4,19 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 
 ## [2.0.0] - Unreleased
 
+### Changed
+- UI revamp (in progress on `hiffi_dev_v2`)
+
+## [2.0.1] - 2026-05-22
+
+Dev line on `hiffi_dev_v2` (`package.json` **2.0.1**). Not yet tagged `web-v2.0.1`.
+
 ### Added
 - Guest conversion: local watch history and liked preview for signed-out users (no `/login` redirect)
 - Passive signup nudges on watch (after ~60s, when recommendations are ready) and on engagement (like, follow)
 - Pending like/follow intents stored locally and replayed after sign-in
 - Admin activity logs: From/To date range (`timestamp_after` / `timestamp_before` on `GET /analytics/events`)
-
-### Changed
-- UI revamp (in progress on `hiffi_dev_v2`)
+- Release docs: `docs/VERSIONING-STRATEGY.md`, `web-v1.0.1` changelog entry
 
 ### Fixed
 - Save to playlist: uncheck removes saved playlist on confirm; footer labeled “Save to playlist”; “Add” only counts new playlist adds
@@ -43,5 +48,6 @@ Frozen at tag `web-v1.0.0` / branch `release/1.0.0`. Use these to roll back dev 
 - Create-playlist emoji picker layout (portaled Popover)
 
 [2.0.0]: https://github.com/BluvernHQ/hiffi_web/compare/web-v1.0.0...hiffi_dev_v2
+[2.0.1]: https://github.com/BluvernHQ/hiffi_web/compare/web-v1.0.1...hiffi_dev_v2
 [1.0.1]: https://github.com/BluvernHQ/hiffi_web/releases/tag/web-v1.0.1
 [1.0.0]: https://github.com/BluvernHQ/hiffi_web/releases/tag/web-v1.0.0

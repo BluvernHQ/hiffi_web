@@ -159,12 +159,12 @@ These items are **documented under 1.0.0** in `CHANGELOG.md` as part of the firs
 ### 5.4 `2.0.0` — active development line (unreleased)
 
 **Branch:** `hiffi_dev_v2`  
-**`package.json`:** `2.0.0` (since `7b4c2a3` *chore: start 2.0.0 UI revamp line*)  
+**`package.json`:** `2.0.1` on `hiffi_dev_v2` (UI revamp line still **2.0.0** until `web-v2.0.0` is cut; started at `7b4c2a3`)  
 **Tag:** not yet cut (`web-v2.0.0` planned after revamp QA)
 
 | Status | Contents |
 |--------|----------|
-| **Declared in CHANGELOG** | UI revamp (in progress); guest conversion funnel |
+| **Declared in CHANGELOG** | **`[2.0.1]`** (2026-05-22): guest conversion, activity log date range, save-to-playlist fixes; **`[2.0.0]`** unreleased: UI revamp |
 | **On branch (`4eb921d`, post–`b44b446`)** | Guest conversion — local history/liked, passive nudges, pending like/follow replay (`lib/guest-conversion/`, `components/conversion/`) |
 | **On branch (unreleased)** | Admin activity log From/To date range via `timestamp_after` / `timestamp_before` |
 | **On branch (post–1.0.1 tag)** | Save-to-playlist fixes (uncheck removes, Save button label, Add-button count) — consolidates into **2.0.0** at cut |
