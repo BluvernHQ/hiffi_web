@@ -1,7 +1,7 @@
 # Hiffi Web — Versioning Strategy & Release Consolidation
 
-> **Status:** Draft  
-> **Last updated:** 2026-05-16  
+> **Status:** Active  
+> **Last updated:** 2026-05-22  
 > **Related:** [RELEASES.md](./RELEASES.md) (deploy runbook) · [CHANGELOG.md](../CHANGELOG.md) (user-facing notes)
 
 ---
@@ -164,9 +164,10 @@ These items are **documented under 1.0.0** in `CHANGELOG.md` as part of the firs
 
 | Status | Contents |
 |--------|----------|
-| **Declared in CHANGELOG** | UI revamp (in progress) |
-| **Already on branch (post–1.0.1 tag)** | Further save-to-playlist fixes (uncheck removes, Save button behavior) — will consolidate into **2.0.0** or a **2.0.x patch** at cut time |
-| **Not in any tagged release** | Guest conversion flows and related WIP (if present only on working tree / unmerged work) |
+| **Declared in CHANGELOG** | UI revamp (in progress); guest conversion funnel |
+| **On branch (`4eb921d`, post–`b44b446`)** | Guest conversion — local history/liked, passive nudges, pending like/follow replay (`lib/guest-conversion/`, `components/conversion/`) |
+| **On branch (post–1.0.1 tag)** | Save-to-playlist fixes (uncheck removes, Save button label, Add-button count) — consolidates into **2.0.0** at cut |
+| **Not in any tagged release** | All of the above until `web-v2.0.0` is cut |
 
 **Consolidation plan for 2.0.0:**
 

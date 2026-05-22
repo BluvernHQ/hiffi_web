@@ -4,11 +4,16 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 
 ## [2.0.0] - Unreleased
 
+### Added
+- Guest conversion: local watch history and liked preview for signed-out users (no `/login` redirect)
+- Passive signup nudges on watch (after ~60s, when recommendations are ready) and on engagement (like, follow)
+- Pending like/follow intents stored locally and replayed after sign-in
+
 ### Changed
 - UI revamp (in progress on `hiffi_dev_v2`)
 
 ### Fixed
-- Save to playlist: “Add” button only enables for new playlist adds; unchecking already-saved rows no longer shows a false count
+- Save to playlist: uncheck removes saved playlist on confirm; footer labeled “Save to playlist”; “Add” only counts new playlist adds
 
 ## [1.0.1] - 2026-05-16
 
