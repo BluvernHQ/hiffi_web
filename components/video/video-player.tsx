@@ -21,6 +21,7 @@ import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, WORKERS_BASE_URL } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
+import { recordGuestVideoPlay } from "@/lib/guest-conversion/session"
 import { NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
 import { NextUpOverlay } from "./next-up-overlay"
@@ -793,6 +794,7 @@ export function VideoPlayer({
           source,
           is_autoplay: Boolean(autoPlay),
         })
+        recordGuestVideoPlay(currentTrackedVideoId)
       }
       // Clear any pending autoplay timeout since play succeeded
       if (autoplayAttemptTimeoutRef.current) {

@@ -7,6 +7,7 @@ import { VideoGrid } from "@/components/video/video-grid"
 import { EmptyVideoState } from "@/components/video/empty-video-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
+import { GuestLikedView } from "@/components/conversion/guest-liked-view"
 import { useToast } from "@/hooks/use-toast"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 
@@ -42,18 +43,13 @@ export default function LikedVideosPage() {
   const [isFetching, setIsFetching] = useState(false)
   
   useEffect(() => {
-    if (!authLoading) {
-      if (!userData?.username) {
-        router.push("/login")
-        return
-      }
-      
+    if (!authLoading && userData?.username) {
       setOffset(0)
       setHasMore(true)
       setVideos([])
       fetchVideos(0, true)
     }
-  }, [userData, authLoading, router])
+  }, [userData, authLoading])
 
   const fetchVideos = async (currentOffset: number, isInitialLoad = false) => {
     if (isFetching) {
@@ -157,7 +153,7 @@ export default function LikedVideosPage() {
   }
 
   if (!userData?.username) {
-    return null
+    return <GuestLikedView />
   }
 
   return (

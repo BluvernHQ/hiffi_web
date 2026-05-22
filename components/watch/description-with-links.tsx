@@ -1,4 +1,4 @@
-import { ReactNode } from "react"
+import { Fragment, ReactNode } from "react"
 
 const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
 const URL_EXACT_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+)$/i
@@ -9,8 +9,15 @@ const EMPTY_DESCRIPTION_PLACEHOLDERS = new Set(["null", "undefined", "n/a", "na"
 export function normalizeVideoDescriptionText(raw?: string | null): string {
   if (raw == null) return ""
   let text = String(raw).replace(/\0/g, "")
-  text = text.replace(/<[^>]*>/g, " ")
-  text = text.replace(/\s+/g, " ").trim()
+  text = text.replace(/<br\s*\/?>/gi, "\n")
+  text = text.replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+  text = text.replace(/<[^>]*>/g, "")
+  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+  text = text
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
+    .join("\n")
+  text = text.replace(/\n{3,}/g, "\n\n").trim()
   if (!text || EMPTY_DESCRIPTION_PLACEHOLDERS.has(text.toLowerCase())) return ""
   return text
 }
@@ -29,11 +36,8 @@ export function hasDisplayableVideoDescription(
   return getVideoDescriptionFromRecord(video).length > 0
 }
 
-function renderDescriptionWithClickableLinks(text?: string | null): ReactNode {
-  const normalized = normalizeVideoDescriptionText(text)
-  if (!normalized) return null
-
-  const parts = normalized.split(URL_REGEX)
+function renderLineWithClickableLinks(line: string): ReactNode {
+  const parts = line.split(URL_REGEX)
 
   return parts.map((part, index) => {
     const trimmedPart = part.trim()
@@ -43,7 +47,6 @@ function renderDescriptionWithClickableLinks(text?: string | null): ReactNode {
       return <span key={`text-${index}`}>{part}</span>
     }
 
-    // Keep punctuation outside link to avoid malformed URLs.
     const match = part.match(/^(.*?)([.,!?;:)]*)$/)
     const urlText = match?.[1] ?? part
     const trailingPunctuation = match?.[2] ?? ""
@@ -60,7 +63,20 @@ function renderDescriptionWithClickableLinks(text?: string | null): ReactNode {
   })
 }
 
+function renderDescriptionWithClickableLinks(text?: string | null): ReactNode {
+  const normalized = normalizeVideoDescriptionText(text)
+  if (!normalized) return null
+
+  const lines = normalized.split("\n")
+
+  return lines.map((line, lineIndex) => (
+    <Fragment key={`line-${lineIndex}`}>
+      {lineIndex > 0 ? <br /> : null}
+      {line.length > 0 ? renderLineWithClickableLinks(line) : null}
+    </Fragment>
+  ))
+}
+
 export function DescriptionWithLinks({ text }: { text?: string | null }) {
   return <>{renderDescriptionWithClickableLinks(text)}</>
 }
-

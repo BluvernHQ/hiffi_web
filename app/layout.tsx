@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
+import { GuestConversionProvider } from '@/components/conversion/guest-conversion-provider'
 import { SidebarProvider } from '@/lib/sidebar-context'
 import { VideoUploadQueueProvider } from '@/lib/video-upload-queue-context'
 import { VideoProvider } from '@/lib/video-context'
@@ -237,11 +238,13 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <DeployStaleGuard />
         <AuthProvider>
-          <VideoProvider>
-            <SidebarProvider>
-              <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
-            </SidebarProvider>
-          </VideoProvider>
+          <GuestConversionProvider>
+            <VideoProvider>
+              <SidebarProvider>
+                <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
+              </SidebarProvider>
+            </VideoProvider>
+          </GuestConversionProvider>
         </AuthProvider>
         <Toaster />
         <Suspense fallback={null}>

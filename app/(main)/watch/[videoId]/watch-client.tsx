@@ -26,6 +26,17 @@ import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
+import { GuestWatchNudge } from "@/components/conversion/guest-watch-nudge"
+import { GuestUpNextNudge } from "@/components/conversion/guest-up-next-nudge"
+import {
+  canShowPassiveNudge,
+  markGuestFollowAttempt,
+  markGuestLikeAttempt,
+  resolvePassiveNudgeTrigger,
+  setGuestRecPicksReady,
+} from "@/lib/guest-conversion/session"
+import { appendGuestHistoryEntry } from "@/lib/guest-conversion/guest-history"
+import { addPendingFollowIntent, addPendingLikeIntent } from "@/lib/guest-conversion/pending-intents"
 import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
@@ -737,6 +748,31 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     })
   }
 
+  const watchPassiveNudge = useMemo(() => {
+    if (user) return null
+    return resolvePassiveNudgeTrigger(["watch_60s", "rec_ready"])
+  }, [user, sidebarSuggestedVideos.length, currentVideoId])
+
+  useEffect(() => {
+    if (user || !video) return
+    const id = video.video_id || video.videoId
+    if (!id) return
+    appendGuestHistoryEntry({
+      videoId: id,
+      title: video.videoTitle || video.video_title,
+      thumbnail: video.videoThumbnail || video.video_thumbnail,
+      artistUsername: video.userUsername || video.user_username,
+    })
+  }, [user, video?.video_id, video?.videoId, video?.videoTitle, video?.video_title])
+
+  useEffect(() => {
+    if (user) return
+    const count = sidebarSuggestedVideos.length
+    if (count >= 5) {
+      setGuestRecPicksReady(count)
+    }
+  }, [user, sidebarSuggestedVideos.length])
+
   useEffect(() => {
     if (!pendingVideo || !isPlayerReadyForPending) return
     if (!pendingVideo.video) return
@@ -1055,6 +1091,16 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
 
   const handleLike = async () => {
     if (!user) {
+      const videoId = video?.video_id || video?.videoId || currentVideoId
+      if (videoId) {
+        setIsLiked(true)
+        setUpvoteState({ upvoted: true, downvoted: false })
+        addPendingLikeIntent(
+          videoId,
+          video?.videoTitle || video?.video_title,
+        )
+      }
+      markGuestLikeAttempt()
       setAuthDialogCopyKey("like")
       setAuthDialogOpen(true)
       return
@@ -1241,7 +1287,17 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   }
 
   const handleFollow = async () => {
+    const username = video?.userUsername || video?.user_username
+
     if (!user || !userData) {
+      if (username) {
+        addPendingFollowIntent(
+          username,
+          videoCreator?.name || video?.userName || video?.user_name,
+          getProfilePictureUrl(videoCreator) || undefined,
+        )
+      }
+      markGuestFollowAttempt()
       setAuthDialogCopyKey("follow")
       setAuthDialogOpen(true)
       return
@@ -1249,7 +1305,6 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
 
     if (!video) return
 
-    const username = video.userUsername || video.user_username
     if (!username || userData.username === username) return
 
     // Prevent double-clicks
@@ -1477,6 +1532,10 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                 previousVideoDisabled={!canNavigateToPreviousVideo}
                 initialSeekSeconds={initialSeekSeconds.current}
               />
+
+              {!user && watchPassiveNudge === "watch_60s" ? (
+                <GuestWatchNudge videoId={playerVideoId} className="mx-4 lg:mx-0" />
+              ) : null}
 
               <div className={cn("px-4 lg:px-0 space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -1951,6 +2010,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                  </div>
                )}
                <h3 className="font-semibold text-sm mb-3 px-1">Up Next</h3>
+               {!user && watchPassiveNudge === "rec_ready" && canShowPassiveNudge("rec_ready") ? (
+                 <GuestUpNextNudge pickCount={sidebarSuggestedVideos.length} className="mx-1" />
+               ) : null}
                <div className={cn("flex flex-col gap-1 transition-opacity duration-500", (isRelatedLoading && shouldShowRelatedSkeleton) ? "opacity-100" : (isRelatedLoading ? "opacity-60" : "opacity-100"))}>
                  {sidebarSuggestedVideos.length > 0 ? (
                    sidebarSuggestedVideos.map((v) => (
@@ -1984,6 +2046,29 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         onOpenChange={setAuthDialogOpen}
         title={AUTH_DIALOG_COPY[authDialogCopyKey].title}
         description={AUTH_DIALOG_COPY[authDialogCopyKey].description}
+        subdescription={
+          authDialogCopyKey === "like" ? AUTH_DIALOG_COPY.like.subdescription : undefined
+        }
+        signupLabel={AUTH_DIALOG_COPY[authDialogCopyKey].signupLabel}
+        signinLabel={AUTH_DIALOG_COPY[authDialogCopyKey].signinLabel}
+        conversionTrigger={
+          authDialogCopyKey === "like"
+            ? "like_attempt"
+            : authDialogCopyKey === "follow"
+              ? "follow_attempt"
+              : "playlist"
+        }
+        artistUsername={
+          authDialogCopyKey === "follow"
+            ? video?.userUsername || video?.user_username
+            : undefined
+        }
+        artistDisplayName={
+          authDialogCopyKey === "follow"
+            ? videoCreator?.name || video?.userName || video?.user_name
+            : undefined
+        }
+        artistUser={authDialogCopyKey === "follow" ? videoCreator : undefined}
       />
       <ShareVideoDialog
         open={shareDialogOpen}

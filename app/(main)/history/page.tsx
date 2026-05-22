@@ -10,6 +10,7 @@ import { HistoryVideoListRow, HistoryVideoListRowSkeleton } from "@/components/v
 import { EmptyVideoState } from "@/components/video/empty-video-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
+import { GuestHistoryView } from "@/components/conversion/guest-history-view"
 import { useToast } from "@/hooks/use-toast"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 
@@ -231,17 +232,12 @@ export default function HistoryPage() {
   }, [fetchVideos, userData?.username])
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!userData?.username) {
-        router.push("/login")
-        return
-      }
-
+    if (!authLoading && userData?.username) {
       setVideos([])
       setHasMore(true)
       fetchVideos(0, true)
     }
-  }, [authLoading, userData?.username, router, fetchVideos])
+  }, [authLoading, userData?.username, fetchVideos])
 
   useEffect(() => {
     if (!userData?.username) return
@@ -307,7 +303,7 @@ export default function HistoryPage() {
   }
 
   if (!userData?.username) {
-    return null
+    return <GuestHistoryView />
   }
 
   return (

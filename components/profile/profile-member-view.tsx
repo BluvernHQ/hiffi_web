@@ -3,7 +3,7 @@ import { Calendar, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AuthDialog } from "@/components/auth/auth-dialog"
+import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
 
 /** Public profile for members (role user) — no creator videos grid or video stats. */
@@ -167,8 +167,14 @@ export function ProfileMemberView(props: {
       <AuthDialog
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
-        title="Sign in to follow"
-        description="Create an account or sign in to follow members on Hiffi."
+        title={AUTH_DIALOG_COPY.follow.title}
+        description={AUTH_DIALOG_COPY.follow.description}
+        signupLabel={AUTH_DIALOG_COPY.follow.signupLabel}
+        signinLabel={AUTH_DIALOG_COPY.follow.signinLabel}
+        conversionTrigger="follow_attempt"
+        artistUsername={username}
+        artistDisplayName={profileUser?.name || profileUser?.username}
+        artistUser={profileUser}
       />
     </>
   )

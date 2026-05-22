@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation"
 import { apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
+import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents"
+import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
+import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
 import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import {
@@ -404,6 +407,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       debugLog("[hiffi] User data set after login")
 
+      void replayPendingGuestIntents()
+      resetGuestConversionSession()
+      clearGuestHistory()
+
       // Only force admin dashboard redirect for explicit admin-login flows.
       const userRole = String(finalUserData?.role || "").toLowerCase().trim()
       const shouldForceAdminDashboard =
@@ -518,6 +525,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         has_referral_code: Boolean(referralCode),
         redirected_to: safeDestination,
       })
+      void replayPendingGuestIntents()
+      resetGuestConversionSession()
+      clearGuestHistory()
       debugLog("[hiffi] OTP verification complete, redirecting to:", safeDestination)
       router.replace(safeDestination)
     } catch (error: any) {

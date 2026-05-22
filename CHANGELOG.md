@@ -10,6 +10,14 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 ### Fixed
 - Save to playlist: “Add” button only enables for new playlist adds; unchecking already-saved rows no longer shows a false count
 
+## [1.0.1] - 2026-05-16
+
+Tag `web-v1.0.1` on `release/1.0.0`. Patch-only: save-to-playlist pending count and Add-button semantics.
+
+### Fixed
+- Correct pending count when toggling playlists in save-to-playlist dialog
+- “Add” button only counts new playlist adds (not rows already saved)
+
 ## [1.0.0] - 2026-05-16
 
 Frozen at tag `web-v1.0.0` / branch `release/1.0.0`. Use these to roll back dev or prod to pre-revamp behavior.
@@ -29,4 +37,5 @@ Frozen at tag `web-v1.0.0` / branch `release/1.0.0`. Use these to roll back dev 
 - Create-playlist emoji picker layout (portaled Popover)
 
 [2.0.0]: https://github.com/BluvernHQ/hiffi_web/compare/web-v1.0.0...hiffi_dev_v2
+[1.0.1]: https://github.com/BluvernHQ/hiffi_web/releases/tag/web-v1.0.1
 [1.0.0]: https://github.com/BluvernHQ/hiffi_web/releases/tag/web-v1.0.0

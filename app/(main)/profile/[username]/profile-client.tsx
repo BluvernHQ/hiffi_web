@@ -17,7 +17,9 @@ import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePict
 import { shareUrl } from '@/lib/share';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialog';
-import { AuthDialog } from '@/components/auth/auth-dialog';
+import { AuthDialog, AUTH_DIALOG_COPY } from '@/components/auth/auth-dialog';
+import { addPendingFollowIntent } from '@/lib/guest-conversion/pending-intents';
+import { markGuestFollowAttempt } from '@/lib/guest-conversion/session';
 import { ProfilePersonalView } from '@/components/profile/profile-personal-view';
 import { ProfilePublicView } from '@/components/profile/profile-public-view';
 import { ProfileMemberView } from '@/components/profile/profile-member-view';
@@ -529,6 +531,12 @@ export default function ProfilePage({
 
   const handleFollow = async () => {
     if (!currentUserData) {
+      addPendingFollowIntent(
+        username,
+        profileUser?.name || profileUser?.username,
+        getProfilePictureUrl(profileUser) || undefined,
+      );
+      markGuestFollowAttempt();
       setAuthDialogOpen(true);
       return;
     }

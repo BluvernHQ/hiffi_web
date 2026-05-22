@@ -1,5 +1,7 @@
 # Web releases
 
+**Strategy & release consolidation:** [VERSIONING-STRATEGY.md](./VERSIONING-STRATEGY.md)
+
 | Branch | Version line | Environment |
 |--------|--------------|-------------|
 | `hiffi_dev_v2` | **2.0.x** (active UI revamp) | Dev |
@@ -12,7 +14,7 @@ Version source: `package.json`. Prod and rollback deploys should use git tag `we
 
 | Tag / branch | When to use |
 |--------------|-------------|
-| `web-v1.0.0` + `release/1.0.0` | Roll back dev or prod to pre–UI-revamp (save-to-playlist, SEO, etc.) |
+| `web-v1.0.0` / `web-v1.0.1` + `release/1.0.0` | Roll back dev or prod to pre–UI-revamp (1.0.1 = save-to-playlist hotfixes on 1.0.0) |
 | `hiffi_dev_v2` (2.0.0+) | New UI revamp work |
 
 ## Roll back dev to 1.0.0 (no force-push)

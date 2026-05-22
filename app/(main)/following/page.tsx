@@ -24,19 +24,13 @@ export default function FollowingPage() {
   const [isFetching, setIsFetching] = useState(false)
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!userData?.username) {
-        // Redirect to login if not authenticated
-        router.push('/login')
-        return
-      }
-      // Reset and fetch videos on mount
+    if (!authLoading && userData?.username) {
       setOffset(0)
       setHasMore(true)
       setVideos([])
       fetchVideos(0, true)
     }
-  }, [userData, authLoading, router])
+  }, [userData, authLoading])
 
   const fetchVideos = async (currentOffset: number, isInitialLoad: boolean = false) => {
     // Prevent duplicate requests
@@ -160,9 +154,14 @@ export default function FollowingPage() {
     )
   }
 
-  // Show empty state if not authenticated
   if (!userData?.username) {
-    return null // Will redirect
+    return (
+      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="w-full">
+          <FollowingEmptyState hasFollowedUsers={false} onDiscoverClick={() => router.push("/")} />
+        </div>
+      </div>
+    )
   }
 
   return (
