@@ -7,6 +7,7 @@ import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -30,6 +31,21 @@ type VideoMeta = {
 const HOUR_OPTIONS = [1, 6, 12, 24, 48, 72, 168]
 /** `GET /analytics/events` accepts limit 1–100. */
 const LIMIT_OPTIONS = [25, 50, 100]
+
+function isoToLocalDateTime(isoString: string): string {
+  if (!isoString) return ""
+  const date = new Date(isoString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  const hours = String(date.getHours()).padStart(2, "0")
+  const minutes = String(date.getMinutes()).padStart(2, "0")
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function isInvalidTimestampRange(after: string, before: string): boolean {
+  return Boolean(after && before && new Date(after) > new Date(before))
+}
 
 /** Activity type presets for admin filtering (beyond raw event names). */
 type ActivityLogFilter =
@@ -289,7 +305,12 @@ export function AdminActivityLogsTable() {
   const [hasMore, setHasMore] = useState(false)
   const [query, setQuery] = useState("")
   const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
+  const [timestampAfter, setTimestampAfter] = useState("")
+  const [timestampBefore, setTimestampBefore] = useState("")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
+
+  const usesCustomRange = Boolean(timestampAfter || timestampBefore)
+  const timestampRangeInvalid = isInvalidTimestampRange(timestampAfter, timestampBefore)
 
   const fetchEvents = async (isRefresh = false) => {
     let refreshSucceeded = false
@@ -301,10 +322,12 @@ export function AdminActivityLogsTable() {
       }
       const apiLimit = Math.min(Math.max(1, limit), 100)
       const response = await apiClient.adminGetAnalyticsEvents({
-        hours,
+        hours: usesCustomRange ? undefined : hours,
         limit: apiLimit,
         offset,
         filter: activityFilter,
+        timestamp_after: timestampAfter || undefined,
+        timestamp_before: timestampBefore || undefined,
       })
       const envelope = response as Record<string, unknown>
       if (envelope.success === false) {
@@ -360,12 +383,19 @@ export function AdminActivityLogsTable() {
   }
 
   useEffect(() => {
+    if (timestampRangeInvalid) {
+      setEvents([])
+      setApiPageLength(0)
+      setHasMore(false)
+      setLoading(false)
+      return
+    }
     fetchEvents()
-  }, [hours, limit, offset, activityFilter])
+  }, [hours, limit, offset, activityFilter, timestampAfter, timestampBefore, timestampRangeInvalid])
 
   useEffect(() => {
     setOffset(0)
-  }, [query, activityFilter, hours, limit])
+  }, [query, activityFilter, hours, limit, timestampAfter, timestampBefore])
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -520,7 +550,14 @@ export function AdminActivityLogsTable() {
               onChange={(e) => {
                 setHours(Number(e.target.value))
               }}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              disabled={usesCustomRange}
+              title={
+                usesCustomRange
+                  ? "Clear the date range to use a rolling hours window"
+                  : "Rolling time window (ignored when From/To is set)"
+              }
+              aria-label="Rolling time window in hours"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               {HOUR_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -551,9 +588,87 @@ export function AdminActivityLogsTable() {
           </div>
         </div>
 
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="space-y-1">
+            <Label htmlFor="activity_timestamp_after" className="text-xs text-muted-foreground">
+              From
+            </Label>
+            <Input
+              id="activity_timestamp_after"
+              type="datetime-local"
+              value={isoToLocalDateTime(timestampAfter)}
+              onChange={(e) => {
+                setTimestampAfter(e.target.value ? new Date(e.target.value).toISOString() : "")
+              }}
+              className={cn(
+                "h-9 w-full min-w-[12rem] font-mono text-sm sm:w-auto",
+                timestampRangeInvalid && "border-destructive",
+              )}
+              aria-label="Events from date and time"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="activity_timestamp_before" className="text-xs text-muted-foreground">
+              To
+            </Label>
+            <Input
+              id="activity_timestamp_before"
+              type="datetime-local"
+              value={isoToLocalDateTime(timestampBefore)}
+              onChange={(e) => {
+                setTimestampBefore(e.target.value ? new Date(e.target.value).toISOString() : "")
+              }}
+              className={cn(
+                "h-9 w-full min-w-[12rem] font-mono text-sm sm:w-auto",
+                timestampRangeInvalid && "border-destructive",
+              )}
+              aria-label="Events to date and time"
+            />
+          </div>
+          {usesCustomRange ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 shrink-0"
+              onClick={() => {
+                setTimestampAfter("")
+                setTimestampBefore("")
+              }}
+            >
+              Clear dates
+            </Button>
+          ) : null}
+        </div>
+
         <div className="text-sm text-muted-foreground">
-          Activity type is filtered on the server for the selected preset. Last{" "}
-          <span className="font-medium text-foreground">{hours}</span>h window. Search applies to the current page only.
+          Activity type is filtered on the server.{" "}
+          {usesCustomRange ? (
+            <>
+              Custom range
+              {timestampAfter ? (
+                <>
+                  {" "}
+                  from <span className="font-medium text-foreground">{format(new Date(timestampAfter), "MMM d, yyyy h:mm a")}</span>
+                </>
+              ) : null}
+              {timestampBefore ? (
+                <>
+                  {" "}
+                  to <span className="font-medium text-foreground">{format(new Date(timestampBefore), "MMM d, yyyy h:mm a")}</span>
+                </>
+              ) : null}
+              .
+            </>
+          ) : (
+            <>
+              Last <span className="font-medium text-foreground">{hours}</span>h window.
+            </>
+          )}{" "}
+          Search applies to the current page only.
+          {timestampRangeInvalid ? (
+            <span className="block text-destructive">From must be before or equal to To.</span>
+          ) : null}
         </div>
       </div>
 

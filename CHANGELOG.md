@@ -8,6 +8,7 @@ All notable web releases are documented here. Tags use the format `web-vMAJOR.MI
 - Guest conversion: local watch history and liked preview for signed-out users (no `/login` redirect)
 - Passive signup nudges on watch (after ~60s, when recommendations are ready) and on engagement (like, follow)
 - Pending like/follow intents stored locally and replayed after sign-in
+- Admin activity logs: From/To date range (`timestamp_after` / `timestamp_before` on `GET /analytics/events`)
 
 ### Changed
 - UI revamp (in progress on `hiffi_dev_v2`)

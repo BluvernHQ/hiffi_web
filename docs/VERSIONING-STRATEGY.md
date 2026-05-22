@@ -166,6 +166,7 @@ These items are **documented under 1.0.0** in `CHANGELOG.md` as part of the firs
 |--------|----------|
 | **Declared in CHANGELOG** | UI revamp (in progress); guest conversion funnel |
 | **On branch (`4eb921d`, post–`b44b446`)** | Guest conversion — local history/liked, passive nudges, pending like/follow replay (`lib/guest-conversion/`, `components/conversion/`) |
+| **On branch (unreleased)** | Admin activity log From/To date range via `timestamp_after` / `timestamp_before` |
 | **On branch (post–1.0.1 tag)** | Save-to-playlist fixes (uncheck removes, Save button label, Add-button count) — consolidates into **2.0.0** at cut |
 | **Not in any tagged release** | All of the above until `web-v2.0.0` is cut |
 

@@ -222,13 +222,23 @@ export async function adminEnableUser(ctx: ApiClientContext, username: string) {
 
 export async function adminGetAnalyticsEvents(
   ctx: ApiClientContext,
-  params: { hours?: number; limit?: number; offset?: number; filter?: string } = {},
+  params: {
+    hours?: number
+    limit?: number
+    offset?: number
+    filter?: string
+    timestamp_after?: string
+    timestamp_before?: string
+  } = {},
 ) {
   const sp = new URLSearchParams()
-  if (params.hours != null) sp.set("hours", String(params.hours))
+  const hasTimestampBounds = Boolean(params.timestamp_after?.trim() || params.timestamp_before?.trim())
+  if (!hasTimestampBounds && params.hours != null) sp.set("hours", String(params.hours))
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
   if (params.filter != null) sp.set("filter", params.filter.trim() || "all")
+  if (params.timestamp_after?.trim()) sp.set("timestamp_after", params.timestamp_after.trim())
+  if (params.timestamp_before?.trim()) sp.set("timestamp_before", params.timestamp_before.trim())
   return ctx.proxyRequest("/proxy/admin-events", sp)
 }
 
