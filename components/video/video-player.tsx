@@ -1555,6 +1555,9 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
+      className="relative flex w-full flex-col"
+    >
+    <div
       className="relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
@@ -1682,29 +1685,6 @@ export function VideoPlayer({
           </button>
         </div>
       </div>
-
-      {/* Next Up Overlay - Shows when video is ending or has ended */}
-      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
-        <NextUpOverlay
-          nextVideo={suggestedVideos[0]}
-          countdownDuration={5}
-          onPlay={() => {
-            setShowNextUpOverlay(false)
-            autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
-            if (onVideoEnd) {
-              onVideoEnd()
-            }
-          }}
-          onCancel={() => {
-            setShowNextUpOverlay(false)
-            setHasEnded(false)
-            autoplayCanceledRef.current = true // Mark autoplay as canceled
-          }}
-          visible={showNextUpOverlay}
-          isVideoPlaying={isPlaying}
-          hasVideoEnded={hasEnded}
-        />
-      )}
 
       {/* Fade to black overlay when video ends (only if next up overlay not showing) */}
       {hasEnded && !showNextUpOverlay && (
@@ -1993,6 +1973,30 @@ export function VideoPlayer({
           display: none !important;
         }
       `}</style>
+    </div>
+
+      {/* Next up: below the player on mobile, overlay on desktop (sibling so mobile does not cover video) */}
+      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
+        <NextUpOverlay
+          nextVideo={suggestedVideos[0]}
+          countdownDuration={5}
+          onPlay={() => {
+            setShowNextUpOverlay(false)
+            autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
+            if (onVideoEnd) {
+              onVideoEnd()
+            }
+          }}
+          onCancel={() => {
+            setShowNextUpOverlay(false)
+            setHasEnded(false)
+            autoplayCanceledRef.current = true // Mark autoplay as canceled
+          }}
+          visible={showNextUpOverlay}
+          isVideoPlaying={isPlaying}
+          hasVideoEnded={hasEnded}
+        />
+      )}
     </div>
   )
 }

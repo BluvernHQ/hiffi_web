@@ -185,7 +185,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6">
         <h3 className="text-xl font-bold">Comments</h3>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -195,18 +195,18 @@ export function CommentSection({ videoId }: { videoId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <h3 className="text-xl font-bold">{comments.length} Comments</h3>
 
       {user ? (
-        <div className="flex gap-4">
+        <div className="flex min-w-0 gap-4">
           <ProfilePicture user={userData} size="md" />
-          <form onSubmit={handleSubmit} className="flex-1 space-y-2">
+          <form onSubmit={handleSubmit} className="min-w-0 flex-1 space-y-2">
             <Textarea
               placeholder="Add a comment..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] min-w-0"
               disabled={isSubmitting}
             />
             <div className="flex justify-end">
@@ -450,7 +450,7 @@ function CommentItem({
             </span>
           </div>
         </div>
-        <p className="text-sm pt-0.5">{comment.comment}</p>
+        <p className="break-words text-sm pt-0.5">{comment.comment}</p>
         <div className="flex items-center gap-4 pt-1">
           <button
             className="text-xs text-muted-foreground hover:text-foreground font-medium"
@@ -481,13 +481,13 @@ function CommentItem({
 
         {showReplyInput && user && (
           <form onSubmit={handleReplySubmit} className="mt-2 space-y-2">
-            <div className="flex gap-2">
+            <div className="flex min-w-0 gap-2">
               <ProfilePicture user={userData} size="sm" />
               <Textarea
                 placeholder="Write a reply..."
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                className="min-h-[60px] text-sm"
+                className="min-h-[60px] min-w-0 flex-1 text-sm"
                 disabled={isSubmittingReply}
               />
             </div>
@@ -563,7 +563,7 @@ function CommentItem({
                           </span>
                         </div>
                       </div>
-                      <p className="text-xs pt-0.5">{reply.reply}</p>
+                      <p className="break-words text-xs pt-0.5">{reply.reply}</p>
                     </div>
                   </div>
                 ))}

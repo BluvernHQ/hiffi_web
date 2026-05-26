@@ -3,7 +3,27 @@
 import { VideoCard } from "./video-card"
 import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
-import { useEffect, useRef, useCallback } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
+
+/** Extra rows to prefetch before the sentinel enters the scroll container. */
+const PREFETCH_ROWS = 1
+const DEFAULT_ROW_HEIGHT_PX = 300
+const LOAD_THROTTLE_MS = 500
+
+function useGridColumnCount(): number {
+  const [columns, setColumns] = useState(4)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(min-width: 1024px)")
+    const sync = () => setColumns(mq.matches ? 4 : 2)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [])
+
+  return columns
+}
 
 interface Video {
   videoId?: string
@@ -52,10 +72,25 @@ export function VideoGrid({
   suppressEmptyState = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const rowHeightRef = useRef(DEFAULT_ROW_HEIGHT_PX)
   const lastLoadTime = useRef<number>(0)
-  const LOAD_THROTTLE_MS = 500 // Minimum time between loads
+  const columnsPerRow = useGridColumnCount()
 
-  // Throttled load more function
+  const safeVideos = videos || []
+
+  useEffect(() => {
+    const measureRowHeight = () => {
+      const grid = gridRef.current
+      const first = grid?.querySelector("[data-video-card-cell]") as HTMLElement | undefined
+      const h = first?.getBoundingClientRect().height
+      if (h && h > 0) rowHeightRef.current = h
+    }
+    measureRowHeight()
+    window.addEventListener("resize", measureRowHeight)
+    return () => window.removeEventListener("resize", measureRowHeight)
+  }, [safeVideos.length, columnsPerRow])
+
   const throttledLoadMore = useCallback(() => {
     const now = Date.now()
     if (now - lastLoadTime.current < LOAD_THROTTLE_MS) {
@@ -68,38 +103,42 @@ export function VideoGrid({
   }, [hasMore, loading, onLoadMore])
 
   useEffect(() => {
+    const target = observerTarget.current
+    if (!target || !hasMore) return
+
+    const scrollRoot = document.getElementById("main-content")
+    const prefetchPx = Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
+        if (entries[0]?.isIntersecting) {
           throttledLoadMore()
         }
       },
-      { 
-        threshold: 0.1,
-        rootMargin: '200px' // Start loading before reaching the bottom
+      {
+        root: scrollRoot,
+        threshold: 0,
+        rootMargin: `0px 0px ${prefetchPx}px 0px`,
       },
     )
 
-    const currentTarget = observerTarget.current
-    if (currentTarget) {
-      observer.observe(currentTarget)
-    }
+    observer.observe(target)
 
     return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget)
-      }
+      observer.unobserve(target)
     }
-  }, [throttledLoadMore])
+  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow])
 
-  // Ensure videos is always an array to prevent null reference errors
-  const safeVideos = videos || []
   const isInitialLoad = loading && safeVideos.length === 0
   const isLoadingMore = loading && safeVideos.length > 0
+  /** Sentinel sits one row above the bottom so the next page starts loading early. */
+  const prefetchSentinelIndex =
+    hasMore && safeVideos.length > 0
+      ? Math.max(0, safeVideos.length - columnsPerRow - 1)
+      : -1
 
   return (
     <div className="w-full">
-      {/* Show shimmer skeletons on initial load */}
       {isInitialLoad && (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
           {Array.from({ length: 8 }).map((_, index) => (
@@ -108,22 +147,26 @@ export function VideoGrid({
         </div>
       )}
 
-      {/* Show videos when available */}
       {safeVideos.length > 0 && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+          <div
+            ref={gridRef}
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1"
+          >
             {safeVideos.map((video, index) => (
               <div
                 key={video.videoId || video.video_id}
+                ref={index === prefetchSentinelIndex ? observerTarget : undefined}
+                data-video-card-cell
                 className="opacity-0 animate-fade-in"
-                style={{ 
-                  animationDelay: `${Math.min(index * 30, 300)}ms`,
-                  animationFillMode: 'forwards'
+                style={{
+                  animationDelay: index < 8 ? `${Math.min(index * 30, 300)}ms` : "0ms",
+                  animationFillMode: "forwards",
                 }}
               >
-                <VideoCard 
-                  video={video} 
-                  priority={index < 4} // First 4 videos load eagerly for better LCP
+                <VideoCard
+                  video={video}
+                  priority={index < 4}
                   showDeleteOption={showDeleteOption}
                   hideTimestamp={hideTimestamp}
                   openVideoUiName={openVideoUiName}
@@ -136,14 +179,13 @@ export function VideoGrid({
                 />
               </div>
             ))}
-            
-            {/* Show shimmer skeletons when loading more (pagination) */}
-            {isLoadingMore && Array.from({ length: 4 }).map((_, index) => (
-              <VideoCardSkeleton key={`loading-skeleton-${index}`} />
-            ))}
+
+            {isLoadingMore &&
+              Array.from({ length: columnsPerRow }).map((_, index) => (
+                <VideoCardSkeleton key={`loading-skeleton-${index}`} />
+              ))}
           </div>
 
-          {/* Loading indicator for pagination */}
           {isLoadingMore && (
             <div className="flex items-center justify-center py-6 mt-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -153,7 +195,6 @@ export function VideoGrid({
             </div>
           )}
 
-          {/* End of results indicator */}
           {!hasMore && safeVideos.length > 0 && !loading && (
             <div className="flex items-center justify-center py-8 mt-4">
               <div className="text-sm text-muted-foreground">
@@ -161,15 +202,9 @@ export function VideoGrid({
               </div>
             </div>
           )}
-
-          {/* Intersection observer target for infinite scroll */}
-          {hasMore && (
-            <div ref={observerTarget} className="h-20" />
-          )}
         </>
       )}
 
-      {/* Empty state */}
       {!loading && safeVideos.length === 0 && !suppressEmptyState && (
         <EmptyVideoState />
       )}
