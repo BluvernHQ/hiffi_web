@@ -37,6 +37,7 @@ import { PickView } from "@/components/video/add-to-playlist/pick-view"
 import { SuccessView } from "@/components/video/add-to-playlist/success-view"
 import { atpPanelClass } from "@/components/video/add-to-playlist/styles"
 import { countPlaylistPendingChanges } from "@/components/video/add-to-playlist/utils"
+import { trackUmami } from "@/lib/umami"
 
 function parseApiError(err: unknown): ApiError | null {
   if (err && typeof err === "object" && "status" in err && "message" in err) {
@@ -310,6 +311,13 @@ export function AddToPlaylistDialog({
           const res = await apiClient.addPlaylistItem(playlistId, vid)
           if (!res.success) throw new Error(res.message || "Could not add video")
           addSuccessCount += 1
+          trackUmami("Playlist Song Added", {
+            source: "existing_playlist",
+            playlist_id: playlistId,
+            video_id: vid,
+            video_title: videoTitle ?? null,
+            artist_name: artistName ?? null,
+          })
         } catch {
           failureCount += 1
         }
@@ -396,6 +404,14 @@ export function AddToPlaylistDialog({
       })
       if (!res.success || !res.playlist_id) throw new Error(res.message || "Create failed")
       const playlistId = res.playlist_id
+      trackUmami("Playlist Song Added", {
+        source: "new_playlist",
+        playlist_id: playlistId,
+        playlist_title: title,
+        video_id: vid,
+        video_title: videoTitle ?? null,
+        artist_name: artistName ?? null,
+      })
       toast({
         title: "Playlist created",
         description: "This video was added as the first item.",

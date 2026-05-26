@@ -10,6 +10,7 @@ import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { BecomeCreatorTermsNote } from "@/components/creator/become-creator-terms"
+import { trackUmami } from "@/lib/umami"
 
 const LOGIN_REDIRECT = "/login?redirect=/creator/apply"
 
@@ -71,6 +72,9 @@ export function BecomeCreatorCta() {
       const verifiedRole = verifyResponse?.success ? verifyResponse?.user?.role : null
 
       if (verifiedRole === "creator" || responseRole === "creator") {
+        trackUmami("Creator Account Created", {
+          username: userData?.username ?? null,
+        })
         toast({
           title: "You’re a creator",
           description: "Welcome to Hiffi Studio — upload or manage your profile when you’re ready.",

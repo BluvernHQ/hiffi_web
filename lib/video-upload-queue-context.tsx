@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Upload, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { trackUmami } from "@/lib/umami"
 
 export type UploadJobStatus =
   | "preparing"
@@ -382,6 +383,13 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
               videoId: videoId || undefined,
             }),
           )
+
+          trackUmami("Video Uploaded", {
+            video_id: videoId || null,
+            video_title: title,
+            has_custom_thumbnail: Boolean(thumbnail),
+            tag_count: tagsArray.length,
+          })
 
           toast({
             title: "Upload complete",
