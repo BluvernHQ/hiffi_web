@@ -6,6 +6,8 @@ on:
     branches:
       - main
       - master
+      - new-main
+      - hiffi_dev_v2
 
 jobs:
   build:

@@ -295,25 +295,34 @@ export function VideoCard({
                 </DropdownMenu>
               )}
               {!isEncoding && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  data-analytics-name="video-card-add-to-playlist-button"
-                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (!user) {
-                      setPlaylistAuthDialogOpen(true)
-                      return
-                    }
-                    setAddToPlaylistOpen(true)
-                  }}
-                  aria-label="Add to playlist"
-                  title="Add to playlist"
+                <AddToPlaylistDialog
+                  open={addToPlaylistOpen}
+                  onOpenChange={setAddToPlaylistOpen}
+                  videoId={videoId}
+                  videoTitle={title || "Untitled Video"}
+                  artistName={username ? `@${username}` : undefined}
+                  thumbnailUrl={thumbnailUrl || undefined}
                 >
-                  <Bookmark className="h-4 w-4" />
-                </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    data-analytics-name="video-card-add-to-playlist-button"
+                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!user) {
+                        setPlaylistAuthDialogOpen(true)
+                        return
+                      }
+                      setAddToPlaylistOpen(true)
+                    }}
+                    aria-label="Add to playlist"
+                    title="Add to playlist"
+                  >
+                    <Bookmark className="h-4 w-4" />
+                  </Button>
+                </AddToPlaylistDialog>
               )}
             </div>
           </div>
@@ -325,15 +334,6 @@ export function VideoCard({
               videoId={videoId}
               videoTitle={title}
               onDeleted={onDeleted}
-            />
-          )}
-          {!isEncoding && (
-            <AddToPlaylistDialog
-              open={addToPlaylistOpen}
-              onOpenChange={setAddToPlaylistOpen}
-              videoId={videoId}
-              videoTitle={title || "Untitled Video"}
-              thumbnailUrl={thumbnailUrl || undefined}
             />
           )}
           <AuthDialog

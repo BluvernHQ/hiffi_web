@@ -5,6 +5,10 @@ export type ConversionEventName =
   | "conversion_unlike_success"
   | "conversion_dislike_success"
   | "conversion_signup_completed"
+  | "conversion_auth_prompt_shown"
+  | "conversion_auth_prompt_dismissed"
+  | "conversion_passive_nudge_shown"
+  | "conversion_passive_nudge_dismissed"
 
 export type ConversionSource = "home" | "recommended" | "playlist" | "search" | "profile"
 

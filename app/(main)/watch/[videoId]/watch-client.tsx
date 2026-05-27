@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo, startTransition } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, startTransition } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
@@ -26,70 +26,33 @@ import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
-import dynamic from "next/dynamic"
+import { GuestWatchNudge } from "@/components/conversion/guest-watch-nudge"
+import { GuestUpNextNudge } from "@/components/conversion/guest-up-next-nudge"
+import {
+  canShowPassiveNudge,
+  markGuestFollowAttempt,
+  markGuestLikeAttempt,
+  resolvePassiveNudgeTrigger,
+  setGuestRecPicksReady,
+} from "@/lib/guest-conversion/session"
+import { appendGuestHistoryEntry } from "@/lib/guest-conversion/guest-history"
+import { addPendingFollowIntent, addPendingLikeIntent } from "@/lib/guest-conversion/pending-intents"
+import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
-import { DescriptionWithLinks } from "@/components/watch/description-with-links"
+import {
+  DescriptionWithLinks,
+  getVideoDescriptionFromRecord,
+  hasDisplayableVideoDescription,
+} from "@/components/watch/description-with-links"
 import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
-
-const AddToPlaylistDialog = dynamic(
-  () =>
-    import("@/components/video/add-to-playlist-dialog").then((m) => ({
-      default: m.AddToPlaylistDialog,
-    })),
-  { ssr: false },
-)
+import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
+import { OfflineState } from "@/components/network/offline-state"
+import type { SeoVideo } from "@/lib/seo/fetch-public"
 
 // Mock video data
-const MOCK_VIDEO = {
-  videoId: "1",
-  videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-  videoThumbnail: "/placeholder.svg?key=uvova",
-  videoTitle: "Big Buck Bunny - Official Trailer",
-  videoDescription:
-    "Big Buck Bunny tells the story of a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely harass him, something snaps... and the bunny ain't no bunny anymore! In the typical cartoon tradition he prepares the nasty rodents a comical revenge.\n\nLicensed under the Creative Commons Attribution license\nhttp://www.bigbuckbunny.org",
-  videoViews: 12453,
-  videoLikes: 1240,
-  userUsername: "blender_foundation",
-  userAvatar: "/placeholder.svg?key=blender",
-  userFollowers: 54000,
-  createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  tags: ["animation", "short film", "blender", "3d"],
-}
 
-const RELATED_VIDEOS = [
-  {
-    videoId: "2",
-    videoUrl: "video2.mp4",
-    videoThumbnail: "/placeholder.svg?key=cxy6v",
-    videoTitle: "Epic Gaming Moments - Best Highlights This Week",
-    videoDescription: "Check out the most insane gaming moments from this week",
-    videoViews: 45231,
-    userUsername: "pro_gamer_x",
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    videoId: "3",
-    videoUrl: "video3.mp4",
-    videoThumbnail: "/placeholder.svg?key=p72zr",
-    videoTitle: "Beautiful Beach Sunset | Travel Vlog Day 5",
-    videoDescription: "Exploring the most beautiful beaches in Bali",
-    videoViews: 8934,
-    userUsername: "wanderlust_jen",
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    videoId: "4",
-    videoUrl: "video4.mp4",
-    videoThumbnail: "/placeholder.svg?key=gbfmy",
-    videoTitle: "Music Production 101: Creating Your First Beat",
-    videoDescription: "Complete beginner guide to music production",
-    videoViews: 23467,
-    userUsername: "beat_maker_pro",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
 
 let persistedWatchUiState: {
   video: any
@@ -167,7 +130,32 @@ async function getRelatedVideosOnce(videoId: string) {
   return request
 }
 
-export default function WatchPage() {
+function mapSeoVideoToClient(seo: SeoVideo) {
+  const artist = (seo.creatorDisplayName || seo.creatorUsername || "").trim()
+  return {
+    video_id: seo.videoId,
+    videoId: seo.videoId,
+    video_title: seo.title,
+    videoTitle: seo.title,
+    video_description: seo.description,
+    videoDescription: seo.description,
+    video_url: seo.contentUrl,
+    streaming_url: seo.contentUrl,
+    user_username: seo.creatorUsername,
+    userUsername: seo.creatorUsername,
+    user_name: artist,
+    userName: artist,
+    video_thumbnail: seo.thumbnailUrl,
+    videoThumbnail: seo.thumbnailUrl,
+  }
+}
+
+type WatchPageProps = {
+  /** Server-fetched video for instant metadata + crawler-visible HTML (no login required). */
+  initialSeoVideo?: SeoVideo | null
+}
+
+export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -372,14 +360,21 @@ export default function WatchPage() {
       (shouldUsePersistedUiState ? persistedWatchUiState?.isDisliked : undefined) ?? activeVideoInitialVoteState.downvoted,
   )
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [isDescriptionTruncated, setIsDescriptionTruncated] = useState(false)
+  const descriptionRef = useRef<HTMLDivElement>(null)
   
   // currentVideo: what is currently rendered in title/description/channel UI.
   const [video, setVideo] = useState<any>(() => {
-    const persistedVideo = persistedWatchUiState?.video
-    if (!persistedVideo) return null
-    const persistedId = persistedVideo.video_id || persistedVideo.videoId
     const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
-    return persistedId && routeId && persistedId === routeId ? persistedVideo : null
+    const persistedVideo = persistedWatchUiState?.video
+    if (persistedVideo) {
+      const persistedId = persistedVideo.video_id || persistedVideo.videoId
+      if (persistedId && routeId && persistedId === routeId) return persistedVideo
+    }
+    if (initialSeoVideo?.videoId && initialSeoVideo.videoId === routeId) {
+      return mapSeoVideoToClient(initialSeoVideo)
+    }
+    return null
   })
   const [playerVideo, setPlayerVideo] = useState<any>(() => {
     if (activeVideo && (activeVideo.videoId === params.videoId || activeVideo.video_id === params.videoId)) {
@@ -389,10 +384,20 @@ export default function WatchPage() {
   })
   
   const [videoCreator, setVideoCreator] = useState<any>(() => {
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
     const persistedVideo = persistedWatchUiState?.video
     const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
-    if (!persistedId || persistedId !== routeVideoId) return null
-    return persistedWatchUiState?.videoCreator ?? null
+    if (persistedId && persistedId === routeId && persistedWatchUiState?.videoCreator) {
+      return persistedWatchUiState.videoCreator
+    }
+    if (initialSeoVideo?.videoId === routeId && initialSeoVideo.creatorUsername) {
+      return {
+        username: initialSeoVideo.creatorUsername,
+        name: initialSeoVideo.creatorDisplayName || initialSeoVideo.creatorUsername,
+        profile_picture: "",
+      }
+    }
+    return null
   })
   const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
     const persistedVideo = persistedWatchUiState?.video
@@ -401,11 +406,18 @@ export default function WatchPage() {
     return persistedWatchUiState?.relatedVideos ?? []
   })
   
-  // Only show initial loading spinner if we don't even have context data
-  const [isLoading, setIsLoading] = useState(!video)
+  // Only show initial loading spinner if we don't have SSR seed or persisted context
+  const [isLoading, setIsLoading] = useState(() => {
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
+    if (initialSeoVideo?.videoId === routeId) return false
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (persistedId && persistedId === routeId) return false
+    return true
+  })
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
-  const [urlError, setUrlError] = useState<string | null>(null)
+  const [pageGateError, setPageGateError] = useState<{ headline: string; detail: string } | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [authDialogCopyKey, setAuthDialogCopyKey] = useState<AuthDialogCopyKey>("follow")
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -736,6 +748,31 @@ export default function WatchPage() {
     })
   }
 
+  const watchPassiveNudge = useMemo(() => {
+    if (user) return null
+    return resolvePassiveNudgeTrigger(["watch_60s", "rec_ready"])
+  }, [user, sidebarSuggestedVideos.length, currentVideoId])
+
+  useEffect(() => {
+    if (user || !video) return
+    const id = video.video_id || video.videoId
+    if (!id) return
+    appendGuestHistoryEntry({
+      videoId: id,
+      title: video.videoTitle || video.video_title,
+      thumbnail: video.videoThumbnail || video.video_thumbnail,
+      artistUsername: video.userUsername || video.user_username,
+    })
+  }, [user, video?.video_id, video?.videoId, video?.videoTitle, video?.video_title])
+
+  useEffect(() => {
+    if (user) return
+    const count = sidebarSuggestedVideos.length
+    if (count >= 5) {
+      setGuestRecPicksReady(count)
+    }
+  }, [user, sidebarSuggestedVideos.length])
+
   useEffect(() => {
     if (!pendingVideo || !isPlayerReadyForPending) return
     if (!pendingVideo.video) return
@@ -773,6 +810,7 @@ export default function WatchPage() {
       isFetchingRef.current = true
       hasFetchedVideoRef.current = videoId
       latestVideoRequestIdRef.current = videoId
+      setPageGateError(null)
       const currentDisplayedVideoId = video ? (video.video_id || video.videoId) : null
       const isVideoSwitch = !!currentDisplayedVideoId && currentDisplayedVideoId !== videoId
       const isInitialVideoLoad = !video || !isVideoSwitch
@@ -957,7 +995,17 @@ export default function WatchPage() {
           console.error("[hiffi] Failed to get video:", videoError)
           hasFetchedVideoRef.current = null
           isFetchingRef.current = false
-          setUrlError("Video not found")
+          if (isConnectivityError(videoError)) {
+            setPageGateError({
+              headline: "No internet connection",
+              detail: NO_INTERNET_USER_MESSAGE,
+            })
+          } else {
+            setPageGateError({
+              headline: "Video not found",
+              detail: "This video isn't available or may have been removed.",
+            })
+          }
           setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
           setIsPlayerReadyForPending(false)
           setIsLoading(false)
@@ -968,7 +1016,17 @@ export default function WatchPage() {
         console.error("[hiffi] Failed to fetch video data:", error)
         hasFetchedVideoRef.current = null
         isFetchingRef.current = false
-        setUrlError("Failed to load video")
+        if (isConnectivityError(error)) {
+          setPageGateError({
+            headline: "No internet connection",
+            detail: NO_INTERNET_USER_MESSAGE,
+          })
+        } else {
+          setPageGateError({
+            headline: "Something went wrong",
+            detail: "Could not load this video. Please try again.",
+          })
+        }
         setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
         setIsPlayerReadyForPending(false)
       } finally {
@@ -1033,6 +1091,16 @@ export default function WatchPage() {
 
   const handleLike = async () => {
     if (!user) {
+      const videoId = video?.video_id || video?.videoId || currentVideoId
+      if (videoId) {
+        setIsLiked(true)
+        setUpvoteState({ upvoted: true, downvoted: false })
+        addPendingLikeIntent(
+          videoId,
+          video?.videoTitle || video?.video_title,
+        )
+      }
+      markGuestLikeAttempt()
       setAuthDialogCopyKey("like")
       setAuthDialogOpen(true)
       return
@@ -1219,7 +1287,17 @@ export default function WatchPage() {
   }
 
   const handleFollow = async () => {
+    const username = video?.userUsername || video?.user_username
+
     if (!user || !userData) {
+      if (username) {
+        addPendingFollowIntent(
+          username,
+          videoCreator?.name || video?.userName || video?.user_name,
+          getProfilePictureUrl(videoCreator) || undefined,
+        )
+      }
+      markGuestFollowAttempt()
       setAuthDialogCopyKey("follow")
       setAuthDialogOpen(true)
       return
@@ -1227,7 +1305,6 @@ export default function WatchPage() {
 
     if (!video) return
 
-    const username = video.userUsername || video.user_username
     if (!username || userData.username === username) return
 
     // Prevent double-clicks
@@ -1349,7 +1426,25 @@ export default function WatchPage() {
   }
 
   const currentVideo = video || persistedWatchUiState?.video // Alias for readability
+  const descriptionText = getVideoDescriptionFromRecord(currentVideo)
+  const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
   const shouldShowMetadataSkeleton = !currentVideo && (isMetadataLoading || isLoading)
+
+  useEffect(() => {
+    setShowFullDescription(false)
+    if (!hasVideoDescription) setIsDescriptionTruncated(false)
+  }, [currentVideoId, descriptionText, hasVideoDescription])
+
+  useLayoutEffect(() => {
+    if (!hasVideoDescription || shouldShowMetadataSkeleton) {
+      setIsDescriptionTruncated(false)
+      return
+    }
+    if (showFullDescription) return
+    const el = descriptionRef.current
+    if (!el) return
+    setIsDescriptionTruncated(el.scrollHeight > el.clientHeight + 1)
+  }, [descriptionText, hasVideoDescription, showFullDescription, shouldShowMetadataSkeleton])
   const shouldShowRelatedSkeleton = sidebarSuggestedVideos.length === 0 && visibleRelatedVideos.length === 0
 
   // Player source is allowed to update before UI metadata to avoid visual flicker.
@@ -1398,17 +1493,19 @@ export default function WatchPage() {
     }
   }, [videoCreator, currentVideo])
 
-  if (urlError && !video) {
+  if (pageGateError && !video) {
+    const isNet =
+      pageGateError.headline === "No internet connection" ||
+      pageGateError.detail === NO_INTERNET_USER_MESSAGE
+
     return (
-      <div className="flex items-center justify-center min-h-full p-4 lg:p-6">
-        <div className="text-center">
-          <div className="text-4xl mb-4">😕</div>
-          <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
-          <p className="text-muted-foreground mb-6">{urlError}</p>
-          <Button onClick={() => router.push("/")} variant="default">
-            Go to Home
-          </Button>
-        </div>
+      <div className="flex min-h-[55vh] w-full items-center justify-center px-4 py-16 lg:min-h-[60vh] lg:px-8">
+        <OfflineState
+          title={pageGateError.headline}
+          description={pageGateError.detail}
+          onRetry={isNet ? () => window.location.reload() : () => router.push("/")}
+          retryLabel={isNet ? "Try again" : "Go to Home"}
+        />
       </div>
     )
   }
@@ -1435,6 +1532,10 @@ export default function WatchPage() {
                 previousVideoDisabled={!canNavigateToPreviousVideo}
                 initialSeekSeconds={initialSeekSeconds.current}
               />
+
+              {!user && watchPassiveNudge === "watch_60s" ? (
+                <GuestWatchNudge videoId={playerVideoId} className="mx-4 lg:mx-0" />
+              ) : null}
 
               <div className={cn("px-4 lg:px-0 space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -1474,18 +1575,31 @@ export default function WatchPage() {
                       >
                         <Share2 className="h-5 w-5" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        data-analytics-name="added-to-playlist"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                        onClick={openAddToPlaylist}
-                        aria-label="Add to playlist"
-                        title="Add to playlist"
+                      <AddToPlaylistDialogLazy
+                        open={addToPlaylistOpen}
+                        onOpenChange={setAddToPlaylistOpen}
+                        videoId={String(playerVideoId || currentVideoId || "")}
+                        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+                        artistName={
+                          currentVideo?.userUsername ||
+                          currentVideo?.user_username ||
+                          undefined
+                        }
+                        thumbnailUrl={thumbnailUrl || undefined}
                       >
-                        <Bookmark className="h-5 w-5" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          data-analytics-name="added-to-playlist"
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={openAddToPlaylist}
+                          aria-label="Add to playlist"
+                          title="Add to playlist"
+                        >
+                          <Bookmark className="h-5 w-5" />
+                        </Button>
+                      </AddToPlaylistDialogLazy>
                     </div>
                   )}
                 </div>
@@ -1659,17 +1773,27 @@ export default function WatchPage() {
                       <div className="flex gap-2 font-medium mb-2">
                         <span>{(currentVideo?.videoViews || currentVideo?.video_views || 0).toLocaleString()} views</span>
                       </div>
-                      <div className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}>
-                        <DescriptionWithLinks
-                          text={currentVideo?.videoDescription || currentVideo?.video_description}
-                        />
-                      </div>
-                      <button
-                        onClick={() => setShowFullDescription(!showFullDescription)}
-                        className="text-primary font-medium mt-1 hover:underline"
-                      >
-                        {showFullDescription ? "Show less" : "Show more"}
-                      </button>
+                      {hasVideoDescription ? (
+                        <>
+                          <div
+                            ref={descriptionRef}
+                            className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}
+                          >
+                            <DescriptionWithLinks text={descriptionText} />
+                          </div>
+                          {hasVideoDescription && (showFullDescription || isDescriptionTruncated) ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowFullDescription(!showFullDescription)}
+                              className="text-primary font-medium mt-1 hover:underline"
+                            >
+                              {showFullDescription ? "Show less" : "Show more"}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">No description available</p>
+                      )}
 
                       {currentVideo?.tags && currentVideo?.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">
@@ -1886,6 +2010,9 @@ export default function WatchPage() {
                  </div>
                )}
                <h3 className="font-semibold text-sm mb-3 px-1">Up Next</h3>
+               {!user && watchPassiveNudge === "rec_ready" && canShowPassiveNudge("rec_ready") ? (
+                 <GuestUpNextNudge pickCount={sidebarSuggestedVideos.length} className="mx-1" />
+               ) : null}
                <div className={cn("flex flex-col gap-1 transition-opacity duration-500", (isRelatedLoading && shouldShowRelatedSkeleton) ? "opacity-100" : (isRelatedLoading ? "opacity-60" : "opacity-100"))}>
                  {sidebarSuggestedVideos.length > 0 ? (
                    sidebarSuggestedVideos.map((v) => (
@@ -1919,6 +2046,29 @@ export default function WatchPage() {
         onOpenChange={setAuthDialogOpen}
         title={AUTH_DIALOG_COPY[authDialogCopyKey].title}
         description={AUTH_DIALOG_COPY[authDialogCopyKey].description}
+        subdescription={
+          authDialogCopyKey === "like" ? AUTH_DIALOG_COPY.like.subdescription : undefined
+        }
+        signupLabel={AUTH_DIALOG_COPY[authDialogCopyKey].signupLabel}
+        signinLabel={AUTH_DIALOG_COPY[authDialogCopyKey].signinLabel}
+        conversionTrigger={
+          authDialogCopyKey === "like"
+            ? "like_attempt"
+            : authDialogCopyKey === "follow"
+              ? "follow_attempt"
+              : "playlist"
+        }
+        artistUsername={
+          authDialogCopyKey === "follow"
+            ? video?.userUsername || video?.user_username
+            : undefined
+        }
+        artistDisplayName={
+          authDialogCopyKey === "follow"
+            ? videoCreator?.name || video?.userName || video?.user_name
+            : undefined
+        }
+        artistUser={authDialogCopyKey === "follow" ? videoCreator : undefined}
       />
       <ShareVideoDialog
         open={shareDialogOpen}
@@ -1931,13 +2081,6 @@ export default function WatchPage() {
           })()
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
-      />
-      <AddToPlaylistDialog
-        open={addToPlaylistOpen}
-        onOpenChange={setAddToPlaylistOpen}
-        videoId={String(playerVideoId || currentVideoId || "")}
-        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
-        thumbnailUrl={thumbnailUrl || undefined}
       />
     </>
   )

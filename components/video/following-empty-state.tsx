@@ -1,11 +1,11 @@
 "use client"
 
-import { Users, Search, LogIn } from "lucide-react"
+import { Users, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { usePathname, useSearchParams } from "next/navigation"
-import { buildLoginUrl } from "@/lib/auth-utils"
+import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 
 interface FollowingEmptyStateProps {
   hasFollowedUsers: boolean
@@ -16,6 +16,9 @@ export function FollowingEmptyState({ hasFollowedUsers, onDiscoverClick }: Follo
   const { user } = useAuth()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
+  const signupUrl = buildSignupUrl(pathname, searchParamsString)
+  const loginUrl = buildLoginUrl(pathname, searchParamsString)
 
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4">
@@ -29,17 +32,23 @@ export function FollowingEmptyState({ hasFollowedUsers, onDiscoverClick }: Follo
       {!user ? (
         <>
           <h3 className="text-xl font-semibold mb-2 text-center">
-            Sign in to see videos from creators you follow
+            Build a feed from artists you love
           </h3>
           <p className="text-muted-foreground text-center max-w-md mb-6">
-            Follow creators to build your personalized video feed
+            Sign up to follow creators and get notified when they upload something new.
           </p>
-          <Button asChild size="lg" className="mt-4">
-            <Link href={buildLoginUrl(pathname, searchParams.toString() ? `?${searchParams.toString()}` : undefined)}>
-              <LogIn className="mr-2 h-4 w-4" />
-              Sign In
-            </Link>
-          </Button>
+          <div className="flex flex-col items-center gap-2 sm:flex-row">
+            <Button asChild size="lg" className="rounded-full px-6">
+              <Link href={signupUrl} data-analytics-name="guest-following-signup">
+                Create free account
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="rounded-full px-6">
+              <Link href={loginUrl} data-analytics-name="guest-following-login">
+                Log in
+              </Link>
+            </Button>
+          </div>
         </>
       ) : hasFollowedUsers ? (
         <>

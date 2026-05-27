@@ -124,6 +124,112 @@ export function buildVideoJsonLd(video: SeoVideo) {
 }
 
 /**
+ * MusicVideoObject — schema.org/MusicVideoObject (subtype of VideoObject).
+ * Signals music/artist context for Google video surfaces and carousels.
+ * https://schema.org/MusicVideoObject
+ */
+export function buildMusicVideoJsonLd(video: SeoVideo) {
+  const pageUrl = absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`)
+  const origin = getSiteOrigin()
+  const artistName = (video.creatorDisplayName || video.creatorUsername || "").trim()
+
+  const byArtist = artistName
+    ? {
+        "@type": "MusicGroup",
+        name: artistName,
+        ...(video.creatorUsername
+          ? { url: absoluteUrl(`/profile/${encodeURIComponent(video.creatorUsername)}`) }
+          : {}),
+      }
+    : undefined
+
+  const thumbnailObject = video.thumbnailUrl
+    ? {
+        "@type": "ImageObject",
+        url: video.thumbnailUrl,
+      }
+    : undefined
+
+  const node: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "MusicVideoObject",
+    "@id": `${pageUrl}#music-video`,
+    name: video.title,
+    url: pageUrl,
+    embedUrl: pageUrl,
+    ...(video.tags?.[0] ? { genre: video.tags[0] } : { genre: "Music" }),
+    isFamilyFriendly: true,
+    inLanguage: "en",
+  }
+
+  if (video.description) node.description = video.description
+  if (thumbnailObject) node.thumbnailUrl = thumbnailObject
+  if (video.createdAt) node.uploadDate = video.createdAt
+  if (video.updatedAt) node.dateModified = video.updatedAt
+  if (video.contentUrl) node.contentUrl = video.contentUrl
+  if (byArtist) node.byArtist = byArtist
+  if (video.tags?.length) node.keywords = video.tags.join(", ")
+
+  if (video.durationSeconds && video.durationSeconds > 0) {
+    node.duration = secondsToIsoDuration(video.durationSeconds)
+  }
+
+  if (typeof video.viewCount === "number") {
+    node.interactionStatistic = {
+      "@type": "InteractionCounter",
+      interactionType: "https://schema.org/WatchAction",
+      userInteractionCount: video.viewCount,
+    }
+  }
+
+  node.potentialAction = [
+    {
+      "@type": "WatchAction",
+      target: pageUrl,
+    },
+    {
+      "@type": "SeekToAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${pageUrl}?t={seek_to_second_number}`,
+      },
+      "startOffset-input": "required name=seek_to_second_number",
+    },
+  ]
+
+  node.publisher = {
+    "@type": "Organization",
+    "@id": `${origin}/#organization`,
+    name: "Hiffi",
+    url: origin,
+    logo: {
+      "@type": "ImageObject",
+      url: absoluteUrl("/hiffi_logo.png"),
+      width: 512,
+      height: 512,
+    },
+  }
+
+  return node
+}
+
+function stripJsonLdContext(node: Record<string, unknown>): Record<string, unknown> {
+  const { ["@context"]: _c, ...rest } = node
+  return rest
+}
+
+/** MusicVideoObject + VideoObject @graph for broad crawler compatibility. */
+export function buildWatchPageJsonLd(video: SeoVideo) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      stripJsonLdContext(buildMusicVideoJsonLd(video) as Record<string, unknown>),
+      stripJsonLdContext(buildVideoJsonLd(video) as Record<string, unknown>),
+    ],
+  }
+}
+
+/**
  * BreadcrumbList — schema.org/BreadcrumbList
  * Enables Google to show breadcrumb trail in search results.
  * https://developers.google.com/search/docs/appearance/structured-data/breadcrumb

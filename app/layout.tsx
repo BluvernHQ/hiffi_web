@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
+import { GuestConversionProvider } from '@/components/conversion/guest-conversion-provider'
 import { SidebarProvider } from '@/lib/sidebar-context'
 import { VideoUploadQueueProvider } from '@/lib/video-upload-queue-context'
 import { VideoProvider } from '@/lib/video-context'
@@ -13,7 +14,6 @@ import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracke
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
-import { DeployStaleGuard } from '@/components/deploy-stale-guard'
 import { API_BASE_URL } from '@/lib/config'
 import './globals.css'
 
@@ -158,7 +158,7 @@ export default function RootLayout({
     ? `/proxy/tracker.js`
     : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
-  const analyticsAppVersion = process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs"
+  const analyticsAppVersion = "web-nextjs"
 
   return (
     <html lang="en" className={`${_geist.variable} ${_geistMono.variable}`}>
@@ -235,13 +235,14 @@ export default function RootLayout({
         )}
       </head>
       <body className="font-sans antialiased">
-        <DeployStaleGuard />
         <AuthProvider>
-          <VideoProvider>
-            <SidebarProvider>
-              <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
-            </SidebarProvider>
-          </VideoProvider>
+          <GuestConversionProvider>
+            <VideoProvider>
+              <SidebarProvider>
+                <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
+              </SidebarProvider>
+            </VideoProvider>
+          </GuestConversionProvider>
         </AuthProvider>
         <Toaster />
         <Suspense fallback={null}>

@@ -7,7 +7,10 @@ import { apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
 import { trackUmami, setUmamiUser } from "@/lib/umami"
-import { sanitizeInternalPath } from "@/lib/auth-utils"
+import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents"
+import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
+import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
+import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import {
   clearReferralCode,
@@ -77,6 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     identifyAnalyticsUser(user?.username ?? null)
   }, [user?.username])
 
+  // Mirror user identity into Umami so every event carries user_id / user_name /
+  // user_email / user_username in its Properties (matches BeautyBarn dashboard).
   useEffect(() => {
     if (!userData) {
       setUmamiUser(null)
@@ -306,13 +311,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     options?: { forceAdminDashboardRedirect?: boolean },
   ) => {
     try {
-      debugLog("[hiffi] Attempting login for:", identifier)
+      const trimmedIdentifier = identifier.trim()
+      debugLog("[hiffi] Attempting login for:", trimmedIdentifier)
 
-      // Determine if identifier is an email or username
-      const isEmail = identifier.includes("@") && identifier.includes(".")
-      const loginData = isEmail
-        ? { email: identifier, password }
-        : { username: identifier, password }
+      if (!password) {
+        throw new Error("Enter your password.")
+      }
+      if (passwordContainsWhitespace(password)) {
+        throw new Error("Password cannot contain spaces.")
+      }
+
+      if (trimmedIdentifier.includes("@")) {
+        if (!isValidEmailFormat(trimmedIdentifier)) {
+          throw new Error("Enter a valid email address (include @ and a domain, e.g. name@example.com).")
+        }
+      }
+
+      const loginData = trimmedIdentifier.includes("@")
+        ? { email: trimmedIdentifier, password }
+        : { username: trimmedIdentifier, password }
 
       const response = await apiClient.login(loginData)
 
@@ -406,6 +423,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       debugLog("[hiffi] User data set after login")
 
+      void replayPendingGuestIntents()
+      resetGuestConversionSession()
+      clearGuestHistory()
+
       // Only force admin dashboard redirect for explicit admin-login flows.
       const userRole = String(finalUserData?.role || "").toLowerCase().trim()
       const shouldForceAdminDashboard =
@@ -430,6 +451,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (username: string, password: string, name: string, email: string) => {
     try {
       debugLog("[hiffi] Attempting signup for:", username)
+
+      if (passwordContainsWhitespace(password)) {
+        return { success: false, error: "Password cannot contain spaces." }
+      }
 
       // Register user with backend - returns registration ID for OTP verification
       const response = await apiClient.register({ username, password, name, email })
@@ -523,6 +548,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirected_to: safeDestination,
         username: response.data.user.username,
       })
+      void replayPendingGuestIntents()
+      resetGuestConversionSession()
+      clearGuestHistory()
       debugLog("[hiffi] OTP verification complete, redirecting to:", safeDestination)
       router.replace(safeDestination)
     } catch (error: any) {

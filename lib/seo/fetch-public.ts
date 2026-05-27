@@ -83,6 +83,8 @@ export type SeoVideo = {
   thumbnailUrl: string
   contentUrl: string
   creatorUsername: string
+  /** Display name for SEO titles and MusicVideoObject (falls back to username). */
+  creatorDisplayName: string
   createdAt?: string
   updatedAt?: string
   viewCount?: number
@@ -134,8 +136,17 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       contentUrl = path.startsWith("http") ? path : getVideoUrl(path)
     }
     const creator = (v.user_username || "").trim()
+    const raw = v as Record<string, unknown>
 
-    const raw = v as any
+    let creatorDisplayName = String(
+      raw.user_name ?? raw.userName ?? raw.creator_name ?? raw.artist_name ?? "",
+    ).trim()
+    if (!creatorDisplayName && creator && process.env.HIFFI_SERVER_READ_BEARER?.trim()) {
+      const profile = await fetchUserForSeo(creator)
+      creatorDisplayName = (profile?.name || creator).trim()
+    } else if (!creatorDisplayName) {
+      creatorDisplayName = creator
+    }
     // duration: try video_duration (seconds, number) or video_duration_seconds
     const durRaw = raw.video_duration ?? raw.video_duration_seconds ?? raw.duration_seconds ?? null
     const durationSeconds =
@@ -152,6 +163,7 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       thumbnailUrl: thumb,
       contentUrl,
       creatorUsername: creator,
+      creatorDisplayName,
       createdAt: v.created_at,
       updatedAt: v.updated_at,
       viewCount: typeof raw.video_views === "number" ? raw.video_views : undefined,
@@ -221,6 +233,82 @@ export type HomeFeedVideo = {
  * Used by the server component to provide initial HTML for crawlers.
  * Not cached — matches live backend order and new uploads on every request.
  */
+/** Flatten /videos/list/{username} items to the shape used in profile grids. */
+function flattenUserVideoListItems(rawVideos: unknown[]): Record<string, unknown>[] {
+  if (!Array.isArray(rawVideos)) return []
+
+  return rawVideos.map((item) => {
+    if (!item || typeof item !== "object") return item as Record<string, unknown>
+    const o = item as Record<string, unknown>
+    if (o.video && typeof o.video === "object") {
+      const videoData: Record<string, unknown> = {
+        ...(o.video as Record<string, unknown>),
+        following: o.following || false,
+      }
+      const pic = typeof o.profile_picture === "string" ? o.profile_picture.trim() : ""
+      if (pic) videoData.user_profile_picture = pic
+      return videoData
+    }
+    return o
+  })
+}
+
+/**
+ * Full user record for profile SSR (public GET /users/{username}).
+ */
+export const fetchUserProfileInitial = cache(
+  async (username: string): Promise<Record<string, unknown> | null> => {
+    const u = (username || "").trim().toLowerCase()
+    if (!u) return null
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(u)}`, {
+        headers: buildAuthHeaders(),
+        next: { revalidate: REVALIDATE_SECONDS },
+      })
+      if (!res.ok) return null
+      const json = await res.json()
+      const user = normalizeUserPayload(json)
+      if (!user) return null
+      if (user.image && !user.profile_picture) {
+        user.profile_picture = user.image
+      }
+      return user
+    } catch {
+      return null
+    }
+  },
+)
+
+/**
+ * First page of a user's public videos for profile SSR.
+ */
+export const fetchUserVideosInitial = cache(
+  async (username: string, limit = 10): Promise<Record<string, unknown>[]> => {
+    const u = (username || "").trim().toLowerCase()
+    if (!u) return []
+    try {
+      const qs = new URLSearchParams({ limit: String(limit), offset: "0" })
+      const res = await fetch(
+        `${API_BASE_URL}/videos/list/${encodeURIComponent(u)}?${qs.toString()}`,
+        {
+          headers: buildAuthHeaders(),
+          next: { revalidate: REVALIDATE_SECONDS },
+        },
+      )
+      if (!res.ok) return []
+      const json = await res.json()
+      const o = json as Record<string, unknown>
+      const ok = o.success === true || o.status === "success"
+      if (!ok) return []
+      const data = o.data as Record<string, unknown> | undefined
+      const raw = (data?.videos ?? o.videos) as unknown[] | undefined
+      return flattenUserVideoListItems(raw ?? [])
+    } catch {
+      return []
+    }
+  },
+)
+
 export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
   try {
     const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })

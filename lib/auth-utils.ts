@@ -93,3 +93,15 @@ export function sanitizeInternalPath(path: string | null | undefined, fallback =
   return normalized.replace(/^\/+/, "/")
 }
 
+/** Basic email shape check (matches signup validation). */
+const EMAIL_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function isValidEmailFormat(email: string): boolean {
+  return EMAIL_FORMAT_REGEX.test(email.trim())
+}
+
+/** True if password contains any whitespace (spaces, tabs, newlines). */
+export function passwordContainsWhitespace(password: string): boolean {
+  return /\s/.test(password)
+}
+

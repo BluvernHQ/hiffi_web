@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./config"
+import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
 import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
 import {
   uploadVideo as uploadUploadVideo,
@@ -442,13 +443,21 @@ class ApiClient {
       // Log other errors normally
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       
-      // Provide more helpful error messages for common fetch failures
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      // Fetch failed before HTTP response (offline, DNS, CORS, etc.)
+      const errMsg = error instanceof Error ? error.message.toLowerCase() : ""
+      const looksLikeConnectivityFailure =
+        error instanceof TypeError ||
+        (error instanceof Error &&
+          (errMsg.includes("failed to fetch") ||
+            errMsg.includes("networkerror") ||
+            errMsg.includes("load failed") ||
+            errMsg.includes("network request failed")))
+      if (looksLikeConnectivityFailure) {
         const networkError: ApiError = {
-          message: `Unable to connect to the API server at ${API_BASE_URL}. Please check your internet connection or try again later.`,
+          message: NO_INTERNET_USER_MESSAGE,
           status: 0,
         }
-        console.error(`[API] Network error - API server may be unreachable: ${API_BASE_URL}`)
+        console.error(`[API] Connectivity failure (${API_BASE_URL}):`, error)
         throw networkError
       }
       
@@ -2899,7 +2908,14 @@ class ApiClient {
     }
   }
 
-  async adminGetAnalyticsEvents(params: { hours?: number; limit?: number; offset?: number; filter?: string } = {}): Promise<{
+  async adminGetAnalyticsEvents(params: {
+    hours?: number
+    limit?: number
+    offset?: number
+    filter?: string
+    timestamp_after?: string
+    timestamp_before?: string
+  } = {}): Promise<{
     count: number
     events: Array<{
       timestamp: string

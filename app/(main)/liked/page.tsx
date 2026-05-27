@@ -7,7 +7,9 @@ import { VideoGrid } from "@/components/video/video-grid"
 import { EmptyVideoState } from "@/components/video/empty-video-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
+import { GuestLikedView } from "@/components/conversion/guest-liked-view"
 import { useToast } from "@/hooks/use-toast"
+import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 
 const VIDEOS_PER_PAGE = 20
 
@@ -41,22 +43,33 @@ export default function LikedVideosPage() {
   const [isFetching, setIsFetching] = useState(false)
   
   useEffect(() => {
-    if (!authLoading) {
-      if (!userData?.username) {
-        router.push("/login")
-        return
-      }
-      
+    if (!authLoading && userData?.username) {
       setOffset(0)
       setHasMore(true)
       setVideos([])
       fetchVideos(0, true)
     }
-  }, [userData, authLoading, router])
+  }, [userData, authLoading])
 
   const fetchVideos = async (currentOffset: number, isInitialLoad = false) => {
     if (isFetching) {
       // noisy debug removed
+      return
+    }
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setLoading(false)
+      setLoadingMore(false)
+      setIsFetching(false)
+      setHasMore(false)
+      if (isInitialLoad || currentOffset === 0) {
+        setVideos([])
+        toast({
+          title: "No internet connection",
+          description: userFacingNetworkMessage(),
+          variant: "destructive",
+        })
+      }
       return
     }
 
@@ -101,8 +114,8 @@ export default function LikedVideosPage() {
       if (currentOffset === 0) {
         setVideos([])
         toast({
-          title: "Error",
-          description: "Failed to load liked videos",
+          title: isConnectivityError(error) ? "No internet connection" : "Error",
+          description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load liked videos",
           variant: "destructive",
         })
       } else {
@@ -140,7 +153,7 @@ export default function LikedVideosPage() {
   }
 
   if (!userData?.username) {
-    return null
+    return <GuestLikedView />
   }
 
   return (

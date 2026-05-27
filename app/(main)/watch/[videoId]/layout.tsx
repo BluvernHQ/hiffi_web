@@ -3,7 +3,8 @@ import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchVideoForSeo } from "@/lib/seo/fetch-public"
 import { truncateMetaDescription } from "@/lib/seo/meta"
-import { buildVideoJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/schema"
+import { buildWatchPageJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/schema"
+import { buildWatchPageTitle, buildWatchPageDescription } from "@/lib/seo/watch-meta"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 type RouteParams = { videoId: string }
@@ -32,11 +33,8 @@ export async function generateMetadata({
   }
 
   // Root layout title.template is `%s | Hiffi` — do not append `| Hiffi` here.
-  const title = video.title
-  const description =
-    video.description.length > 0
-      ? truncateMetaDescription(video.description)
-      : `Watch ${video.title}${video.creatorUsername ? ` by ${video.creatorUsername}` : ""} on Hiffi.`
+  const title = buildWatchPageTitle(video)
+  const description = truncateMetaDescription(buildWatchPageDescription(video))
 
   const canonical = absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`)
 
@@ -52,16 +50,16 @@ export async function generateMetadata({
     openGraph: {
       type: "video.other",
       url: canonical,
-      title: video.title,
+      title,
       description,
       siteName: "Hiffi",
       ...(video.thumbnailUrl
-        ? { images: [{ url: video.thumbnailUrl, alt: video.title }] }
+        ? { images: [{ url: video.thumbnailUrl, alt: title }] }
         : {}),
     },
     twitter: {
       card: "summary_large_image",
-      title: video.title,
+      title,
       description,
       ...(video.thumbnailUrl ? { images: [video.thumbnailUrl] } : {}),
     },
@@ -83,15 +81,20 @@ export default async function WatchSegmentLayout({
         { name: "Hiffi", url: getSiteOrigin() },
         { name: "Discover", url: absoluteUrl("/") },
         ...(video.creatorUsername
-          ? [{ name: video.creatorUsername, url: absoluteUrl(`/profile/${encodeURIComponent(video.creatorUsername)}`) }]
+          ? [
+              {
+                name: video.creatorDisplayName || video.creatorUsername,
+                url: absoluteUrl(`/profile/${encodeURIComponent(video.creatorUsername)}`),
+              },
+            ]
           : []),
-        { name: video.title, url: absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`) },
+        { name: buildWatchPageTitle(video), url: absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`) },
       ])
     : null
 
   return (
     <>
-      {video ? <JsonLd data={buildVideoJsonLd(video)} /> : null}
+      {video ? <JsonLd data={buildWatchPageJsonLd(video)} /> : null}
       {breadcrumb ? <JsonLd data={breadcrumb} /> : null}
       {children}
     </>

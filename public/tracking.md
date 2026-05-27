@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             window.HifiAnalytics?.init({
               baseUrl: "https://api.dev.hiffi.com",
               ingestKey: process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null,
-              appVersion: process.env.NEXT_PUBLIC_APP_VERSION || "web-nextjs",
+              appVersion: "web-nextjs",
               autocapture: false,
               flushIntervalMs: 5000,
               maxBatch: 25,

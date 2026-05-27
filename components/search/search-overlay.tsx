@@ -15,6 +15,7 @@ import { ProfilePicture } from '@/components/profile/profile-picture';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from '@/lib/video-utils';
+import { highlightParts, isSuspiciousSqlLikeQuery, normalizeSearchQueryForRequest } from '@/lib/search-query';
 
 interface SearchResult {
   id: string;
@@ -94,7 +95,17 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       // Debounce API call
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          const searchQuery = query.trim();
+          const searchQuery = normalizeSearchQueryForRequest(query)
+          if (!searchQuery) {
+            setSuggestions([])
+            setIsLoading(false)
+            return
+          }
+          if (isSuspiciousSqlLikeQuery(searchQuery)) {
+            setSuggestions([])
+            setIsLoading(false)
+            return
+          }
 
           // Fetch both users and videos in parallel
           const [usersResponse, videosResponse] = await Promise.all([
@@ -381,12 +392,15 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                         <ProfilePicture user={result.user} size="sm" />
                                         <div className="flex-1 min-w-0">
                                           <p className="font-medium truncate">
-                                            @{result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
-                                              part.toLowerCase() === query.toLowerCase() ? (
-                                                <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                            @
+                                            {highlightParts(result.title, query).map((seg, i) =>
+                                              seg.hit ? (
+                                                <mark key={i} className="bg-primary/20 text-primary font-semibold">
+                                                  {seg.text}
+                                                </mark>
                                               ) : (
-                                                <span key={i}>{part}</span>
-                                              )
+                                                <span key={i}>{seg.text}</span>
+                                              ),
                                             )}
                                           </p>
                                         </div>
@@ -470,12 +484,14 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="font-medium truncate mb-1">
-                                          {result.title.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
-                                            part.toLowerCase() === query.toLowerCase() ? (
-                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">{part}</mark>
+                                          {highlightParts(result.title, query).map((seg, i) =>
+                                            seg.hit ? (
+                                              <mark key={i} className="bg-primary/20 text-primary font-semibold">
+                                                {seg.text}
+                                              </mark>
                                             ) : (
-                                              <span key={i}>{part}</span>
-                                            )
+                                              <span key={i}>{seg.text}</span>
+                                            ),
                                           )}
                                         </p>
                                         <p

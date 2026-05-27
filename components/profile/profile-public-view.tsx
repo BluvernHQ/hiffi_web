@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { VideoGrid } from "@/components/video/video-grid"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
-import { AuthDialog } from "@/components/auth/auth-dialog"
+import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
 
 export function ProfilePublicView(props: {
@@ -202,23 +202,29 @@ export function ProfilePublicView(props: {
                             {profileUser.email || currentUserData?.email}
                           </a>
                         </div>
-                        <div className="mt-3">
-                          <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Referral URL</Label>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="min-w-0 flex-1 truncate whitespace-nowrap text-xs sm:text-sm font-medium text-foreground" title={referralUrl}>
-                              {referralUrl}
-                            </p>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7 shrink-0"
-                              onClick={handleCopy}
-                              aria-label="Copy referral URL"
-                            >
-                              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                            </Button>
-                          </div>
+                      </div>
+                    )}
+
+                    {isOwnProfile && (
+                      <div className="pt-3 border-t">
+                        <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Referral URL</Label>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p
+                            className="min-w-0 flex-1 truncate whitespace-nowrap text-xs sm:text-sm font-medium text-foreground"
+                            title={referralUrl}
+                          >
+                            {referralUrl}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={handleCopy}
+                            aria-label="Copy referral URL"
+                          >
+                            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -345,8 +351,14 @@ export function ProfilePublicView(props: {
         <AuthDialog
           open={authDialogOpen}
           onOpenChange={setAuthDialogOpen}
-          title="Sign in to follow creators"
-          description="Create an account or sign in to follow creators and stay updated with their latest videos."
+          title={AUTH_DIALOG_COPY.follow.title}
+          description={AUTH_DIALOG_COPY.follow.description}
+          signupLabel={AUTH_DIALOG_COPY.follow.signupLabel}
+          signinLabel={AUTH_DIALOG_COPY.follow.signinLabel}
+          conversionTrigger="follow_attempt"
+          artistUsername={username}
+          artistDisplayName={profileUser?.name || profileUser?.username}
+          artistUser={profileUser}
         />
       </div>
     </>
