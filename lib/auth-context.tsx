@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
+import { trackUmami, setUmamiUser } from "@/lib/umami"
 import { sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import {
@@ -75,6 +76,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     identifyAnalyticsUser(user?.username ?? null)
   }, [user?.username])
+
+  useEffect(() => {
+    if (!userData) {
+      setUmamiUser(null)
+      return
+    }
+    setUmamiUser({
+      user_id: userData.uid ?? userData.id ?? null,
+      user_username: userData.username ?? null,
+      user_name: userData.name ?? null,
+      user_email: userData.email ?? null,
+    })
+  }, [userData])
 
   const refreshUserData = useCallback(async (forceRefresh = false): Promise<any | null> => {
     const token = apiClient.getAuthToken()
@@ -501,6 +515,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         source: signupSource,
         has_referral_code: Boolean(referralCode),
         redirected_to: safeDestination,
+      })
+      trackUmami("Sign Up Completed", {
+        source: signupSource,
+        has_referral_code: Boolean(referralCode),
+        referral_code: referralCode || null,
+        redirected_to: safeDestination,
+        username: response.data.user.username,
       })
       debugLog("[hiffi] OTP verification complete, redirecting to:", safeDestination)
       router.replace(safeDestination)

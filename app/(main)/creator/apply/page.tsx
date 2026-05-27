@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { setPendingVideoFile } from "@/lib/upload-pending-video"
 import Link from "next/link"
+import { trackUmami } from "@/lib/umami"
 
 export default function BecomeCreatorPage() {
   const { user, userData, loading: authLoading, refreshUserData } = useAuth()
@@ -96,6 +97,9 @@ export default function BecomeCreatorPage() {
       const verifiedRole = verifyResponse?.success ? verifyResponse?.user?.role : null
       
       if (verifiedRole === "creator" || responseRole === "creator") {
+        trackUmami("Creator Account Created", {
+          username: userData?.username ?? null,
+        })
         toast({
           title: "You’re a creator",
           description: "Welcome to Hiffi Studio — upload or manage your profile when you’re ready.",
