@@ -8,6 +8,7 @@ import { VideoCard } from "@/components/video/video-card"
 import { VideoCardSkeleton } from "@/components/video/video-card-skeleton"
 import { HistoryVideoListRow, HistoryVideoListRowSkeleton } from "@/components/video/history-video-list-row"
 import { EmptyVideoState } from "@/components/video/empty-video-state"
+import { OfflineState } from "@/components/network/offline-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { GuestHistoryView } from "@/components/conversion/guest-history-view"
@@ -141,6 +142,7 @@ export default function HistoryPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [isFetching, setIsFetching] = useState(false)
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null)
 
   const fetchVideos = useCallback(async (
     currentOffset: number,
@@ -151,6 +153,7 @@ export default function HistoryPage() {
     const silentRefresh = options?.silent === true
 
     if (typeof navigator !== "undefined" && navigator.onLine === false && !silentRefresh) {
+      setOfflineMessage(userFacingNetworkMessage())
       isFetchingRef.current = false
       setIsFetching(false)
       setLoading(false)
@@ -168,6 +171,9 @@ export default function HistoryPage() {
     }
 
     try {
+      if (!silentRefresh) {
+        setOfflineMessage(null)
+      }
       isFetchingRef.current = true
       setIsFetching(true)
 
@@ -208,6 +214,9 @@ export default function HistoryPage() {
 
       if (currentOffset === 0 && !silentRefresh) {
         setVideos([])
+        if (isConnectivityError(error)) {
+          setOfflineMessage(userFacingNetworkMessage())
+        }
         toast({
           title: isConnectivityError(error) ? "No internet connection" : "Error",
           description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load watch history",
@@ -328,7 +337,17 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {!loading && videos.length === 0 ? (
+        {!loading && videos.length === 0 && offlineMessage ? (
+          <div className="flex min-h-[55vh] items-center justify-center">
+            <OfflineState
+              title="You're offline"
+              description={offlineMessage}
+              className="mx-auto"
+              supportText="Your watch history is safe and will appear once we reconnect."
+              onRetry={() => void fetchVideos(0, true)}
+            />
+          </div>
+        ) : !loading && videos.length === 0 ? (
           <EmptyVideoState
             title="No watch history yet"
             description="Videos you watch will show up here so you can revisit them later."

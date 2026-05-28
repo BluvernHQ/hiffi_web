@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Heart, Loader2 } from "lucide-react"
 import { VideoGrid } from "@/components/video/video-grid"
 import { EmptyVideoState } from "@/components/video/empty-video-state"
+import { OfflineState } from "@/components/network/offline-state"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { GuestLikedView } from "@/components/conversion/guest-liked-view"
@@ -32,7 +32,6 @@ type LikedVideo = {
 }
 
 export default function LikedVideosPage() {
-  const router = useRouter()
   const { userData, loading: authLoading } = useAuth()
   const { toast } = useToast()
   const [videos, setVideos] = useState<LikedVideo[]>([])
@@ -41,6 +40,7 @@ export default function LikedVideosPage() {
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isFetching, setIsFetching] = useState(false)
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null)
   
   useEffect(() => {
     if (!authLoading && userData?.username) {
@@ -58,6 +58,7 @@ export default function LikedVideosPage() {
     }
 
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setOfflineMessage(userFacingNetworkMessage())
       setLoading(false)
       setLoadingMore(false)
       setIsFetching(false)
@@ -74,6 +75,7 @@ export default function LikedVideosPage() {
     }
 
     try {
+      setOfflineMessage(null)
       setIsFetching(true)
 
       if (isInitialLoad) {
@@ -113,6 +115,9 @@ export default function LikedVideosPage() {
 
       if (currentOffset === 0) {
         setVideos([])
+        if (isConnectivityError(error)) {
+          setOfflineMessage(userFacingNetworkMessage())
+        }
         toast({
           title: isConnectivityError(error) ? "No internet connection" : "Error",
           description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load liked videos",
@@ -178,7 +183,17 @@ export default function LikedVideosPage() {
           </div>
         )}
 
-        {!loading && videos.length === 0 ? (
+        {!loading && videos.length === 0 && offlineMessage ? (
+          <div className="flex min-h-[55vh] items-center justify-center">
+            <OfflineState
+              title="You're offline"
+              description={offlineMessage}
+              className="mx-auto"
+              supportText="Your liked videos are safe and will appear once you're back online."
+              onRetry={() => void fetchVideos(0, true)}
+            />
+          </div>
+        ) : !loading && videos.length === 0 ? (
           <EmptyVideoState
             title="No liked videos yet"
             description="Videos you like will show up here so you can revisit them anytime."

@@ -94,6 +94,7 @@ async function getVideoResponseOnce(videoId: string, forceFresh = false) {
 
 const relatedVideosCache = new Map<string, any[]>()
 const inFlightRelatedVideos = new Map<string, Promise<any[]>>()
+const RELATED_FETCH_TIMEOUT_MS = 12000
 
 async function getRelatedVideosOnce(videoId: string) {
   if (relatedVideosCache.has(videoId)) {
@@ -107,7 +108,12 @@ async function getRelatedVideosOnce(videoId: string) {
 
   const request = (async () => {
     const seed = getSeed()
-    const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 50, seed })
+    const videosResponse = await Promise.race([
+      apiClient.getVideoList({ offset: 0, limit: 50, seed }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Related videos request timed out")), RELATED_FETCH_TIMEOUT_MS),
+      ),
+    ])
     const videosArray = videosResponse.videos || []
     const filteredVideos = videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId)
 
@@ -417,6 +423,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   })
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
+  const [relatedRetryNonce, setRelatedRetryNonce] = useState(0)
   const [pageGateError, setPageGateError] = useState<{ headline: string; detail: string } | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [authDialogCopyKey, setAuthDialogCopyKey] = useState<AuthDialogCopyKey>("follow")
@@ -1075,6 +1082,10 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         }
       } catch (suggestionsError) {
         debugWarn("[hiffi] Failed to fetch related videos:", suggestionsError)
+        // Allow reconnect/refetch attempt for this video.
+        if (lastFetchedRelatedIdRef.current === videoId) {
+          lastFetchedRelatedIdRef.current = null
+        }
       } finally {
         if (isInitialRelatedLoad) {
           setIsRelatedLoading(false)
@@ -1083,7 +1094,21 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
 
     fetchRelated()
-  }, [currentVideoId])
+  }, [currentVideoId, relatedRetryNonce])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (!currentVideoId) return
+    if (sidebarSuggestedVideos.length > 0) return
+
+    const handleOnline = () => {
+      lastFetchedRelatedIdRef.current = null
+      setRelatedRetryNonce((n) => n + 1)
+    }
+
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [currentVideoId, sidebarSuggestedVideos.length])
 
   // NOTE: Follow status is now primarily fetched from the getVideo API response
   // which includes the 'following' boolean field. This eliminates the need for 

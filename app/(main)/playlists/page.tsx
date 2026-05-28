@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
+import { OfflineState } from "@/components/network/offline-state"
 import { PlaylistThumbnailStack } from "@/components/video/playlist-thumbnail-stack"
 import {
   Dialog,
@@ -246,10 +247,12 @@ function PlaylistsPageContent() {
   const [pendingRemoveVideoId, setPendingRemoveVideoId] = useState<string | null>(null)
   const [pendingRemoveDeletesPlaylist, setPendingRemoveDeletesPlaylist] = useState(false)
   const [thumbnailTones, setThumbnailTones] = useState<ArtworkTone[] | null>(null)
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null)
 
   const loadList = useCallback(async () => {
     setListLoading(true)
     setNotFound(false)
+    setOfflineMessage(null)
     try {
       const res = await apiClient.listMyPlaylists()
       if (!res.success) {
@@ -268,6 +271,9 @@ function PlaylistsPageContent() {
         description: isConnectivityError(e) ? userFacingNetworkMessage() : err?.message,
         variant: "destructive",
       })
+      if (isConnectivityError(e)) {
+        setOfflineMessage(userFacingNetworkMessage())
+      }
     } finally {
       setListLoading(false)
     }
@@ -305,6 +311,7 @@ function PlaylistsPageContent() {
     async (playlistId: string) => {
       setDetailLoading(true)
       setNotFound(false)
+      setOfflineMessage(null)
       try {
         const res = await apiClient.getPlaylist(playlistId)
         if (!res.success || !res.playlist) {
@@ -343,6 +350,9 @@ function PlaylistsPageContent() {
           description: isConnectivityError(e) ? userFacingNetworkMessage() : err?.message,
           variant: "destructive",
         })
+        if (isConnectivityError(e)) {
+          setOfflineMessage(userFacingNetworkMessage())
+        }
       } finally {
         setDetailLoading(false)
       }
@@ -778,6 +788,16 @@ function PlaylistsPageContent() {
                 <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />
               ))}
             </div>
+          ) : offlineMessage && playlists.length === 0 ? (
+            <div className="flex min-h-[55vh] items-center justify-center">
+              <OfflineState
+                title="You're offline"
+                description={offlineMessage}
+                className="mx-auto"
+                supportText="Your playlists and saved videos are safe."
+                onRetry={() => void loadList()}
+              />
+            </div>
           ) : playlists.length === 0 ? (
             <Card className="mx-auto mt-8 max-w-md border-dashed">
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -865,6 +885,19 @@ function PlaylistsPageContent() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to playlists
           </Button>
+        </div>
+      ) : offlineMessage ? (
+        <div className="relative z-10 flex flex-1 items-center justify-center p-6">
+          <OfflineState
+            title="You're offline"
+            description={offlineMessage}
+            className="mx-auto"
+            supportText="This playlist is still saved. Reconnect to load its videos."
+            onRetry={() => {
+              if (!selectedId) return
+              void loadDetail(selectedId)
+            }}
+          />
         </div>
       ) : (
         <>
