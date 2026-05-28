@@ -28,7 +28,6 @@ type VideoMeta = {
   creator: string
 }
 
-const HOUR_OPTIONS = [1, 6, 12, 24, 48, 72, 168]
 /** `GET /analytics/events` accepts limit 1–100. */
 const LIMIT_OPTIONS = [25, 50, 100]
 
@@ -296,7 +295,6 @@ export function AdminActivityLogsTable() {
   const [events, setEvents] = useState<AnalyticsEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [hours, setHours] = useState(24)
   /** Request page size (API `limit`); pagination uses `offset` + `has_more`. */
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
@@ -322,7 +320,6 @@ export function AdminActivityLogsTable() {
       }
       const apiLimit = Math.min(Math.max(1, limit), 100)
       const response = await apiClient.adminGetAnalyticsEvents({
-        hours: usesCustomRange ? undefined : hours,
         limit: apiLimit,
         offset,
         filter: activityFilter,
@@ -391,11 +388,11 @@ export function AdminActivityLogsTable() {
       return
     }
     fetchEvents()
-  }, [hours, limit, offset, activityFilter, timestampAfter, timestampBefore, timestampRangeInvalid])
+  }, [limit, offset, activityFilter, timestampAfter, timestampBefore, timestampRangeInvalid])
 
   useEffect(() => {
     setOffset(0)
-  }, [query, activityFilter, hours, limit, timestampAfter, timestampBefore])
+  }, [query, activityFilter, limit, timestampAfter, timestampBefore])
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -546,27 +543,6 @@ export function AdminActivityLogsTable() {
             </select>
 
             <select
-              value={hours}
-              onChange={(e) => {
-                setHours(Number(e.target.value))
-              }}
-              disabled={usesCustomRange}
-              title={
-                usesCustomRange
-                  ? "Clear the date range to use a rolling hours window"
-                  : "Rolling time window (ignored when From/To is set)"
-              }
-              aria-label="Rolling time window in hours"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {HOUR_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  Last {option}h
-                </option>
-              ))}
-            </select>
-
-            <select
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value))
@@ -662,7 +638,7 @@ export function AdminActivityLogsTable() {
             </>
           ) : (
             <>
-              Last <span className="font-medium text-foreground">{hours}</span>h window.
+              No rolling time window is applied.
             </>
           )}{" "}
           Search applies to the current page only.
