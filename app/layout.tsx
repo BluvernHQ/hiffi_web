@@ -154,8 +154,9 @@ export default function RootLayout({
     (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com")
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
+  const apiAnalyticsBaseUrl = API_BASE_URL.replace(/\/$/, "")
   const apiAnalyticsSrc = apiAnalyticsEnabled
-    ? `/proxy/tracker.js`
+    ? `${apiAnalyticsBaseUrl}/tracker.js`
     : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
   const analyticsAppVersion = "web-nextjs"
@@ -228,7 +229,7 @@ export default function RootLayout({
         {apiAnalyticsSrc && (
           <ApiAnalyticsTracker
             src={apiAnalyticsSrc}
-            baseUrl="/proxy"
+            baseUrl={apiAnalyticsBaseUrl}
             ingestKey={analyticsIngestKey}
             appVersion={analyticsAppVersion}
           />
