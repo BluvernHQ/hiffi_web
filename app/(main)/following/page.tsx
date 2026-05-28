@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { VideoGrid } from '@/components/video/video-grid'
 import { FollowingEmptyState } from '@/components/video/following-empty-state'
+import { OfflineState } from "@/components/network/offline-state"
 import { useAuth } from '@/lib/auth-context'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
@@ -22,6 +23,7 @@ export default function FollowingPage() {
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isFetching, setIsFetching] = useState(false)
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && userData?.username) {
@@ -40,6 +42,7 @@ export default function FollowingPage() {
     }
 
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setOfflineMessage(userFacingNetworkMessage())
       setLoading(false)
       setLoadingMore(false)
       setIsFetching(false)
@@ -56,6 +59,7 @@ export default function FollowingPage() {
     }
 
     try {
+      setOfflineMessage(null)
       setIsFetching(true)
 
       if (isInitialLoad) {
@@ -106,6 +110,9 @@ export default function FollowingPage() {
         // Set empty array on error for initial load
         setVideos([])
         setHasMore(false)
+        if (isConnectivityError(error)) {
+          setOfflineMessage(userFacingNetworkMessage())
+        }
         toast({
           title: isConnectivityError(error) ? "No internet connection" : "Error",
           description: isConnectivityError(error)
@@ -188,7 +195,17 @@ export default function FollowingPage() {
           )}
 
           {/* Show custom empty state for Following filter */}
-          {!isLoadingVideos && videos.length === 0 ? (
+          {!isLoadingVideos && videos.length === 0 && offlineMessage ? (
+            <div className="flex min-h-[55vh] items-center justify-center">
+              <OfflineState
+                title="You're offline"
+                description={offlineMessage}
+                className="mx-auto"
+                supportText="Your follows and feed are safe. We'll load fresh videos once you're online."
+                onRetry={() => void fetchVideos(0, true)}
+              />
+            </div>
+          ) : !isLoadingVideos && videos.length === 0 ? (
             <FollowingEmptyState
               hasFollowedUsers={true}
               onDiscoverClick={() => router.push('/')}

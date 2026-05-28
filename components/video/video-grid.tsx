@@ -75,6 +75,7 @@ export function VideoGrid({
   const gridRef = useRef<HTMLDivElement>(null)
   const rowHeightRef = useRef(DEFAULT_ROW_HEIGHT_PX)
   const lastLoadTime = useRef<number>(0)
+  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null)
   const columnsPerRow = useGridColumnCount()
 
   const safeVideos = videos || []
@@ -91,6 +92,26 @@ export function VideoGrid({
     return () => window.removeEventListener("resize", measureRowHeight)
   }, [safeVideos.length, columnsPerRow])
 
+  useEffect(() => {
+    const syncScrollRoot = () => {
+      const root = document.getElementById("main-content")
+      setScrollRoot((prev) => {
+        if (prev === root) return prev
+        return root
+      })
+    }
+
+    syncScrollRoot()
+
+    // Keep in sync when layout remounts the scroll container after navigation.
+    const domObserver = new MutationObserver(syncScrollRoot)
+    domObserver.observe(document.body, { childList: true, subtree: true })
+
+    return () => {
+      domObserver.disconnect()
+    }
+  }, [])
+
   const throttledLoadMore = useCallback(() => {
     const now = Date.now()
     if (now - lastLoadTime.current < LOAD_THROTTLE_MS) {
@@ -104,9 +125,7 @@ export function VideoGrid({
 
   useEffect(() => {
     const target = observerTarget.current
-    if (!target || !hasMore) return
-
-    const scrollRoot = document.getElementById("main-content")
+    if (!target || !hasMore || !scrollRoot) return
     const prefetchPx = Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))
 
     const observer = new IntersectionObserver(
@@ -127,7 +146,7 @@ export function VideoGrid({
     return () => {
       observer.unobserve(target)
     }
-  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow])
+  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow, scrollRoot])
 
   const isInitialLoad = loading && safeVideos.length === 0
   const isLoadingMore = loading && safeVideos.length > 0

@@ -119,6 +119,9 @@ export function VideoPlayer({
   const [urlError, setUrlError] = useState<string>("")
   const [playbackNetworkBanner, setPlaybackNetworkBanner] = useState("")
   const connectivityStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const offlineEscalationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resumeAfterReconnectRef = useRef(false)
+  const [connectionNotice, setConnectionNotice] = useState("")
 
   const clearConnectivityStallTimer = () => {
     if (connectivityStallTimerRef.current) {
@@ -126,6 +129,83 @@ export function VideoPlayer({
       connectivityStallTimerRef.current = null
     }
   }
+
+  const clearOfflineEscalationTimer = () => {
+    if (offlineEscalationTimerRef.current) {
+      clearTimeout(offlineEscalationTimerRef.current)
+      offlineEscalationTimerRef.current = null
+    }
+  }
+
+  const showPlaybackNetworkBanner = (message: string) => {
+    clearOfflineEscalationTimer()
+    clearConnectivityStallTimer()
+    const player = playerRef.current
+    resumeAfterReconnectRef.current = Boolean(player && !player.paused())
+    setConnectionNotice("")
+    setPlaybackNetworkBanner(message)
+    setIsBuffering(false)
+    setAutoplayInProgress(false)
+    if (player) {
+      try {
+        // Freeze playback while offline/interrupted to avoid endless background buffering.
+        player.pause()
+      } catch {
+        // no-op
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!playbackNetworkBanner) return
+    if (typeof window === "undefined") return
+
+    const handleOnline = () => {
+      const player = playerRef.current
+      setPlaybackNetworkBanner("")
+      setConnectionNotice("")
+      setIsBuffering(false)
+      clearConnectivityStallTimer()
+      clearOfflineEscalationTimer()
+      if (!player) return
+      try {
+        player.error(null)
+        player.load()
+        if (resumeAfterReconnectRef.current) {
+          void player.play().catch(() => {})
+        }
+      } catch {
+        // no-op
+      } finally {
+        resumeAfterReconnectRef.current = false
+      }
+    }
+
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [playbackNetworkBanner])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const handleOffline = () => {
+      if (!playbackNetworkBanner) {
+        setConnectionNotice("Connection lost. Trying to reconnect...")
+      }
+    }
+
+    const handleOnline = () => {
+      setConnectionNotice("")
+      clearOfflineEscalationTimer()
+    }
+
+    window.addEventListener("offline", handleOffline)
+    window.addEventListener("online", handleOnline)
+    return () => {
+      window.removeEventListener("offline", handleOffline)
+      window.removeEventListener("online", handleOnline)
+    }
+  }, [playbackNetworkBanner])
 
   const [isBuffering, setIsBuffering] = useState(false)
   const [bufferPercentage, setBufferPercentage] = useState(0)
@@ -899,15 +979,22 @@ export function VideoPlayer({
     const handleWaiting = () => {
       setIsBuffering(true)
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        clearConnectivityStallTimer()
-        setPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        setConnectionNotice("Connection lost. Trying to reconnect...")
+        clearOfflineEscalationTimer()
+        // Give playback a short chance to recover before switching to blocking offline state.
+        offlineEscalationTimerRef.current = setTimeout(() => {
+          offlineEscalationTimerRef.current = null
+          if (typeof navigator !== "undefined" && navigator.onLine === false) {
+            showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+          }
+        }, 3500)
         return
       }
       clearConnectivityStallTimer()
       connectivityStallTimerRef.current = setTimeout(() => {
         connectivityStallTimerRef.current = null
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
-          setPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+          showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
           return
         }
         try {
@@ -922,7 +1009,7 @@ export function VideoPlayer({
             }
           }
           if (ahead < 0.35) {
-            setPlaybackNetworkBanner("Connection interrupted. Check your network and try again.")
+            showPlaybackNetworkBanner("Connection interrupted. Check your network and try again.")
           }
         } catch {
           // ignore
@@ -930,8 +1017,10 @@ export function VideoPlayer({
       }, 18000)
     }
     const handleLoadedMetadata = () => {
+      clearOfflineEscalationTimer()
       clearConnectivityStallTimer()
       setPlaybackNetworkBanner("")
+      setConnectionNotice("")
       // Ensure stale "ended" visual state never hides a freshly loaded source.
       setHasEnded(false)
       setShowNextUpOverlay(false)
@@ -948,14 +1037,18 @@ export function VideoPlayer({
       // Keep hook for future diagnostics.
     }
     const handleCanPlay = () => {
+      clearOfflineEscalationTimer()
       clearConnectivityStallTimer()
       setPlaybackNetworkBanner("")
+      setConnectionNotice("")
       setHasEnded(false)
       notifyMediaReady()
     }
     const handlePlaying = () => {
+      clearOfflineEscalationTimer()
       clearConnectivityStallTimer()
       setPlaybackNetworkBanner("")
+      setConnectionNotice("")
       setIsBuffering(false)
       notifyMediaReady()
       
@@ -1032,8 +1125,7 @@ export function VideoPlayer({
       // MEDIA_ERR_NETWORK (2)
       if (code === 2) {
         setIsBuffering(false)
-        clearConnectivityStallTimer()
-        setPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
         return
       }
 
@@ -1092,6 +1184,7 @@ export function VideoPlayer({
     return () => {
       // Listeners are removed when player is disposed in the separate cleanup effect
       isInitializingRef.current = false
+      clearOfflineEscalationTimer()
       clearConnectivityStallTimer()
     }
   }, [isReady, autoPlay, signedPosterUrl, poster])
@@ -1492,6 +1585,10 @@ export function VideoPlayer({
   }
 
   const handleNext = () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+      return
+    }
     const currentSuggestedVideos = suggestedVideosRef.current
     if (!currentSuggestedVideos || currentSuggestedVideos.length === 0) return
     const next = currentSuggestedVideos[0]
@@ -1720,7 +1817,7 @@ export function VideoPlayer({
 
       {playbackNetworkBanner ? (
         <div
-          className="absolute inset-0 z-[45] flex items-center justify-center bg-black/80 px-4 text-center pointer-events-auto animate-in fade-in duration-200"
+          className="absolute inset-0 z-[45] flex items-center justify-center bg-black px-4 text-center pointer-events-auto animate-in fade-in duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           <OfflineState
@@ -1732,8 +1829,14 @@ export function VideoPlayer({
             }
             description={playbackNetworkBanner}
             onRetry={() => {
+              if (typeof navigator !== "undefined" && navigator.onLine === false) {
+                showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+                return
+              }
               clearConnectivityStallTimer()
+              clearOfflineEscalationTimer()
               setPlaybackNetworkBanner("")
+              setConnectionNotice("")
               const p = playerRef.current
               if (p) {
                 try {
@@ -1746,6 +1849,12 @@ export function VideoPlayer({
               }
             }}
           />
+        </div>
+      ) : null}
+
+      {connectionNotice && !playbackNetworkBanner ? (
+        <div className="absolute top-3 left-1/2 z-[44] -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm pointer-events-none">
+          {connectionNotice}
         </div>
       ) : null}
 
@@ -1981,6 +2090,10 @@ export function VideoPlayer({
           nextVideo={suggestedVideos[0]}
           countdownDuration={5}
           onPlay={() => {
+            if (typeof navigator !== "undefined" && navigator.onLine === false) {
+              showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+              return
+            }
             setShowNextUpOverlay(false)
             autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
             if (onVideoEnd) {

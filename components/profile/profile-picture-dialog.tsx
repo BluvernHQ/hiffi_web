@@ -108,12 +108,76 @@ export function ProfilePictureDialog({
     reader.readAsDataURL(file)
   }
 
+  const hasSavedProfilePicture =
+    typeof currentProfilePicture === "string" &&
+    currentProfilePicture.trim() !== ""
+
   const handleRemoveImage = () => {
     setSelectedImage(null)
     setImagePreview(null)
     setHasError(false) // Clear error when removing image
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
+    }
+  }
+
+  const handleRemoveSavedProfilePicture = async () => {
+    setHasError(false)
+
+    try {
+      await apiClient.updateSelfUser({ profile_picture: "" })
+
+      toast({
+        title: "Profile picture removed",
+        description: "Your profile picture has been removed.",
+      })
+
+      setTimeout(async () => {
+        try {
+          if (typeof window !== "undefined") {
+            const cachedData = localStorage.getItem("hiffi_user_data")
+            if (cachedData) {
+              try {
+                const parsed = JSON.parse(cachedData)
+                parsed.profile_picture = ""
+                if ("image" in parsed) parsed.image = ""
+                localStorage.setItem("hiffi_user_data", JSON.stringify(parsed))
+              } catch {
+                localStorage.removeItem("hiffi_user_data")
+              }
+            }
+            localStorage.removeItem("hiffi_user_data_timestamp")
+          }
+          await refreshUserData(true)
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("profilePictureUpdated"))
+          }
+          await onProfileUpdated?.()
+        } catch (error) {
+          console.error("[hiffi] Error refreshing profile after picture removal:", error)
+        }
+      }, 300)
+    } catch (error: unknown) {
+      console.error("[hiffi] Failed to remove profile photo:", error)
+      setHasError(true)
+      toast({
+        title: "Remove failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove profile photo. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRemoveClick = () => {
+    if (selectedImage) {
+      handleRemoveImage()
+      return
+    }
+    if (hasSavedProfilePicture) {
+      void handleRemoveSavedProfilePicture()
     }
   }
 
@@ -287,17 +351,17 @@ export function ProfilePictureDialog({
                   <Camera className="h-4 w-4" />
                   {selectedImage ? "Change Photo" : "Upload Photo"}
                 </Button>
-                {selectedImage && (
+                {(selectedImage || hasSavedProfilePicture) && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleRemoveImage}
+                    onClick={handleRemoveClick}
                     disabled={uploadingImage}
                     className="gap-2"
                   >
                     <X className="h-4 w-4" />
-                    Remove
+                    Remove Photo
                   </Button>
                 )}
               </div>
