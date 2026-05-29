@@ -33,7 +33,7 @@ export function ProfilePictureDialog({
   const [uploadProgress, setUploadProgress] = useState(0)
   const [hasError, setHasError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { refreshUserData } = useAuth()
+  const { refreshUserData, clearProfilePhoto } = useAuth()
   const { toast } = useToast()
 
   // Track the last uploaded image path to keep preview until profile updates
@@ -126,37 +126,32 @@ export function ProfilePictureDialog({
 
     try {
       await apiClient.updateSelfUser({ profile_picture: "" })
+      clearProfilePhoto()
+
+      if (typeof window !== "undefined") {
+        const cachedData = localStorage.getItem("hiffi_user_data")
+        if (cachedData) {
+          try {
+            const parsed = JSON.parse(cachedData)
+            parsed.profile_picture = ""
+            parsed.image = ""
+            localStorage.setItem("hiffi_user_data", JSON.stringify(parsed))
+          } catch {
+            localStorage.removeItem("hiffi_user_data")
+          }
+        }
+        localStorage.removeItem("hiffi_user_data_timestamp")
+      }
 
       toast({
         title: "Profile picture removed",
         description: "Your profile picture has been removed.",
       })
 
-      setTimeout(async () => {
-        try {
-          if (typeof window !== "undefined") {
-            const cachedData = localStorage.getItem("hiffi_user_data")
-            if (cachedData) {
-              try {
-                const parsed = JSON.parse(cachedData)
-                parsed.profile_picture = ""
-                if ("image" in parsed) parsed.image = ""
-                localStorage.setItem("hiffi_user_data", JSON.stringify(parsed))
-              } catch {
-                localStorage.removeItem("hiffi_user_data")
-              }
-            }
-            localStorage.removeItem("hiffi_user_data_timestamp")
-          }
-          await refreshUserData(true)
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("profilePictureUpdated"))
-          }
-          await onProfileUpdated?.()
-        } catch (error) {
-          console.error("[hiffi] Error refreshing profile after picture removal:", error)
-        }
-      }, 300)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("profilePictureUpdated", { detail: { cleared: true } }))
+      }
+      await onProfileUpdated?.()
     } catch (error: unknown) {
       console.error("[hiffi] Failed to remove profile photo:", error)
       setHasError(true)

@@ -17,11 +17,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ProfilePicture } from "@/components/profile/profile-picture"
+import { NavbarProfileAvatar } from "@/components/profile/navbar-profile-avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 
 
 interface NavbarProps {
@@ -226,9 +225,13 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 )}
                 <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <ProfilePicture user={userData} size="sm" />
-                    </Button>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Open account menu"
+                    >
+                      <NavbarProfileAvatar user={userData} />
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">

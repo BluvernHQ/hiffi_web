@@ -12,6 +12,7 @@ import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
 import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
 import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
+import { normalizeUserProfilePictureFields } from "@/lib/utils"
 import {
   clearReferralCode,
   clearReferralRedirectProfile,
@@ -39,6 +40,8 @@ interface AuthContextType {
   verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
   logout: () => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
+  /** Clear profile photo in auth cache/state immediately (used by navbar). */
+  clearProfilePhoto: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -52,6 +55,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  const clearProfilePhoto = useCallback(() => {
+    setUserData((prev) => {
+      if (!prev) return prev
+      const next = normalizeUserProfilePictureFields({
+        ...prev,
+        profile_picture: "",
+        image: "",
+      })
+      if (typeof window !== "undefined") {
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(next))
+        localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+      }
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const onProfilePictureUpdated = (event: Event) => {
+      const cleared = (event as CustomEvent<{ cleared?: boolean }>).detail?.cleared
+      if (!cleared) return
+      clearProfilePhoto()
+    }
+    window.addEventListener("profilePictureUpdated", onProfilePictureUpdated)
+    return () => window.removeEventListener("profilePictureUpdated", onProfilePictureUpdated)
+  }, [clearProfilePhoto])
 
   const identifyAnalyticsUser = (username: string | null) => {
     if (typeof window === "undefined") return
@@ -118,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const age = Date.now() - Number.parseInt(cachedTimestamp)
         if (age < USER_DATA_CACHE_DURATION) {
           debugLog("[hiffi] Using cached user data")
-          const cachedUserData = JSON.parse(cachedData)
+          const cachedUserData = normalizeUserProfilePictureFields(JSON.parse(cachedData))
           setUserData(cachedUserData)
           setUser(cachedUserData)
           return cachedUserData
@@ -167,7 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         debugLog("[hiffi] Profile picture:", (response.user as any).profile_picture || (response.user as any).image)
         // Force state update by creating new object reference to trigger re-renders
         // This ensures navbar and other components that depend on userData will re-render
-        const newUserData = { ...response.user }
+        const newUserData = normalizeUserProfilePictureFields({ ...response.user })
         setUserData(newUserData)
         if (typeof (newUserData as any).name === "string" && typeof (newUserData as any).uid === "string" && typeof (newUserData as any).username === "string") {
           setUser(newUserData as unknown as User)
@@ -178,10 +208,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Cache the user data
         if (typeof window !== "undefined") {
-          localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.user))
+          localStorage.setItem(USER_DATA_KEY, JSON.stringify(newUserData))
           localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
         }
-        return response.user
+        return newUserData
       } else {
         debugWarn("[hiffi] API returned unsuccessful response or user not found in backend")
         setUser(null)
@@ -341,12 +371,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Set initial user data from login response
       setUser(response.data.user)
-      setUserData(response.data.user)
+      setUserData(normalizeUserProfilePictureFields(response.data.user))
       identifyAnalyticsUser(response.data.user.username || null)
 
       // Cache the user data
       if (typeof window !== "undefined") {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(response.data.user)))
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
@@ -499,12 +529,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Set user data from response
       setUser(response.data.user)
-      setUserData(response.data.user)
+      setUserData(normalizeUserProfilePictureFields(response.data.user))
       identifyAnalyticsUser(response.data.user.username || null)
 
       // Cache the user data
       if (typeof window !== "undefined") {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(response.data.user)))
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
@@ -684,7 +714,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading, login, signup, verifyOtp, logout, refreshUserData }}>
+    <AuthContext.Provider value={{ user, userData, loading, login, signup, verifyOtp, logout, refreshUserData, clearProfilePhoto }}>
       {children}
     </AuthContext.Provider>
   )

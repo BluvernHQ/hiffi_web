@@ -44,33 +44,60 @@ export function getAvatarLetter(user: any, fallback: string = "U"): string {
   return (displayName[0] || fallback).toUpperCase();
 }
 
+// True only when user currently has an actual profile photo path.
+export function userHasProfilePhoto(user: any): boolean {
+  if (!user) return false;
+  const primary = String(user.profile_picture ?? "").trim();
+  if (primary) return true;
+  // If profile_picture exists (including empty string), treat it as source of truth.
+  if (Object.prototype.hasOwnProperty.call(user, "profile_picture")) {
+    return false;
+  }
+  return Boolean(String(user.image ?? "").trim());
+}
+
+/** Clear stale image path whenever profile_picture is empty. */
+export function normalizeUserProfilePictureFields<T extends Record<string, unknown>>(user: T): T {
+  const next = { ...user };
+  const primary = String(next.profile_picture ?? "").trim();
+  if (!primary) {
+    next.profile_picture = "";
+    next.image = "";
+  }
+  return next;
+}
+
+/** Raw profile picture path from API user object (no URL construction). */
+export function getProfilePicturePathFromUser(user: any): string {
+  if (!user) return "";
+  if (!userHasProfilePhoto(user)) return "";
+  // When profile_picture exists (including ""), never fall back to stale image.
+  if (Object.prototype.hasOwnProperty.call(user, "profile_picture")) {
+    return String(user.profile_picture ?? "").trim();
+  }
+  return String(user.image ?? "").trim();
+}
+
 // Get profile picture URL with consistent logic
 // Checks profile_picture first, then falls back to other avatar fields
 // If profile_picture is a path (not a full URL), it routes through our proxy
 // Includes cache busting parameter using updated_at timestamp if available
 export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true): string {
   if (!user) {
-    console.log("[utils] getProfilePictureUrl: user is null/undefined");
     return "";
   }
-  
-  // Check profile_picture first (API field name)
-  // Also check 'image' field as it might be used in some API responses
-  const profilePicturePath = (user.profile_picture || user.image || "").toString().trim();
-  console.log("[utils] getProfilePictureUrl:", {
-    hasUser: !!user,
-    profile_picture: user.profile_picture,
-    image: user.image,
-    profilePicturePath,
-    useCacheBusting
-  });
+
+  const profilePicturePath = getProfilePicturePathFromUser(user);
+
+  if (Object.prototype.hasOwnProperty.call(user, "profile_picture") && !profilePicturePath) {
+    return "";
+  }
   
   if (profilePicturePath) {
     
     // If it's already a full URL (starts with http:// or https://), use it directly
     // This includes full Workers URLs like https://black-paper-83cf.hiffi.workers.dev/...
     if (profilePicturePath.startsWith("http://") || profilePicturePath.startsWith("https://")) {
-      console.log("[utils] Profile picture is a full URL, using directly:", profilePicturePath);
       if (useCacheBusting) {
         // Add cache busting parameter - use updated_at if available, otherwise use current timestamp
         const separator = profilePicturePath.includes("?") ? "&" : "?";
@@ -84,7 +111,6 @@ export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true)
     
     // If it's a path (like "ProfileProto/users/..."), construct full Workers URL
     // We'll fetch it with authentication and create a blob URL
-    console.log("[utils] Profile picture is a path, constructing full Workers URL:", profilePicturePath);
     let url = `${WORKERS_BASE_URL}/${profilePicturePath}`;
     
     // Add cache busting parameter if updated_at is available
