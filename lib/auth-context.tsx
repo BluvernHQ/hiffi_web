@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   const clearProfilePhoto = useCallback(() => {
-    setUserData((prev) => {
+    setUserData((prev: Record<string, unknown> | null) => {
       if (!prev) return prev
       const next = normalizeUserProfilePictureFields({
         ...prev,

@@ -58,13 +58,13 @@ export function userHasProfilePhoto(user: any): boolean {
 
 /** Clear stale image path whenever profile_picture is empty. */
 export function normalizeUserProfilePictureFields<T extends Record<string, unknown>>(user: T): T {
-  const next = { ...user };
+  const next: Record<string, unknown> = { ...user };
   const primary = String(next.profile_picture ?? "").trim();
   if (!primary) {
     next.profile_picture = "";
     next.image = "";
   }
-  return next;
+  return next as T;
 }
 
 /** Raw profile picture path from API user object (no URL construction). */
