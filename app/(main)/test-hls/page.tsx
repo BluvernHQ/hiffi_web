@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { WORKERS_BASE_URL } from "@/lib/config"
+import { getWorkersBaseUrl } from "@/lib/config"
 import { getWorkersApiKey } from "@/lib/storage"
 
 export default function TestHLSPage() {
-  const [baseUrl, setBaseUrl] = useState(WORKERS_BASE_URL)
+  const [baseUrl, setBaseUrl] = useState(getWorkersBaseUrl())
   const [videoId, setVideoId] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [config, setConfig] = useState<{ baseUrl: string; videoId: string; apiKey: string } | null>(null)

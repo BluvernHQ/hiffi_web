@@ -5,7 +5,7 @@ import { Play, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { AuthenticatedImage } from "./authenticated-image"
-import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
+import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 
 interface NextUpOverlayProps {
   nextVideo: {
@@ -182,7 +182,7 @@ export function NextUpOverlay({
   const thumbnailUrl = thumbnail && thumbnail.length > 0
     ? getThumbnailUrl(thumbnail)
     : (nextVideoId
-      ? `${WORKERS_BASE_URL}/thumbnails/videos/${nextVideoId}.jpg`
+      ? `${getWorkersBaseUrl()}/thumbnails/videos/${nextVideoId}.jpg`
       : null)
 
   if (!visible) return null

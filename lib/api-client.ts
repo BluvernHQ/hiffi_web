@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./config"
+import { getApiBaseUrl } from "./config"
 import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
 import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
 import {
@@ -235,7 +235,7 @@ class ApiClient {
 
   // Used by api/* modules too
   async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth = false): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`
+    const url = `${getApiBaseUrl()}${endpoint}`
     const method = options.method || "GET"
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -457,7 +457,7 @@ class ApiClient {
           message: NO_INTERNET_USER_MESSAGE,
           status: 0,
         }
-        console.error(`[API] Connectivity failure (${API_BASE_URL}):`, error)
+        console.error(`[API] Connectivity failure (${getApiBaseUrl()}):`, error)
         throw networkError
       }
       

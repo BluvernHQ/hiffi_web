@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
-import { WORKERS_BASE_URL } from "@/lib/storage"
+import { getWorkersBaseUrl } from "@/lib/storage"
 
 /** Faded app logo when a video thumbnail URL is missing or fails to load. */
 export function VideoThumbnailPlaceholder({
@@ -74,8 +74,8 @@ export function AuthenticatedImage({
   const getDisplayUrl = () => {
     if (!src) return null
 
-    if (authenticated && src.startsWith(WORKERS_BASE_URL)) {
-      const path = src.replace(`${WORKERS_BASE_URL}/`, "")
+    if (authenticated && src.startsWith(getWorkersBaseUrl())) {
+      const path = src.replace(`${getWorkersBaseUrl()}/`, "")
       return `/proxy/image/${path}`
     }
 

@@ -4,7 +4,7 @@ import type React from "react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { useGlobalVideo } from "@/lib/video-context"
-import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
+import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
@@ -54,7 +54,7 @@ export function CompactVideoCard({
   const thumbnailUrl = thumbnail && thumbnail.length > 0
     ? getThumbnailUrl(thumbnail)
     : (videoId 
-      ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
+      ? `${getWorkersBaseUrl()}/thumbnails/videos/${videoId}.jpg`
       : null)
 
   const trackVideoOpen = () => {

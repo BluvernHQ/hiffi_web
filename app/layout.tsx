@@ -14,7 +14,7 @@ import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracke
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
-import { API_BASE_URL } from '@/lib/config'
+import { getApiBaseUrl } from '@/lib/config'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" })
@@ -154,7 +154,7 @@ export default function RootLayout({
     (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com")
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
-  const apiAnalyticsBaseUrl = API_BASE_URL.replace(/\/$/, "")
+  const apiAnalyticsBaseUrl = getApiBaseUrl().replace(/\/$/, "")
   const apiAnalyticsSrc = apiAnalyticsEnabled
     ? `${apiAnalyticsBaseUrl}/tracker.js`
     : null

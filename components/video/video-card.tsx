@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { format, formatDistanceToNow } from "date-fns"
 import { Bookmark, Play, MoreVertical, Trash2 } from "lucide-react"
-import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
+import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
@@ -129,7 +129,7 @@ export function VideoCard({
   const thumbnailUrl = thumbnail && thumbnail.length > 0
     ? getThumbnailUrl(thumbnail)
     : (videoId 
-      ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
+      ? `${getWorkersBaseUrl()}/thumbnails/videos/${videoId}.jpg`
       : null)
   
   // Debug logging

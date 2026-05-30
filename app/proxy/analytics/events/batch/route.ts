@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { API_BASE_URL } from "@/lib/config"
+import { getApiBaseUrl } from "@/lib/config"
 
 export async function POST(request: NextRequest) {
   try {
-    const targetUrl = `${API_BASE_URL.replace(/\/$/, "")}/analytics/events/batch`
+    const targetUrl = `${getApiBaseUrl().replace(/\/$/, "")}/analytics/events/batch`
     const authHeader = request.headers.get("authorization")
     const contentType = request.headers.get("content-type") || "application/json"
     const body = await request.text()

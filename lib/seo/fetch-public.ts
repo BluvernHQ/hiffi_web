@@ -1,5 +1,5 @@
 import { cache } from "react"
-import { API_BASE_URL } from "@/lib/config"
+import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
 
 const REVALIDATE_SECONDS = 300
@@ -116,7 +116,7 @@ function buildAuthHeaders(): Record<string, string> {
 export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
   if (!videoId) return null
   try {
-    const res = await fetch(`${API_BASE_URL}/videos/${encodeURIComponent(videoId)}`, {
+    const res = await fetch(`${getApiBaseUrl()}/videos/${encodeURIComponent(videoId)}`, {
       headers: buildAuthHeaders(),
       next: { revalidate: REVALIDATE_SECONDS },
     })
@@ -180,7 +180,7 @@ export const fetchUserForSeo = cache(async (username: string): Promise<SeoProfil
   const u = (username || "").trim().toLowerCase()
   if (!u) return null
   try {
-    const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(u)}`, {
+    const res = await fetch(`${getApiBaseUrl()}/users/${encodeURIComponent(u)}`, {
       headers: buildAuthHeaders(),
       next: { revalidate: REVALIDATE_SECONDS },
     })
@@ -261,7 +261,7 @@ export const fetchUserProfileInitial = cache(
     const u = (username || "").trim().toLowerCase()
     if (!u) return null
     try {
-      const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(u)}`, {
+      const res = await fetch(`${getApiBaseUrl()}/users/${encodeURIComponent(u)}`, {
         headers: buildAuthHeaders(),
         next: { revalidate: REVALIDATE_SECONDS },
       })
@@ -289,7 +289,7 @@ export const fetchUserVideosInitial = cache(
     try {
       const qs = new URLSearchParams({ limit: String(limit), offset: "0" })
       const res = await fetch(
-        `${API_BASE_URL}/videos/list/${encodeURIComponent(u)}?${qs.toString()}`,
+        `${getApiBaseUrl()}/videos/list/${encodeURIComponent(u)}?${qs.toString()}`,
         {
           headers: buildAuthHeaders(),
           next: { revalidate: REVALIDATE_SECONDS },
@@ -312,7 +312,7 @@ export const fetchUserVideosInitial = cache(
 export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
   try {
     const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
-    const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
+    const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
     })
@@ -348,7 +348,7 @@ export async function fetchVideoEntriesForSitemap(maxVideos = 10000): Promise<Si
         offset: String(offset),
         seed,
       })
-      const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
+      const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
         headers: { "Content-Type": "application/json" },
         next: { revalidate: 3600 },
       })

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkersApiKey, WORKERS_BASE_URL } from '@/lib/storage'
+import { getWorkersApiKey, getWorkersBaseUrl } from '@/lib/storage'
 
 /**
  * Generic image proxy that fetches images from Workers with x-api-key header
@@ -32,7 +32,7 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams.toString()
     // Ensure imagePath doesn't start with a slash to avoid double slashes
     const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath
-    const workersUrl = `${WORKERS_BASE_URL}/${cleanPath}${searchParams ? '?' + searchParams : ''}`
+    const workersUrl = `${getWorkersBaseUrl()}/${cleanPath}${searchParams ? '?' + searchParams : ''}`
     
     console.log(`[hiffi] Image proxy: Fetching from Workers URL: ${workersUrl}`)
     

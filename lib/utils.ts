@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { WORKERS_BASE_URL, getWorkersApiKey } from '@/lib/storage'
+import { getWorkersBaseUrl, getWorkersApiKey } from '@/lib/storage'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -111,7 +111,7 @@ export function getProfilePictureUrl(user: any, useCacheBusting: boolean = true)
     
     // If it's a path (like "ProfileProto/users/..."), construct full Workers URL
     // We'll fetch it with authentication and create a blob URL
-    let url = `${WORKERS_BASE_URL}/${profilePicturePath}`;
+    let url = `${getWorkersBaseUrl()}/${profilePicturePath}`;
     
     // Add cache busting parameter if updated_at is available
     if (useCacheBusting) {
@@ -165,7 +165,7 @@ export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Pr
   }
   
   // If it's not a Workers URL, return as is (no auth needed)
-  if (!profilePictureUrl.includes(WORKERS_BASE_URL)) {
+  if (!profilePictureUrl.includes(getWorkersBaseUrl())) {
     return profilePictureUrl;
   }
   
@@ -213,7 +213,7 @@ export function getImageProxyUrl(url: string, type: 'image' | 'profile-picture' 
   const proxyPrefix = `/proxy/${type}/`;
   
   // If it's a Workers URL, convert to proxy URL
-  if (url.includes(WORKERS_BASE_URL)) {
+  if (url.includes(getWorkersBaseUrl())) {
     try {
       const parsedUrl = new URL(url);
       const path = parsedUrl.pathname.replace(/^\//, "");
@@ -221,7 +221,7 @@ export function getImageProxyUrl(url: string, type: 'image' | 'profile-picture' 
       return `${proxyPrefix}${path}${queryString}`;
     } catch (e) {
       // Fallback for relative paths or malformed URLs
-      const path = url.replace(WORKERS_BASE_URL, "").replace(/^\//, "");
+      const path = url.replace(getWorkersBaseUrl(), "").replace(/^\//, "");
       return `${proxyPrefix}${path}`;
     }
   }
