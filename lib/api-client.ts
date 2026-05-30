@@ -32,6 +32,23 @@ import {
   type AdminCommentRow,
   type AdminReplyRow,
 } from "@/lib/api/admin"
+import {
+  getFlagsConfig as flagsGetFlagsConfig,
+  createContentFlag as flagsCreateContentFlag,
+  listMyContentFlags as flagsListMyContentFlags,
+  getContentFlagByReference as flagsGetContentFlagByReference,
+  adminListContentFlags as flagsAdminListContentFlags,
+  adminGetContentFlag as flagsAdminGetContentFlag,
+  adminUpdateContentFlag as flagsAdminUpdateContentFlag,
+} from "@/lib/api/flags"
+import type {
+  AdminListContentFlagsParams,
+  ContentFlag,
+  ContentFlagsListResult,
+  CreateContentFlagInput,
+  FlagsConfigResponse,
+  UpdateContentFlagInput,
+} from "@/lib/types/content-flag"
 const TOKEN_KEY = "hiffi_auth_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
@@ -137,18 +154,54 @@ class ApiClient {
 
   // Used by api/* modules too
   async proxyRequest<T>(pathname: string, searchParams?: URLSearchParams): Promise<T> {
-    const qs = searchParams?.toString()
+    return this.proxyApiRequest<T>(pathname, { method: "GET", searchParams })
+  }
+
+  /** Same-origin proxy (GET/POST/PATCH/…) — avoids CORS for admin routes that block cross-origin PATCH. */
+  async proxyApiRequest<T>(
+    pathname: string,
+    options: { method?: string; body?: string; searchParams?: URLSearchParams } = {},
+  ): Promise<T> {
+    const qs = options.searchParams?.toString()
     const url = qs ? `${pathname}?${qs}` : pathname
-    const headers: Record<string, string> = {}
+    const method = options.method ?? "GET"
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    }
     const token = this.getAuthToken()
     if (token) headers.Authorization = `Bearer ${token}`
-    const res = await fetch(url, { method: "GET", headers, cache: "no-store" })
-    const text = await res.text()
-    try {
-      return JSON.parse(text) as T
-    } catch {
-      return { success: false, status: "error", message: text } as unknown as T
+    if (options.body !== undefined) {
+      headers["Content-Type"] = "application/json"
     }
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: options.body,
+      cache: "no-store",
+    })
+
+    const text = await res.text()
+    let parsed: unknown
+    try {
+      parsed = text ? JSON.parse(text) : {}
+    } catch {
+      if (!res.ok) {
+        throw new Error(text || `Request failed (${res.status})`)
+      }
+      throw new Error("Invalid JSON response from server")
+    }
+
+    if (!res.ok) {
+      const p = parsed as Record<string, unknown>
+      const msg =
+        (typeof p.error === "string" && p.error) ||
+        (typeof p.message === "string" && p.message) ||
+        `Request failed (${res.status})`
+      throw new Error(msg)
+    }
+
+    return parsed as T
   }
 
   // Store and retrieve JWT token
@@ -1413,6 +1466,41 @@ class ApiClient {
     const videoId = videoPath.replace(/^videos\//, "").replace(/\/.*$/, "")
     const response = await this.getVideo(videoId)
     return { video_url: response.video_url }
+  }
+
+  // GET /flags/config - Report UI configuration (reasons, limits)
+  async getFlagsConfig(): Promise<FlagsConfigResponse> {
+    return flagsGetFlagsConfig(this)
+  }
+
+  // POST /flags - Submit a content report
+  async createContentFlag(body: CreateContentFlagInput): Promise<ContentFlag> {
+    return flagsCreateContentFlag(this, body)
+  }
+
+  // GET /flags/self - List reports filed by the authenticated user
+  async listMyContentFlags(params?: { limit?: number; offset?: number }): Promise<ContentFlagsListResult> {
+    return flagsListMyContentFlags(this, params)
+  }
+
+  // GET /flags/ref/{referenceID} - Get a report by case reference
+  async getContentFlagByReference(referenceId: string): Promise<ContentFlag> {
+    return flagsGetContentFlagByReference(this, referenceId)
+  }
+
+  // GET /admin/flags - List content reports (admin)
+  async adminListContentFlags(params?: AdminListContentFlagsParams): Promise<ContentFlagsListResult> {
+    return flagsAdminListContentFlags(this, params)
+  }
+
+  // GET /admin/flags/{flagID} - Get report by UUID (admin)
+  async adminGetContentFlag(flagId: string): Promise<ContentFlag> {
+    return flagsAdminGetContentFlag(this, flagId)
+  }
+
+  // PATCH /admin/flags/{flagID} - Update status / resolution notes (admin)
+  async adminUpdateContentFlag(flagId: string, body: UpdateContentFlagInput): Promise<ContentFlag> {
+    return flagsAdminUpdateContentFlag(this, flagId, body)
   }
 
   // POST /signals/watchhours - Report watched playback telemetry

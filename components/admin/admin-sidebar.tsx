@@ -12,6 +12,7 @@ import {
   Reply,
   UsersRound,
   Megaphone,
+  Flag,
   Shield,
   X,
   ChevronLeft,
@@ -54,6 +55,11 @@ const navItems = [
     value: "replies",
   },
   {
+    icon: Flag,
+    label: "Reports",
+    value: "flags",
+  },
+  {
     icon: Activity,
     label: "Activity Logs",
     value: "activity",
@@ -79,7 +85,9 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const section = searchParams.get("section") || "overview"
+  const section = searchParams.get("flagId")
+    ? "flags"
+    : searchParams.get("section") || "overview"
 
   const handleSectionChange = (value: string) => {
     router.push(`/admin/dashboard?section=${value}`)

@@ -200,8 +200,9 @@ const faqItems: FaqItem[] = [
   {
     question: "How do I report an account or content issue?",
     answer:
-      "Contact support with relevant details at care@hiffi.com. Include profile links, video links, and screenshots to help faster review.",
+      "While signed in, use Report on a video, comment, or profile. Track your cases on My reports. You can also email care@hiffi.com with your case reference, profile links, video links, and screenshots.",
     category: "Account & Support",
+    answerLink: { href: "/support/reports", match: "My reports" },
   },
   {
     question: "How does Hiffi handle privacy and data security?",

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2 } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2, Flag } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -264,6 +264,12 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem asChild>
+                      <Link href="/support/reports" data-analytics-name="navbar-my-reports-link">
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>My reports</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={(e) => {

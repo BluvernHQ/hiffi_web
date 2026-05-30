@@ -29,6 +29,18 @@ export default function SupportPage() {
           </section>
 
           <section className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Content reports</h2>
+            <p className="leading-relaxed text-sm sm:text-base">
+              Use the Report option on videos, comments, or profiles while signed in. You can track submitted cases and
+              their status on{" "}
+              <Link href="/support/reports" className="text-primary hover:underline font-medium">
+                My reports
+              </Link>
+              .
+            </p>
+          </section>
+
+          <section className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">Contact options</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-5 bg-muted/40 rounded-xl border border-border/70 space-y-2">

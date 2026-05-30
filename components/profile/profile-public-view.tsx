@@ -1,5 +1,5 @@
 import { format } from "date-fns"
-import { Calendar, Check, Copy, Edit, Mail, Share2, UserCheck, UserPlus } from "lucide-react"
+import { Calendar, Check, Copy, Edit, Flag, Mail, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -38,6 +38,7 @@ export function ProfilePublicView(props: {
   onVideoDeleted: (videoId: string) => void
   onEditProfileUpdated: () => Promise<void>
   onProfilePictureUpdated: () => Promise<void>
+  onReport?: () => void
 }) {
   const {
     profileUser,
@@ -67,6 +68,7 @@ export function ProfilePublicView(props: {
     onVideoDeleted,
     onEditProfileUpdated,
     onProfilePictureUpdated,
+    onReport,
   } = props
 
   return (
@@ -176,6 +178,18 @@ export function ProfilePublicView(props: {
                 <Button variant="outline" size="icon" className="flex-shrink-0" onClick={handleShare} aria-label="Share profile">
                   <Share2 className="h-4 w-4" />
                 </Button>
+                {onReport && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={onReport}
+                    aria-label="Report profile"
+                    title="Report"
+                  >
+                    <Flag className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
 

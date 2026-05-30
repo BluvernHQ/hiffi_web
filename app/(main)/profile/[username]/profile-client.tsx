@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Share2, Calendar, UserPlus, UserCheck, Copy, Check, Mail } from 'lucide-react';
+import { Edit, Share2, Calendar, UserPlus, UserCheck, Copy, Check, Mail, Flag } from 'lucide-react';
+import { ContentReportDialog } from '@/components/report/content-report-dialog';
+import { buildUserReportMetadata, resolveUserTargetId } from '@/lib/report/build-metadata';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl, isCreator } from '@/lib/utils';
 import { shareUrl } from '@/lib/share';
@@ -77,6 +79,7 @@ export default function ProfilePage({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isProfilePictureDialogOpen, setIsProfilePictureDialogOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [profilePictureVersion, setProfilePictureVersion] = useState(0);
   const [isUnauthenticated, setIsUnauthenticated] = useState(false);
@@ -756,25 +759,47 @@ export default function ProfilePage({
   }
 
   // Members (non-creators) viewed by someone else — no videos / creator chrome
+  const reportUserDialog =
+    !isOwnProfile && profileUser ? (
+      <ContentReportDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        reportType="user"
+        targetId={resolveUserTargetId(profileUser as Record<string, unknown>, username)}
+        targetType="user"
+        metadata={buildUserReportMetadata(
+          profileUser as Record<string, unknown>,
+          username,
+          profileUrl,
+        )}
+        contextLabel="Report user"
+      />
+    ) : null;
+
   if (!profileIsCreator && !isOwnProfile) {
     return (
-      <ProfileMemberView
-        profileUser={profileUser}
-        username={username}
-        isFollowing={isFollowing}
-        isFollowingAction={isFollowingAction}
-        followActionType={followActionType}
-        profilePictureVersion={profilePictureVersion}
-        authDialogOpen={authDialogOpen}
-        setAuthDialogOpen={setAuthDialogOpen}
-        handleShare={handleShare}
-        handleFollow={handleFollow}
-      />
+      <>
+        <ProfileMemberView
+          profileUser={profileUser}
+          username={username}
+          isFollowing={isFollowing}
+          isFollowingAction={isFollowingAction}
+          followActionType={followActionType}
+          profilePictureVersion={profilePictureVersion}
+          authDialogOpen={authDialogOpen}
+          setAuthDialogOpen={setAuthDialogOpen}
+          handleShare={handleShare}
+          handleFollow={handleFollow}
+          onReport={() => setReportDialogOpen(true)}
+        />
+        {reportUserDialog}
+      </>
     );
   }
 
   // Creator profiles — videos grid, stats, follow
   return (
+    <>
     <ProfilePublicView
       profileUser={profileUser}
       username={username}
@@ -811,6 +836,9 @@ export default function ProfilePage({
         await new Promise((resolve) => setTimeout(resolve, 100))
         await fetchUserData(true)
       }}
+      onReport={!isOwnProfile ? () => setReportDialogOpen(true) : undefined}
     />
+    {reportUserDialog}
+    </>
   );
   }

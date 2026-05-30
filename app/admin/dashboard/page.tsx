@@ -23,6 +23,8 @@ import { AdminRepliesTable } from "@/components/admin/replies-table"
 import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
 import { AdminReferralsTable } from "@/components/admin/referrals-table"
 import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
+import { AdminFlagsTable } from "@/components/admin/flags-table"
+import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
@@ -42,6 +44,7 @@ function AdminDashboardContent() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   
   const section = searchParams.get("section") || "overview"
+  const flagId = searchParams.get("flagId")
 
   // Redirect to overview if no section is specified
   useEffect(() => {
@@ -295,6 +298,30 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showContent ? <AdminRepliesTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {section === "flags" && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  {!flagId && (
+                    <div className="shrink-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Content reports</h1>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Review user-submitted flags and update status or resolution notes
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? (
+                      flagId ? (
+                        <AdminFlagDetail flagId={flagId} />
+                      ) : (
+                        <AdminFlagsTable />
+                      )
+                    ) : (
+                      <TableSkeleton />
+                    )}
+                  </div>
                 </div>
               )}
 

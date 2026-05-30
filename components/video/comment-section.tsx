@@ -15,7 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { formatDistanceToNow } from "date-fns"
-import { MessageSquare, Loader2, Trash2, AlertTriangle } from "lucide-react"
+import { MessageSquare, Loader2, Trash2, AlertTriangle, Flag } from "lucide-react"
+import { ContentReportDialog } from "@/components/report/content-report-dialog"
+import { buildCommentReportMetadata } from "@/lib/report/build-metadata"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
@@ -237,6 +239,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
           <CommentItem 
             key={comment.comment_id} 
             comment={comment}
+            videoId={videoId}
             userProfiles={userProfiles}
             fetchUserProfiles={fetchUserProfiles}
             onReplyAdded={fetchComments}
@@ -259,13 +262,15 @@ export function CommentSection({ videoId }: { videoId: string }) {
 }
 
 function CommentItem({ 
-  comment, 
+  comment,
+  videoId,
   userProfiles,
   fetchUserProfiles,
   onReplyAdded,
   onCommentDeleted
 }: { 
-  comment: Comment; 
+  comment: Comment;
+  videoId: string;
   userProfiles: Record<string, any>;
   fetchUserProfiles: (usernames: string[]) => Promise<void>;
   onReplyAdded?: () => void;
@@ -281,6 +286,7 @@ function CommentItem({
   const [isSubmittingReply, setIsSubmittingReply] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
 
   // Fetch profile if missing
   const profileLoaded = !!userProfiles[comment.comment_by_username]
@@ -477,7 +483,29 @@ function CommentItem({
               Delete
             </button>
           )}
+          {!isOwner && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
+              onClick={() => setReportDialogOpen(true)}
+            >
+              <Flag className="h-3 w-3" />
+              Report
+            </button>
+          )}
         </div>
+
+        {!isOwner && (
+          <ContentReportDialog
+            open={reportDialogOpen}
+            onOpenChange={setReportDialogOpen}
+            reportType="comment"
+            targetId={comment.comment_id}
+            targetType="comment"
+            metadata={buildCommentReportMetadata(comment, videoId)}
+            contextLabel="Report comment"
+          />
+        )}
 
         {showReplyInput && user && (
           <form onSubmit={handleReplySubmit} className="mt-2 space-y-2">

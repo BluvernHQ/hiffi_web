@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { Bookmark, ChevronRight, Heart, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
+import { Bookmark, ChevronRight, Flag, Heart, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -39,6 +39,8 @@ import { appendGuestHistoryEntry } from "@/lib/guest-conversion/guest-history"
 import { addPendingFollowIntent, addPendingLikeIntent } from "@/lib/guest-conversion/pending-intents"
 import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
+import { ContentReportDialog } from "@/components/report/content-report-dialog"
+import { buildVideoReportMetadata } from "@/lib/report/build-metadata"
 import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
 import {
   DescriptionWithLinks,
@@ -428,6 +430,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [authDialogCopyKey, setAuthDialogCopyKey] = useState<AuthDialogCopyKey>("follow")
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false)
   const [commentsPreviewLoading, setCommentsPreviewLoading] = useState(false)
@@ -1518,6 +1521,14 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
   }, [videoCreator, currentVideo])
 
+  const reportVideoId = String(
+    playerVideoId || currentVideoId || currentVideo?.video_id || currentVideo?.videoId || "",
+  )
+  const canReportVideo =
+    !!currentVideo &&
+    !!reportVideoId &&
+    (userData?.username ?? "") !== (currentVideo?.userUsername || currentVideo?.user_username)
+
   if (pageGateError && !video) {
     const isNet =
       pageGateError.headline === "No internet connection" ||
@@ -1600,6 +1611,19 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       >
                         <Share2 className="h-5 w-5" />
                       </Button>
+                      {canReportVideo && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={() => setReportDialogOpen(true)}
+                          aria-label="Report video"
+                          title="Report"
+                        >
+                          <Flag className="h-5 w-5" />
+                        </Button>
+                      )}
                       <AddToPlaylistDialogLazy
                         open={addToPlaylistOpen}
                         onOpenChange={setAddToPlaylistOpen}
@@ -1695,6 +1719,19 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           >
                             <Share2 className="h-5 w-5" />
                           </Button>
+                          {canReportVideo && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                              onClick={() => setReportDialogOpen(true)}
+                              aria-label="Report video"
+                              title="Report"
+                            >
+                              <Flag className="h-5 w-5" />
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
@@ -2107,6 +2144,17 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
       />
+      {canReportVideo && currentVideo && (
+        <ContentReportDialog
+          open={reportDialogOpen}
+          onOpenChange={setReportDialogOpen}
+          reportType="video"
+          targetId={reportVideoId}
+          targetType="video"
+          metadata={buildVideoReportMetadata(currentVideo as Record<string, unknown>)}
+          contextLabel="Report video"
+        />
+      )}
     </>
   )
 }

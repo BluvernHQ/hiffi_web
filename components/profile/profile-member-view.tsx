@@ -1,5 +1,5 @@
 import { format } from "date-fns"
-import { Calendar, Share2, UserCheck, UserPlus } from "lucide-react"
+import { Calendar, Flag, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,7 @@ export function ProfileMemberView(props: {
   setAuthDialogOpen: (open: boolean) => void
   handleShare: () => void
   handleFollow: () => void
+  onReport?: () => void
 }) {
   const {
     profileUser,
@@ -30,6 +31,7 @@ export function ProfileMemberView(props: {
     setAuthDialogOpen,
     handleShare,
     handleFollow,
+    onReport,
   } = props
 
   const displayName =
@@ -122,6 +124,11 @@ export function ProfileMemberView(props: {
                 <Button variant="outline" size="icon" onClick={handleShare} aria-label="Share profile">
                   <Share2 className="h-4 w-4" />
                 </Button>
+                {onReport && (
+                  <Button variant="outline" size="icon" onClick={onReport} aria-label="Report profile" title="Report">
+                    <Flag className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
 
