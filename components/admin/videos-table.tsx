@@ -14,6 +14,8 @@ import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,7 @@ export function AdminVideosTable() {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Refs to maintain focus on search input
@@ -68,7 +71,6 @@ export function AdminVideosTable() {
     video_title: "",
     video_description: "",
     user_username: "",
-    user_uid: "",
     video_tag: "",
     video_views_min: "",
     video_views_max: "",
@@ -85,8 +87,15 @@ export function AdminVideosTable() {
   })
 
   const fetchVideos = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setVideos([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
       const offset = Math.max(0, (page - 1) * limit)
       
@@ -97,7 +106,6 @@ export function AdminVideosTable() {
       if (filters.video_title) params.video_title = filters.video_title
       if (filters.video_description) params.video_description = filters.video_description
       if (filters.user_username) params.user_username = filters.user_username
-      if (filters.user_uid) params.user_uid = filters.user_uid
       if (filters.video_tag) params.video_tag = filters.video_tag
       if (filters.video_views_min) params.video_views_min = parseInt(filters.video_views_min)
       if (filters.video_views_max) params.video_views_max = parseInt(filters.video_views_max)
@@ -179,11 +187,11 @@ export function AdminVideosTable() {
         response: response
       })
     } catch (error) {
-      console.error("[admin] Failed to fetch videos:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch videos",
-        variant: "destructive",
+      setVideos([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch videos",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -245,7 +253,6 @@ export function AdminVideosTable() {
     setFilters((prev) => ({
       ...prev,
       user_username: trimmed,
-      user_uid: "",
     }))
     setPage(1)
     setSelectedVideoIds([])
@@ -389,7 +396,6 @@ export function AdminVideosTable() {
       video_title: "",
       video_description: "",
       user_username: "",
-      user_uid: "",
       video_tag: "",
       video_views_min: "",
       video_views_max: "",
@@ -429,6 +435,18 @@ export function AdminVideosTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError && videos.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchVideos()
+        }}
+      />
     )
   }
 
@@ -477,14 +495,6 @@ export function AdminVideosTable() {
               placeholder="Filter by creator..."
               value={filters.user_username}
               onChange={(e) => handleFilterChange("user_username", e.target.value)}
-            />
-          </FilterField>
-          <FilterField label="Creator UID" htmlFor="user_uid">
-            <Input
-              id="user_uid"
-              placeholder="Filter by creator UID..."
-              value={filters.user_uid}
-              onChange={(e) => handleFilterChange("user_uid", e.target.value)}
             />
           </FilterField>
         </FilterSection>

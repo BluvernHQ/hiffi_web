@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, type ChangeEvent } from "react"
 import { Copy, Check, Link as LinkIcon, AlertCircle, Save, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -10,9 +10,27 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 
-function formatUtmParam(val: string) {
-  // auto-format: lowercase, replace spaces with underscores, remove non-alphanumeric/hyphen/underscore
-  return val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '')
+const UTM_PARAM_ERROR = "Only letters, numbers, hyphens, and underscores are allowed"
+const UTM_MEDIUM_TEXT_ERROR = "Enter descriptive text — numbers-only values are not allowed"
+const UTM_PARAM_MAX_LENGTH = 255
+
+function sanitizeUtmParam(val: string) {
+  return val.toLowerCase().replace(/\s+/g, "_").slice(0, UTM_PARAM_MAX_LENGTH)
+}
+
+function validateUtmParam(val: string) {
+  if (!val) return ""
+  if (val.length > UTM_PARAM_MAX_LENGTH) {
+    return `Must be ${UTM_PARAM_MAX_LENGTH} characters or fewer`
+  }
+  return /[^a-z0-9_-]/.test(val) ? UTM_PARAM_ERROR : ""
+}
+
+function validateUtmMedium(val: string) {
+  const baseError = validateUtmParam(val)
+  if (baseError) return baseError
+  if (val && !/[a-z]/.test(val)) return UTM_MEDIUM_TEXT_ERROR
+  return ""
 }
 
 function parseDestinationUrl(
@@ -40,7 +58,6 @@ function parseDestinationUrl(
       if (parsed.hostname !== required.hostname) {
         return { ok: false, error: `Destination domain must match current site (${required.hostname})` }
       }
-      // If current site has explicit port, require it. Helps avoid cross-origin surprises in dev.
       if (required.port && parsed.port !== required.port) {
         return { ok: false, error: `Destination port must match current site (${required.port})` }
       }
@@ -52,6 +69,30 @@ function parseDestinationUrl(
   return { ok: true, url: parsed, origin: new URL(parsed.origin) }
 }
 
+function UtmFieldMeta({
+  value,
+  error,
+}: {
+  value: string
+  error: string
+}) {
+  const atLimit = value.length >= UTM_PARAM_MAX_LENGTH
+  return (
+    <div className="space-y-1">
+      {error ? (
+        <p className="text-xs text-destructive flex items-center">
+          <AlertCircle className="h-3 w-3 mr-1 shrink-0" />
+          {error}
+        </p>
+      ) : null}
+      <p className={cn("text-xs text-right tabular-nums", atLimit ? "text-destructive font-medium" : "text-muted-foreground")}>
+        {value.length}/{UTM_PARAM_MAX_LENGTH}
+        {atLimit ? " — maximum reached" : ""}
+      </p>
+    </div>
+  )
+}
+
 export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
   const { toast } = useToast()
   const [url, setUrl] = useState("")
@@ -61,18 +102,21 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
     if (typeof window === "undefined") return undefined
     return window.location.origin
   }, [])
-  
+
   const [source, setSource] = useState("")
   const [medium, setMedium] = useState("")
   const [campaign, setCampaign] = useState("")
   const [term, setTerm] = useState("")
   const [content, setContent] = useState("")
-  
+
   const [copied, setCopied] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSavedUrl, setLastSavedUrl] = useState("")
 
-  // Validate URL
+  const handleUtmChange = (setter: (value: string) => void) => (e: ChangeEvent<HTMLInputElement>) => {
+    setter(sanitizeUtmParam(e.target.value))
+  }
+
   useEffect(() => {
     if (!url) {
       setUrlError("")
@@ -82,10 +126,25 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
     setUrlError(parsed.ok ? "" : parsed.error)
   }, [url, requiredOrigin])
 
+  const sourceError = useMemo(() => validateUtmParam(source), [source])
+  const mediumError = useMemo(() => validateUtmMedium(medium), [medium])
+  const campaignError = useMemo(() => validateUtmParam(campaign), [campaign])
+  const termError = useMemo(() => validateUtmParam(term), [term])
+  const contentError = useMemo(() => validateUtmParam(content), [content])
+
   const isValid = useMemo(() => {
     const isUrlValid = url.length > 0 && urlError === ""
-    return isUrlValid && source.length > 0 && medium.length > 0 && campaign.length > 0
-  }, [url, urlError, source, medium, campaign])
+    const paramsValid =
+      source.length > 0 &&
+      medium.length > 0 &&
+      campaign.length > 0 &&
+      !sourceError &&
+      !mediumError &&
+      !campaignError &&
+      !termError &&
+      !contentError
+    return isUrlValid && paramsValid
+  }, [url, urlError, source, medium, campaign, sourceError, mediumError, campaignError, termError, contentError])
 
   const generatedUrl = useMemo(() => {
     if (!isValid) return ""
@@ -102,7 +161,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
     } catch {
       return ""
     }
-  }, [url, source, medium, campaign, term, content, isValid])
+  }, [url, source, medium, campaign, term, content, isValid, requiredOrigin])
 
   const isDuplicateInSession = useMemo(
     () => generatedUrl.length > 0 && generatedUrl === lastSavedUrl,
@@ -134,7 +193,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
       const res = await apiClient.adminCreateUtmGeneratedUrl({
         url: generatedUrl,
         utm_source: source,
-        label: campaign
+        label: campaign,
       })
       if (res.success !== false) {
         setLastSavedUrl(generatedUrl)
@@ -220,8 +279,11 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
                 id="b_source"
                 placeholder="instagram, complex_mag"
                 value={source}
-                onChange={(e) => setSource(formatUtmParam(e.target.value))}
+                maxLength={UTM_PARAM_MAX_LENGTH}
+                onChange={handleUtmChange(setSource)}
+                className={cn(sourceError && "border-destructive focus-visible:ring-destructive")}
               />
+              <UtmFieldMeta value={source} error={sourceError} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="b_medium" className="text-xs font-semibold uppercase text-muted-foreground flex justify-between">
@@ -231,8 +293,11 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
                 id="b_medium"
                 placeholder="social, email_blast"
                 value={medium}
-                onChange={(e) => setMedium(formatUtmParam(e.target.value))}
+                maxLength={UTM_PARAM_MAX_LENGTH}
+                onChange={handleUtmChange(setMedium)}
+                className={cn(mediumError && "border-destructive focus-visible:ring-destructive")}
               />
+              <UtmFieldMeta value={medium} error={mediumError} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="b_campaign" className="text-xs font-semibold uppercase text-muted-foreground flex justify-between">
@@ -242,13 +307,16 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
                 id="b_campaign"
                 placeholder="summer_drop, new_artist_promo"
                 value={campaign}
-                onChange={(e) => setCampaign(formatUtmParam(e.target.value))}
+                maxLength={UTM_PARAM_MAX_LENGTH}
+                onChange={handleUtmChange(setCampaign)}
+                className={cn(campaignError && "border-destructive focus-visible:ring-destructive")}
               />
+              <UtmFieldMeta value={campaign} error={campaignError} />
             </div>
           </div>
-          
+
           <div className="grid gap-4 sm:grid-cols-2 p-4 rounded-lg border border-dashed">
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="b_term" className="text-xs font-semibold uppercase text-muted-foreground flex justify-between">
                 <span>Term</span>
                 <span className="font-normal opacity-70">(Optional)</span>
@@ -257,8 +325,11 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
                 id="b_term"
                 placeholder="underground_rap, drill_beats"
                 value={term}
-                onChange={(e) => setTerm(formatUtmParam(e.target.value))}
+                maxLength={UTM_PARAM_MAX_LENGTH}
+                onChange={handleUtmChange(setTerm)}
+                className={cn(termError && "border-destructive focus-visible:ring-destructive")}
               />
+              <UtmFieldMeta value={term} error={termError} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="b_content" className="text-xs font-semibold uppercase text-muted-foreground flex justify-between">
@@ -269,8 +340,11 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
                 id="b_content"
                 placeholder="bio_link, swipe_up_video"
                 value={content}
-                onChange={(e) => setContent(formatUtmParam(e.target.value))}
+                maxLength={UTM_PARAM_MAX_LENGTH}
+                onChange={handleUtmChange(setContent)}
+                className={cn(contentError && "border-destructive focus-visible:ring-destructive")}
               />
+              <UtmFieldMeta value={content} error={contentError} />
             </div>
           </div>
         </div>
@@ -278,21 +352,21 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
       <CardFooter className="bg-muted/40 border-t p-6 flex flex-col items-start gap-3">
         <Label className="text-sm font-semibold uppercase text-muted-foreground">Generated Campaign URL</Label>
         <div className="flex w-full items-center gap-3 flex-wrap sm:flex-nowrap">
-          <Input 
-            readOnly 
-            value={generatedUrl || "Fill in required fields to generate URL"} 
+          <Input
+            readOnly
+            value={generatedUrl || "Fill in required fields to generate URL"}
             className={cn(
               "font-mono text-sm h-12 shadow-inner transition-colors",
-              generatedUrl ? "bg-background text-foreground" : "bg-muted/50 text-muted-foreground/60 italic"
+              generatedUrl ? "bg-background text-foreground" : "bg-muted/50 text-muted-foreground/60 italic",
             )}
             onFocus={(e) => e.target.select()}
           />
-          <Button 
-            onClick={handleCopy} 
+          <Button
+            onClick={handleCopy}
             size="lg"
             className={cn(
               "shrink-0 h-12 w-full sm:w-auto min-w-[140px] transition-all font-semibold",
-              copied ? "bg-green-600 hover:bg-green-700 text-white" : ""
+              copied ? "bg-green-600 hover:bg-green-700 text-white" : "",
             )}
             disabled={!isValid}
           >
@@ -308,8 +382,8 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
               </>
             )}
           </Button>
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             size="lg"
             variant="outline"
             className="shrink-0 h-12 w-full sm:w-auto font-semibold"

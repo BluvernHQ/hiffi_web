@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { cn } from "@/lib/utils"
 
 type AnalyticsEvent = {
@@ -292,6 +294,7 @@ function computeHasMorePage(
 
 export function AdminActivityLogsTable() {
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [events, setEvents] = useState<AnalyticsEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -312,12 +315,21 @@ export function AdminActivityLogsTable() {
 
   const fetchEvents = async (isRefresh = false) => {
     let refreshSucceeded = false
+    if (guardOfflineBeforeFetch()) {
+      setApiPageLength(0)
+      setHasMore(false)
+      setEvents([])
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
     try {
       if (isRefresh) {
         setRefreshing(true)
       } else {
         setLoading(true)
       }
+      clearNetworkError()
       const apiLimit = Math.min(Math.max(1, limit), 100)
       const response = await apiClient.adminGetAnalyticsEvents({
         limit: apiLimit,
@@ -361,11 +373,10 @@ export function AdminActivityLogsTable() {
     } catch (error) {
       setApiPageLength(0)
       setHasMore(false)
-      console.error("[admin] Failed to fetch activity logs:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch activity logs",
-        variant: "destructive",
+      setEvents([])
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch activity logs",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -499,6 +510,18 @@ export function AdminActivityLogsTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchEvents()
+        }}
+      />
     )
   }
 
@@ -637,9 +660,7 @@ export function AdminActivityLogsTable() {
               .
             </>
           ) : (
-            <>
-              No rolling time window is applied.
-            </>
+            <>Use From/To to limit by date and time.</>
           )}{" "}
           Search applies to the current page only.
           {timestampRangeInvalid ? (

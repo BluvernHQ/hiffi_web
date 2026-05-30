@@ -10,6 +10,8 @@ import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/u
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import {
   Dialog,
   DialogContent,
@@ -38,6 +40,7 @@ export function AdminRepliesTable() {
   const [videoNames, setVideoNames] = useState<Record<string, string>>({})
   const [loadingDetails, setLoadingDetails] = useState(false)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
@@ -145,8 +148,15 @@ export function AdminRepliesTable() {
   }
 
   const fetchReplies = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setReplies([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       const offset = (page - 1) * limit
       const params: any = { limit, offset, filter: filter || undefined }
       
@@ -188,11 +198,11 @@ export function AdminRepliesTable() {
         await fetchCommentDetails(commentsToFetch)
       }
     } catch (error) {
-      console.error("[admin] Failed to fetch replies:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch replies",
-        variant: "destructive",
+      setReplies([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch replies",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -263,6 +273,18 @@ export function AdminRepliesTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError && replies.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchReplies()
+        }}
+      />
     )
   }
 

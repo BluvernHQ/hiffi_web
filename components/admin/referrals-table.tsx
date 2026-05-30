@@ -8,6 +8,8 @@ import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 
@@ -125,6 +127,7 @@ function UserProfilePreview({ user }: { user: ReferralAvatarUser }) {
 
 export function AdminReferralsTable() {
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [rows, setRows] = useState<ReferralRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -137,12 +140,20 @@ export function AdminReferralsTable() {
 
   const fetchReferrals = async (isRefresh = false) => {
     let refreshSucceeded = false
+    if (guardOfflineBeforeFetch()) {
+      setRows([])
+      setCount(0)
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
     try {
       if (isRefresh) {
         setRefreshing(true)
       } else {
         setLoading(true)
       }
+      clearNetworkError()
 
       const response = await apiClient.adminGetReferals({ limit, offset })
       const raw = (response.referals || []) as Record<string, unknown>[]
@@ -150,11 +161,11 @@ export function AdminReferralsTable() {
       setCount(response.count || 0)
       refreshSucceeded = true
     } catch (error) {
-      console.error("[admin] Failed to fetch referrals:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load referrals",
-        variant: "destructive",
+      setRows([])
+      setCount(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to load referrals",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -234,6 +245,18 @@ export function AdminReferralsTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchReferrals()
+        }}
+      />
     )
   }
 

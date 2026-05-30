@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, Share2, RefreshCw } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { apiClient } from "@/lib/api-client"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 
 interface AnalyticsData {
   totalUsers: number
@@ -25,11 +27,17 @@ interface AnalyticsData {
 export function AnalyticsOverview() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true)
+  const fetchAnalytics = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setAnalytics(null)
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      clearNetworkError()
         
         // Fetch counters from API - get raw values from counters endpoint
         const countersResponse = await apiClient.adminCounters()
@@ -89,13 +97,15 @@ export function AnalyticsOverview() {
           lastUpdated: counters.updated_at,
         })
       } catch (error) {
-        console.error("[admin] Failed to fetch analytics:", error)
+        setAnalytics(null)
+        handleFetchError(error)
       } finally {
         setLoading(false)
       }
-    }
+  }
 
-    fetchAnalytics()
+  useEffect(() => {
+    void fetchAnalytics()
   }, [])
 
   if (loading) {
@@ -162,6 +172,17 @@ export function AnalyticsOverview() {
   }
 
   if (!analytics) {
+    if (networkError) {
+      return (
+        <AdminOfflineState
+          message={networkError}
+          onRetry={() => {
+            clearNetworkError()
+            void fetchAnalytics()
+          }}
+        />
+      )
+    }
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>Unable to load analytics data</p>

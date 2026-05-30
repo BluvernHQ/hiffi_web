@@ -11,6 +11,8 @@ import { ProfilePicture } from "@/components/profile/profile-picture"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import {
   Dialog,
   DialogContent,
@@ -64,6 +66,7 @@ export function AdminUsersTable() {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
@@ -114,8 +117,15 @@ export function AdminUsersTable() {
   })
 
   const fetchUsers = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setUsers([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
       const offset = Math.max(0, (page - 1) * limit)
       
@@ -315,11 +325,11 @@ export function AdminUsersTable() {
         searchQuery: isSearchBarActive ? searchQuery : undefined,
       })
     } catch (error) {
-      console.error("[admin] Failed to fetch users:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive",
+      setUsers([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch users",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -630,6 +640,18 @@ export function AdminUsersTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError && users.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchUsers()
+        }}
+      />
     )
   }
 

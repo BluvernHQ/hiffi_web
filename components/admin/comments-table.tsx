@@ -10,6 +10,8 @@ import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/u
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,7 @@ export function AdminCommentsTable() {
   const [videoNames, setVideoNames] = useState<Record<string, string>>({})
   const [loadingVideos, setLoadingVideos] = useState(false)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
@@ -93,8 +96,15 @@ export function AdminCommentsTable() {
   }
 
   const fetchComments = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setComments([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       const offset = (page - 1) * limit
       const params: any = { limit, offset, filter: filter || undefined }
       
@@ -138,11 +148,11 @@ export function AdminCommentsTable() {
         await fetchVideoNames(videosToFetch)
       }
     } catch (error) {
-      console.error("[admin] Failed to fetch comments:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch comments",
-        variant: "destructive",
+      setComments([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch comments",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -213,6 +223,18 @@ export function AdminCommentsTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError && comments.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchComments()
+        }}
+      />
     )
   }
 

@@ -232,8 +232,6 @@ export async function adminGetAnalyticsEvents(
   } = {},
 ) {
   const sp = new URLSearchParams()
-  const hasTimestampBounds = Boolean(params.timestamp_after?.trim() || params.timestamp_before?.trim())
-  if (!hasTimestampBounds && params.hours != null) sp.set("hours", String(params.hours))
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
   if (params.filter != null) sp.set("filter", params.filter.trim() || "all")
