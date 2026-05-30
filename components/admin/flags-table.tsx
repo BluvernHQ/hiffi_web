@@ -15,6 +15,7 @@ import type { ContentFlag, ContentFlagStatus } from "@/lib/types/content-flag"
 import { formatReportReason } from "@/lib/report/build-metadata"
 import { formatReportType } from "@/lib/report/flag-display"
 import { listRowSummary } from "@/lib/report/flag-display"
+import { getPrimaryAdminFlagTargetLink } from "@/lib/report/admin-flag-links"
 import { cn } from "@/lib/utils"
 
 const TERMINAL_STATUSES: ContentFlagStatus[] = ["resolved", "dismissed", "closed"]
@@ -28,6 +29,19 @@ const DEFAULT_STATUSES: ContentFlagStatus[] = [
   "dismissed",
   "closed",
 ]
+
+/** Polymorphic target_type values from the flags API */
+const TARGET_TYPES = [
+  "video",
+  "comment",
+  "user",
+  "creator",
+  "stream",
+  "livestream",
+  "chat_message",
+  "live_chat",
+  "platform",
+] as const
 
 function formatStatus(status: string): string {
   return status.replace(/_/g, " ")
@@ -57,9 +71,7 @@ export function AdminFlagsTable() {
   const [filterStatus, setFilterStatus] = useState("")
   const [filterReportType, setFilterReportType] = useState("")
   const [filterReferenceId, setFilterReferenceId] = useState("")
-  const [filterTargetId, setFilterTargetId] = useState("")
   const [filterTargetType, setFilterTargetType] = useState("")
-  const [filterReporterId, setFilterReporterId] = useState("")
 
   useEffect(() => {
     apiClient
@@ -91,9 +103,7 @@ export function AdminFlagsTable() {
         status: filterStatus || undefined,
         report_type: filterReportType || undefined,
         reference_id: filterReferenceId.trim() || undefined,
-        target_id: filterTargetId.trim() || undefined,
-        target_type: filterTargetType.trim() || undefined,
-        reporter_id: filterReporterId.trim() || undefined,
+        target_type: filterTargetType || undefined,
       })
       setFlags(result.flags)
       setHasMore(result.flags.length >= limit)
@@ -111,9 +121,7 @@ export function AdminFlagsTable() {
     filterStatus,
     filterReportType,
     filterReferenceId,
-    filterTargetId,
     filterTargetType,
-    filterReporterId,
     guardOfflineBeforeFetch,
     clearNetworkError,
     handleFetchError,
@@ -179,25 +187,19 @@ export function AdminFlagsTable() {
           <Label htmlFor="filter-target-type" className="text-xs">
             Target type
           </Label>
-          <Input
+          <select
             id="filter-target-type"
-            placeholder="video, user…"
             value={filterTargetType}
             onChange={(e) => setFilterTargetType(e.target.value)}
-            className="h-9"
-          />
-        </div>
-        <div className="space-y-1 flex-1 min-w-[140px]">
-          <Label htmlFor="filter-reporter" className="text-xs">
-            Reporter UID
-          </Label>
-          <Input
-            id="filter-reporter"
-            value={filterReporterId}
-            onChange={(e) => setFilterReporterId(e.target.value)}
-            className="h-9"
-            placeholder="User UID"
-          />
+            className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+          >
+            <option value="">All</option>
+            {TARGET_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {formatReportType(type)}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1 flex-1 min-w-[160px]">
           <Label htmlFor="filter-ref" className="text-xs">
@@ -208,17 +210,6 @@ export function AdminFlagsTable() {
             placeholder="FLT-..."
             value={filterReferenceId}
             onChange={(e) => setFilterReferenceId(e.target.value)}
-            className="h-9"
-          />
-        </div>
-        <div className="space-y-1 flex-1 min-w-[140px]">
-          <Label htmlFor="filter-target" className="text-xs">
-            Target ID
-          </Label>
-          <Input
-            id="filter-target"
-            value={filterTargetId}
-            onChange={(e) => setFilterTargetId(e.target.value)}
             className="h-9"
           />
         </div>
@@ -274,6 +265,19 @@ export function AdminFlagsTable() {
                       >
                         {listRowSummary(flag)}
                       </Link>
+                      {(() => {
+                        const adminLink = getPrimaryAdminFlagTargetLink(flag)
+                        if (!adminLink) return null
+                        return (
+                          <Link
+                            href={adminLink.href}
+                            className="mt-1 inline-block text-xs text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {adminLink.label}
+                          </Link>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3">{formatReportReason(flag.reason)}</td>
                     <td className="px-4 py-3">

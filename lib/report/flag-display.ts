@@ -25,6 +25,8 @@ export type FlagDisplayModel = {
   statusLabel: string
   reporterLabel: string
   reporterSubLabel: string | null
+  reporterUsername: string | null
+  reporterUid: string | null
   targetTitle: string
   targetSubtitle: string | null
   targetHref: string | null
@@ -109,6 +111,8 @@ export function buildFlagDisplayModel(flag: ContentFlag): FlagDisplayModel {
     statusLabel: flag.status.replace(/_/g, " "),
     reporterLabel: "Reporter",
     reporterSubLabel: null,
+    reporterUsername: null,
+    reporterUid: null,
     targetTitle,
     targetSubtitle,
     targetHref,
@@ -129,12 +133,16 @@ export function applyReporterDisplay(
       ...model,
       reporterLabel: reporter.name?.trim() || reporter.username,
       reporterSubLabel: `@${reporter.username}`,
+      reporterUsername: reporter.username,
+      reporterUid: reporter.uid ?? reporterId,
     }
   }
   return {
     ...model,
     reporterLabel: "Reporter",
     reporterSubLabel: reporterId.length > 16 ? `${reporterId.slice(0, 8)}…${reporterId.slice(-4)}` : reporterId,
+    reporterUsername: null,
+    reporterUid: reporterId,
   }
 }
 

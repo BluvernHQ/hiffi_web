@@ -13,6 +13,8 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
+import { readAdminTableUrlFilters, hasAdminTableDeepLink, stripAdminTableFilterParams } from "@/lib/report/admin-table-url-filters"
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,8 @@ export function AdminUsersTable() {
     const n = parseInt(raw, 10)
     return Number.isFinite(n) && n >= 1 ? n : 1
   }, [searchParams])
+
+  const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
 
   const syncUsersPageToUrl = useCallback(
     (nextPage: number) => {
@@ -71,11 +75,15 @@ export function AdminUsersTable() {
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
   useEffect(() => {
+    if (hasAdminTableDeepLink(urlFilters)) {
+      setIsFilterCollapsed(false)
+      return
+    }
     const savedState = localStorage.getItem("admin-filter-collapsed")
     if (savedState !== null) {
       setIsFilterCollapsed(savedState === "true")
     }
-  }, [])
+  }, [urlFilters.userUid, urlFilters.userUsername])
 
   // Save collapsed state to localStorage (shared across all admin pages)
   const handleToggleCollapse = () => {
@@ -99,22 +107,29 @@ export function AdminUsersTable() {
   const nameFilterRef = useRef<HTMLInputElement>(null)
   const wasFilterFocusedRef = useRef<string | null>(null)
 
-  // Filter state
-  const [filters, setFilters] = useState({
-    username: "",
-    name: "",
-    role: "",
-    followers_min: "",
-    followers_max: "",
-    following_min: "",
-    following_max: "",
-    total_videos_min: "",
-    total_videos_max: "",
-    created_after: "",
-    created_before: "",
-    updated_after: "",
-    updated_before: "",
+  // Filter state — seed from URL so the first fetch is already scoped
+  const [filters, setFilters] = useState(() => {
+    const fromUrl = readAdminTableUrlFilters(searchParams)
+    return {
+      uid: fromUrl.userUid,
+      username: fromUrl.userUsername,
+      name: "",
+      role: "",
+      followers_min: "",
+      followers_max: "",
+      following_min: "",
+      following_max: "",
+      total_videos_min: "",
+      total_videos_max: "",
+      created_after: "",
+      created_before: "",
+      updated_after: "",
+      updated_before: "",
+    }
   })
+
+  const resolvedUid = filters.uid.trim() || urlFilters.userUid
+  const resolvedUsername = filters.username.trim() || urlFilters.userUsername
 
   const fetchUsers = async () => {
     if (guardOfflineBeforeFetch()) {
@@ -145,6 +160,7 @@ export function AdminUsersTable() {
         const baseParams: any = { limit, offset: 0 }
         
         if (filters.role) baseParams.role = filters.role
+        if (resolvedUid) baseParams.uid = resolvedUid
         if (filters.followers_min) baseParams.followers_min = parseInt(filters.followers_min)
         if (filters.followers_max) baseParams.followers_max = parseInt(filters.followers_max)
         if (filters.following_min) baseParams.following_min = parseInt(filters.following_min)
@@ -236,8 +252,9 @@ export function AdminUsersTable() {
         const params: any = { limit, offset }
         
         // Individual filters: send both if they have different values
-        if (filters.username) params.username = filters.username
+        if (resolvedUsername) params.username = resolvedUsername
         if (filters.name) params.name = filters.name
+        if (resolvedUid) params.uid = resolvedUid
         if (filters.role) params.role = filters.role
         if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
         if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
@@ -357,15 +374,26 @@ export function AdminUsersTable() {
   // Hydrate search from URL query (e.g., /admin/dashboard?section=users&q=username)
   useEffect(() => {
     const q = (searchParams.get("q") || "").trim()
-    if (!q) return
-    setSearchInput(q)
-    setSearchQuery(q)
-    syncUsersPageToUrl(1)
+    if (q) {
+      setSearchInput(q)
+      setSearchQuery(q)
+      syncUsersPageToUrl(1)
+    }
+
+    const { userUid, userUsername } = readAdminTableUrlFilters(searchParams)
+    if (userUid || userUsername) {
+      setFilters((prev) => ({
+        ...prev,
+        ...(userUid && prev.uid !== userUid ? { uid: userUid } : {}),
+        ...(userUsername && prev.username !== userUsername ? { username: userUsername } : {}),
+      }))
+      setIsFilterCollapsed(false)
+    }
   }, [searchParams])
 
   useEffect(() => {
     fetchUsers()
-  }, [page, filters, searchQuery, sortKey, sortDirection])
+  }, [page, filters, searchQuery, sortKey, sortDirection, resolvedUid, resolvedUsername])
 
   // Maintain focus on search input after re-renders
   // This runs whenever users, loading, or searchInput changes to ensure focus is maintained during search
@@ -513,6 +541,7 @@ export function AdminUsersTable() {
     setSearchInput("")
     setSearchQuery("")
     setFilters({
+      uid: "",
       username: "",
       name: "",
       role: "",
@@ -527,10 +556,24 @@ export function AdminUsersTable() {
       updated_after: "",
       updated_before: "",
     })
-    syncUsersPageToUrl(1)
+
+    const fromWindow =
+      typeof window !== "undefined" &&
+      window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
+    const params = stripAdminTableFilterParams(
+      new URLSearchParams(fromWindow ? window.location.search.slice(1) : searchParams.toString()),
+    )
+    if (!params.get("section")) params.set("section", "users")
+    params.delete(USERS_PAGE_QUERY)
+    router.replace(`/admin/dashboard?${params.toString()}`)
   }
 
-  const hasActiveFilters = searchQuery.trim() !== "" || Object.values(filters).some((v) => v !== "")
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    Object.values(filters).some((v) => v !== "") ||
+    !!urlFilters.userUid ||
+    !!urlFilters.userUsername ||
+    !!(searchParams.get("q") || "").trim()
   const totalPages = Math.ceil(total / limit)
   const maxUsersPage = total <= 0 ? 1 : Math.max(1, totalPages)
 
@@ -664,11 +707,21 @@ export function AdminUsersTable() {
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         onClear={clearFilters}
-        activeFilterCount={Object.values(filters).filter((v) => v !== "").length}
+        activeFilterCount={
+          Object.values(filters).filter((v) => v !== "").length + (searchQuery.trim() ? 1 : 0)
+        }
         isCollapsed={isFilterCollapsed}
         onToggleCollapse={handleToggleCollapse}
       >
         <FilterSection title="Search">
+          <FilterField label="User ID (UID)" htmlFor="uid">
+            <Input
+              id="uid"
+              placeholder="Exact UID..."
+              value={filters.uid}
+              onChange={(e) => handleFilterChange("uid", e.target.value)}
+            />
+          </FilterField>
           <FilterField label="Username" htmlFor="username">
             <Input
               ref={usernameFilterRef}
@@ -900,6 +953,11 @@ export function AdminUsersTable() {
       {/* Main Content - Flexible column that scrolls independently */}
       {/* Grid column 2: 1fr (takes remaining space) */}
       <div className="min-w-0 overflow-hidden flex flex-col h-full w-full">
+        {urlFilters.returnTo ? (
+          <div className="shrink-0 mb-4">
+            <AdminReturnBanner returnTo={urlFilters.returnTo} />
+          </div>
+        ) : null}
         {/* Search Bar - Desktop */}
         <div className="hidden lg:flex items-center gap-3 shrink-0 mb-4">
           <div className="relative flex-1 max-w-md">
@@ -1018,12 +1076,19 @@ export function AdminUsersTable() {
                   </td>
                 </tr>
               ) : (
-                  users.map((user) => (
+                  users.map((user) => {
+                  const isDeepLinked =
+                    (!!resolvedUid && user.uid === resolvedUid) ||
+                    (!!resolvedUsername &&
+                      String(user.username || "").toLowerCase() ===
+                        resolvedUsername.toLowerCase())
+
+                  return (
                   <tr 
                     key={user.uid || user.username} 
                       className={`border-b hover:bg-muted/50 transition-colors group ${
                         user.disabled ? "opacity-60 bg-muted/30" : ""
-                      }`}
+                      } ${isDeepLinked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
                   >
                       <td className={`px-3 py-2 sticky left-0 z-10 border-r-2 border-primary/20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] min-w-[150px] group-hover:bg-muted/50 ${
                         user.disabled ? "bg-muted/30" : "bg-background"
@@ -1138,7 +1203,8 @@ export function AdminUsersTable() {
                         </div>
                     </td>
                   </tr>
-                ))
+                  )
+                  })
               )}
             </tbody>
           </table>
