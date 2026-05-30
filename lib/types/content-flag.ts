@@ -1,5 +1,5 @@
-/** Phase-1 report types surfaced in the UI */
-export type Phase1ReportType = "video" | "comment" | "user"
+/** Report types surfaced in the UI (phase 1) */
+export type Phase1ReportType = "video" | "comment" | "user" | "creator"
 
 export type ContentFlagStatus =
   | "pending"
@@ -20,7 +20,6 @@ export interface ContentFlag {
   description?: string | null
   status: ContentFlagStatus
   metadata?: Record<string, unknown>
-  attachments?: string[]
   reference_id: string
   moderator_id?: string | null
   resolution_notes?: string | null
@@ -47,7 +46,6 @@ export interface CreateContentFlagInput {
   reason: string
   description?: string
   metadata?: Record<string, unknown>
-  attachments?: string[]
 }
 
 export interface ContentFlagsListResult {

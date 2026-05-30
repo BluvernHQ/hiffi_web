@@ -294,30 +294,6 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
             </Card>
           )}
 
-          {flag.attachments && flag.attachments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Attachments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm">
-                  {flag.attachments.map((url) => (
-                    <li key={url}>
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline break-all"
-                      >
-                        {url}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
           <Card className="border-dashed">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Technical details</CardTitle>

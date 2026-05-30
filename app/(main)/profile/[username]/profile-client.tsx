@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Edit, Share2, Calendar, UserPlus, UserCheck, Copy, Check, Mail, Flag } from 'lucide-react';
 import { ContentReportDialog } from '@/components/report/content-report-dialog';
 import { buildUserReportMetadata, resolveUserTargetId } from '@/lib/report/build-metadata';
+import { canReportContentTarget } from '@/lib/report/ownership';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl, isCreator } from '@/lib/utils';
 import { shareUrl } from '@/lib/share';
@@ -59,7 +60,7 @@ export default function ProfilePage({
 }: ProfilePageProps = {}) {
   const params = useParams();
   const router = useRouter();
-  const { userData: currentUserData, loading: authLoading } = useAuth();
+  const { user, userData: currentUserData, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const sortedInitialVideos = useMemo(
     () => sortVideosByUpdatedDateStatic(initialVideos),
@@ -95,6 +96,15 @@ export default function ProfilePage({
 
   const username = params.username as string;
   const isOwnProfile = currentUserData?.username === username;
+  const reportViewer = user
+    ? { uid: user.uid, username: currentUserData?.username ?? user.username }
+    : null;
+  const canReportProfile =
+    !!profileUser &&
+    canReportContentTarget(reportViewer, {
+      ...(profileUser as Record<string, unknown>),
+      username,
+    });
   const profileIsCreator = isCreator(profileUser ?? initialProfileUser);
   const referralUrl =
     typeof window !== "undefined" ? `${window.location.origin}/referrar/${username}` : `/referrar/${username}`;
@@ -759,20 +769,21 @@ export default function ProfilePage({
   }
 
   // Members (non-creators) viewed by someone else — no videos / creator chrome
+  const profileReportType = profileIsCreator ? "creator" : "user"
   const reportUserDialog =
-    !isOwnProfile && profileUser ? (
+    canReportProfile ? (
       <ContentReportDialog
         open={reportDialogOpen}
         onOpenChange={setReportDialogOpen}
-        reportType="user"
+        reportType={profileReportType}
         targetId={resolveUserTargetId(profileUser as Record<string, unknown>, username)}
-        targetType="user"
+        targetType={profileReportType}
         metadata={buildUserReportMetadata(
           profileUser as Record<string, unknown>,
           username,
           profileUrl,
         )}
-        contextLabel="Report user"
+        contextLabel={profileIsCreator ? "Report creator" : "Report user"}
       />
     ) : null;
 
@@ -790,7 +801,7 @@ export default function ProfilePage({
           setAuthDialogOpen={setAuthDialogOpen}
           handleShare={handleShare}
           handleFollow={handleFollow}
-          onReport={() => setReportDialogOpen(true)}
+          onReport={canReportProfile ? () => setReportDialogOpen(true) : undefined}
         />
         {reportUserDialog}
       </>
@@ -836,7 +847,7 @@ export default function ProfilePage({
         await new Promise((resolve) => setTimeout(resolve, 100))
         await fetchUserData(true)
       }}
-      onReport={!isOwnProfile ? () => setReportDialogOpen(true) : undefined}
+      onReport={canReportProfile ? () => setReportDialogOpen(true) : undefined}
     />
     {reportUserDialog}
     </>

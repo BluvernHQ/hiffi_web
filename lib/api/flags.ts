@@ -63,7 +63,6 @@ function normalizeFlagFields(r: Record<string, unknown>): ContentFlag {
         : String(r.description),
     status: status as ContentFlag["status"],
     metadata: (r.metadata as Record<string, unknown>) ?? undefined,
-    attachments: Array.isArray(r.attachments) ? (r.attachments as string[]) : undefined,
     reference_id: String(r.reference_id ?? r.referenceId ?? ""),
     moderator_id:
       r.moderator_id === null || r.moderator_id === undefined
@@ -115,10 +114,7 @@ export async function createContentFlag(
     "/proxy/flags",
     {
       method: "POST",
-      body: JSON.stringify({
-        ...body,
-        attachments: body.attachments ?? [],
-      }),
+      body: JSON.stringify(body),
     },
   )
   return parseContentFlagResponse(res)

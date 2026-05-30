@@ -139,7 +139,6 @@ export function ContentReportDialog({
         reason: reason.trim(),
         description: description.trim() || undefined,
         metadata,
-        attachments: [],
       })
       setSubmittedFlag(flag)
     } catch (err) {
@@ -193,7 +192,12 @@ export function ContentReportDialog({
                   <Link href="/support/reports">View my reports</Link>
                 </Button>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button type="button" variant="outline" onClick={handleCopyReference} className="gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCopyReference}
+                    className="gap-2"
+                  >
                     {copiedRef ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     {copiedRef ? "Copied" : "Copy reference"}
                   </Button>
@@ -260,11 +264,17 @@ export function ContentReportDialog({
               )}
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={submitting}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDialogOpenChange(false)}
+                  disabled={submitting}
+                >
                   Cancel
                 </Button>
                 <Button
                   type="button"
+                  data-analytics-name={`report-${reportType}-submitted`}
                   onClick={handleSubmit}
                   disabled={submitting || configLoading || !reason}
                 >

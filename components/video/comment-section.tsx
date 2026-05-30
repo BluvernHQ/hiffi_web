@@ -18,6 +18,7 @@ import { formatDistanceToNow } from "date-fns"
 import { MessageSquare, Loader2, Trash2, AlertTriangle, Flag } from "lucide-react"
 import { ContentReportDialog } from "@/components/report/content-report-dialog"
 import { buildCommentReportMetadata } from "@/lib/report/build-metadata"
+import { canReportContentTarget } from "@/lib/report/ownership"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
@@ -422,8 +423,11 @@ function CommentItem({
     }
   }
 
-  // Check if current user is the owner of the comment
-  const isOwner = user && (user.uid === comment.commented_by || userData?.username === comment.comment_by_username)
+  const reportViewer = user
+    ? { uid: user.uid, username: userData?.username ?? user.username }
+    : null
+  const isOwner = !canReportContentTarget(reportViewer, comment)
+  const canReportComment = canReportContentTarget(reportViewer, comment)
 
   return (
     <div className="flex gap-4">
@@ -483,9 +487,10 @@ function CommentItem({
               Delete
             </button>
           )}
-          {!isOwner && (
+          {canReportComment && (
             <button
               type="button"
+              data-analytics-name="report-comment"
               className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
               onClick={() => setReportDialogOpen(true)}
             >
@@ -495,7 +500,7 @@ function CommentItem({
           )}
         </div>
 
-        {!isOwner && (
+        {canReportComment && (
           <ContentReportDialog
             open={reportDialogOpen}
             onOpenChange={setReportDialogOpen}

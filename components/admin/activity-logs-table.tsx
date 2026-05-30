@@ -75,6 +75,91 @@ function toTitleCase(value: string): string {
     .replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
 
+/** Map report analytics names to admin activity log titles. */
+function reportActivityLabel(uiName: string): string | null {
+  const raw = uiName.trim().toLowerCase()
+  if (raw === "report-video" || raw === "report-video-submitted") return "Report video"
+  if (raw === "report-comment" || raw === "report-comment-submitted") return "Report comment"
+  if (
+    raw === "report-user" ||
+    raw === "report-profile" ||
+    raw === "report-user-submitted" ||
+    raw === "report-creator" ||
+    raw === "report-creator-submitted"
+  ) {
+    return "Reported user"
+  }
+  return null
+}
+
+function getEventUiName(item: AnalyticsEvent): string {
+  return String((item as any).element_ui_name || item.properties?.element_ui_name || "").trim()
+}
+
+function getEventElementText(item: AnalyticsEvent): string {
+  return String((item as any).element_text || item.properties?.element_text || "").trim()
+}
+
+function getEventElementTag(item: AnalyticsEvent): string {
+  return String((item as any).element_tag || item.properties?.element_tag || "").trim()
+}
+
+function getEventElementChain(item: AnalyticsEvent): string {
+  return String((item as any).element_chain || item.properties?.element_chain || "").trim()
+}
+
+/** Autocapture text from the report dialog (reason select, form body, etc.). */
+function isReportDialogLikeText(text: string): boolean {
+  const t = text.trim().toLowerCase()
+  if (!t) return false
+  if (t.length > 60) return true
+  if (t.includes("reports are reviewed by our team")) return true
+  if (t.includes("false reports may result")) return true
+  if (t.includes("additional details") && t.includes("optional")) return true
+  if (t.includes("submit report") && t.includes("reason")) return true
+  if (t.includes("report video") && (t.includes("reason") || t.includes("misleading"))) return true
+  if (t.includes("report comment") && t.includes("reason")) return true
+  if (t.includes("report user") && t.includes("reason")) return true
+  if (t.includes("spam") && t.includes("misleading") && t.includes("copyright")) return true
+  if (t.includes("hate speech") || t.includes("child safety") || t.includes("sexual content")) return true
+  return false
+}
+
+/** Hide report-dialog dismiss/copy clicks and unnamed form interactions. */
+function isReportDialogNoiseClick(item: AnalyticsEvent): boolean {
+  if (item.event !== "$click") return false
+  const uiName = getEventUiName(item).toLowerCase()
+  const text = getEventElementText(item).toLowerCase()
+  const tag = getEventElementTag(item).toLowerCase()
+  const chain = getEventElementChain(item).toLowerCase()
+
+  if (reportActivityLabel(uiName)) return false
+
+  if (uiName.startsWith("report-dialog-")) return true
+
+  const shortNoiseText = [
+    "done",
+    "cancel",
+    "copy reference",
+    "copied",
+    "view my reports",
+    "submitting...",
+    "submit report",
+  ]
+  if (!uiName && shortNoiseText.includes(text)) return true
+
+  if (
+    !uiName &&
+    (tag === "select" || tag === "textarea" || tag === "option" || chain.includes("report-reason") || chain.includes("report-description"))
+  ) {
+    return true
+  }
+
+  if (!uiName && isReportDialogLikeText(text)) return true
+
+  return false
+}
+
 function normalizeUiAction(
   uiName?: string,
   elementText?: string,
@@ -88,15 +173,24 @@ function normalizeUiAction(
   const chain = String(elementChain || "").trim().toLowerCase()
   const path = String(targetPath || "").trim()
 
+  const reportLabel = reportActivityLabel(raw)
+  if (reportLabel) return reportLabel
+
   if (raw === "liked" || raw === "like" || text === "like") return "Liked video"
   if (raw === "disliked" || raw === "dislike" || text === "dislike") return "Disliked video"
   if (raw === "shared-video" || raw === "share" || text === "share") return "Shared video"
   if (raw.includes("copy") || text === "copy") return "Copied share link"
+  if (raw.startsWith("report-")) return toTitleCase(raw)
   if (raw.includes("comment")) return "Comment interaction"
   if (raw.includes("playlist")) return "Playlist interaction"
   if (raw.includes("follow")) return "Follow interaction"
   if (raw) return toTitleCase(raw)
-  if (text) return toTitleCase(text)
+  if (text && !isReportDialogLikeText(text)) {
+    if (text.startsWith("report video")) return "Report video"
+    if (text.startsWith("report comment")) return "Report comment"
+    if (text.startsWith("report user") || text.startsWith("report profile") || text.startsWith("report creator")) return "Reported user"
+    if (text.length <= 40) return toTitleCase(text)
+  }
 
   // Heuristic interaction labels from DOM chain when ui_name is missing.
   if (path.startsWith("/watch/")) {
@@ -408,6 +502,7 @@ export function AdminActivityLogsTable() {
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
     return events.filter((item) => {
+      if (isReportDialogNoiseClick(item)) return false
       if (!q) return true
       const ip = String(item.properties?._ingest_ip || "").toLowerCase()
       const title = String(item.properties?.title || "").toLowerCase()

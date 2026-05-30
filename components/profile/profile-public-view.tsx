@@ -183,6 +183,7 @@ export function ProfilePublicView(props: {
                     variant="outline"
                     size="icon"
                     className="flex-shrink-0"
+                    data-analytics-name="report-profile"
                     onClick={onReport}
                     aria-label="Report profile"
                     title="Report"

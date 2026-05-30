@@ -155,9 +155,8 @@ export default function RootLayout({
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
   const apiAnalyticsBaseUrl = getApiBaseUrl().replace(/\/$/, "")
-  const apiAnalyticsSrc = apiAnalyticsEnabled
-    ? `${apiAnalyticsBaseUrl}/tracker.js`
-    : null
+  // Serve tracker via same-origin proxy so autocapture can route through wrapped capture().
+  const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
   const analyticsAppVersion = "web-nextjs"
 

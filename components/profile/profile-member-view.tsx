@@ -125,7 +125,14 @@ export function ProfileMemberView(props: {
                   <Share2 className="h-4 w-4" />
                 </Button>
                 {onReport && (
-                  <Button variant="outline" size="icon" onClick={onReport} aria-label="Report profile" title="Report">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    data-analytics-name="report-profile"
+                    onClick={onReport}
+                    aria-label="Report profile"
+                    title="Report"
+                  >
                     <Flag className="h-4 w-4" />
                   </Button>
                 )}

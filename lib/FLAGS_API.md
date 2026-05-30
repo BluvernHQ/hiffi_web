@@ -35,7 +35,6 @@ Admin list filters: `status`, `report_type` (from config), `reference_id`, `targ
 
 ## Not implemented in UI
 
-- Attachments upload (API accepts URL array; always `[]` on create)
 - Report entry points for stream, livestream, chat, copyright, feature_request, etc. (API supports via config)
 
 ## Client module

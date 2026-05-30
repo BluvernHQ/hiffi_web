@@ -41,6 +41,7 @@ import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dial
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { ContentReportDialog } from "@/components/report/content-report-dialog"
 import { buildVideoReportMetadata } from "@/lib/report/build-metadata"
+import { canReportContentTarget } from "@/lib/report/ownership"
 import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
 import {
   DescriptionWithLinks,
@@ -1524,10 +1525,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const reportVideoId = String(
     playerVideoId || currentVideoId || currentVideo?.video_id || currentVideo?.videoId || "",
   )
+  const reportViewer = user
+    ? { uid: user.uid, username: userData?.username ?? user.username }
+    : null
   const canReportVideo =
     !!currentVideo &&
     !!reportVideoId &&
-    (userData?.username ?? "") !== (currentVideo?.userUsername || currentVideo?.user_username)
+    canReportContentTarget(reportViewer, currentVideo as Record<string, unknown>)
 
   if (pageGateError && !video) {
     const isNet =
@@ -1616,6 +1620,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          data-analytics-name="report-video"
                           className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                           onClick={() => setReportDialogOpen(true)}
                           aria-label="Report video"
@@ -1724,6 +1729,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                               type="button"
                               variant="ghost"
                               size="icon"
+                              data-analytics-name="report-video"
                               className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                               onClick={() => setReportDialogOpen(true)}
                               aria-label="Report video"

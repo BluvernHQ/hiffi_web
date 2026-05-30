@@ -202,9 +202,9 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             >
               <Search className="h-5 w-5" />
             </button>
-            {user && userData ? (
+            {user ? (
               <>
-                {showUploadButton && (
+                {showUploadButton && userData && (
                   <>
                     {userData.role === "creator" ? (
                       <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
@@ -230,24 +230,24 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label="Open account menu"
                     >
-                      <NavbarProfileAvatar user={userData} />
+                      <NavbarProfileAvatar user={userData ?? user} />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userData.name || userData.username}</p>
-                        <p className="text-xs leading-none text-muted-foreground">@{userData.username}</p>
+                        <p className="text-sm font-medium leading-none">{(userData ?? user).name || (userData ?? user).username}</p>
+                        <p className="text-xs leading-none text-muted-foreground">@{(userData ?? user).username}</p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/profile/${userData.username}`} data-analytics-name="navbar-profile-link">
+                      <Link href={`/profile/${(userData ?? user).username}`} data-analytics-name="navbar-profile-link">
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
-                    {userData.role === "creator" ? (
+                    {userData?.role === "creator" ? (
                       <>
                         <DropdownMenuItem asChild>
                           <Link href="/creator/apply" data-analytics-name="navbar-user-menu-hiffi-studio-link">

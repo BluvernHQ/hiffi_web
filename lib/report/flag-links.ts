@@ -10,7 +10,12 @@ export function getFlagTargetHref(flag: ContentFlag): string | null {
     const videoId = meta.video_id ?? meta.videoId
     if (typeof videoId === "string" && videoId) return `/watch/${videoId}`
   }
-  if (flag.report_type === "user" || flag.report_type === "creator" || flag.target_type === "user") {
+  if (
+    flag.report_type === "user" ||
+    flag.report_type === "creator" ||
+    flag.target_type === "user" ||
+    flag.target_type === "creator"
+  ) {
     const username = meta.username
     if (typeof username === "string" && username) return `/profile/${encodeURIComponent(username)}`
   }
