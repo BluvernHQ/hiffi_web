@@ -7,6 +7,8 @@ import Image from "next/image";
 import Navbar from "./components/navbar";
 import About from "./components/about";
 import WhyHiffiExists from "./components/why-hiffi-exists";
+import ForFans from "./components/for-fans";
+import JoinMovement from "./components/join-movement";
 
 export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -16,6 +18,8 @@ export default function Home() {
   const heroTextRef = useRef<HTMLDivElement>(null);
   const aboutSectionRef = useRef<HTMLElement>(null);
   const whyHiffiSectionRef = useRef<HTMLElement>(null);
+  const forFansSectionRef = useRef<HTMLElement>(null);
+  const joinMovementSectionRef = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
@@ -30,6 +34,8 @@ export default function Home() {
         !heroTextRef.current ||
         !aboutSectionRef.current ||
         !whyHiffiSectionRef.current ||
+        !forFansSectionRef.current ||
+        !joinMovementSectionRef.current ||
         !scroller
       )
         return;
@@ -66,7 +72,7 @@ export default function Home() {
         trigger: sectionRef.current,
         scroller,
         start: "top top",
-        endTrigger: whyHiffiSectionRef.current,
+        endTrigger: joinMovementSectionRef.current,
         end: "bottom bottom",
         onEnter: () => gsap.set(foregroundContainerRef.current, { autoAlpha: 1 }),
         onEnterBack: () => gsap.set(foregroundContainerRef.current, { autoAlpha: 1 }),
@@ -121,6 +127,14 @@ export default function Home() {
 
       <section ref={whyHiffiSectionRef} className="bg-black">
         <WhyHiffiExists />
+      </section>
+
+      <section ref={forFansSectionRef} className="bg-black">
+        <ForFans />
+      </section>
+
+      <section ref={joinMovementSectionRef} className="bg-black">
+        <JoinMovement />
       </section>
 
       <div
