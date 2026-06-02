@@ -47,6 +47,10 @@ function formatStatus(status: string): string {
   return status.replace(/_/g, " ")
 }
 
+function normalizeReferenceId(value: string): string {
+  return value.trim().toUpperCase()
+}
+
 function statusBadgeClass(status: string): string {
   if (status === "pending") return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
   if (status === "escalated") return "bg-red-500/15 text-red-700 dark:text-red-400"
@@ -102,7 +106,7 @@ export function AdminFlagsTable() {
         offset,
         status: filterStatus || undefined,
         report_type: filterReportType || undefined,
-        reference_id: filterReferenceId.trim() || undefined,
+        reference_id: normalizeReferenceId(filterReferenceId) || undefined,
         target_type: filterTargetType || undefined,
       })
       setFlags(result.flags)
@@ -133,6 +137,14 @@ export function AdminFlagsTable() {
   }, [fetchFlags])
 
   const applyFilters = () => {
+    const normalizedReferenceId = normalizeReferenceId(filterReferenceId)
+    if (normalizedReferenceId !== filterReferenceId) {
+      setFilterReferenceId(normalizedReferenceId)
+      if (page === 1) {
+        return
+      }
+    }
+
     if (page !== 1) {
       setPage(1)
     } else {
@@ -210,6 +222,12 @@ export function AdminFlagsTable() {
             placeholder="FLT-..."
             value={filterReferenceId}
             onChange={(e) => setFilterReferenceId(e.target.value)}
+            onBlur={(e) => {
+              const normalized = normalizeReferenceId(e.target.value)
+              if (normalized !== e.target.value) {
+                setFilterReferenceId(normalized)
+              }
+            }}
             className="h-9"
           />
         </div>
@@ -261,7 +279,7 @@ export function AdminFlagsTable() {
                     <td className="px-4 py-3 max-w-[240px]">
                       <Link
                         href={`/admin/dashboard?section=flags&flagId=${encodeURIComponent(flag.id)}`}
-                        className="line-clamp-2 text-foreground hover:text-primary"
+                        className="block mb-1 text-foreground hover:text-primary whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                       >
                         {listRowSummary(flag)}
                       </Link>

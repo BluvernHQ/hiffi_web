@@ -253,6 +253,7 @@ function SearchPageContent() {
                           hasMore={hasMoreVideos}
                           onLoadMore={loadMoreVideos}
                           openVideoUiName="opened-video-from-search"
+                          hideTimestamp
                         />
                       </div>
                     )}
@@ -265,6 +266,7 @@ function SearchPageContent() {
                       hasMore={hasMoreVideos}
                       onLoadMore={loadMoreVideos}
                       openVideoUiName="opened-video-from-search"
+                      hideTimestamp
                     />
                   </TabsContent>
 

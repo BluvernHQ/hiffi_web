@@ -2913,14 +2913,20 @@ class ApiClient {
 
   async searchUsers(
     query: string,
-    limit: number = 10,
+    limit: number = 20,
     offset: number = 0,
   ): Promise<{ success: boolean; users: any[]; count: number }> {
-    const page = Math.floor(offset / Math.max(limit, 1)) + 1
+    const normalizedQuery = query.trim()
+    if (!normalizedQuery) {
+      return { success: false, users: [], count: 0 }
+    }
+
+    const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Math.trunc(limit) : 20))
+    const safeOffset = Math.max(0, Number.isFinite(offset) ? Math.trunc(offset) : 0)
+
     const params = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
-      page: String(page),
+      limit: String(safeLimit),
+      offset: String(safeOffset),
     })
     const response = await this.request<{
       success: boolean
@@ -2931,7 +2937,8 @@ class ApiClient {
         offset?: number
         query: string
       }
-    }>(`/search/users/${encodeURIComponent(query)}?${params.toString()}`, {}, false)
+      error?: { message?: string } | string
+    }>(`/search/users/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, false)
     
     if (response.success && response.data) {
       return {
@@ -2950,15 +2957,21 @@ class ApiClient {
 
   async searchVideos(
     query: string,
-    limit: number = 10,
+    limit: number = 20,
     offset: number = 0,
   ): Promise<{ success: boolean; videos: any[]; count: number }> {
-    const page = Math.floor(offset / Math.max(limit, 1)) + 1
-    console.log("[API] searchVideos request:", { query, limit, offset, page })
+    const normalizedQuery = query.trim()
+    if (!normalizedQuery) {
+      return { success: false, videos: [], count: 0 }
+    }
+
+    const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Math.trunc(limit) : 20))
+    const safeOffset = Math.max(0, Number.isFinite(offset) ? Math.trunc(offset) : 0)
+
+    console.log("[API] searchVideos request:", { query: normalizedQuery, limit: safeLimit, offset: safeOffset })
     const params = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
-      page: String(page),
+      limit: String(safeLimit),
+      offset: String(safeOffset),
     })
     const response = await this.request<{
       success: boolean
@@ -2969,7 +2982,8 @@ class ApiClient {
         offset?: number
         query: string
       }
-    }>(`/search/videos/${encodeURIComponent(query)}?${params.toString()}`, {}, false)
+      error?: { message?: string } | string
+    }>(`/search/videos/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, false)
     
     if (response.success && response.data) {
       console.log("[API] searchVideos response:", {

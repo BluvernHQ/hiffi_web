@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -63,16 +63,22 @@ export function ContentReportDialog({
   const [reasons, setReasons] = useState<string[]>([])
   const [maxDescriptionLength, setMaxDescriptionLength] = useState(500)
   const [reason, setReason] = useState("")
+  const [reasonError, setReasonError] = useState<string | null>(null)
   const [description, setDescription] = useState("")
+  const [descriptionError, setDescriptionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submittedFlag, setSubmittedFlag] = useState<ContentFlag | null>(null)
   const [copiedRef, setCopiedRef] = useState(false)
+  const submitLockRef = useRef(false)
 
   const resetForm = useCallback(() => {
     setReason("")
+    setReasonError(null)
     setDescription("")
+    setDescriptionError(null)
     setSubmittedFlag(null)
     setCopiedRef(false)
+    submitLockRef.current = false
   }, [])
 
   useEffect(() => {
@@ -117,18 +123,35 @@ export function ContentReportDialog({
   }, [open, user, reportType, onOpenChange, resetForm, toast])
 
   const handleSubmit = async () => {
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+
     if (!reason.trim()) {
-      toast({ title: "Select a reason", variant: "destructive" })
+      setReasonError("Please select a reason.")
+      submitLockRef.current = false
       return
     }
+    setReasonError(null)
     if (description.length > maxDescriptionLength) {
       toast({
         title: "Description too long",
         description: `Maximum ${maxDescriptionLength} characters.`,
         variant: "destructive",
       })
+      submitLockRef.current = false
       return
     }
+    if (/<[^>]*>/.test(description)) {
+      setDescriptionError("HTML/script tags are not allowed.")
+      toast({
+        title: "Invalid description",
+        description: "Remove HTML/script tags before submitting.",
+        variant: "destructive",
+      })
+      submitLockRef.current = false
+      return
+    }
+    setDescriptionError(null)
 
     try {
       setSubmitting(true)
@@ -149,6 +172,7 @@ export function ContentReportDialog({
       })
     } finally {
       setSubmitting(false)
+      submitLockRef.current = false
     }
   }
 
@@ -227,19 +251,26 @@ export function ContentReportDialog({
                     <select
                       id="report-reason"
                       value={reason}
-                      onChange={(e) => setReason(e.target.value)}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        setReason(next)
+                        if (next.trim()) setReasonError(null)
+                      }}
                       className={cn(
                         "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
                         "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        reasonError && "border-destructive focus-visible:ring-destructive",
                       )}
                       disabled={submitting || reasons.length === 0}
                     >
+                      <option value="">Select a reason...</option>
                       {reasons.map((r) => (
                         <option key={r} value={r}>
                           {formatReportReason(r)}
                         </option>
                       ))}
                     </select>
+                    {reasonError && <p className="text-xs text-destructive">{reasonError}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -250,12 +281,20 @@ export function ContentReportDialog({
                     <Textarea
                       id="report-description"
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        setDescription(next)
+                        if (descriptionError && !/<[^>]*>/.test(next)) {
+                          setDescriptionError(null)
+                        }
+                      }}
                       placeholder="Describe the issue..."
                       rows={4}
                       maxLength={maxDescriptionLength}
                       disabled={submitting}
+                      className={cn(descriptionError && "border-destructive focus-visible:ring-destructive")}
                     />
+                    {descriptionError && <p className="text-xs text-destructive">{descriptionError}</p>}
                     <p className="text-xs text-muted-foreground text-right">
                       {description.length}/{maxDescriptionLength}
                     </p>
@@ -276,7 +315,7 @@ export function ContentReportDialog({
                   type="button"
                   data-analytics-name={`report-${reportType}-submitted`}
                   onClick={handleSubmit}
-                  disabled={submitting || configLoading || !reason}
+                  disabled={submitting || configLoading}
                 >
                   {submitting ? (
                     <>

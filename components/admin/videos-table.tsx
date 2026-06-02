@@ -84,7 +84,6 @@ export function AdminVideosTable() {
       video_title: "",
       video_description: "",
       user_username: "",
-      video_tag: "",
       video_views_min: "",
       video_views_max: "",
       video_upvotes_min: "",
@@ -123,7 +122,6 @@ export function AdminVideosTable() {
       if (filters.video_title) params.video_title = filters.video_title
       if (filters.video_description) params.video_description = filters.video_description
       if (filters.user_username) params.user_username = filters.user_username
-      if (filters.video_tag) params.video_tag = filters.video_tag
       if (filters.video_views_min) params.video_views_min = parseInt(filters.video_views_min)
       if (filters.video_views_max) params.video_views_max = parseInt(filters.video_views_max)
       if (filters.video_upvotes_min) params.video_upvotes_min = parseInt(filters.video_upvotes_min)
@@ -421,7 +419,6 @@ export function AdminVideosTable() {
       video_title: "",
       video_description: "",
       user_username: "",
-      video_tag: "",
       video_views_min: "",
       video_views_max: "",
       video_upvotes_min: "",
@@ -519,14 +516,6 @@ export function AdminVideosTable() {
               placeholder="Filter by description..."
               value={filters.video_description}
               onChange={(e) => handleFilterChange("video_description", e.target.value)}
-            />
-          </FilterField>
-          <FilterField label="Video Tag" htmlFor="video_tag">
-            <Input
-              id="video_tag"
-              placeholder="Filter by tag..."
-              value={filters.video_tag}
-              onChange={(e) => handleFilterChange("video_tag", e.target.value)}
             />
           </FilterField>
         </FilterSection>

@@ -36,6 +36,8 @@ const DEFAULT_STATUSES: ContentFlagStatus[] = [
   "dismissed",
   "closed",
 ]
+const MAX_RESOLUTION_NOTES_LENGTH = 500
+const RESOLUTION_NOTES_ALLOWED_REGEX = /^[A-Za-z0-9\s]*$/
 
 function statusBadgeClass(status: string): string {
   if (status === "pending") return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
@@ -60,6 +62,8 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
   const [statuses, setStatuses] = useState<ContentFlagStatus[]>(DEFAULT_STATUSES)
   const [editStatus, setEditStatus] = useState<ContentFlagStatus>("pending")
   const [editNotes, setEditNotes] = useState("")
+  const [notesLimitReached, setNotesLimitReached] = useState(false)
+  const [notesValidationError, setNotesValidationError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [display, setDisplay] = useState<ReturnType<typeof buildFlagDisplayModel> | null>(null)
 
@@ -123,6 +127,16 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
 
   const handleSave = async () => {
     if (!flag) return
+    if (!RESOLUTION_NOTES_ALLOWED_REGEX.test(editNotes)) {
+      setNotesValidationError("Resolution notes can only contain letters, numbers, and spaces.")
+      toast({
+        title: "Invalid resolution notes",
+        description: "Remove symbols before saving.",
+        variant: "destructive",
+      })
+      return
+    }
+    setNotesValidationError(null)
 
     const currentNotes = flag.resolution_notes ?? ""
     if (editStatus === flag.status && editNotes === currentNotes) {
@@ -355,7 +369,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                 <CardDescription>Additional context from the person who filed this report</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words rounded-lg bg-muted/40 px-4 py-3">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-lg bg-muted/40 px-4 py-3">
                   {display.reporterDescription}
                 </p>
               </CardContent>
@@ -430,17 +444,47 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="flag-detail-notes">Resolution notes</Label>
+                <Label htmlFor="flag-detail-notes">Resolution notes (optional)</Label>
                 <Textarea
                   id="flag-detail-notes"
                   value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
+                  onChange={(e) => {
+                    let nextValue = e.target.value
+                    if (nextValue.length > MAX_RESOLUTION_NOTES_LENGTH) {
+                      nextValue = nextValue.slice(0, MAX_RESOLUTION_NOTES_LENGTH)
+                      setNotesLimitReached(true)
+                    } else if (notesLimitReached) {
+                      setNotesLimitReached(false)
+                    }
+                    if (!RESOLUTION_NOTES_ALLOWED_REGEX.test(nextValue)) {
+                      const sanitized = nextValue.replace(/[^A-Za-z0-9\s]/g, "")
+                      setEditNotes(sanitized)
+                      setNotesValidationError("Symbols are not allowed.")
+                      return
+                    }
+                    setNotesValidationError(null)
+                    setEditNotes(nextValue)
+                  }}
                   rows={4}
                   placeholder="Internal notes for your team…"
                   disabled={saving}
+                  maxLength={MAX_RESOLUTION_NOTES_LENGTH}
                   className="resize-none"
                 />
-                <p className="text-xs text-muted-foreground">Leave empty and save to clear notes.</p>
+                <p className="text-xs text-muted-foreground">
+                  Optional. Leave empty and save to clear notes.
+                </p>
+                <p className="text-xs text-muted-foreground text-right">
+                  {editNotes.length}/{MAX_RESOLUTION_NOTES_LENGTH}
+                </p>
+                {notesLimitReached && (
+                  <p className="text-xs text-destructive">
+                    Maximum {MAX_RESOLUTION_NOTES_LENGTH} characters allowed.
+                  </p>
+                )}
+                {notesValidationError && (
+                  <p className="text-xs text-destructive">{notesValidationError}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2 pt-1">
                 <Button onClick={handleSave} disabled={saving || !hasChanges} className="w-full">
@@ -453,6 +497,11 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                     "Save changes"
                   )}
                 </Button>
+                {!hasChanges && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    No changes yet. Saving now will show a validation message.
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   className="w-full"

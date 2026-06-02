@@ -132,7 +132,9 @@ export default function ReportDetailPage() {
               {flag.description?.trim() && (
                 <div>
                   <dt className="text-muted-foreground">Your description</dt>
-                  <dd className="whitespace-pre-wrap break-all max-w-full">{flag.description}</dd>
+                  <dd className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] max-w-full">
+                    {flag.description}
+                  </dd>
                 </div>
               )}
               {flag.resolved_at && (
