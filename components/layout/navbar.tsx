@@ -26,6 +26,26 @@ import { useState, useEffect } from "react"
 interface NavbarProps {
   onMenuClick?: () => void
   currentFilter?: 'all' | 'following' | 'liked' | 'history'
+  variant?: 'full' | 'minimal'
+}
+
+function MinimalNavbarHeader() {
+  return (
+    <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center px-2 sm:px-3 md:px-4">
+        <Link href="/" className="flex items-center gap-3" data-analytics-name="navbar-home-logo-link">
+          <Image
+            src="/appbarlogo.png"
+            alt="Hiffi Logo"
+            width={132}
+            height={32}
+            className="h-8 w-auto object-contain"
+            priority
+          />
+        </Link>
+      </div>
+    </header>
+  )
 }
 
 /** Radix Dialog + Dropdown can leave body pointer-events locked after close; confirm path already forces cleanup. */
@@ -350,7 +370,11 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 }
 
 // Public Navbar component wrapped in Suspense
-export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+export function Navbar({ onMenuClick, currentFilter, variant = 'full' }: NavbarProps) {
+  if (variant === 'minimal') {
+    return <MinimalNavbarHeader />
+  }
+
   return (
     <Suspense fallback={
       <header className="sticky top-0 z-50 w-full border-b border-black/15 bg-[#f3f0e8]">
