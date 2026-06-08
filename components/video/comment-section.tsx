@@ -48,7 +48,13 @@ interface Reply {
   reply: string
 }
 
-export function CommentSection({ videoId }: { videoId: string }) {
+export function CommentSection({
+  videoId,
+  autoFocusInput = false,
+}: {
+  videoId: string
+  autoFocusInput?: boolean
+}) {
   const { user, userData } = useAuth()
   const { toast } = useToast()
   const pathname = usePathname()
@@ -58,6 +64,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
   const [commentCount, setCommentCount] = useState(0)
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({})
   const pendingFetches = useRef<Set<string>>(new Set())
+  const commentFormRef = useRef<HTMLFormElement>(null)
   const [newComment, setNewComment] = useState("")
   const [guestPromptOpen, setGuestPromptOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -69,6 +76,19 @@ export function CommentSection({ videoId }: { videoId: string }) {
     fetchComments()
     setGuestPromptOpen(false)
   }, [videoId])
+
+  useEffect(() => {
+    if (!autoFocusInput || !user) return
+
+    const timer = window.setTimeout(() => {
+      const input = commentFormRef.current?.querySelector("textarea")
+      if (!input) return
+      input.focus()
+      input.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    }, 400)
+
+    return () => window.clearTimeout(timer)
+  }, [autoFocusInput, user])
 
   const fetchUserProfiles = useCallback(async (usernames: string[]) => {
     const toFetch = usernames.filter(u => 
@@ -203,7 +223,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
       {user ? (
         <div className="flex min-w-0 items-start gap-3">
           <ProfilePicture user={userData} size="sm" />
-          <form onSubmit={handleSubmit} className="min-w-0 flex-1">
+          <form ref={commentFormRef} onSubmit={handleSubmit} className="min-w-0 flex-1">
             <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-muted/20 px-3 py-2 transition-colors focus-within:border-border focus-within:bg-background">
               <Textarea
                 placeholder="Add a comment..."
