@@ -10,10 +10,7 @@ import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { Bookmark, ChevronRight, Flag, Heart, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { Bookmark, Flag, Heart, Share2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
 import Link from "next/link"
@@ -433,19 +430,6 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
-  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false)
-  const [commentsPreviewLoading, setCommentsPreviewLoading] = useState(false)
-  const [commentsCount, setCommentsCount] = useState(0)
-  const [commentsPreviewProfiles, setCommentsPreviewProfiles] = useState<Record<string, any>>({})
-  const [latestComment, setLatestComment] = useState<{
-    comment_id: string
-    comment_by_username: string
-    comment: string
-    commented_at: string
-    comment_by_avatar?: string
-    profile_picture?: string
-    comment_by_name?: string
-  } | null>(null)
   const lastFetchedRelatedIdRef = useRef<string | null | undefined>(null)
   const [pendingVideo, setPendingVideo] = useState<{
     videoId: string
@@ -691,65 +675,6 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       cancelled = true
     }
   }, [playlistContext, playlistVideoMeta])
-
-  useEffect(() => {
-    if (!currentVideoId) {
-      setCommentsCount(0)
-      setLatestComment(null)
-      return
-    }
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        setCommentsPreviewLoading(true)
-        const response = await apiClient.getComments(currentVideoId, 1, 1)
-        if (cancelled) return
-        if (!response.success) {
-          setCommentsCount(0)
-          setLatestComment(null)
-          return
-        }
-
-        const fetched = response.comments || []
-        setCommentsCount(typeof response.count === "number" ? response.count : fetched.length)
-        setLatestComment(fetched[0] || null)
-      } catch {
-        if (cancelled) return
-        setCommentsCount(0)
-        setLatestComment(null)
-      } finally {
-        if (!cancelled) {
-          setCommentsPreviewLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [currentVideoId, commentsSheetOpen])
-
-  useEffect(() => {
-    if (!latestComment?.comment_by_username) return
-    const username = latestComment.comment_by_username
-    if (commentsPreviewProfiles[username]) return
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const response = await apiClient.getUserByUsername(username)
-        if (cancelled || !response.success || !response.user) return
-        setCommentsPreviewProfiles((prev) => ({ ...prev, [username]: response.user }))
-      } catch {
-        // no-op: fallback avatar/initials will render
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [latestComment?.comment_by_username, commentsPreviewProfiles])
 
   const handlePlayerMediaReady = (readyVideoId: string) => {
     setPendingVideo((pending) => {
@@ -1930,92 +1855,10 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                   </div>
                 )}
 
-                <Separator className="my-6" />
-
                 {(videoId || currentVideoId) && (
-                  <>
-                    <div className="hidden md:block">
-                      <CommentSection videoId={(videoId || currentVideoId) as string} />
-                    </div>
-                    <div className="md:hidden">
-                      <button
-                        type="button"
-                        data-analytics-name="opened-comments"
-                        onClick={() => setCommentsSheetOpen(true)}
-                        className="w-full rounded-2xl border border-border bg-card p-4 text-left shadow-sm"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="h-5 w-5 text-primary" />
-                            <h3 className="text-lg font-semibold">Comments</h3>
-                            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-sm text-muted-foreground">
-                              {commentsCount}
-                            </span>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {commentsCount > 0
-                            ? "Preview below. Tap to read the full thread."
-                            : "Start the conversation - add a comment below."}
-                        </p>
-
-                        <div className="mt-3 rounded-xl border border-border/60 bg-background p-3">
-                          {commentsPreviewLoading ? (
-                            <div className="space-y-2">
-                              <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-                              <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                            </div>
-                          ) : latestComment ? (
-                            <div className="flex items-start gap-3">
-                              <ProfilePicture
-                                user={
-                                  commentsPreviewProfiles[latestComment.comment_by_username] || {
-                                    username: latestComment.comment_by_username,
-                                    name: latestComment.comment_by_name,
-                                    profile_picture: latestComment.profile_picture || latestComment.comment_by_avatar,
-                                  }
-                                }
-                                size="sm"
-                              />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="truncate text-base font-semibold">{latestComment.comment_by_username}</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {formatDistanceToNow(new Date(latestComment.commented_at), { addSuffix: true })}
-                                  </span>
-                                </div>
-                                <p className="mt-1 line-clamp-2 text-base">{latestComment.comment}</p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">No comments yet. Be the first to share what you think.</div>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3">
-                          <ProfilePicture user={userData || { username: "U" }} size="sm" />
-                          <div className="flex-1 rounded-full border border-primary/30 px-4 py-2 text-sm text-muted-foreground">
-                            Add a comment...
-                          </div>
-                          <SendHorizontal className="h-5 w-5 text-primary" />
-                        </div>
-                      </button>
-
-                      <Drawer open={commentsSheetOpen} onOpenChange={setCommentsSheetOpen}>
-                        <DrawerContent className="max-h-[90dvh]">
-                          <DrawerHandle className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted" />
-                          <DrawerHeader className="px-4 pb-2 pt-3">
-                            <DrawerTitle>Comments</DrawerTitle>
-                            <DrawerDescription>Read the thread and add your comment.</DrawerDescription>
-                          </DrawerHeader>
-                          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-                            <CommentSection videoId={(videoId || currentVideoId) as string} />
-                          </div>
-                        </DrawerContent>
-                      </Drawer>
-                    </div>
-                  </>
+                  <div className="mt-4">
+                    <CommentSection videoId={(videoId || currentVideoId) as string} />
+                  </div>
                 )}
               </div>
             </div>

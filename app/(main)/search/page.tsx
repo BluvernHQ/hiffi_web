@@ -12,7 +12,9 @@ import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePict
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  getUserSearchTerm,
   isSuspiciousSqlLikeQuery,
+  isUserHandleSearch,
   normalizeSearchQueryForRequest,
 } from '@/lib/search-query';
 import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors';
@@ -67,10 +69,23 @@ function SearchPageContent() {
         return;
       }
 
-      // Fetch both users and videos in parallel
+      const userHandleSearch = isUserHandleSearch(q);
+      const userSearchTerm = userHandleSearch ? getUserSearchTerm(q) : q;
+
+      if (userHandleSearch && !userSearchTerm) {
+        setVideoResults([]);
+        setUserResults([]);
+        setVideoCount(0);
+        setUserCount(0);
+        return;
+      }
+
+      // @ prefix → users/creators only; otherwise search both
       const [usersResponse, videosResponse] = await Promise.all([
-        apiClient.searchUsers(q, USERS_PER_PAGE, 0).catch(() => ({ success: false, users: [], count: 0 })),
-        apiClient.searchVideos(q, VIDEOS_PER_PAGE, 0).catch(() => ({ success: false, videos: [], count: 0 }))
+        apiClient.searchUsers(userSearchTerm, USERS_PER_PAGE, 0).catch(() => ({ success: false, users: [], count: 0 })),
+        userHandleSearch
+          ? Promise.resolve({ success: false, videos: [], count: 0 })
+          : apiClient.searchVideos(q, VIDEOS_PER_PAGE, 0).catch(() => ({ success: false, videos: [], count: 0 })),
       ]);
 
       // Process User Results
@@ -310,7 +325,10 @@ function SearchPageContent() {
             <div className="text-center py-12">
               <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Start searching</h3>
-              <p className="text-muted-foreground">Enter a search term to find videos and users</p>
+              <p className="text-muted-foreground">
+                Search videos by title, or use <span className="font-medium text-foreground/80">@username</span> to find
+                users and creators.
+              </p>
             </div>
           )}
         </div>

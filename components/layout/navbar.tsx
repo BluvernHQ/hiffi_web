@@ -199,7 +199,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       : "truncate pl-10 pr-4 text-sm text-muted-foreground"
                   }
                 >
-                  Search...
+                  Search or @username...
                 </span>
               </div>
             </div>

@@ -9,6 +9,17 @@ export function normalizeSearchQueryForRequest(raw: string): string {
   return raw.replace(/\0/g, "").trim().slice(0, MAX_SEARCH_QUERY_LEN)
 }
 
+/** True when the user is searching by handle (e.g. `@creator`). */
+export function isUserHandleSearch(raw: string): boolean {
+  return normalizeSearchQueryForRequest(raw).startsWith("@")
+}
+
+/** Strip a leading `@` for user/creator search API calls. */
+export function getUserSearchTerm(raw: string): string {
+  const q = normalizeSearchQueryForRequest(raw)
+  return q.startsWith("@") ? q.slice(1).trim() : q
+}
+
 /** Block obvious SQL / script injection-style probes from being sent as search text. */
 export function isSuspiciousSqlLikeQuery(q: string): boolean {
   const s = q.toLowerCase()
