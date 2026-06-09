@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, startTransition } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, startTransition } from "react"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
@@ -21,7 +21,12 @@ import { cn, getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/l
 import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
-import { getPlaylistSession, setPlaylistSession } from "@/lib/playlist-session"
+import {
+  getPlaylistSession,
+  setPlaylistSession,
+  type PlaylistVideoMeta,
+} from "@/lib/playlist-session"
+import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
@@ -224,7 +229,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     currentIndex: number
     autoplay: boolean
   } | null>(null)
-  const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, { title?: string; thumbnail?: string }>>({})
+  const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, PlaylistVideoMeta>>({})
+
+  const hydratePlaylistVideoMeta = useCallback((meta?: Record<string, PlaylistVideoMeta>) => {
+    if (!meta || Object.keys(meta).length === 0) return
+    setPlaylistVideoMeta((prev) => ({ ...meta, ...prev }))
+  }, [])
   const canNavigateToPreviousVideo = useMemo(() => {
     if (playlistContext && playlistContext.currentIndex > 0) return true
     return videoHistoryRef.current.length > 0
@@ -570,7 +580,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         autoplay: stored.autoplay !== false,
       }
       setPlaylistContext(nextSession)
-      setPlaylistSession(nextSession)
+      setPlaylistSession({ ...nextSession, videoMeta: stored.videoMeta })
+      hydratePlaylistVideoMeta(stored.videoMeta)
       return
     }
 
@@ -617,9 +628,59 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         if (nextSession) {
           setPlaylistContext(nextSession)
           setPlaylistSession(nextSession)
+          return
         }
       } catch {
-        // no-op; keep watch page usable without playlist context
+        // fall through to mood playlist fallback
+      }
+
+      const moodQuery = moodQueryFromPlaylistId(playlistId)
+      if (moodQuery) {
+        try {
+          const moodRes = await apiClient.getMoodPlaylist(moodQuery, { limit: 100, offset: 0 })
+          if (cancelled || !moodRes.success || moodRes.items.length === 0) return
+          const sortedItems = [...moodRes.items].sort((a, b) => a.position - b.position)
+          const videoMeta: Record<string, PlaylistVideoMeta> = {}
+          const ordered = sortedItems
+            .map((it) => {
+              const v = it.video as {
+                video_id?: string
+                videoId?: string
+                video_title?: string
+                videoTitle?: string
+                video_thumbnail?: string
+                videoThumbnail?: string
+              }
+              const id = v.video_id || v.videoId || ""
+              if (id) {
+                const rawThumb = (v.video_thumbnail || v.videoThumbnail || "").trim()
+                videoMeta[id] = {
+                  title: v.video_title || v.videoTitle,
+                  thumbnail: rawThumb ? getThumbnailUrl(rawThumb) : undefined,
+                }
+              }
+              return id
+            })
+            .filter(Boolean)
+          if (!ordered.length) return
+
+          const indexFromVideo = ordered.indexOf(currentVideoId)
+          const resolvedIndex =
+            indexFromVideo >= 0 ? indexFromVideo : Math.max(0, Math.min(ordered.length - 1, pIndex))
+          const nextSession = {
+            playlistId,
+            title: moodRes.playlist?.title || moodQuery,
+            videoIds: ordered,
+            currentIndex: resolvedIndex,
+            autoplay: true,
+            videoMeta,
+          }
+          setPlaylistContext(nextSession)
+          setPlaylistSession(nextSession)
+          hydratePlaylistVideoMeta(videoMeta)
+        } catch {
+          // no-op; keep watch page usable without playlist context
+        }
       }
     })()
 
@@ -639,10 +700,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
 
   useEffect(() => {
     if (!playlistContext?.videoIds?.length) return
-    const startIndex = Math.max(0, playlistContext.currentIndex)
-    const orderedIds = playlistContext.videoIds.slice(startIndex)
-    const idsToFetch = orderedIds.filter((id) => !playlistVideoMeta[id])
-    if (!idsToFetch.length) return
+    const missing = playlistContext.videoIds.filter((id) => !playlistVideoMeta[id])
+    if (!missing.length) return
+
+    const currentId = playlistContext.videoIds[playlistContext.currentIndex]
+    const idsToFetch = currentId && missing.includes(currentId)
+      ? [currentId, ...missing.filter((id) => id !== currentId)]
+      : missing
 
     let cancelled = false
     const fetchMetaEntries = async (ids: string[]) =>
@@ -665,9 +729,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       )
 
     ;(async () => {
-      // Prioritize the first visible set, then progressively hydrate the rest.
-      const immediateIds = idsToFetch.slice(0, 6)
-      const remainingIds = idsToFetch.slice(6)
+      // Hydrate the full queue (including tracks before currentIndex), current track first.
+      const immediateIds = idsToFetch.slice(0, 8)
+      const remainingIds = idsToFetch.slice(8)
 
       const pushEntries = (entries: Array<readonly [string, { title?: string; thumbnail?: string }]>) => {
         if (cancelled || entries.length === 0) return
@@ -1588,6 +1652,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                 onVideoEnd={handleVideoEnd}
                 onMediaReady={handlePlayerMediaReady}
                 availableProfiles={currentPlayerVideo?.profiles}
+                originalProfile={
+                  currentPlayerVideo?.original_profile || currentPlayerVideo?.originalProfile
+                }
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
                 previousVideoDisabled={!canNavigateToPreviousVideo}

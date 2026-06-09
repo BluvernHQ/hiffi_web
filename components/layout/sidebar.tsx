@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api-client"
 import { setPlaylistSession } from "@/lib/playlist-session"
+import { requestHomeFullFeed } from "@/lib/mood-session"
 import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
 import { CuratedMixSection, type CuratedPlaylistSummary } from "@/components/layout/sidebar/curated-mix-section"
 
@@ -224,6 +225,9 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
         const { shouldBlock, message } = checkUploadNavigationGuard()
         if (shouldBlock && typeof window !== "undefined" && !window.confirm(message)) {
           return
+        }
+        if (item.href === "/") {
+          requestHomeFullFeed()
         }
         router.push(item.href)
       } else if (isHomePage && onFilterChange) {

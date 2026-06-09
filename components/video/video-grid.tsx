@@ -4,6 +4,7 @@ import { VideoCard } from "./video-card"
 import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
 import { useEffect, useRef, useCallback, useState } from "react"
+import type { PlaylistNavigation } from "@/lib/playlist-session"
 
 /** Extra rows to prefetch before the sentinel enters the scroll container. */
 const PREFETCH_ROWS = 1
@@ -58,6 +59,14 @@ interface VideoGridProps {
   hideTimestamp?: boolean
   /** When true, do not show the default “no videos” empty state (parent shows error UI). */
   suppressEmptyState?: boolean
+  /** Custom empty-state title when the grid has no items. */
+  emptyTitle?: string
+  /** Apply DM Sans to card metadata (title, artist, views). */
+  metadataFontDmSans?: boolean
+  /** Skip CSS fade-in on cards (use when GSAP handles entrance). */
+  skipCardEntrance?: boolean
+  /** Open videos in playlist watch mode (queue + next/prev). */
+  playlistNavigation?: PlaylistNavigation
 }
 
 export function VideoGrid({
@@ -70,6 +79,10 @@ export function VideoGrid({
   openVideoUiName = "opened_video",
   hideTimestamp = false,
   suppressEmptyState = false,
+  emptyTitle,
+  metadataFontDmSans = false,
+  skipCardEntrance = false,
+  playlistNavigation,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -177,18 +190,24 @@ export function VideoGrid({
                 key={video.videoId || video.video_id}
                 ref={index === prefetchSentinelIndex ? observerTarget : undefined}
                 data-video-card-cell
-                className="opacity-0 animate-fade-in"
-                style={{
-                  animationDelay: index < 8 ? `${Math.min(index * 30, 300)}ms` : "0ms",
-                  animationFillMode: "forwards",
-                }}
+                className={skipCardEntrance ? undefined : "opacity-0 animate-fade-in"}
+                style={
+                  skipCardEntrance
+                    ? undefined
+                    : {
+                        animationDelay: index < 8 ? `${Math.min(index * 30, 300)}ms` : "0ms",
+                        animationFillMode: "forwards",
+                      }
+                }
               >
                 <VideoCard
                   video={video}
                   priority={index < 4}
                   showDeleteOption={showDeleteOption}
                   hideTimestamp={hideTimestamp}
+                  metadataFontDmSans={metadataFontDmSans}
                   openVideoUiName={openVideoUiName}
+                  playlistNavigation={playlistNavigation}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id
                     if (deletedVideoId) {
@@ -225,7 +244,13 @@ export function VideoGrid({
       )}
 
       {!loading && safeVideos.length === 0 && !suppressEmptyState && (
-        <EmptyVideoState />
+        emptyTitle ? (
+          <p className="py-20 text-center text-sm text-[#555555] font-[family-name:var(--font-dm-sans)]">
+            {emptyTitle}
+          </p>
+        ) : (
+          <EmptyVideoState />
+        )
       )}
     </div>
   )

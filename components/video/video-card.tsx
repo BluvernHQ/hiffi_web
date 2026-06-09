@@ -14,6 +14,11 @@ import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
+import {
+  activatePlaylistNavigation,
+  buildPlaylistWatchPath,
+  type PlaylistNavigation,
+} from "@/lib/playlist-session"
 import { useToast } from "@/hooks/use-toast"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { DeleteVideoDialog } from "./delete-video-dialog"
@@ -68,6 +73,10 @@ interface VideoCardProps {
   showDeleteOption?: boolean
   /** Analytics label for opening a video from this card context. */
   openVideoUiName?: string
+  /** When set, opens watch in playlist mode (queue, next/prev, autoplay). */
+  playlistNavigation?: PlaylistNavigation
+  /** Use DM Sans for title / artist / metadata lines. */
+  metadataFontDmSans?: boolean
 }
 
 export function VideoCard({
@@ -79,7 +88,10 @@ export function VideoCard({
   watchedTimeFormat = "relative",
   showDeleteOption = false,
   openVideoUiName = "opened-video",
+  playlistNavigation,
+  metadataFontDmSans = false,
 }: VideoCardProps) {
+  const metadataFontClass = metadataFontDmSans ? "font-[family-name:var(--font-dm-sans)]" : ""
   const { user, userData } = useAuth()
   const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
@@ -91,7 +103,10 @@ export function VideoCard({
   const title = video.videoTitle || video.video_title || ""
   const username = video.userUsername || video.user_username || ""
   const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
-  const watchPath = `/watch/${videoId}`
+  const watchPath =
+    playlistNavigation && videoId
+      ? buildPlaylistWatchPath(playlistNavigation, videoId)
+      : `/watch/${videoId}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const watchedAt = video.viewed_at || video.watched_at
   const isEncoding = isVideoProcessing(video)
@@ -106,7 +121,21 @@ export function VideoCard({
       url: destinationUrl,
       path: watchPath,
       source_path: window.location.pathname,
+      ...(playlistNavigation ? { playlist_id: playlistNavigation.playlistId } : {}),
     })
+  }
+
+  const handleVideoOpen = (e: React.MouseEvent) => {
+    if (isEncoding) {
+      e.preventDefault()
+      toast(PROCESSING_VIDEO_TOAST)
+      return
+    }
+    if (playlistNavigation && videoId) {
+      activatePlaylistNavigation(playlistNavigation, videoId)
+    }
+    trackVideoOpen()
+    playVideo(video)
   }
 
   const timestampIso = timestampKind === "watched" ? watchedAt : createdAt
@@ -151,16 +180,7 @@ export function VideoCard({
             prefetch={!isEncoding}
             data-analytics-name={openVideoUiName}
             className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
-            onClick={(e) => {
-              if (isEncoding) {
-                e.preventDefault()
-                toast(PROCESSING_VIDEO_TOAST)
-                return
-              }
-              trackVideoOpen()
-              // Preserve instant-load behavior without making the whole card clickable.
-              playVideo(video)
-            }}
+            onClick={handleVideoOpen}
             aria-disabled={isEncoding}
             tabIndex={isEncoding ? -1 : undefined}
           >
@@ -207,27 +227,19 @@ export function VideoCard({
               />
             </div>
             <div className="min-w-0 flex-1 flex flex-col">
-              <h3 className="min-w-0 font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5">
+              <h3 className={`min-w-0 font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug mb-0 sm:mb-0.5 ${metadataFontClass}`}>
                 <Link
                   href={watchPath}
                   prefetch={!isEncoding}
                   className="hover:underline"
-                  onClick={(e) => {
-                    if (isEncoding) {
-                      e.preventDefault()
-                      toast(PROCESSING_VIDEO_TOAST)
-                      return
-                    }
-                    trackVideoOpen()
-                    playVideo(video)
-                  }}
+                  onClick={handleVideoOpen}
                   aria-disabled={isEncoding}
                   tabIndex={isEncoding ? -1 : undefined}
                 >
                   {title || "Untitled Video"}
                 </Link>
               </h3>
-              <div className="flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal">
+              <div className={`flex flex-col text-[12px] sm:text-xs text-muted-foreground space-y-0 sm:space-y-0.5 leading-normal ${metadataFontClass}`}>
                 {timestampKind === "watched" && watchedTimeFormat === "clock" && watchedClock ? (
                   <div className="flex items-center justify-between gap-2 min-w-0 py-0.5">
                     <Link

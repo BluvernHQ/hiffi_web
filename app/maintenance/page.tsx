@@ -41,6 +41,7 @@ export default function MaintenancePage() {
             width={180}
             height={45}
             className="h-10 w-auto object-contain drop-shadow-[0_0_15px_rgba(237,28,47,0.3)]"
+            style={{ width: "auto" }}
             priority
           />
         </div>

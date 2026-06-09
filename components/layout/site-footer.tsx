@@ -152,7 +152,14 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
         <div className={cn("mt-10 border-t pt-6", isApp ? "border-black/15" : "border-border/40")}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <Image src="/appbarlogo.png" alt="Hiffi" width={120} height={40} className="h-8 w-auto" />
+              <Image
+                src="/appbarlogo.png"
+                alt="Hiffi"
+                width={120}
+                height={40}
+                className="h-8 w-auto"
+                style={{ width: "auto" }}
+              />
             </div>
 
             <div

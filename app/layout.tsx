@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Bebas_Neue, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { GuestConversionProvider } from '@/components/conversion/guest-conversion-provider'
@@ -19,6 +19,8 @@ import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" })
 const _geistMono = Geist_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" })
+const _bebasNeue = Bebas_Neue({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-bebas" })
+const _dmSans = DM_Sans({ subsets: ["latin"], display: "swap", variable: "--font-dm-sans" })
 
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
@@ -161,7 +163,7 @@ export default function RootLayout({
   const analyticsAppVersion = "web-nextjs"
 
   return (
-    <html lang="en" className={`${_geist.variable} ${_geistMono.variable}`}>
+    <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
       <head>
         <JsonLd data={siteJsonLd} />
         {/* Microsoft Clarity - ID from env only, never in source */}

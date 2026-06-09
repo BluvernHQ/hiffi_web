@@ -1936,6 +1936,88 @@ class ApiClient {
     return { success: true, playlist, items }
   }
 
+  /** Public mood playlist from video search (GET /playlist/mood/{query}). */
+  async getMoodPlaylist(
+    query: string,
+    params: { limit?: number; offset?: number } = {},
+  ): Promise<{
+    success: boolean
+    playlist?: PlaylistSummary
+    items: Array<{ position: number; added_at?: string; video: Record<string, unknown> }>
+    count: number
+    limit: number
+    offset: number
+  }> {
+    const normalizedQuery = query.toLowerCase().trim()
+    if (!normalizedQuery) {
+      return { success: false, items: [], count: 0, limit: 0, offset: 0 }
+    }
+
+    const limit = params.limit ?? 20
+    const offset = params.offset ?? 0
+
+    const queryParams = new URLSearchParams()
+    if (limit !== 20) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+
+    const qs = queryParams.toString()
+    const endpoint = `/playlist/mood/${encodeURIComponent(normalizedQuery)}${qs ? `?${qs}` : ""}`
+
+    try {
+      const response = await this.request<{
+        success?: boolean
+        status?: string
+        data?: {
+          playlist?: PlaylistSummary & { total_videos?: number }
+          items?: Array<{ position?: number; added_at?: string; video?: Record<string, unknown> }>
+          count?: number
+          limit?: number
+          offset?: number
+        }
+      }>(endpoint, { method: "GET" }, false)
+
+      const ok = response.success === true || response.status === "success"
+      const data = response.data
+      if (!ok || !data) {
+        return { success: false, items: [], count: 0, limit, offset }
+      }
+
+      const rawItems = Array.isArray(data.items) ? data.items : []
+      const items = rawItems
+        .map((item, index) => {
+          const video = item.video
+          if (!video || typeof video !== "object") return null
+          return {
+            position: typeof item.position === "number" ? item.position : offset + index + 1,
+            ...(item.added_at ? { added_at: item.added_at } : {}),
+            video,
+          }
+        })
+        .filter((item): item is { position: number; added_at?: string; video: Record<string, unknown> } => item !== null)
+
+      const rawPlaylist = data.playlist
+      const playlist: PlaylistSummary | undefined = rawPlaylist
+        ? {
+            ...rawPlaylist,
+            playlist_id: String(rawPlaylist.playlist_id || `mood:${normalizedQuery}`),
+            title: String(rawPlaylist.title || normalizedQuery),
+            item_count: rawPlaylist.total_videos ?? rawPlaylist.item_count,
+          }
+        : undefined
+
+      return {
+        success: true,
+        playlist,
+        items,
+        count: typeof data.count === "number" ? data.count : items.length,
+        limit: typeof data.limit === "number" ? data.limit : limit,
+        offset: typeof data.offset === "number" ? data.offset : offset,
+      }
+    } catch {
+      return { success: false, items: [], count: 0, limit, offset }
+    }
+  }
+
   async listMyPlaylists(): Promise<{ success: boolean; playlists: PlaylistSummary[] }> {
     type PlaylistListRow = PlaylistSummary & { total_videos?: number }
     const response = await this.request<{

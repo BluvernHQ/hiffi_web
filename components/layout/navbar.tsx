@@ -40,6 +40,7 @@ function MinimalNavbarHeader() {
             width={132}
             height={32}
             className="h-8 w-auto object-contain"
+            style={{ width: "auto" }}
             priority
           />
         </Link>
@@ -168,6 +169,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 width={132}
                 height={32}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>
@@ -387,6 +389,7 @@ export function Navbar({ onMenuClick, currentFilter, variant = 'full' }: NavbarP
                 width={132}
                 height={32}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>

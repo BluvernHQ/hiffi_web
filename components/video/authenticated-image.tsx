@@ -31,6 +31,7 @@ export function VideoThumbnailPlaceholder({
         width={240}
         height={160}
         className="h-[38%] w-auto max-h-20 max-w-[min(78%,9rem)] object-contain opacity-25"
+        style={{ width: "auto" }}
         sizes="(max-width: 768px) 30vw, 160px"
       />
     </div>
@@ -101,6 +102,8 @@ export function AuthenticatedImage({
     )
   }
 
+  const imageLoading = priority ? "eager" : "lazy"
+
   if (fill) {
     return (
       <Image
@@ -109,6 +112,7 @@ export function AuthenticatedImage({
         fill
         className={className}
         priority={priority}
+        loading={imageLoading}
         sizes={sizes}
         onError={handleImageError}
         unoptimized={true}
@@ -124,6 +128,7 @@ export function AuthenticatedImage({
       height={height}
       className={className}
       priority={priority}
+      loading={imageLoading}
       sizes={sizes}
       onError={handleImageError}
       unoptimized={true}
