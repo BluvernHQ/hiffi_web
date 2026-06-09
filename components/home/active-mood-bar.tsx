@@ -2,6 +2,7 @@
 
 import { useRef } from "react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
+import { MOOD_MIX_FULL_FEED, MOOD_MIX_SWITCH_VIBE } from "@/lib/analytics/mood-mix-analytics"
 import type { MoodDef } from "@/lib/mood-tabs"
 import { MoodOrb } from "@/components/home/mood-orb"
 import { MOOD_EASE, prefersReducedMotion } from "@/lib/gsap/mood-animations"
@@ -63,6 +64,7 @@ export function ActiveMoodBar({ mood, onChangeVibe, onShowAll }: ActiveMoodBarPr
         <button
           type="button"
           onClick={onChangeVibe}
+          data-analytics-name={MOOD_MIX_SWITCH_VIBE}
           className="shrink-0 border border-border bg-card px-3 py-1.5 font-[family-name:var(--font-dm-sans)] text-xs font-medium uppercase tracking-wide text-foreground transition-colors hover:bg-muted"
         >
           Switch
@@ -70,6 +72,7 @@ export function ActiveMoodBar({ mood, onChangeVibe, onShowAll }: ActiveMoodBarPr
         <button
           type="button"
           onClick={onShowAll}
+          data-analytics-name={MOOD_MIX_FULL_FEED}
           className="shrink-0 font-[family-name:var(--font-dm-sans)] text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
         >
           Full feed

@@ -2,6 +2,7 @@
 
 import { useRef } from "react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
+import { MOOD_MIX_OPEN_PICKER } from "@/lib/analytics/mood-mix-analytics"
 import { MOOD_EASE, prefersReducedMotion } from "@/lib/gsap/mood-animations"
 
 interface MoodPickerTeaserProps {
@@ -48,6 +49,7 @@ export function MoodPickerTeaser({ onOpen }: MoodPickerTeaserProps) {
       ref={teaserRef}
       type="button"
       onClick={onOpen}
+      data-analytics-name={MOOD_MIX_OPEN_PICKER}
       onMouseEnter={handleHover}
       onMouseLeave={handleLeave}
       className="group relative flex w-full items-center gap-3 overflow-hidden border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

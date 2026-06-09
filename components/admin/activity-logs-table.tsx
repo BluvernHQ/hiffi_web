@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { moodMixActivityLabel } from "@/lib/analytics/mood-mix-analytics"
 import { cn } from "@/lib/utils"
 
 type AnalyticsEvent = {
@@ -176,6 +177,9 @@ function normalizeUiAction(
   const reportLabel = reportActivityLabel(raw)
   if (reportLabel) return reportLabel
 
+  const moodMixLabel = moodMixActivityLabel(raw)
+  if (moodMixLabel) return moodMixLabel
+
   if (raw === "liked" || raw === "like" || text === "like") return "Liked video"
   if (raw === "disliked" || raw === "dislike" || text === "dislike") return "Disliked video"
   if (raw === "shared-video" || raw === "share" || text === "share") return "Shared video"
@@ -225,8 +229,9 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
   }
 
   if (eventName === "opened-video") {
+    const moodMixVideoLabel = moodMixActivityLabel(uiName)
     return {
-      title: "Opened video (play intent)",
+      title: moodMixVideoLabel || "Opened video (play intent)",
       detail: targetPath || "Video opened from feed",
     }
   }

@@ -23,6 +23,7 @@ import {
   HOME_FEED_RESET_EVENT,
   setPersistedActiveMood,
 } from "@/lib/mood-session"
+import { OPENED_VIDEO_FROM_MOOD } from "@/lib/analytics/mood-mix-analytics"
 import { playlistVideoMetaFromFeedVideos } from "@/lib/playlist-session"
 import { getThumbnailUrl } from "@/lib/storage"
 
@@ -532,7 +533,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
             hideTimestamp
             metadataFontDmSans={isMoodFeed}
             skipCardEntrance={isMoodFeed}
-            openVideoUiName={isMoodFeed ? "opened-video-from-mood" : "opened-video-from-home"}
+            openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
             playlistNavigation={moodPlaylistNavigation}
             onLoadMore={loadMore}
             suppressEmptyState={Boolean(feedError && videos.length === 0 && activeMood === null)}

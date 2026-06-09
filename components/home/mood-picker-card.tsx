@@ -4,6 +4,11 @@ import { useRef, useEffect } from "react"
 import { X } from "lucide-react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
 import type { MoodDef } from "@/lib/mood-tabs"
+import {
+  MOOD_MIX_DISMISS_PICKER,
+  moodMixRunAnalyticsName,
+  moodMixSelectAnalyticsName,
+} from "@/lib/analytics/mood-mix-analytics"
 import { MoodOrb } from "@/components/home/mood-orb"
 import {
   slideCardIn,
@@ -117,6 +122,7 @@ export function MoodPickerCard({
           <button
             type="button"
             onClick={handleDismiss}
+            data-analytics-name={MOOD_MIX_DISMISS_PICKER}
             className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Dismiss mood picker"
           >
@@ -151,6 +157,7 @@ export function MoodPickerCard({
                   aria-selected={isSelected}
                   data-mood-item
                   data-mood-query={mood.query}
+                  data-analytics-name={moodMixSelectAnalyticsName(mood.query)}
                   onClick={() => onSelect(mood.query)}
                   className="group flex w-[5.25rem] shrink-0 snap-center flex-col items-center gap-2 p-1.5 focus-visible:outline-none sm:w-[5.75rem]"
                 >
@@ -202,6 +209,7 @@ export function MoodPickerCard({
               type="button"
               disabled={!selectedQuery || loading}
               onClick={handleStartMix}
+              data-analytics-name={selectedQuery ? moodMixRunAnalyticsName(selectedQuery) : undefined}
               className={[
                 "shrink-0 px-4 py-2 font-[family-name:var(--font-bebas)] text-sm tracking-[0.14em] uppercase transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card",
