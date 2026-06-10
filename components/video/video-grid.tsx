@@ -3,7 +3,7 @@
 import { VideoCard } from "./video-card"
 import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
-import { useEffect, useRef, useCallback, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react"
 import type { PlaylistNavigation } from "@/lib/playlist-session"
 
 /** Extra rows to prefetch before the sentinel enters the scroll container. */
@@ -17,7 +17,10 @@ function useGridColumnCount(): number {
   useEffect(() => {
     if (typeof window === "undefined") return
     const mq = window.matchMedia("(min-width: 1024px)")
-    const sync = () => setColumns(mq.matches ? 4 : 2)
+    const sync = () => {
+      const next = mq.matches ? 4 : 2
+      setColumns((prev) => (prev === next ? prev : next))
+    }
     sync()
     mq.addEventListener("change", sync)
     return () => mq.removeEventListener("change", sync)
@@ -88,7 +91,7 @@ export function VideoGrid({
   const gridRef = useRef<HTMLDivElement>(null)
   const rowHeightRef = useRef(DEFAULT_ROW_HEIGHT_PX)
   const lastLoadTime = useRef<number>(0)
-  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null)
+  const scrollRootRef = useRef<HTMLElement | null>(null)
   const columnsPerRow = useGridColumnCount()
 
   const safeVideos = videos || []
@@ -105,24 +108,8 @@ export function VideoGrid({
     return () => window.removeEventListener("resize", measureRowHeight)
   }, [safeVideos.length, columnsPerRow])
 
-  useEffect(() => {
-    const syncScrollRoot = () => {
-      const root = document.getElementById("main-content")
-      setScrollRoot((prev) => {
-        if (prev === root) return prev
-        return root
-      })
-    }
-
-    syncScrollRoot()
-
-    // Keep in sync when layout remounts the scroll container after navigation.
-    const domObserver = new MutationObserver(syncScrollRoot)
-    domObserver.observe(document.body, { childList: true, subtree: true })
-
-    return () => {
-      domObserver.disconnect()
-    }
+  useLayoutEffect(() => {
+    scrollRootRef.current = document.getElementById("main-content")
   }, [])
 
   const throttledLoadMore = useCallback(() => {
@@ -138,6 +125,7 @@ export function VideoGrid({
 
   useEffect(() => {
     const target = observerTarget.current
+    const scrollRoot = scrollRootRef.current ?? document.getElementById("main-content")
     if (!target || !hasMore || !scrollRoot) return
     const prefetchPx = Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))
 
@@ -159,7 +147,7 @@ export function VideoGrid({
     return () => {
       observer.unobserve(target)
     }
-  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow, scrollRoot])
+  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow])
 
   const isInitialLoad = loading && safeVideos.length === 0
   const isLoadingMore = loading && safeVideos.length > 0

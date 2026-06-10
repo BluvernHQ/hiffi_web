@@ -171,15 +171,13 @@
   display: none;
 }
 
-/* Mood picker orb row — horizontal swipe on mobile */
+/* Mood picker orb row — horizontal swipe on mobile; center-on-tap via scrollIntoView */
 .mood-orbs-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   touch-action: pan-x pinch-zoom;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: 1rem;
 }
 
 .animate-shimmer {

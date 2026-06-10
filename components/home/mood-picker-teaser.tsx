@@ -31,7 +31,7 @@ export function MoodPickerTeaser({ onOpen }: MoodPickerTeaserProps) {
         ease: MOOD_EASE.in,
       })
     },
-    { scope: teaserRef },
+    { scope: teaserRef, dependencies: [] },
   )
 
   const handleHover = () => {

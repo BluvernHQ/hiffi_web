@@ -66,7 +66,7 @@ export function MoodPickerCard({
         exitTween.current?.kill()
       }
     },
-    { scope: wrapperRef },
+    { scope: wrapperRef, dependencies: [] },
   )
 
   useEffect(() => {
@@ -118,18 +118,18 @@ export function MoodPickerCard({
       <div ref={cardRef} className="relative border border-border bg-card shadow-sm will-change-transform">
         <div className="absolute left-0 top-0 h-full w-1 bg-primary" aria-hidden />
 
-        <div className="px-4 pb-4 pt-5 sm:px-5 sm:pb-5 sm:pt-6">
+        <div className="relative px-4 pt-5 sm:px-5 sm:pt-6">
           <button
             type="button"
             onClick={handleDismiss}
             data-analytics-name={MOOD_MIX_DISMISS_PICKER}
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Dismiss mood picker"
           >
             <X className="h-4 w-4" />
           </button>
 
-          <div className="pr-8">
+          <div className="pr-10 sm:pr-12">
             <p className="font-[family-name:var(--font-dm-sans)] text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
               Hiffi Mix
             </p>
@@ -140,44 +140,48 @@ export function MoodPickerCard({
               Lock in a mood. We&apos;ll spin the feed.
             </p>
           </div>
+        </div>
 
-          <div
-            ref={orbsScrollRef}
-            className="mood-orbs-scroll scrollbar-none -mx-4 mt-5 flex w-full max-w-full flex-nowrap gap-3 px-4 py-2 pr-6 sm:-mx-5 sm:gap-3.5 sm:px-5"
-            role="listbox"
-            aria-label="Mood options"
-          >
-            {moods.map((mood) => {
-              const isSelected = selectedQuery === mood.query
-              return (
-                <button
-                  key={mood.query}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  data-mood-item
-                  data-mood-query={mood.query}
-                  data-analytics-name={moodMixSelectAnalyticsName(mood.query)}
-                  onClick={() => onSelect(mood.query)}
-                  className="group flex w-[5.25rem] shrink-0 snap-center flex-col items-center gap-2 p-1.5 focus-visible:outline-none sm:w-[5.75rem]"
+        <div
+          ref={orbsScrollRef}
+          className="mood-orbs-scroll scrollbar-none mt-5 flex min-w-0 flex-nowrap gap-3 px-4 py-2 sm:gap-3.5 sm:px-5"
+          role="listbox"
+          aria-label="Mood options"
+        >
+          {moods.map((mood) => {
+            const isSelected = selectedQuery === mood.query
+            return (
+              <button
+                key={mood.query}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                data-mood-item
+                data-mood-query={mood.query}
+                data-analytics-name={moodMixSelectAnalyticsName(mood.query)}
+                onClick={() => onSelect(mood.query)}
+                className="group flex w-[5.25rem] shrink-0 flex-col items-center gap-2 p-1.5 focus-visible:outline-none sm:w-[5.75rem]"
+              >
+                <div data-mood-orb>
+                  <MoodOrb gradient={mood.gradient} selected={isSelected} />
+                </div>
+                <span
+                  className={[
+                    "max-w-[5.5rem] text-center font-[family-name:var(--font-bebas)] text-sm uppercase leading-tight tracking-wide sm:max-w-[6rem]",
+                    isSelected ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80",
+                  ].join(" ")}
                 >
-                  <div data-mood-orb>
-                    <MoodOrb gradient={mood.gradient} selected={isSelected} />
-                  </div>
-                  <span
-                    className={[
-                      "max-w-[5.5rem] text-center font-[family-name:var(--font-bebas)] text-sm uppercase leading-tight tracking-wide sm:max-w-[6rem]",
-                      isSelected ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80",
-                    ].join(" ")}
-                  >
-                    {mood.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+                  {mood.label}
+                </span>
+              </button>
+            )
+          })}
+          {/* Trailing room so the last orb can scroll flush to the card edge */}
+          <span aria-hidden className="w-4 shrink-0 sm:w-5" />
+        </div>
 
-          <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+          <div className="flex items-end justify-between gap-3">
             {selected ? (
               <div ref={detailRef} className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
