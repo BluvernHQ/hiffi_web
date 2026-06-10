@@ -1,83 +1,75 @@
 import Image from "next/image";
-import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const BADGES = [
-  { label: "Artist First", className: "top-[12%] left-[2%] xl:left-[4%]" },
-  { label: "Fair Pay", className: "top-[12%] right-[2%] xl:right-[4%]" },
-  { label: "Real Ownership", className: "bottom-[12%] left-[2%] xl:left-[4%]" },
-  { label: "Fan Connection", className: "bottom-[12%] right-[2%] xl:right-[4%]" },
+  { label: "Artist First", className: "top-[18%] left-[4%] md:top-[22%] md:left-[8%]" },
+  { label: "Fair Play", className: "top-[18%] right-[4%] md:top-[22%] md:right-[8%]" },
+  { label: "Real Ownership", className: "bottom-[28%] left-[4%] md:bottom-[30%] md:left-[8%]" },
+  { label: "Fan Connection", className: "bottom-[28%] right-[4%] md:bottom-[30%] md:right-[8%]" },
 ] as const;
 
 function ValueBadge({ label, className }: (typeof BADGES)[number]) {
   return (
     <div
       className={cn(
-        "absolute z-30 flex items-center gap-2 rounded-full border border-primary bg-white px-4 py-2 shadow-sm",
+        "flex items-center gap-2.5 rounded-full bg-zinc-800 px-4 py-2.5 shadow-md",
         className
       )}
     >
-      <Star className="h-4 w-4 shrink-0 fill-[#F5B301] text-[#F5B301]" aria-hidden />
-      <span className="whitespace-nowrap text-sm font-medium text-zinc-700">{label}</span>
+      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" aria-hidden />
+      <span className="whitespace-nowrap text-sm font-medium text-white">{label}</span>
     </div>
   );
 }
 
 export default function WhyHiffiExists() {
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-black">
-
-      {/* Background */}
-      <Image
-        src="/lightsBackground.png"
-        alt=""
-        fill
-        className="object-cover object-center"
-        sizes="100vw"
-        priority
-      />
-
-      {/* Chain — absolute, full width, vertically centered */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="flex w-full items-center">
-          <div className="w-1/2 overflow-hidden">
-            <Image
-              src="/chainLeft.png"
-              alt=""
-              width={726}
-              height={897}
-              sizes="50vw"
-              className="ml-auto h-auto w-full object-cover object-right"
-            />
-          </div>
-          <div className="w-1/2 overflow-hidden">
-            <Image
-              src="/chainRight.png"
-              alt=""
-              width={726}
-              height={897}
-              sizes="50vw"
-              className="h-auto w-full object-cover object-left"
-            />
-          </div>
-        </div>
+    <section className="relative min-h-screen w-full overflow-hidden bg-white">
+      <div className="pointer-events-none absolute left-0 top-0 z-0 h-28 w-56 md:h-36 md:w-72">
+        <Image
+          src="/whyHiffiTopShade.png"
+          alt=""
+          fill
+          className="object-contain object-left-top"
+          sizes="(max-width: 768px) 224px, 288px"
+          priority
+        />
       </div>
 
-      {/* WHY HIFFI — top center */}
-      <h2 className="absolute top-[10%] left-1/2 z-20 -translate-x-1/2 text-center text-[clamp(2.5rem,8vw,6.75rem)] font-bold uppercase leading-none tracking-tighter text-white">
-        WHY HIFFI
-      </h2>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[min(42vh,22rem)] overflow-hidden">
+        <Image
+          src="/whyHiffiCircleElement.png"
+          alt=""
+          fill
+          className="object-cover object-bottom"
+          sizes="100vw"
+        />
+      </div>
 
-      {/* EXISTS — bottom center */}
-      <h2 className="absolute bottom-[20%] left-1/2 z-20 -translate-x-1/2 text-center text-[clamp(3rem,10vw,8rem)] font-bold uppercase leading-none tracking-tighter text-primary">
-        EXISTS
-      </h2>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-20">
+        <div className="mb-10 grid w-full max-w-md grid-cols-2 gap-3 sm:max-w-lg md:hidden">
+          {BADGES.map((badge) => (
+            <ValueBadge key={badge.label} {...badge} />
+          ))}
+        </div>
 
-      {/* Badges */}
-      {BADGES.map((badge) => (
-        <ValueBadge key={badge.label} {...badge} />
-      ))}
+        <div className="relative flex w-full min-h-[min(55vh,32rem)] flex-col items-center justify-center md:min-h-[min(65vh,36rem)]">
+          <div className="hidden md:contents">
+            {BADGES.map((badge) => (
+              <ValueBadge key={badge.label} {...badge} className={cn("absolute", badge.className)} />
+            ))}
+          </div>
 
+          <h2 className="relative z-20 text-center text-[clamp(2.5rem,9vw,6.5rem)] font-bold uppercase leading-[0.9] tracking-tighter text-black">
+            WHY HIFFI
+          </h2>
+          <h2
+            className="relative z-20 -mt-1 text-center text-[clamp(3rem,11vw,8rem)] font-bold uppercase leading-none tracking-tighter text-primary [-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_16%,black_100%)] [mask-image:linear-gradient(to_right,transparent_0%,black_16%,black_100%)]"
+          >
+            EXISTS
+          </h2>
+        </div>
+      </div>
     </section>
   );
 }

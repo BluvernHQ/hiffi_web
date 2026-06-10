@@ -1,0 +1,136 @@
+.about-hero-sc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.about-circle-slider-position {
+  position: absolute;
+  top: 6rem;
+  left: 50%;
+  display: flex;
+  width: 0;
+  height: 0;
+  align-items: flex-start;
+  justify-content: center;
+  transform: translateX(-50%);
+}
+
+.about-circle-slider-container {
+  position: absolute;
+  aspect-ratio: 1;
+  width: min(120rem, 280vw);
+  pointer-events: none;
+}
+
+.about-circle-slider-wrapper {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.about-circle-slide {
+  position: absolute;
+  display: flex;
+  width: 5.9375rem;
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  perspective: 30rem;
+  transition: transform 1s ease;
+  will-change: transform;
+}
+
+@media (min-width: 768px) {
+  .about-circle-slide {
+    width: 6.875rem;
+  }
+}
+
+.about-circle-slide-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.about-circle-slide-image,
+.about-circle-slide-flip {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  backface-visibility: hidden;
+  transition: transform 1s ease;
+}
+
+.about-circle-slide-image {
+  z-index: 2;
+  border: 2px solid #ff2d3d;
+  background: transparent;
+}
+
+.about-circle-slide-flip {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotateY(180deg);
+  border: 2px solid #ff6b7b;
+  background: #fff;
+}
+
+.about-circle-slide.active .about-circle-slide-image {
+  transform: rotateY(180deg);
+}
+
+.about-circle-slide.active .about-circle-slide-flip {
+  transform: rotateY(0deg);
+}
+
+.about-flip-widget {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.2s;
+}
+
+.about-circle-slide.active .about-flip-widget {
+  opacity: 1;
+}
+
+.about-hero-text {
+  position: absolute;
+  top: 22rem;
+  z-index: 30;
+  display: flex;
+  width: 100%;
+  max-width: 52rem;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .about-hero-text {
+    top: 24rem;
+  }
+}
+
+.about-hero-mask {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 20;
+  height: 8rem;
+  background: linear-gradient(180deg, transparent, #f6f3f4);
+  pointer-events: none;
+}

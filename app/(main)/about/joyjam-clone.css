@@ -1,0 +1,177 @@
+.image-cover {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.image-contain {
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+}
+
+.page-wrapper {
+  min-height: 100vh;
+  background-color: #0c0b0c;
+  overflow-x: hidden;
+}
+
+/* Desktop navbar — Webflow mobile collapse rules must not apply */
+@media screen and (min-width: 480px) {
+  .navbar .nav-menu-wrapper {
+    width: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .w-nav[data-collapse="none"] .w-nav-menu {
+    display: block;
+    float: none;
+    position: static;
+  }
+
+  .navbar .nav-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navbar .nav-container {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* View-item entrance (navbar pill) */
+[view-item="from-center"] {
+  transform: scale(0.6);
+  opacity: 0;
+  transition:
+    transform 2s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.2s;
+}
+
+[view-item="from-center"].view {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Wave hover effects from JoyJam inline styles */
+.wave-line-infinity {
+  width: 100%;
+  height: 100%;
+  transition: all 0.6s ease;
+  opacity: 0;
+  border-radius: var(--infinity-border-radius-start, 10rem);
+  pointer-events: none;
+}
+
+.wave-line-default {
+  width: 100%;
+  height: 100%;
+  transition: all 0.6s ease;
+  opacity: 0;
+  border-radius: var(--default-border-radius-start, 10rem);
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.nav-button:hover .wave-line-infinity,
+.nav-container:hover .wave-line-default {
+  animation: expandLineDefault 0.6s ease forwards;
+}
+
+.nav-button:hover .wave-line-infinity {
+  animation-name: expandLineInfinity;
+}
+
+@keyframes expandLineInfinity {
+  0% {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border-radius: var(--infinity-border-radius-start, 10rem);
+  }
+  20% {
+    opacity: 0.4;
+  }
+  60% {
+    opacity: 0.1;
+  }
+  100% {
+    width: calc(100% + var(--infinity-expand-value, 2rem));
+    height: calc(100% + var(--infinity-expand-value, 2rem));
+    opacity: 0;
+    border-radius: var(--infinity-border-radius-end, 10rem);
+  }
+}
+
+@keyframes expandLineDefault {
+  0% {
+    width: 101%;
+    height: 101%;
+    opacity: 0;
+    border-radius: var(--default-border-radius-start, 10rem);
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    width: calc(100% + var(--default-expand-value, 2rem));
+    height: calc(100% + var(--default-expand-value, 2rem));
+    opacity: 0;
+    border-radius: var(--default-border-radius-end, 10rem);
+  }
+}
+
+/* Circle slider flip card 3D */
+.circle-slide {
+  transform-style: preserve-3d;
+}
+
+.circle-slide-content {
+  transform-style: preserve-3d;
+}
+
+.circle-slide-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  backface-visibility: hidden;
+}
+
+.circle-slide > .circle-slide-flip {
+  z-index: 5;
+}
+
+/* Local flip card backgrounds (joyjam.css points to wayback URLs) */
+.circle-slide-flip.s1 {
+  background-image: url("/joyjam/6821a59ae3bfe3007134251f_45ba1cf20198611a97c45e83addf77ef_flip-card-bg-1.webp");
+}
+
+.circle-slide-flip.s7 {
+  background-image: url("/joyjam/6821a59ae3bfe30071342503_db56ff815a91678980d4cf069485d7cd_flip-card-bg-4.webp");
+}
+
+.flip-photo-frame,
+.flip-pop-message,
+.flip-music-note,
+.flip-heart,
+.flip-total-views,
+.flip-sound-icon,
+.flip-pin-point,
+.flip-headphones,
+.flip-ball,
+.flip-creator-badge,
+.flip-silver-heart,
+.flip-card-bg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}

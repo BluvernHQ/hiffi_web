@@ -89,7 +89,7 @@ function FeatureColumn({
 
 export default function About() {
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-black">
+    <section className="relative min-h-screen w-full overflow-hidden">
       <div className="absolute inset-0">
         <Image
           src="/lightsBackground.png"
