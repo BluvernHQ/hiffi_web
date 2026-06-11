@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, useRef } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from "react"
 import { usePathname } from "next/navigation"
 
 export type PlayerMode = 'hidden' | 'mini' | 'expanded'
@@ -88,13 +88,13 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
     currentTimeRef.current = time
   }
 
-  return (
-    <VideoContext.Provider value={{ 
-      activeVideo, 
-      mode, 
-      playVideo, 
-      minimize, 
-      expand, 
+  const value = useMemo(
+    () => ({
+      activeVideo,
+      mode,
+      playVideo,
+      minimize,
+      expand,
       close,
       setMode,
       suggestedVideos,
@@ -102,11 +102,26 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
       videoBounds,
       setVideoBounds,
       getCurrentTime,
-      setCurrentTime
-    }}>
-      {children}
-    </VideoContext.Provider>
+      setCurrentTime,
+    }),
+    [
+      activeVideo,
+      mode,
+      playVideo,
+      minimize,
+      expand,
+      close,
+      setMode,
+      suggestedVideos,
+      setSuggestedVideos,
+      videoBounds,
+      setVideoBounds,
+      getCurrentTime,
+      setCurrentTime,
+    ],
   )
+
+  return <VideoContext.Provider value={value}>{children}</VideoContext.Provider>
 }
 
 export const useGlobalVideo = () => {

@@ -2,6 +2,7 @@
 
 interface MoodOrbProps {
   gradient: string
+  image?: string
   selected?: boolean
   size?: "md" | "sm"
   className?: string
@@ -12,7 +13,13 @@ const SIZES = {
   sm: "h-9 w-9",
 }
 
-export function MoodOrb({ gradient, selected = false, size = "md", className = "" }: MoodOrbProps) {
+export function MoodOrb({
+  gradient,
+  image,
+  selected = false,
+  size = "md",
+  className = "",
+}: MoodOrbProps) {
   return (
     <div
       className={[
@@ -24,7 +31,12 @@ export function MoodOrb({ gradient, selected = false, size = "md", className = "
         className,
       ].join(" ")}
     >
-      <div className="absolute inset-0 overflow-hidden rounded-full" style={{ background: gradient }} />
+      <div
+        className="absolute inset-0 overflow-hidden rounded-full"
+        style={{
+          background: image ? `url(${image}) center/cover no-repeat` : gradient,
+        }}
+      />
       {/* Gloss highlight — cassette / vinyl sheen */}
       <div
         className="pointer-events-none absolute inset-0 rounded-full"

@@ -1,19 +1,20 @@
 "use client"
 
 import { useRef } from "react"
+import { Play, X } from "lucide-react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
-import { MOOD_MIX_FULL_FEED, MOOD_MIX_SWITCH_VIBE } from "@/lib/analytics/mood-mix-analytics"
+import { MOOD_MIX_FULL_FEED } from "@/lib/analytics/mood-mix-analytics"
 import type { MoodDef } from "@/lib/mood-tabs"
 import { MoodOrb } from "@/components/home/mood-orb"
 import { MOOD_EASE, prefersReducedMotion } from "@/lib/gsap/mood-animations"
 
 interface ActiveMoodBarProps {
   mood: MoodDef
-  onChangeVibe: () => void
-  onShowAll: () => void
+  onPlay: () => void
+  onClose: () => void
 }
 
-export function ActiveMoodBar({ mood, onChangeVibe, onShowAll }: ActiveMoodBarProps) {
+export function ActiveMoodBar({ mood, onPlay, onClose }: ActiveMoodBarProps) {
   const barRef = useRef<HTMLDivElement>(null)
   const stripeRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -46,8 +47,17 @@ export function ActiveMoodBar({ mood, onChangeVibe, onShowAll }: ActiveMoodBarPr
         aria-hidden
       />
 
-      <div ref={contentRef} className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
-        <MoodOrb gradient={mood.gradient} size="sm" />
+      <div ref={contentRef} className="flex items-center gap-3 px-3 py-2 sm:px-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="Clear mood and show full feed"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <MoodOrb gradient={mood.gradient} image={mood.image} size="sm" />
 
         <div className="min-w-0 flex-1">
           <p className="font-[family-name:var(--font-dm-sans)] text-[9px] font-semibold uppercase tracking-[0.22em] text-primary">
@@ -56,26 +66,15 @@ export function ActiveMoodBar({ mood, onChangeVibe, onShowAll }: ActiveMoodBarPr
           <p className="truncate font-[family-name:var(--font-bebas)] text-lg leading-tight tracking-wide text-foreground">
             {mood.label}
           </p>
-          <p className="truncate font-[family-name:var(--font-dm-sans)] text-xs text-muted-foreground">
-            {mood.tagline}
-          </p>
         </div>
 
         <button
           type="button"
-          onClick={onChangeVibe}
-          data-analytics-name={MOOD_MIX_SWITCH_VIBE}
-          className="shrink-0 border border-border bg-card px-3 py-1.5 font-[family-name:var(--font-dm-sans)] text-xs font-medium uppercase tracking-wide text-foreground transition-colors hover:bg-muted"
+          onClick={onPlay}
+          className="flex h-9 items-center gap-2 bg-primary px-4 font-[family-name:var(--font-bebas)] text-sm tracking-widest text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          Switch
-        </button>
-        <button
-          type="button"
-          onClick={onShowAll}
-          data-analytics-name={MOOD_MIX_FULL_FEED}
-          className="shrink-0 font-[family-name:var(--font-dm-sans)] text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-        >
-          Full feed
+          <Play className="h-3.5 w-3.5 fill-current" />
+          PLAY
         </button>
       </div>
     </div>

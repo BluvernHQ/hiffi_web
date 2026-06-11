@@ -17,11 +17,11 @@ function useGridColumnCount(): number {
   useEffect(() => {
     if (typeof window === "undefined") return
     const mq = window.matchMedia("(min-width: 1024px)")
-    const sync = () => {
-      const next = mq.matches ? 4 : 2
+    const sync = (e: { matches: boolean }) => {
+      const next = e.matches ? 4 : 2
       setColumns((prev) => (prev === next ? prev : next))
     }
-    sync()
+    sync(mq)
     mq.addEventListener("change", sync)
     return () => mq.removeEventListener("change", sync)
   }, [])
@@ -96,6 +96,12 @@ export function VideoGrid({
 
   const safeVideos = videos || []
 
+  /** Sentinel sits one row above the bottom so the next page starts loading early. */
+  const prefetchSentinelIndex =
+    hasMore && safeVideos.length > 0
+      ? Math.max(0, safeVideos.length - columnsPerRow - 1)
+      : -1
+
   useEffect(() => {
     const measureRowHeight = () => {
       const grid = gridRef.current
@@ -112,22 +118,37 @@ export function VideoGrid({
     scrollRootRef.current = document.getElementById("main-content")
   }, [])
 
+  const onLoadMoreRef = useRef(onLoadMore)
+  const loadingRef = useRef(loading)
+  const hasMoreRef = useRef(hasMore)
+
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore
+  }, [onLoadMore])
+
+  useEffect(() => {
+    loadingRef.current = loading
+  }, [loading])
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore
+  }, [hasMore])
+
   const throttledLoadMore = useCallback(() => {
     const now = Date.now()
     if (now - lastLoadTime.current < LOAD_THROTTLE_MS) {
       return
     }
     lastLoadTime.current = now
-    if (hasMore && !loading && onLoadMore) {
-      onLoadMore()
+    if (hasMoreRef.current && !loadingRef.current && onLoadMoreRef.current) {
+      onLoadMoreRef.current()
     }
-  }, [hasMore, loading, onLoadMore])
+  }, [])
 
   useEffect(() => {
     const target = observerTarget.current
     const scrollRoot = scrollRootRef.current ?? document.getElementById("main-content")
-    if (!target || !hasMore || !scrollRoot) return
-    const prefetchPx = Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))
+    if (!target || !hasMore || !scrollRoot || prefetchSentinelIndex === -1) return
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -138,7 +159,8 @@ export function VideoGrid({
       {
         root: scrollRoot,
         threshold: 0,
-        rootMargin: `0px 0px ${prefetchPx}px 0px`,
+        // Calculate margin based on current row height
+        rootMargin: `0px 0px ${Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))}px 0px`,
       },
     )
 
@@ -146,16 +168,12 @@ export function VideoGrid({
 
     return () => {
       observer.unobserve(target)
+      observer.disconnect()
     }
-  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow])
+  }, [throttledLoadMore, hasMore, prefetchSentinelIndex])
 
   const isInitialLoad = loading && safeVideos.length === 0
   const isLoadingMore = loading && safeVideos.length > 0
-  /** Sentinel sits one row above the bottom so the next page starts loading early. */
-  const prefetchSentinelIndex =
-    hasMore && safeVideos.length > 0
-      ? Math.max(0, safeVideos.length - columnsPerRow - 1)
-      : -1
 
   return (
     <div className="w-full">

@@ -82,12 +82,14 @@ export function AddToPlaylistDialog({
   )
 
   useEffect(() => {
+    if (!open || typeof window === "undefined") return
     const mq = window.matchMedia("(min-width: 768px)")
-    const onChange = () => setIsMdUp(mq.matches)
-    onChange()
+    const onChange = (e: { matches: boolean }) => {
+      setIsMdUp((prev) => (prev === e.matches ? prev : e.matches))
+    }
     mq.addEventListener("change", onChange)
     return () => mq.removeEventListener("change", onChange)
-  }, [])
+  }, [open])
 
   const [step, setStep] = useState<Step>("pick")
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([])
@@ -534,13 +536,16 @@ export function AddToPlaylistDialog({
     )
   }
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
-      closeAndDiscard()
-      return
-    }
-    onOpenChange(nextOpen)
-  }
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        closeAndDiscard()
+        return
+      }
+      onOpenChange(nextOpen)
+    },
+    [closeAndDiscard, onOpenChange],
+  )
 
   const popoverPanel = (
     <PopoverContent

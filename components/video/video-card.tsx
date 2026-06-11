@@ -4,7 +4,7 @@ import type React from "react"
 
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { format, formatDistanceToNow } from "date-fns"
@@ -171,6 +171,31 @@ export function VideoCard({
     })
   }
 
+  const addToPlaylistTrigger = useMemo(
+    () => (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        data-analytics-name="video-card-add-to-playlist-button"
+        className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (!user) {
+            setPlaylistAuthDialogOpen(true)
+            return
+          }
+          setAddToPlaylistOpen(true)
+        }}
+        aria-label="Add to playlist"
+        title="Add to playlist"
+      >
+        <Bookmark className="h-4 w-4" />
+      </Button>
+    ),
+    [user],
+  )
+
   return (
     <div className="group w-full h-auto">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
@@ -315,25 +340,7 @@ export function VideoCard({
                   artistName={username ? `@${username}` : undefined}
                   thumbnailUrl={thumbnailUrl || undefined}
                 >
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    data-analytics-name="video-card-add-to-playlist-button"
-                    className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (!user) {
-                        setPlaylistAuthDialogOpen(true)
-                        return
-                      }
-                      setAddToPlaylistOpen(true)
-                    }}
-                    aria-label="Add to playlist"
-                    title="Add to playlist"
-                  >
-                    <Bookmark className="h-4 w-4" />
-                  </Button>
+                  {addToPlaylistTrigger}
                 </AddToPlaylistDialog>
               )}
             </div>

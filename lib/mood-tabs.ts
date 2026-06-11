@@ -12,6 +12,8 @@ export type MoodDef = {
   tagline: string
   /** CSS background for the mood orb. */
   gradient: string
+  /** Image background for the mood orb (optional). */
+  image?: string
   /** Accent for cluster badge. */
   accent: string
 }
@@ -25,6 +27,7 @@ export const MOODS: MoodDef[] = [
     vibe: "Drill, trap bangers, rage",
     tagline: "No warning shots.",
     gradient: "radial-gradient(circle at 35% 28%, #ff2d42 0%, #c41228 38%, #6b0a18 72%, #2a0810 100%)",
+    image: "/moodbp/onsight.png",
     accent: "#E8192C",
   },
   {
@@ -34,6 +37,7 @@ export const MOODS: MoodDef[] = [
     vibe: "J. Cole mode, conscious rap",
     tagline: "In your bag, in your head.",
     gradient: "radial-gradient(circle at 30% 25%, #8b7ab8 0%, #5c4d8a 40%, #322a52 75%, #1a1528 100%)",
+    image: "/moodbp/soulsearch.png",
     accent: "#6b5b95",
   },
   {
@@ -43,6 +47,7 @@ export const MOODS: MoodDef[] = [
     vibe: "Celebration, flexing, wins",
     tagline: "Receipts on receipts.",
     gradient: "radial-gradient(circle at 40% 30%, #f0d078 0%, #c9a030 42%, #7a6018 78%, #3d3010 100%)",
+    image: "/moodbp/moneytalk.png",
     accent: "#c9a030",
   },
   {
@@ -52,6 +57,7 @@ export const MOODS: MoodDef[] = [
     vibe: "Heartbreak, late night",
     tagline: "After hours only.",
     gradient: "radial-gradient(circle at 35% 30%, #5a8ab8 0%, #3d5a80 45%, #1e3048 80%, #0c1824 100%)",
+    image: "/moodbp/Bluehours.png",
     accent: "#3d5a80",
   },
   {
@@ -61,6 +67,7 @@ export const MOODS: MoodDef[] = [
     vibe: "Lo-fi hip-hop, boom bap",
     tagline: "Cruise control.",
     gradient: "radial-gradient(circle at 38% 32%, #e09870 0%, #b86a48 40%, #6b3e28 76%, #2a1810 100%)",
+    image: "/moodbp/Lowrider.png",
     accent: "#b86a48",
   },
   {
@@ -70,6 +77,7 @@ export const MOODS: MoodDef[] = [
     vibe: "Workout, turn up",
     tagline: "Stage dive energy.",
     gradient: "radial-gradient(circle at 32% 28%, #d4f040 0%, #9ab820 42%, #4a6010 78%, #1a2008 100%)",
+    image: "/moodbp/Moshpit.png",
     accent: "#9ab820",
   },
   {
@@ -79,6 +87,7 @@ export const MOODS: MoodDef[] = [
     vibe: "Faith, legacy, purpose",
     tagline: "Bigger than the moment.",
     gradient: "radial-gradient(circle at 40% 25%, #f8f4ee 0%, #c8c0b4 38%, #787068 72%, #2a2824 100%)",
+    image: "/moodbp/Godsplan.png",
     accent: "#8a8078",
   },
 ]

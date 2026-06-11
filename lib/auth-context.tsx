@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
@@ -713,11 +713,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return (
-    <AuthContext.Provider value={{ user, userData, loading, login, signup, verifyOtp, logout, refreshUserData, clearProfilePhoto }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      userData,
+      loading,
+      login,
+      signup,
+      verifyOtp,
+      logout,
+      refreshUserData,
+      clearProfilePhoto,
+    }),
+    [
+      user,
+      userData,
+      loading,
+      login,
+      signup,
+      verifyOtp,
+      logout,
+      refreshUserData,
+      clearProfilePhoto,
+    ],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
