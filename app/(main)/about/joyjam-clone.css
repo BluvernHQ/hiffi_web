@@ -13,7 +13,18 @@
 .page-wrapper {
   min-height: 100vh;
   background-color: #0c0b0c;
-  overflow-x: hidden;
+  /* clip — not hidden — so benefits-sticky position:sticky still works */
+  overflow-x: clip;
+}
+
+/* Lenis base styles come from lenis/dist/lenis.css (imported in init-lenis-scroll.ts) */
+html.lenis body {
+  height: auto;
+}
+
+.word,
+.body-line-span {
+  display: inline-block;
 }
 
 /* Desktop navbar — Webflow mobile collapse rules must not apply */
@@ -174,4 +185,398 @@
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.benefits-sticky {
+  overflow: hidden;
+}
+
+/* Benefits — layer stack from JoyJam archive */
+.full-container.benefits-s {
+  position: relative;
+  overflow: hidden;
+  /* Archive centers children — keep headline/phone in separate layers */
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+}
+
+.text-elements.benefits-s {
+  /* Headline in upper third — vh keeps position stable as phone scales with vw */
+  position: absolute;
+  z-index: 300 !important;
+  top: clamp(10rem, 20vh, 24rem);
+  left: 50%;
+  width: 80rem;
+  max-width: 90vw;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.beneftis-cards {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Cards + headline rise together — keep centered flanking layout at rest */
+.benefits-sticky.is-cards-reveal .beneftis-cards {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Headline slips behind the phone once it rises */
+.benefits-sticky.is-phone-risen .text-elements.benefits-s {
+  z-index: 150 !important;
+}
+
+.benefits-card-wrapper {
+  flex: none;
+}
+
+.iphone-position {
+  z-index: 200;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  height: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.benefits-sticky .iphone {
+  position: relative !important;
+  width: 120rem;
+  height: auto;
+  aspect-ratio: 12 / 24.45;
+  flex-shrink: 0;
+  transform: scale(0.178);
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.benefits-sticky .iphone-frame,
+.benefits-sticky .screen-video-embed,
+.benefits-sticky .iphone-ui,
+.benefits-sticky .iphone-pop-area {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.benefits-sticky .iphone-ui {
+  z-index: 20;
+}
+
+.benefits-sticky .screen-video-embed {
+  z-index: 10;
+}
+
+.benefits-sticky .iphone-pop-area {
+  z-index: 30;
+}
+
+.benefits-sticky .iphone-frame {
+  z-index: 40;
+  pointer-events: none;
+}
+
+.benefits-sticky .iphone-frame::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  opacity: 1 !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  pointer-events: none !important;
+}
+
+.benefits-sticky .screen-video-embed video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.benefits-bg {
+  z-index: 1;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 100rem;
+  max-height: none;
+  background-image:
+    linear-gradient(
+      180deg,
+      var(--jam--oil-black, #0c0b0c),
+      transparent 15%,
+      transparent 48%,
+      transparent 85%,
+      var(--jam--oil-black, #0c0b0c)
+    ),
+    url("/joyjam/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png");
+}
+
+@media screen and (max-width: 478px) {
+  .text-elements.benefits-s {
+    top: 12rem;
+    width: 100%;
+    max-width: none;
+    left: 0;
+    transform: none;
+  }
+
+  .iphone-position {
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .benefits-sticky .iphone {
+    position: absolute !important;
+    width: auto;
+    height: 130vh;
+    max-height: 110rem;
+    transform: scale(0.68);
+    transform-origin: center bottom;
+  }
+
+  .benefits-sticky .screen-video-embed,
+  .benefits-sticky .iphone-pop-area {
+    -webkit-mask-size: 79% auto !important;
+    mask-size: 79% auto !important;
+    -webkit-mask-position: center 11.5% !important;
+    mask-position: center 11.5% !important;
+  }
+
+  .benefits-bg {
+    background-image:
+      linear-gradient(
+        180deg,
+        var(--jam--oil-black, #0c0b0c),
+        transparent 15%,
+        transparent 48%,
+        transparent 85%,
+        var(--jam--oil-black, #0c0b0c)
+      ),
+      url("/joyjam/6821a59ae3bfe3007134260f_465848268cc696b2f54df0a2420c0e39_benefits-bg-p.png");
+  }
+}
+
+.iphone-ui {
+  background-image: url("/joyjam/6821a59ae3bfe3007134251c_30d98c3b6533e329b53b2758ca6463d9_iphone-ui.webp") !important;
+}
+
+.value-slider {
+  -webkit-mask-image: url("/joyjam/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.png");
+  mask-image: url("/joyjam/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.png");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.values-card-light.s1 {
+  background-image: url("/joyjam/6821a59ae3bfe30071342502_velue-card-lights-1.png");
+}
+
+.values-card-light.s2 {
+  background-image: url("/joyjam/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.png");
+}
+
+.values-video {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+/* Benefits scroll — white fullscreen handoff */
+.benefits-sticky.is-white-bg {
+  background-color: #fff;
+}
+
+.benefits-sticky.is-white-mode .benefits-bg {
+  opacity: 0 !important;
+}
+
+.benefits-sticky.is-white-mode .iphone-frame,
+.benefits-sticky.is-white-mode .iphone-ui {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.benefits-sticky.is-white-mode .beneftis-cards {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.benefits-sticky.is-white-mode .text-elements.benefits-s {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.iphone-pop-area {
+  opacity: 1;
+  overflow: hidden;
+}
+
+.values-screen-pop {
+  position: relative;
+  transform-origin: center bottom;
+  will-change: transform, height;
+  z-index: 1;
+  height: 0%;
+}
+
+/* Pre-JS: cards off-screen, white sheet collapsed */
+.benefits-sticky .benefits-card-wrapper {
+  will-change: transform;
+}
+
+.benefits-sticky:not(.is-benefits-ready) .iphone-position {
+  transform: translateY(42vh);
+}
+
+.benefits-sticky:not(.is-benefits-ready) .benefits-card-wrapper {
+  transform: translateY(100vh);
+}
+
+.benefits-sticky:not(.is-benefits-ready) .values-screen-pop {
+  transform: translateY(100%);
+  height: 0% !important;
+}
+
+.benefits-sticky:not(.is-phone-pop):not(.is-white-mode) .values-screen-pop {
+  overflow: hidden;
+}
+
+.benefits-sticky:not(.is-phone-pop):not(.is-white-mode) .text-elements.iphone-pop-s {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* GSAP scrubs opacity during in-phone reveal — don't force full white */
+.benefits-sticky.is-phone-pop:not(.is-white-mode) .text-elements.iphone-pop-s {
+  pointer-events: none;
+}
+
+/* Keep video visible above the white sheet while it grows to 50% */
+.benefits-sticky.is-phone-pop .screen-video-embed {
+  opacity: 1;
+}
+
+/* Fullscreen white — phone + pop fill the sticky viewport */
+.benefits-sticky.is-white-mode .screen-video-embed {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Fullscreen layout only once zoom is done — never during scrub-back mid-zoom */
+.benefits-sticky.is-white-bg .iphone-position {
+  top: 0;
+  bottom: 0;
+  align-items: center;
+}
+
+.benefits-sticky.is-white-bg .iphone {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none;
+  aspect-ratio: unset;
+  transform-origin: center center !important;
+}
+
+.benefits-sticky.is-white-bg .values-screen-pop {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.values-cards {
+  position: absolute;
+  inset: 0;
+  z-index: 210;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.benefits-sticky.is-white-mode .values-cards {
+  pointer-events: auto;
+}
+
+/* iPhone bezel asset */
+.iphone-frame::before {
+  background-image: url("/joyjam/67e2d9f393f49b4a78afdfc1_iphone.png") !important;
+}
+
+
+.benefits-sticky .screen-video-embed,
+.benefits-sticky .iphone-pop-area {
+  -webkit-mask-image: url("/joyjam/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;
+  mask-image: url("/joyjam/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-size: contain !important;
+  mask-size: contain !important;
+  -webkit-mask-position: center !important;
+  mask-position: center !important;
+}
+
+/* Only remove screen mask at fullscreen — not during in-phone popup */
+.benefits-sticky.is-white-mode .screen-video-embed,
+.benefits-sticky.is-white-mode .iphone-pop-area {
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* Creators headline stacks vertically over phone */
+.headline-wrapper.creators-s {
+  position: relative;
+  z-index: 10;
+  width: min(50rem, 90vw);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.headline-h2.set-size-p {
+  line-height: 0.95;
+  word-break: break-word;
+}
+
+.text-elements.creators-s {
+  position: relative;
+  z-index: 10;
+}
+
+.text-elements.creators-s.over-phone {
+  z-index: 20;
+  color: #fff;
+  pointer-events: none;
+}
+
+.text-elements.creators-s.over-phone .headline-h2 .char,
+.text-elements.creators-s.over-phone .headline-h2 .line {
+  display: block;
+  text-align: center;
+}
+
+.creators-sc {
+  background-color: #fff;
 }

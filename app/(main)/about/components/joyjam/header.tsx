@@ -108,7 +108,14 @@ export default function JoyJamHeader() {
 
   return (
     <header className="header">
-      <div data-animation="default" data-collapse="none" data-duration="400" role="banner" className="navbar w-nav">
+      <div
+        data-animation="default"
+        data-collapse="none"
+        data-duration="400"
+        role="banner"
+        className="navbar w-nav"
+        {...{ "navbar-element": "" }}
+      >
         <div ref={navContainerRef} className="nav-container change" {...{ "view-item": "from-center" }}>
           <Link aria-label="JoyJam Home" href="/about" className="brand navbar-s w-inline-block w--current">
             <div className="brand-svg change w-embed">
@@ -135,10 +142,10 @@ export default function JoyJamHeader() {
                     </a>
                   </nav>
                 </div>
-                <a aria-label="About" href="#" className="nav-link change w-nav-link">
+                <a aria-label="About" href="#" className="nav-link w-nav-link" {...{ "change-color": "" }}>
                   About
                 </a>
-                <a aria-label="Contact Us" href="#" className="nav-link change w-nav-link">
+                <a aria-label="Contact Us" href="#" className="nav-link w-nav-link" {...{ "change-color": "" }}>
                   Contact Us
                 </a>
                 <div ref={hoverLineRef} className="nav-link-hover">
@@ -148,7 +155,7 @@ export default function JoyJamHeader() {
               </div>
 
               <div className="nav-button-wrapper">
-                <div className="nav-button change">
+                <div wave-parent-infinity="" className="nav-button change">
                   <div>Join the Beta</div>
                   <div aria-hidden="true" className="wave-area">
                     <div data-expand="1" className="wave-line-infinity" />
@@ -159,8 +166,8 @@ export default function JoyJamHeader() {
             </div>
           </nav>
 
-          <div className="wave-area">
-            <div data-expand="1.5" className="wave-line-default navbar-s change" />
+          <div wave-parent-default="" className="wave-area">
+            <div data-expand="1.5" change-color="" className="wave-line-default navbar-s change" />
           </div>
         </div>
       </div>
