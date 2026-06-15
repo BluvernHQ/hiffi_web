@@ -1,5 +1,6 @@
 /**
  * Canonical public site origin for metadata, sitemap, and JSON-LD.
+ * Must match the live host users land on (prod nginx redirects apex → www).
  */
 export function getSiteOrigin(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
@@ -9,7 +10,7 @@ export function getSiteOrigin(): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`
   }
-  return "https://hiffi.com"
+  return "https://www.hiffi.com"
 }
 
 export function absoluteUrl(path: string): string {

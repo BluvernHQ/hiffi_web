@@ -12,6 +12,7 @@ import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
 import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
+import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
 import { getApiBaseUrl } from '@/lib/config'
@@ -124,9 +125,7 @@ const siteJsonLd = {
         email: "care@hiffi.com",
         availableLanguage: ["English"],
       },
-      // sameAs: add official social profile URLs here when available
-      // e.g. "https://twitter.com/hiffi", "https://instagram.com/hiffi"
-      sameAs: [],
+      sameAs: ORGANIZATION_SAME_AS,
     },
   ],
 }

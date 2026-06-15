@@ -262,10 +262,10 @@ export function buildProfileJsonLd(username: string, profile: SeoProfile | null)
     "@id": `${profileUrl}#person`,
     name: displayName,
     url: profileUrl,
-    // identifier: the creator's unique handle — helps LLMs associate this node with a specific creator
     identifier: username,
-    // sameAs: array of social profile URLs — add when available from API
-    sameAs: [],
+  }
+  if (profile?.sameAs?.length) {
+    personNode.sameAs = profile.sameAs
   }
   if (profile?.imageUrl) {
     personNode.image = {

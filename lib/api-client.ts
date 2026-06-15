@@ -1284,12 +1284,14 @@ class ApiClient {
       return item
     })
 
+    const apiCount = responseData?.count
     return {
       success: response.success !== false,
       videos,
       limit: responseData?.limit || limit,
-      offset: responseData?.offset || offset,
-      count: responseData?.count || videos.length,
+      offset: responseData?.offset ?? offset,
+      /** Total history rows when API provides it; otherwise `-1` (unknown). */
+      count: typeof apiCount === "number" ? apiCount : -1,
     }
   }
 

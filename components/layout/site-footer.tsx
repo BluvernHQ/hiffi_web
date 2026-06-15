@@ -4,6 +4,7 @@ import { CircleHelp, Instagram, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CONTENT_PAGE_LINKS } from "@/lib/content-pages"
+import { HIFFI_SOCIAL_PROFILES } from "@/lib/seo/social"
 
 function TikTokIcon({ className }: { className?: string }) {
   return (
@@ -88,7 +89,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
             )}
           >
             <a
-              href="https://instagram.com"
+              href={HIFFI_SOCIAL_PROFILES.instagram}
               target="_blank"
               rel="noopener noreferrer"
               className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
@@ -97,7 +98,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               <Instagram className="h-4 w-4" />
             </a>
             <a
-              href="https://x.com"
+              href={HIFFI_SOCIAL_PROFILES.x}
               target="_blank"
               rel="noopener noreferrer"
               className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
@@ -106,7 +107,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               <X className="h-4 w-4" />
             </a>
             <a
-              href="https://tiktok.com"
+              href={HIFFI_SOCIAL_PROFILES.tiktok}
               target="_blank"
               rel="noopener noreferrer"
               className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
