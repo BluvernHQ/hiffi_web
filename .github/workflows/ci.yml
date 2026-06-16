@@ -8,6 +8,7 @@ on:
       - master
       - new-main
       - hiffi_dev_v2
+      - hiffi_preprod
 
 jobs:
   build:
@@ -30,5 +31,7 @@ jobs:
         run: npm run typecheck
 
       - name: Build
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: npm run build
 

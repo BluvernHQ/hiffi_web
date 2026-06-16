@@ -15,6 +15,8 @@ import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
+import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
+import { getAnalyticsAppVersion } from '@/lib/app-version'
 import { getApiBaseUrl } from '@/lib/config'
 import './globals.css'
 
@@ -159,7 +161,7 @@ export default function RootLayout({
   // Serve tracker via same-origin proxy so autocapture can route through wrapped capture().
   const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
-  const analyticsAppVersion = "web-nextjs"
+  const analyticsAppVersion = getAnalyticsAppVersion()
 
   return (
     <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
@@ -248,6 +250,9 @@ export default function RootLayout({
         <Toaster />
         <Suspense fallback={null}>
           <UtmPoll />
+        </Suspense>
+        <Suspense fallback={null}>
+          <DeployStaleGuard />
         </Suspense>
         {/* Analytics */}
         {clarityId && <ClarityTracker />}
