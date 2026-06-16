@@ -3,6 +3,8 @@ import Image from "next/image"
 import { CircleHelp, Instagram, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { CONTENT_PAGE_LINKS } from "@/lib/content-pages"
+import { HIFFI_SOCIAL_PROFILES } from "@/lib/seo/social"
 
 function TikTokIcon({ className }: { className?: string }) {
   return (
@@ -24,12 +26,14 @@ type FooterColumn = {
 
 const columns: FooterColumn[] = [
   {
+    title: "LEGAL",
+    links: [...CONTENT_PAGE_LINKS],
+  },
+  {
     title: "ABOUT US",
     links: [
       { label: "About", href: "/about" },
       { label: "Blogs", href: "/blogs" },
-      { label: "Support", href: "/support" },
-      { label: "FAQ", href: "/faq" },
     ],
   },
   {
@@ -85,7 +89,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
             )}
           >
             <a
-              href="https://instagram.com"
+              href={HIFFI_SOCIAL_PROFILES.instagram}
               target="_blank"
               rel="noopener noreferrer"
               className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
@@ -94,7 +98,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               <Instagram className="h-4 w-4" />
             </a>
             <a
-              href="https://x.com"
+              href={HIFFI_SOCIAL_PROFILES.x}
               target="_blank"
               rel="noopener noreferrer"
               className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
@@ -103,7 +107,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               <X className="h-4 w-4" />
             </a>
             <a
-              href="https://tiktok.com"
+              href={HIFFI_SOCIAL_PROFILES.tiktok}
               target="_blank"
               rel="noopener noreferrer"
               className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
@@ -114,7 +118,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-2 md:grid-cols-4">
+        <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {columns.map((col) => (
             <div key={col.title} className="space-y-3">
               <div
@@ -149,7 +153,14 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
         <div className={cn("mt-10 border-t pt-6", isApp ? "border-black/15" : "border-border/40")}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <Image src="/appbarlogo.png" alt="Hiffi" width={120} height={40} className="h-8 w-auto" />
+              <Image
+                src="/appbarlogo.png"
+                alt="Hiffi"
+                width={120}
+                height={40}
+                className="h-8 w-auto"
+                style={{ width: "auto" }}
+              />
             </div>
 
             <div
@@ -159,36 +170,19 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
                   : "flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground"
               }
             >
-              <Link
-                href="/terms-of-use"
-                className={
-                  isApp
-                    ? "underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"
-                    : "underline-offset-4 hover:text-foreground hover:underline"
-                }
-              >
-                Terms of use
-              </Link>
-              <Link
-                href="/privacy-policy"
-                className={
-                  isApp
-                    ? "underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"
-                    : "underline-offset-4 hover:text-foreground hover:underline"
-                }
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                href="/payment-terms"
-                className={
-                  isApp
-                    ? "underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"
-                    : "underline-offset-4 hover:text-foreground hover:underline"
-                }
-              >
-                Payment Terms
-              </Link>
+              {CONTENT_PAGE_LINKS.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={
+                    isApp
+                      ? "underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"
+                      : "underline-offset-4 hover:text-foreground hover:underline"
+                  }
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
 
             <Button

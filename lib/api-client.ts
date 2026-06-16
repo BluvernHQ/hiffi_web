@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./config"
+import { getApiBaseUrl } from "./config"
 import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
 import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
 import {
@@ -32,6 +32,23 @@ import {
   type AdminCommentRow,
   type AdminReplyRow,
 } from "@/lib/api/admin"
+import {
+  getFlagsConfig as flagsGetFlagsConfig,
+  createContentFlag as flagsCreateContentFlag,
+  listMyContentFlags as flagsListMyContentFlags,
+  getContentFlagByReference as flagsGetContentFlagByReference,
+  adminListContentFlags as flagsAdminListContentFlags,
+  adminGetContentFlag as flagsAdminGetContentFlag,
+  adminUpdateContentFlag as flagsAdminUpdateContentFlag,
+} from "@/lib/api/flags"
+import type {
+  AdminListContentFlagsParams,
+  ContentFlag,
+  ContentFlagsListResult,
+  CreateContentFlagInput,
+  FlagsConfigResponse,
+  UpdateContentFlagInput,
+} from "@/lib/types/content-flag"
 const TOKEN_KEY = "hiffi_auth_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
@@ -137,18 +154,54 @@ class ApiClient {
 
   // Used by api/* modules too
   async proxyRequest<T>(pathname: string, searchParams?: URLSearchParams): Promise<T> {
-    const qs = searchParams?.toString()
+    return this.proxyApiRequest<T>(pathname, { method: "GET", searchParams })
+  }
+
+  /** Same-origin proxy (GET/POST/PATCH/…) — avoids CORS for admin routes that block cross-origin PATCH. */
+  async proxyApiRequest<T>(
+    pathname: string,
+    options: { method?: string; body?: string; searchParams?: URLSearchParams } = {},
+  ): Promise<T> {
+    const qs = options.searchParams?.toString()
     const url = qs ? `${pathname}?${qs}` : pathname
-    const headers: Record<string, string> = {}
+    const method = options.method ?? "GET"
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    }
     const token = this.getAuthToken()
     if (token) headers.Authorization = `Bearer ${token}`
-    const res = await fetch(url, { method: "GET", headers, cache: "no-store" })
-    const text = await res.text()
-    try {
-      return JSON.parse(text) as T
-    } catch {
-      return { success: false, status: "error", message: text } as unknown as T
+    if (options.body !== undefined) {
+      headers["Content-Type"] = "application/json"
     }
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: options.body,
+      cache: "no-store",
+    })
+
+    const text = await res.text()
+    let parsed: unknown
+    try {
+      parsed = text ? JSON.parse(text) : {}
+    } catch {
+      if (!res.ok) {
+        throw new Error(text || `Request failed (${res.status})`)
+      }
+      throw new Error("Invalid JSON response from server")
+    }
+
+    if (!res.ok) {
+      const p = parsed as Record<string, unknown>
+      const msg =
+        (typeof p.error === "string" && p.error) ||
+        (typeof p.message === "string" && p.message) ||
+        `Request failed (${res.status})`
+      throw new Error(msg)
+    }
+
+    return parsed as T
   }
 
   // Store and retrieve JWT token
@@ -235,7 +288,7 @@ class ApiClient {
 
   // Used by api/* modules too
   async request<T>(endpoint: string, options: RequestInit = {}, requiresAuth = false): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`
+    const url = `${getApiBaseUrl()}${endpoint}`
     const method = options.method || "GET"
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -457,7 +510,7 @@ class ApiClient {
           message: NO_INTERNET_USER_MESSAGE,
           status: 0,
         }
-        console.error(`[API] Connectivity failure (${API_BASE_URL}):`, error)
+        console.error(`[API] Connectivity failure (${getApiBaseUrl()}):`, error)
         throw networkError
       }
       
@@ -1231,12 +1284,14 @@ class ApiClient {
       return item
     })
 
+    const apiCount = responseData?.count
     return {
       success: response.success !== false,
       videos,
       limit: responseData?.limit || limit,
-      offset: responseData?.offset || offset,
-      count: responseData?.count || videos.length,
+      offset: responseData?.offset ?? offset,
+      /** Total history rows when API provides it; otherwise `-1` (unknown). */
+      count: typeof apiCount === "number" ? apiCount : -1,
     }
   }
 
@@ -1413,6 +1468,41 @@ class ApiClient {
     const videoId = videoPath.replace(/^videos\//, "").replace(/\/.*$/, "")
     const response = await this.getVideo(videoId)
     return { video_url: response.video_url }
+  }
+
+  // GET /flags/config - Report UI configuration (reasons, limits)
+  async getFlagsConfig(): Promise<FlagsConfigResponse> {
+    return flagsGetFlagsConfig(this)
+  }
+
+  // POST /flags - Submit a content report
+  async createContentFlag(body: CreateContentFlagInput): Promise<ContentFlag> {
+    return flagsCreateContentFlag(this, body)
+  }
+
+  // GET /flags/self - List reports filed by the authenticated user
+  async listMyContentFlags(params?: { limit?: number; offset?: number }): Promise<ContentFlagsListResult> {
+    return flagsListMyContentFlags(this, params)
+  }
+
+  // GET /flags/ref/{referenceID} - Get a report by case reference
+  async getContentFlagByReference(referenceId: string): Promise<ContentFlag> {
+    return flagsGetContentFlagByReference(this, referenceId)
+  }
+
+  // GET /admin/flags - List content reports (admin)
+  async adminListContentFlags(params?: AdminListContentFlagsParams): Promise<ContentFlagsListResult> {
+    return flagsAdminListContentFlags(this, params)
+  }
+
+  // GET /admin/flags/{flagID} - Get report by UUID (admin)
+  async adminGetContentFlag(flagId: string): Promise<ContentFlag> {
+    return flagsAdminGetContentFlag(this, flagId)
+  }
+
+  // PATCH /admin/flags/{flagID} - Update status / resolution notes (admin)
+  async adminUpdateContentFlag(flagId: string, body: UpdateContentFlagInput): Promise<ContentFlag> {
+    return flagsAdminUpdateContentFlag(this, flagId, body)
   }
 
   // POST /signals/watchhours - Report watched playback telemetry
@@ -1846,6 +1936,88 @@ class ApiClient {
       : []
 
     return { success: true, playlist, items }
+  }
+
+  /** Public mood playlist from video search (GET /playlist/mood/{query}). */
+  async getMoodPlaylist(
+    query: string,
+    params: { limit?: number; offset?: number } = {},
+  ): Promise<{
+    success: boolean
+    playlist?: PlaylistSummary
+    items: Array<{ position: number; added_at?: string; video: Record<string, unknown> }>
+    count: number
+    limit: number
+    offset: number
+  }> {
+    const normalizedQuery = query.toLowerCase().trim()
+    if (!normalizedQuery) {
+      return { success: false, items: [], count: 0, limit: 0, offset: 0 }
+    }
+
+    const limit = params.limit ?? 20
+    const offset = params.offset ?? 0
+
+    const queryParams = new URLSearchParams()
+    if (limit !== 20) queryParams.append("limit", limit.toString())
+    if (offset !== 0) queryParams.append("offset", offset.toString())
+
+    const qs = queryParams.toString()
+    const endpoint = `/playlist/mood/${encodeURIComponent(normalizedQuery)}${qs ? `?${qs}` : ""}`
+
+    try {
+      const response = await this.request<{
+        success?: boolean
+        status?: string
+        data?: {
+          playlist?: PlaylistSummary & { total_videos?: number }
+          items?: Array<{ position?: number; added_at?: string; video?: Record<string, unknown> }>
+          count?: number
+          limit?: number
+          offset?: number
+        }
+      }>(endpoint, { method: "GET" }, false)
+
+      const ok = response.success === true || response.status === "success"
+      const data = response.data
+      if (!ok || !data) {
+        return { success: false, items: [], count: 0, limit, offset }
+      }
+
+      const rawItems = Array.isArray(data.items) ? data.items : []
+      const items = rawItems
+        .map((item, index) => {
+          const video = item.video
+          if (!video || typeof video !== "object") return null
+          return {
+            position: typeof item.position === "number" ? item.position : offset + index + 1,
+            ...(item.added_at ? { added_at: item.added_at } : {}),
+            video,
+          }
+        })
+        .filter((item): item is { position: number; added_at?: string; video: Record<string, unknown> } => item !== null)
+
+      const rawPlaylist = data.playlist
+      const playlist: PlaylistSummary | undefined = rawPlaylist
+        ? {
+            ...rawPlaylist,
+            playlist_id: String(rawPlaylist.playlist_id || `mood:${normalizedQuery}`),
+            title: String(rawPlaylist.title || normalizedQuery),
+            item_count: rawPlaylist.total_videos ?? rawPlaylist.item_count,
+          }
+        : undefined
+
+      return {
+        success: true,
+        playlist,
+        items,
+        count: typeof data.count === "number" ? data.count : items.length,
+        limit: typeof data.limit === "number" ? data.limit : limit,
+        offset: typeof data.offset === "number" ? data.offset : offset,
+      }
+    } catch {
+      return { success: false, items: [], count: 0, limit, offset }
+    }
   }
 
   async listMyPlaylists(): Promise<{ success: boolean; playlists: PlaylistSummary[] }> {
@@ -2825,14 +2997,20 @@ class ApiClient {
 
   async searchUsers(
     query: string,
-    limit: number = 10,
+    limit: number = 20,
     offset: number = 0,
   ): Promise<{ success: boolean; users: any[]; count: number }> {
-    const page = Math.floor(offset / Math.max(limit, 1)) + 1
+    const normalizedQuery = query.trim()
+    if (!normalizedQuery) {
+      return { success: false, users: [], count: 0 }
+    }
+
+    const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Math.trunc(limit) : 20))
+    const safeOffset = Math.max(0, Number.isFinite(offset) ? Math.trunc(offset) : 0)
+
     const params = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
-      page: String(page),
+      limit: String(safeLimit),
+      offset: String(safeOffset),
     })
     const response = await this.request<{
       success: boolean
@@ -2843,7 +3021,8 @@ class ApiClient {
         offset?: number
         query: string
       }
-    }>(`/search/users/${encodeURIComponent(query)}?${params.toString()}`, {}, false)
+      error?: { message?: string } | string
+    }>(`/search/users/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, false)
     
     if (response.success && response.data) {
       return {
@@ -2862,15 +3041,21 @@ class ApiClient {
 
   async searchVideos(
     query: string,
-    limit: number = 10,
+    limit: number = 20,
     offset: number = 0,
   ): Promise<{ success: boolean; videos: any[]; count: number }> {
-    const page = Math.floor(offset / Math.max(limit, 1)) + 1
-    console.log("[API] searchVideos request:", { query, limit, offset, page })
+    const normalizedQuery = query.trim()
+    if (!normalizedQuery) {
+      return { success: false, videos: [], count: 0 }
+    }
+
+    const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Math.trunc(limit) : 20))
+    const safeOffset = Math.max(0, Number.isFinite(offset) ? Math.trunc(offset) : 0)
+
+    console.log("[API] searchVideos request:", { query: normalizedQuery, limit: safeLimit, offset: safeOffset })
     const params = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
-      page: String(page),
+      limit: String(safeLimit),
+      offset: String(safeOffset),
     })
     const response = await this.request<{
       success: boolean
@@ -2881,7 +3066,8 @@ class ApiClient {
         offset?: number
         query: string
       }
-    }>(`/search/videos/${encodeURIComponent(query)}?${params.toString()}`, {}, false)
+      error?: { message?: string } | string
+    }>(`/search/videos/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, false)
     
     if (response.success && response.data) {
       console.log("[API] searchVideos response:", {

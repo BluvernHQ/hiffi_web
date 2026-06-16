@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { AdminUtmBuilder } from "@/components/admin/utm-builder"
 
 const LIST_LIMIT_OPTIONS = [25, 50, 100, 200] as const
@@ -93,6 +95,7 @@ function rowCell(row: Record<string, unknown>, ...keys: string[]) {
 
 export function AdminUtmPollsPanel() {
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [tab, setTab] = useState("analyze")
   const [showBuilder, setShowBuilder] = useState(false)
 
@@ -124,9 +127,17 @@ export function AdminUtmPollsPanel() {
   const fetchList = useCallback(
     async (isRefresh = false) => {
       let ok = false
+      if (guardOfflineBeforeFetch()) {
+        setRows([])
+        setListCount(0)
+        setListLoading(false)
+        setListRefreshing(false)
+        return
+      }
       try {
         if (isRefresh) setListRefreshing(true)
         else setListLoading(true)
+        clearNetworkError()
         const res = await apiClient.adminListUtmPollEvents({
           limit: listLimit,
           offset: listOffset,
@@ -143,8 +154,12 @@ export function AdminUtmPollsPanel() {
         setListCount(res.count || 0)
         ok = true
       } catch (e) {
-        console.error("[admin] utm_polls list:", e)
-        toast({ title: "Error", description: "Failed to load UTM poll events.", variant: "destructive" })
+        setRows([])
+        setListCount(0)
+        handleFetchError(e, {
+          genericMessage: "Failed to load UTM poll events.",
+          onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+        })
       } finally {
         setListLoading(false)
         setListRefreshing(false)
@@ -153,12 +168,19 @@ export function AdminUtmPollsPanel() {
         toast({ title: "UTM data refreshed", description: "List is up to date." })
       }
     },
-    [listLimit, listOffset, applied, toast],
+    [listLimit, listOffset, applied, toast, guardOfflineBeforeFetch, clearNetworkError, handleFetchError],
   )
 
   const fetchAnalyze = useCallback(async () => {
+    if (guardOfflineBeforeFetch()) {
+      setAnalysis([])
+      setTotalEvents(0)
+      setAnalyzeLoading(false)
+      return
+    }
     setAnalyzeLoading(true)
     try {
+      clearNetworkError()
       const res = await apiClient.adminAnalyzeUtmPollEvents({
         limit: groupLimit,
         utm_source: applied.utm_source || undefined,
@@ -173,12 +195,16 @@ export function AdminUtmPollsPanel() {
       setAnalysis(res.analysis || [])
       setTotalEvents(res.total_events ?? 0)
     } catch (e) {
-      console.error("[admin] utm_polls analyze:", e)
-      toast({ title: "Error", description: "Failed to load UTM analysis.", variant: "destructive" })
+      setAnalysis([])
+      setTotalEvents(0)
+      handleFetchError(e, {
+        genericMessage: "Failed to load UTM analysis.",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+      })
     } finally {
       setAnalyzeLoading(false)
     }
-  }, [applied, groupLimit, toast])
+  }, [applied, groupLimit, toast, guardOfflineBeforeFetch, clearNetworkError, handleFetchError])
 
   // Fetch both sets of data whenever applied filters change so the summary rail is accurate
   useEffect(() => {
@@ -190,8 +216,15 @@ export function AdminUtmPollsPanel() {
   }, [fetchAnalyze])
 
   const fetchSavedLinks = useCallback(async () => {
+    if (guardOfflineBeforeFetch()) {
+      setSavedLinks([])
+      setSavedCount(0)
+      setSavedLoading(false)
+      return
+    }
     setSavedLoading(true)
     try {
+      clearNetworkError()
       const res = await apiClient.adminListUtmGeneratedUrls({
         limit: 50,
         offset: savedOffset,
@@ -199,11 +232,16 @@ export function AdminUtmPollsPanel() {
       setSavedLinks(res.utm_generated_urls || [])
       setSavedCount(res.count || 0)
     } catch (e) {
-      toast({ title: "Error", description: "Failed to load saved links.", variant: "destructive" })
+      setSavedLinks([])
+      setSavedCount(0)
+      handleFetchError(e, {
+        genericMessage: "Failed to load saved links.",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+      })
     } finally {
       setSavedLoading(false)
     }
-  }, [savedOffset, toast])
+  }, [savedOffset, toast, guardOfflineBeforeFetch, clearNetworkError, handleFetchError])
 
   useEffect(() => {
     if (tab === "saved") void fetchSavedLinks()
@@ -323,6 +361,19 @@ export function AdminUtmPollsPanel() {
     }
   }, [savedDraft, savedApplied])
 
+  const retryCurrentTab = () => {
+    clearNetworkError()
+    if (tab === "saved") void fetchSavedLinks()
+    else if (tab === "analyze") void fetchAnalyze()
+    else void fetchList()
+  }
+
+  const isCurrentTabLoading =
+    tab === "saved" ? savedLoading : tab === "analyze" ? analyzeLoading : listLoading
+  const isCurrentTabEmpty =
+    tab === "saved" ? savedLinks.length === 0 : tab === "analyze" ? analysis.length === 0 : rows.length === 0
+  const showOfflineState = Boolean(networkError && !isCurrentTabLoading && isCurrentTabEmpty)
+
   return (
     <div className="space-y-4">
       {/* Collapsible UTM Builder */}
@@ -345,6 +396,9 @@ export function AdminUtmPollsPanel() {
         )}
       </div>
 
+      {showOfflineState ? (
+        <AdminOfflineState message={networkError!} onRetry={retryCurrentTab} />
+      ) : (
       <Tabs value={tab} onValueChange={setTab} className="w-full relative">
         <TabsList className="w-full max-w-md grid grid-cols-3 mb-4">
           <TabsTrigger value="analyze">Analysis</TabsTrigger>
@@ -781,6 +835,7 @@ export function AdminUtmPollsPanel() {
           )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   )
 }

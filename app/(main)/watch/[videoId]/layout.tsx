@@ -25,10 +25,8 @@ export async function generateMetadata({
 
   if (!video) {
     return {
-      title: "Video unavailable",
-      description: "This video could not be found on Hiffi.",
-      alternates: { canonical: absoluteUrl(canonicalPath) },
-      robots: { index: false, follow: true },
+      title: "Video not found",
+      robots: { index: false, follow: false },
     }
   }
 

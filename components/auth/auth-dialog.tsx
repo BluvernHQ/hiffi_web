@@ -31,6 +31,12 @@ export const AUTH_DIALOG_COPY = {
     signupLabel: "Sign up free",
     signinLabel: "Log in",
   },
+  report: {
+    title: "Sign in to report",
+    description: "Create an account or sign in to report content or profiles for review.",
+    signupLabel: "Sign up free",
+    signinLabel: "Log in",
+  },
 } as const
 
 export type AuthDialogCopyKey = keyof typeof AUTH_DIALOG_COPY

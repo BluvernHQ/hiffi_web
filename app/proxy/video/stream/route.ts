@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWorkersApiKey } from '@/lib/storage'
-import { WORKERS_BASE_URL } from '@/lib/config'
+import { getWorkersBaseUrl } from '@/lib/config'
 
 /**
  * Video streaming proxy that supports Range requests for proper video playback
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate that the URL is from Workers (security check)
-    if (!videoUrl.startsWith(WORKERS_BASE_URL)) {
+    if (!videoUrl.startsWith(getWorkersBaseUrl())) {
       return NextResponse.json(
         { error: 'Invalid video URL' },
         { status: 400 }

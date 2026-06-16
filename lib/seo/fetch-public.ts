@@ -1,6 +1,7 @@
 import { cache } from "react"
-import { API_BASE_URL } from "@/lib/config"
+import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
+import { extractCreatorSameAs } from "@/lib/seo/social"
 
 const REVALIDATE_SECONDS = 300
 
@@ -100,6 +101,38 @@ export type SeoProfile = {
   bio: string
   imageUrl: string
   updatedAt?: string
+  /** External social profile URLs for Person sameAs (when API provides them). */
+  sameAs?: string[]
+}
+
+const VIDEO_FILE_RE = /\.(mp4|webm|mov|m4v|m3u8)(\?.*)?$/i
+
+/**
+ * Google Video indexing requires contentUrl to be a direct, crawlable media file.
+ * API `data.video_url` is often a gateway path (404); `video.video_url` has `…/original.mp4`.
+ */
+function resolveSeoVideoContentUrl(
+  gatewayUrl: string | undefined,
+  storagePath: string | undefined,
+): string {
+  const nested = String(storagePath || "").trim()
+  if (nested) {
+    const nestedUrl = nested.startsWith("http") ? nested : getVideoUrl(nested)
+    if (VIDEO_FILE_RE.test(nestedUrl)) return nestedUrl
+  }
+
+  const gateway = String(gatewayUrl || "").trim()
+  if (gateway) {
+    if (VIDEO_FILE_RE.test(gateway)) return gateway
+    const base = gateway.replace(/\/$/, "")
+    return `${base}/original.mp4`
+  }
+
+  if (nested) {
+    return nested.startsWith("http") ? nested : getVideoUrl(nested)
+  }
+
+  return ""
 }
 
 function buildAuthHeaders(): Record<string, string> {
@@ -116,7 +149,7 @@ function buildAuthHeaders(): Record<string, string> {
 export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
   if (!videoId) return null
   try {
-    const res = await fetch(`${API_BASE_URL}/videos/${encodeURIComponent(videoId)}`, {
+    const res = await fetch(`${getApiBaseUrl()}/videos/${encodeURIComponent(videoId)}`, {
       headers: buildAuthHeaders(),
       next: { revalidate: REVALIDATE_SECONDS },
     })
@@ -126,17 +159,20 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     if (!norm || !norm.video) return null
 
     const v = norm.video
+    if ((v as Record<string, unknown>).hidden === true) return null
     const id = v.video_id || videoId
     const title = (v.video_title || "Video").trim() || "Video"
     const description = (v.video_description || "").trim()
     const thumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
-    let contentUrl = (norm.video_url || "").trim()
-    if (!contentUrl && v.video_url) {
-      const path = String(v.video_url).trim()
-      contentUrl = path.startsWith("http") ? path : getVideoUrl(path)
-    }
+    const contentUrl = resolveSeoVideoContentUrl(norm.video_url, v.video_url)
     const creator = (v.user_username || "").trim()
     const raw = v as Record<string, unknown>
+    const dataVideo =
+      json && typeof json === "object"
+        ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video
+        : undefined
+    const nestedRaw =
+      dataVideo && typeof dataVideo === "object" ? (dataVideo as Record<string, unknown>) : null
 
     let creatorDisplayName = String(
       raw.user_name ?? raw.userName ?? raw.creator_name ?? raw.artist_name ?? "",
@@ -147,8 +183,16 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     } else if (!creatorDisplayName) {
       creatorDisplayName = creator
     }
-    // duration: try video_duration (seconds, number) or video_duration_seconds
-    const durRaw = raw.video_duration ?? raw.video_duration_seconds ?? raw.duration_seconds ?? null
+    const durRaw =
+      raw.video_duration ??
+      raw.video_duration_seconds ??
+      raw.duration_seconds ??
+      raw.duration ??
+      nestedRaw?.video_duration ??
+      nestedRaw?.video_duration_seconds ??
+      nestedRaw?.duration_seconds ??
+      nestedRaw?.duration ??
+      null
     const durationSeconds =
       typeof durRaw === "number" && durRaw > 0
         ? durRaw
@@ -176,11 +220,30 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
   }
 })
 
+/** Distinguishes missing users (404) from transient API errors. */
+export const checkUserPublic = cache(
+  async (username: string): Promise<"found" | "not_found" | "error"> => {
+    const u = (username || "").trim().toLowerCase()
+    if (!u) return "not_found"
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/users/${encodeURIComponent(u)}`, {
+        headers: buildAuthHeaders(),
+        next: { revalidate: REVALIDATE_SECONDS },
+      })
+      if (res.status === 404) return "not_found"
+      if (!res.ok) return "error"
+      return "found"
+    } catch {
+      return "error"
+    }
+  },
+)
+
 export const fetchUserForSeo = cache(async (username: string): Promise<SeoProfile | null> => {
   const u = (username || "").trim().toLowerCase()
   if (!u) return null
   try {
-    const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(u)}`, {
+    const res = await fetch(`${getApiBaseUrl()}/users/${encodeURIComponent(u)}`, {
       headers: buildAuthHeaders(),
       next: { revalidate: REVALIDATE_SECONDS },
     })
@@ -199,12 +262,15 @@ export const fetchUserForSeo = cache(async (username: string): Promise<SeoProfil
       imageUrl = getThumbnailUrl(pic)
     }
 
+    const sameAs = extractCreatorSameAs(user)
+
     return {
       username: String(user.username || u),
       name,
       bio,
       imageUrl,
       updatedAt,
+      ...(sameAs.length > 0 ? { sameAs } : {}),
     }
   } catch {
     return null
@@ -261,7 +327,7 @@ export const fetchUserProfileInitial = cache(
     const u = (username || "").trim().toLowerCase()
     if (!u) return null
     try {
-      const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(u)}`, {
+      const res = await fetch(`${getApiBaseUrl()}/users/${encodeURIComponent(u)}`, {
         headers: buildAuthHeaders(),
         next: { revalidate: REVALIDATE_SECONDS },
       })
@@ -289,7 +355,7 @@ export const fetchUserVideosInitial = cache(
     try {
       const qs = new URLSearchParams({ limit: String(limit), offset: "0" })
       const res = await fetch(
-        `${API_BASE_URL}/videos/list/${encodeURIComponent(u)}?${qs.toString()}`,
+        `${getApiBaseUrl()}/videos/list/${encodeURIComponent(u)}?${qs.toString()}`,
         {
           headers: buildAuthHeaders(),
           next: { revalidate: REVALIDATE_SECONDS },
@@ -312,7 +378,7 @@ export const fetchUserVideosInitial = cache(
 export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
   try {
     const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
-    const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
+    const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
     })
@@ -334,7 +400,7 @@ export type SitemapVideoEntry = {
 /**
  * Walks deterministic /videos/list pages to collect public video URLs for sitemap.
  */
-export async function fetchVideoEntriesForSitemap(maxVideos = 10000): Promise<SitemapVideoEntry[]> {
+export async function fetchVideoEntriesForSitemap(maxVideos = 50_000): Promise<SitemapVideoEntry[]> {
   const seed = "hiffi_sitemap_v1"
   const limit = 100
   let offset = 0
@@ -348,7 +414,7 @@ export async function fetchVideoEntriesForSitemap(maxVideos = 10000): Promise<Si
         offset: String(offset),
         seed,
       })
-      const res = await fetch(`${API_BASE_URL}/videos/list?${qs.toString()}`, {
+      const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
         headers: { "Content-Type": "application/json" },
         next: { revalidate: 3600 },
       })
@@ -363,6 +429,8 @@ export async function fetchVideoEntriesForSitemap(maxVideos = 10000): Promise<Si
       for (const v of videos) {
         const id = v.video_id
         if (!id) continue
+        const raw = v as Record<string, unknown>
+        if (raw.hidden === true) continue
         const username = (v.user_username || "").trim()
         let lastModified: Date | undefined
         if (v.updated_at) {

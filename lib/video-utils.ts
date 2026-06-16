@@ -187,3 +187,16 @@ export const PROCESSING_VIDEO_TOAST = {
   title: "Still processing",
   description: "This video will be playable when processing finishes.",
 } as const
+
+/** Minimum view count before showing publicly in the UI. */
+export const MIN_PUBLIC_VIEW_COUNT = 10_000
+
+export function getVideoViewCount(
+  video: { videoViews?: number; video_views?: number } | null | undefined,
+): number {
+  return video?.videoViews ?? video?.video_views ?? 0
+}
+
+export function shouldShowVideoViewCount(viewCount: number): boolean {
+  return viewCount >= MIN_PUBLIC_VIEW_COUNT
+}

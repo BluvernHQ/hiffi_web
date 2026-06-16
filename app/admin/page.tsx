@@ -101,8 +101,8 @@ export default function AdminLoginPage() {
     try {
       console.log("[Admin] Attempting login for:", username)
       // Import config dynamically to avoid SSR issues
-      const { API_BASE_URL } = await import("@/lib/config")
-      console.log("[Admin] API Base URL:", API_BASE_URL)
+      const { getApiBaseUrl } = await import("@/lib/config")
+      console.log("[Admin] API Base URL:", getApiBaseUrl())
       
       // Use the auth context login function to ensure proper state management
       // This handles token storage, user state, and all auth flow properly

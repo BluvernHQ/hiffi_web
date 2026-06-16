@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, X, TrendingUp, Loader2, User, Video } from 'lucide-react';
+import { Search, X, TrendingUp, Loader2, User, Video, AtSign, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,12 +10,17 @@ import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
 import { getThumbnailUrl } from '@/lib/storage';
 import { AuthenticatedImage } from '@/components/video/authenticated-image';
-import { useAuth } from '@/lib/auth-context';
 import { ProfilePicture } from '@/components/profile/profile-picture';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from '@/lib/video-utils';
-import { highlightParts, isSuspiciousSqlLikeQuery, normalizeSearchQueryForRequest } from '@/lib/search-query';
+import {
+  getUserSearchTerm,
+  highlightParts,
+  isSuspiciousSqlLikeQuery,
+  isUserHandleSearch,
+  normalizeSearchQueryForRequest,
+} from '@/lib/search-query';
 
 interface SearchResult {
   id: string;
@@ -35,12 +40,37 @@ const TRENDING_SEARCHES = [
   'rap freestyle',
 ];
 
+const RECENT_SEARCHES_KEY = 'hiffi_recent_searches';
+const MAX_RECENT_SEARCHES = 5;
+
+function readRecentSearches(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((s) => typeof s === 'string').slice(0, MAX_RECENT_SEARCHES) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearch(term: string) {
+  const trimmed = term.trim();
+  if (!trimmed) return;
+  const next = [trimmed, ...readRecentSearches().filter((s) => s !== trimmed)].slice(0, MAX_RECENT_SEARCHES);
+  try {
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  } catch {
+    // ignore quota errors
+  }
+}
+
 export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const resultItemRefs = useRef<(HTMLAnchorElement | HTMLButtonElement | null)[]>([]);
@@ -51,13 +81,20 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const previousBlobUrlsRef = useRef<Set<string>>(new Set()); // Track blob URLs for cleanup
 
+  const isHandleMode = isUserHandleSearch(query);
+  const handleTerm = getUserSearchTerm(query);
+  const highlightNeedle = isHandleMode ? handleTerm : query;
+
   useEffect(() => {
     if (isOpen) {
+      setRecentSearches(readRecentSearches());
       inputRef.current?.focus();
       setQuery('');
       setSuggestions([]);
       setSelectedIndex(-1);
+      document.body.style.overflow = 'hidden';
     } else {
+      document.body.style.overflow = '';
       // Cleanup blob URLs when overlay closes
       previousBlobUrlsRef.current.forEach((blobUrl) => {
         if (blobUrl.startsWith('blob:')) {
@@ -66,6 +103,9 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       });
       previousBlobUrlsRef.current.clear();
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   // Reset selected index when suggestions or query change
@@ -107,10 +147,21 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
             return
           }
 
-          // Fetch both users and videos in parallel
+          const userHandleSearch = isUserHandleSearch(searchQuery)
+          const userSearchTerm = userHandleSearch ? getUserSearchTerm(searchQuery) : searchQuery
+
+          if (userHandleSearch && !userSearchTerm) {
+            setSuggestions([])
+            setIsLoading(false)
+            return
+          }
+
+          // @ prefix → users/creators only; otherwise search both
           const [usersResponse, videosResponse] = await Promise.all([
-            apiClient.searchUsers(searchQuery, 5).catch(() => ({ success: false, users: [], count: 0 })),
-            apiClient.searchVideos(searchQuery, 5).catch(() => ({ success: false, videos: [], count: 0 })),
+            apiClient.searchUsers(userSearchTerm, 5).catch(() => ({ success: false, users: [], count: 0 })),
+            userHandleSearch
+              ? Promise.resolve({ success: false, videos: [], count: 0 })
+              : apiClient.searchVideos(searchQuery, 5).catch(() => ({ success: false, videos: [], count: 0 })),
           ]);
 
           const allSuggestions: SearchResult[] = [];
@@ -138,12 +189,6 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
               // If no thumbnail field, construct from video_id
               const thumbnail = thumbnailPath || (videoId ? `thumbnails/videos/${videoId}.jpg` : '');
-
-              console.log('[SearchOverlay] Video:', {
-                videoId,
-                thumbnailPath,
-                finalThumbnail: thumbnail
-              });
 
               return {
                 id: videoId,
@@ -182,18 +227,20 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const handleSearch = (searchQuery: string) => {
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery) {
-      // 1. Close overlay immediately to feel responsive
+      saveRecentSearch(trimmedQuery);
       onClose();
       setQuery('');
-
-      // 2. Perform navigation
-      // Using window.location.href as a fallback if router.push feels slow in some Next.js setups,
-      // but router.push is preferred for SPA transition. 
-      // The delay described might be due to the search page blocking UI while fetching.
-      // We will ensure the search page handles its own loading state properly.
       router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
     }
   };
+
+  const emptyStateItems = [
+    ...recentSearches.map((term) => ({ type: 'recent' as const, term })),
+    ...TRENDING_SEARCHES.filter((t) => !recentSearches.includes(t)).map((term) => ({
+      type: 'trending' as const,
+      term,
+    })),
+  ];
 
   if (!isOpen) return null;
 
@@ -203,49 +250,63 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       <div
         className={cn(
           'fixed inset-0 z-[90]',
-          isAppPage ? 'bg-black/25 backdrop-blur-[2px]' : 'bg-black/50 backdrop-blur-sm',
+          isAppPage ? 'bg-black/15' : 'bg-black/25',
         )}
         onClick={onClose}
       />
 
-      {/* Search Panel */}
-      <div
-        className={cn(
-          'fixed top-0 left-0 right-0 z-[100] border-b shadow-lg',
-          isAppPage ? 'border-black/15 bg-[#f3f0e8] text-black' : 'border-border bg-background',
-        )}
-      >
-        <div className="container max-w-3xl mx-auto p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="relative flex-1">
-              <Search
-                className={cn(
-                  'absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2',
-                  isAppPage ? 'text-black/45' : 'text-muted-foreground',
-                )}
-              />
+      {/* Floating search — centered, comfortable width without full-bleed gutters */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-2 sm:pt-3">
+        <div className="pointer-events-auto w-full max-w-xl">
+          <div
+            className={cn(
+              'flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200',
+              isAppPage
+                ? 'border-black/10 bg-white/95 text-black'
+                : 'border-border/70 bg-background/95',
+            )}
+          >
+            <div className="relative flex h-12 items-center">
+              {isHandleMode ? (
+                <AtSign
+                  className={cn(
+                    'pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2',
+                    isAppPage ? 'text-black/55' : 'text-primary',
+                  )}
+                />
+              ) : (
+                <Search
+                  className={cn(
+                    'pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2',
+                    isAppPage ? 'text-black/45' : 'text-muted-foreground',
+                  )}
+                />
+              )}
               <Input
                 ref={inputRef}
-                type="text"
-                placeholder="Search videos and users..."
+                type="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder={isHandleMode ? 'username' : 'Search videos or @username...'}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     if (selectedIndex >= 0 && resultItemRefs.current[selectedIndex]) {
-                      // Navigate to selected item
                       const selectedItem = resultItemRefs.current[selectedIndex];
                       if (selectedItem instanceof HTMLAnchorElement) {
                         selectedItem.click();
                         return;
-                      } else if (selectedItem instanceof HTMLButtonElement) {
+                      }
+                      if (selectedItem instanceof HTMLButtonElement) {
                         selectedItem.click();
                         return;
                       }
                     }
-                    // Always navigate to search page if there's a query
-                    if (query.trim()) {
+                    if (query.trim() && !(isHandleMode && !handleTerm)) {
                       handleSearch(query);
                     }
                   } else if (e.key === 'Escape') {
@@ -254,9 +315,9 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     e.preventDefault();
                     let totalItems = 0;
                     if (query.length === 0) {
-                      totalItems = TRENDING_SEARCHES.length;
+                      totalItems = emptyStateItems.length;
                     } else if (suggestions.length > 0) {
-                      totalItems = suggestions.length + 1; // +1 for "View all results" button
+                      totalItems = suggestions.length + 1;
                     }
                     setSelectedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : prev));
                   } else if (e.key === 'ArrowUp') {
@@ -265,80 +326,143 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   }
                 }}
                 className={cn(
-                  'pl-10 pr-10 h-12 text-lg',
+                  'h-12 border-0 bg-transparent pl-11 pr-11 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
                   isAppPage &&
-                    'border-black/20 bg-white text-black shadow-sm placeholder:text-black/45 focus-visible:border-black/30 focus-visible:ring-black/15 dark:bg-white dark:text-black dark:placeholder:text-black/45',
+                    'text-black placeholder:text-black/45 dark:bg-transparent dark:text-black dark:placeholder:text-black/45',
                 )}
               />
-              {query && (
-                <button
-                  onClick={() => setQuery('')}
-                  className={cn(
-                    'absolute right-3 top-1/2 -translate-y-1/2',
-                    isAppPage ? 'text-black/45 hover:text-black' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close search"
+                className={cn(
+                  'absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 transition-colors',
+                  isAppPage ? 'text-black/45 hover:text-black' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              className={isAppPage ? 'text-black/80 hover:bg-black/5 hover:text-black' : undefined}
-            >
-              Cancel
-            </Button>
-          </div>
 
-          {/* Search Results */}
-          <div ref={resultsContainerRef} className="max-h-[60vh] overflow-y-auto">
+            {isHandleMode && (
+              <div
+                className={cn(
+                  'flex items-center gap-2 border-t px-3 py-2 text-xs',
+                  isAppPage ? 'border-black/10 bg-black/[0.03] text-black/60' : 'border-border/70 bg-muted/40 text-muted-foreground',
+                )}
+              >
+                <User className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {handleTerm
+                    ? `Showing creators matching “${handleTerm}”`
+                    : 'Type a username to find users and creators'}
+                </span>
+              </div>
+            )}
+
+            {/* Search results — attached to the same floating card */}
+            <div
+              ref={resultsContainerRef}
+              className={cn(
+                'max-h-[min(60vh,calc(100dvh-5.5rem))] overflow-y-auto border-t px-3 py-3',
+                isAppPage ? 'border-black/10' : 'border-border/70',
+              )}
+            >
             {query.length === 0 ? (
               <div className="space-y-4">
+                {recentSearches.length > 0 && (
+                  <div>
+                    <h3
+                      className={cn(
+                        'mb-2 text-xs font-semibold uppercase tracking-wide',
+                        isAppPage ? 'text-black/50' : 'text-muted-foreground',
+                      )}
+                    >
+                      Recent
+                    </h3>
+                    <div className="space-y-0.5">
+                      {recentSearches.map((search, index) => (
+                        <button
+                          key={`recent-${search}`}
+                          type="button"
+                          onClick={() => handleSearch(search)}
+                          data-analytics-name="search-overlay-recent-search-button"
+                          className={cn(
+                            'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+                            isAppPage ? 'text-black/90 hover:bg-black/8' : 'hover:bg-muted',
+                            selectedIndex === index && (isAppPage ? 'bg-black/10' : 'bg-muted'),
+                          )}
+                          ref={(el) => {
+                            if (el) resultItemRefs.current[index] = el;
+                          }}
+                        >
+                          <Search className={cn('h-4 w-4 shrink-0', isAppPage ? 'text-black/35' : 'text-muted-foreground/70')} />
+                          <span className="truncate">{search}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h3
                     className={cn(
-                      'mb-3 flex items-center gap-2 text-sm font-semibold',
-                      isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                      'mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide',
+                      isAppPage ? 'text-black/50' : 'text-muted-foreground',
                     )}
                   >
-                    <TrendingUp className="h-4 w-4" />
-                    Trending Searches
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    Trending
                   </h3>
-                  <div className="space-y-1">
-                    {TRENDING_SEARCHES.map((search, index) => (
-                      <button
-                        key={search}
-                        onClick={() => handleSearch(search)}
-                        data-analytics-name="search-overlay-trending-search-button"
-                        className={cn(
-                          'w-full rounded-lg px-3 py-2 text-left transition-colors',
-                          isAppPage
-                            ? 'text-black/90 hover:bg-black/8'
-                            : 'hover:bg-muted',
-                          selectedIndex === index && (isAppPage ? 'bg-black/10' : 'bg-muted'),
-                        )}
-                        ref={(el) => {
-                          if (el) resultItemRefs.current[index] = el;
-                        }}
-                      >
-                        {search}
-                      </button>
-                    ))}
+                  <div className="space-y-0.5">
+                    {TRENDING_SEARCHES.filter((t) => !recentSearches.includes(t)).map((search, i) => {
+                      const index = recentSearches.length + i;
+                      return (
+                        <button
+                          key={search}
+                          type="button"
+                          onClick={() => handleSearch(search)}
+                          data-analytics-name="search-overlay-trending-search-button"
+                          className={cn(
+                            'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+                            isAppPage ? 'text-black/90 hover:bg-black/8' : 'hover:bg-muted',
+                            selectedIndex === index && (isAppPage ? 'bg-black/10' : 'bg-muted'),
+                          )}
+                          ref={(el) => {
+                            if (el) resultItemRefs.current[index] = el;
+                          }}
+                        >
+                          <TrendingUp className={cn('h-4 w-4 shrink-0', isAppPage ? 'text-black/35' : 'text-muted-foreground/70')} />
+                          <span className="truncate">{search}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
+            ) : isHandleMode && !handleTerm ? (
+              <div
+                className={cn(
+                  'py-6 text-center text-sm',
+                  isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                )}
+              >
+                <AtSign className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                <p>Enter a username after @</p>
+              </div>
             ) : (
               <div className="space-y-2">
-                {isLoading ? (
-                  <div
-                    className={cn(
-                      'py-8 text-center',
-                      isAppPage ? 'text-black/55' : 'text-muted-foreground',
-                    )}
-                  >
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    <p>Searching...</p>
+                {isLoading && suggestions.length === 0 ? (
+                  <div className="space-y-2 py-1">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex animate-pulse items-center gap-3 rounded-lg p-2">
+                        <div className={cn('h-10 w-10 shrink-0 rounded-full', isAppPage ? 'bg-black/10' : 'bg-muted')} />
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className={cn('h-3.5 w-2/3 rounded', isAppPage ? 'bg-black/10' : 'bg-muted')} />
+                          <div className={cn('h-3 w-1/3 rounded', isAppPage ? 'bg-black/8' : 'bg-muted/70')} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : suggestions.length > 0 ? (
                   <>
@@ -393,7 +517,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                         <div className="flex-1 min-w-0">
                                           <p className="font-medium truncate">
                                             @
-                                            {highlightParts(result.title, query).map((seg, i) =>
+                                            {highlightParts(result.title, highlightNeedle).map((seg, i) =>
                                               seg.hit ? (
                                                 <mark key={i} className="bg-primary/20 text-primary font-semibold">
                                                   {seg.text}
@@ -484,7 +608,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="font-medium truncate mb-1">
-                                          {highlightParts(result.title, query).map((seg, i) =>
+                                          {highlightParts(result.title, highlightNeedle).map((seg, i) =>
                                             seg.hit ? (
                                               <mark key={i} className="bg-primary/20 text-primary font-semibold">
                                                 {seg.text}
@@ -542,34 +666,61 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         </div>
                       );
                     })()}
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        'mt-4 w-full border-t pt-4',
-                        isAppPage && 'border-black/15 text-black/90 hover:bg-black/8 hover:text-black',
-                        selectedIndex === suggestions.length &&
-                          (isAppPage ? 'bg-black/10' : 'bg-muted'),
+                    <div className="relative mt-2 border-t pt-2">
+                      {isLoading && (
+                        <Loader2
+                          className={cn(
+                            'absolute right-2 top-3 h-4 w-4 animate-spin',
+                            isAppPage ? 'text-black/40' : 'text-muted-foreground',
+                          )}
+                        />
                       )}
-                      data-analytics-name="search-overlay-view-all-results-button"
-                      onClick={() => handleSearch(query)}
-                      ref={(el) => {
-                        if (el) resultItemRefs.current[suggestions.length] = el;
-                      }}
-                    >
-                      View all results for "{query}"
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          'h-10 w-full justify-between px-2.5 text-sm font-normal',
+                          isAppPage && 'text-black/90 hover:bg-black/8 hover:text-black',
+                          selectedIndex === suggestions.length && (isAppPage ? 'bg-black/10' : 'bg-muted'),
+                        )}
+                        data-analytics-name="search-overlay-view-all-results-button"
+                        onClick={() => handleSearch(query)}
+                        ref={(el) => {
+                          if (el) resultItemRefs.current[suggestions.length] = el;
+                        }}
+                      >
+                        <span className="truncate">
+                          {isHandleMode ? `See all creators for “${handleTerm}”` : `See all results for “${query}”`}
+                        </span>
+                        <ArrowRight className="ml-2 h-4 w-4 shrink-0 opacity-60" />
+                      </Button>
+                    </div>
                   </>
-                ) : query.trim().length > 0 ? (
+                ) : !isLoading && query.trim().length > 0 ? (
                   <div
                     className={cn(
-                      'py-8 text-center',
+                      'py-8 text-center text-sm',
                       isAppPage ? 'text-black/60' : 'text-muted-foreground',
                     )}
                   >
-                    <p>No results found for "{query}"</p>
+                    {isHandleMode ? (
+                      <>
+                        <User className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                        <p className="mb-1">No creators found for “{handleTerm}”</p>
+                        <p className="text-xs opacity-80">Check the spelling or try a different username</p>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                        <p className="mb-1">No results for “{query}”</p>
+                        <p className="mb-3 text-xs opacity-80">
+                          Try <button type="button" className="font-medium underline-offset-2 hover:underline" onClick={() => setQuery(`@${getUserSearchTerm(query)}`)}>@username</button> for creators
+                        </p>
+                      </>
+                    )}
                     <Button
                       variant="ghost"
-                      className={cn('mt-2', isAppPage && 'text-black/80 hover:bg-black/8 hover:text-black')}
+                      size="sm"
+                      className={cn('mt-1', isAppPage && 'text-black/80 hover:bg-black/8 hover:text-black')}
                       onClick={() => handleSearch(query)}
                     >
                       Search anyway
@@ -578,6 +729,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 ) : null}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

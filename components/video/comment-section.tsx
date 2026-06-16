@@ -15,14 +15,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { formatDistanceToNow } from "date-fns"
-import { MessageSquare, Loader2, Trash2, AlertTriangle } from "lucide-react"
+import { ArrowRight, Loader2, Trash2, AlertTriangle, Flag, SendHorizontal, MessageSquare, User } from "lucide-react"
+import { ContentReportDialog } from "@/components/report/content-report-dialog"
+import { buildCommentReportMetadata } from "@/lib/report/build-metadata"
+import { canReportContentTarget } from "@/lib/report/ownership"
 import { useAuth } from "@/lib/auth-context"
+import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 import { usePathname, useSearchParams } from "next/navigation"
-import { buildLoginUrl } from "@/lib/auth-utils"
+import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useCallback, useRef } from "react"
 
@@ -45,16 +48,25 @@ interface Reply {
   reply: string
 }
 
-export function CommentSection({ videoId }: { videoId: string }) {
+export function CommentSection({
+  videoId,
+  autoFocusInput = false,
+}: {
+  videoId: string
+  autoFocusInput?: boolean
+}) {
   const { user, userData } = useAuth()
   const { toast } = useToast()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   const [comments, setComments] = useState<Comment[]>([])
+  const [commentCount, setCommentCount] = useState(0)
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({})
   const pendingFetches = useRef<Set<string>>(new Set())
+  const commentFormRef = useRef<HTMLFormElement>(null)
   const [newComment, setNewComment] = useState("")
+  const [guestPromptOpen, setGuestPromptOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [page, setPage] = useState(1)
@@ -62,7 +74,21 @@ export function CommentSection({ videoId }: { videoId: string }) {
 
   useEffect(() => {
     fetchComments()
+    setGuestPromptOpen(false)
   }, [videoId])
+
+  useEffect(() => {
+    if (!autoFocusInput || !user) return
+
+    const timer = window.setTimeout(() => {
+      const input = commentFormRef.current?.querySelector("textarea")
+      if (!input) return
+      input.focus()
+      input.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    }, 400)
+
+    return () => window.clearTimeout(timer)
+  }, [autoFocusInput, user])
 
   const fetchUserProfiles = useCallback(async (usernames: string[]) => {
     const toFetch = usernames.filter(u => 
@@ -108,10 +134,12 @@ export function CommentSection({ videoId }: { videoId: string }) {
 
         // Check if there are more comments based on count and current offset
         const totalLoaded = response.offset + fetchedComments.length
+        setCommentCount(response.count ?? fetchedComments.length)
         setHasMore(totalLoaded < response.count)
         setPage(1)
       } else {
         setComments([])
+        setCommentCount(0)
         setHasMore(false)
       }
     } catch (error) {
@@ -122,6 +150,7 @@ export function CommentSection({ videoId }: { videoId: string }) {
         variant: "destructive",
       })
       setComments([])
+      setCommentCount(0)
       setHasMore(false)
     } finally {
       setIsLoading(false)
@@ -183,89 +212,155 @@ export function CommentSection({ videoId }: { videoId: string }) {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-w-0 max-w-full space-y-6">
-        <h3 className="text-xl font-bold">Comments</h3>
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-w-0 max-w-full space-y-6">
-      <h3 className="text-xl font-bold">{comments.length} Comments</h3>
+    <div className="min-w-0 max-w-full">
+      <h2 className="mb-3 text-base font-bold tracking-tight sm:text-lg">
+        {!isLoading && commentCount > 0
+          ? `${commentCount.toLocaleString()} Comments`
+          : "Comments"}
+      </h2>
 
       {user ? (
-        <div className="flex min-w-0 gap-4">
-          <ProfilePicture user={userData} size="md" />
-          <form onSubmit={handleSubmit} className="min-w-0 flex-1 space-y-2">
-            <Textarea
-              placeholder="Add a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px] min-w-0"
-              disabled={isSubmitting}
-            />
-            <div className="flex justify-end">
-              <Button type="submit" disabled={!newComment.trim() || isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Posting...
-                  </>
-                ) : (
-                  "Comment"
-                )}
-              </Button>
+        <div className="flex min-w-0 items-center gap-3">
+          <ProfilePicture user={userData} size="sm" />
+          <form ref={commentFormRef} onSubmit={handleSubmit} className="min-w-0 flex-1">
+            <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-muted/20 px-3 py-2 transition-colors focus-within:border-border focus-within:bg-background">
+              <Textarea
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                rows={1}
+                className="min-h-[24px] max-h-28 min-w-0 flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                disabled={isSubmitting}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    e.currentTarget.form?.requestSubmit()
+                  }
+                }}
+              />
+              {(newComment.trim() || isSubmitting) && (
+                <Button
+                  type="submit"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 shrink-0 rounded-full text-primary hover:bg-primary/10 hover:text-primary"
+                  disabled={!newComment.trim() || isSubmitting}
+                  aria-label="Post comment"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <SendHorizontal className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
             </div>
           </form>
         </div>
       ) : (
-        <div className="bg-muted p-4 rounded-lg text-center">
-          <p className="text-muted-foreground mb-2">Sign in to leave a comment</p>
-          <Button asChild variant="outline">
-            <Link href={buildLoginUrl(pathname, searchParamsString)}>Sign In</Link>
-          </Button>
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+              aria-hidden
+            >
+              <User className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div
+                className={cn(
+                  "rounded-2xl border border-border/50 bg-muted/20 px-3 py-2 transition-colors",
+                  guestPromptOpen && "border-border bg-background",
+                )}
+              >
+                <Textarea
+                  readOnly
+                  placeholder="Add a comment..."
+                  rows={1}
+                  aria-label="Add a comment"
+                  onFocus={() => setGuestPromptOpen(true)}
+                  onClick={() => setGuestPromptOpen(true)}
+                  className="min-h-[24px] max-h-28 min-w-0 flex-1 cursor-text resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+              </div>
+            </div>
+          </div>
+
+          {guestPromptOpen && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-border/50 bg-muted/20 pl-11 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="border-l-[3px] border-[#DA291C] px-3.5 py-3 sm:px-4">
+                  <p className="text-sm font-semibold leading-snug text-foreground">Got something to say?</p>
+                  <p className="mt-0.5 text-sm leading-snug text-muted-foreground">
+                    Sign up free to drop your take on the track.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-fit rounded-lg border-foreground/20 bg-background/60 px-4 text-[11px] font-semibold uppercase tracking-[0.12em] hover:bg-background"
+                      asChild
+                    >
+                      <Link
+                        href={buildSignupUrl(pathname, searchParamsString)}
+                        data-analytics-name="guest-comment-signup-link"
+                      >
+                        Sign up
+                      </Link>
+                    </Button>
+                    <Link
+                      href={buildLoginUrl(pathname, searchParamsString)}
+                      data-analytics-name="guest-comment-login-link"
+                      className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Already have an account?
+                      <span className="inline-flex items-center gap-0.5 font-medium text-foreground/85">
+                        Log in
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
         </div>
       )}
 
-      <div className="space-y-6">
-        {comments.map((comment) => (
-          <CommentItem 
-            key={comment.comment_id} 
-            comment={comment}
-            userProfiles={userProfiles}
-            fetchUserProfiles={fetchUserProfiles}
-            onReplyAdded={fetchComments}
-            onCommentDeleted={fetchComments}
-          />
-        ))}
+      {!isLoading && comments.length > 0 && (
+        <div className="mt-5 space-y-5">
+          {comments.map((comment) => (
+            <CommentItem
+              key={comment.comment_id}
+              comment={comment}
+              videoId={videoId}
+              userProfiles={userProfiles}
+              fetchUserProfiles={fetchUserProfiles}
+              onReplyAdded={fetchComments}
+              onCommentDeleted={fetchComments}
+            />
+          ))}
 
-        {hasMore && comments.length > 0 && (
-          <Button onClick={loadMoreComments} variant="outline" className="w-full bg-transparent">
-            Load More Comments
-          </Button>
-        )}
-
-        {comments.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">No comments yet. Be the first to comment!</div>
-        )}
-      </div>
+          {hasMore && (
+            <Button onClick={loadMoreComments} variant="ghost" size="sm" className="w-full text-muted-foreground">
+              Load more
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 function CommentItem({ 
-  comment, 
+  comment,
+  videoId,
   userProfiles,
   fetchUserProfiles,
   onReplyAdded,
   onCommentDeleted
 }: { 
-  comment: Comment; 
+  comment: Comment;
+  videoId: string;
   userProfiles: Record<string, any>;
   fetchUserProfiles: (usernames: string[]) => Promise<void>;
   onReplyAdded?: () => void;
@@ -281,6 +376,7 @@ function CommentItem({
   const [isSubmittingReply, setIsSubmittingReply] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
 
   // Fetch profile if missing
   const profileLoaded = !!userProfiles[comment.comment_by_username]
@@ -416,8 +512,11 @@ function CommentItem({
     }
   }
 
-  // Check if current user is the owner of the comment
-  const isOwner = user && (user.uid === comment.commented_by || userData?.username === comment.comment_by_username)
+  const reportViewer = user
+    ? { uid: user.uid, username: userData?.username ?? user.username }
+    : null
+  const isOwner = !canReportContentTarget(reportViewer, comment)
+  const canReportComment = canReportContentTarget(reportViewer, comment)
 
   return (
     <div className="flex gap-4">
@@ -459,8 +558,8 @@ function CommentItem({
                 setShowReplyInput(!showReplyInput)
               } else {
                 toast({
-                  title: "Sign in required",
-                  description: "Please sign in to reply to comments",
+                  title: "Log in to reply",
+                  description: "Log in or sign up to join the conversation.",
                 })
               }
             }}
@@ -477,7 +576,30 @@ function CommentItem({
               Delete
             </button>
           )}
+          {canReportComment && (
+            <button
+              type="button"
+              data-analytics-name="report-comment"
+              className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
+              onClick={() => setReportDialogOpen(true)}
+            >
+              <Flag className="h-3 w-3" />
+              Report
+            </button>
+          )}
         </div>
+
+        {canReportComment && (
+          <ContentReportDialog
+            open={reportDialogOpen}
+            onOpenChange={setReportDialogOpen}
+            reportType="comment"
+            targetId={comment.comment_id}
+            targetType="comment"
+            metadata={buildCommentReportMetadata(comment, videoId)}
+            contextLabel="Report comment"
+          />
+        )}
 
         {showReplyInput && user && (
           <form onSubmit={handleReplySubmit} className="mt-2 space-y-2">

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
-import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, WORKERS_BASE_URL } from "@/lib/storage"
+import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, getWorkersBaseUrl } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import { recordGuestVideoPlay } from "@/lib/guest-conversion/session"
@@ -47,6 +47,8 @@ interface VideoPlayerProps {
   onVideoEnd?: () => void
   onMediaReady?: (videoId: string) => void
   availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
+  /** Primary encoded profile from API (e.g. "720p", "original"). */
+  originalProfile?: string
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
   /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
   onNext?: (nextId: string) => void
@@ -71,6 +73,28 @@ const STORAGE_KEYS = {
 } as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
 
+type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
+
+/** Video.js throws if tech is torn down during navigation — never call player methods bare. */
+function readPlayerNumber(player: unknown, method: PlayerNumberMethod, fallback: number): number {
+  if (!player || typeof player !== "object") return fallback
+  const p = player as {
+    isDisposed?: () => boolean
+    currentTime?: () => number
+    duration?: () => number
+    playbackRate?: () => number
+  }
+  if (typeof p.isDisposed === "function" && p.isDisposed()) return fallback
+  try {
+    const fn = p[method]
+    if (typeof fn !== "function") return fallback
+    const value = fn.call(p)
+    return typeof value === "number" && Number.isFinite(value) ? value : fallback
+  } catch {
+    return fallback
+  }
+}
+
 export function VideoPlayer({ 
   videoUrl, 
   videoId,
@@ -82,6 +106,7 @@ export function VideoPlayer({
   onVideoEnd,
   onMediaReady,
   availableProfiles = ["original"],
+  originalProfile,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
@@ -240,7 +265,19 @@ export function VideoPlayer({
   const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
   const pendingForcedReportRef = useRef(false)
-  
+  const availableProfilesRef = useRef(availableProfiles)
+  const originalProfileRef = useRef(originalProfile)
+  /** Tracks attempted MP4 URLs per video to avoid fallback loops / stale errors on skip. */
+  const mp4FallbackAttemptsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    availableProfilesRef.current = availableProfiles
+  }, [availableProfiles])
+
+  useEffect(() => {
+    originalProfileRef.current = originalProfile
+  }, [originalProfile])
+
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -308,7 +345,18 @@ export function VideoPlayer({
     }
 
     const watchedSeconds = accumulatedWatchSecondsRef.current
-    const currentPositionSeconds = Number((player.currentTime?.() || 0).toFixed(1))
+    const positionFallback = lastWatchPositionRef.current ?? 0
+    const durationFallback = durationRef.current || 0
+
+    // Snapshot before any await — player may be disposed during source switch / navigation.
+    const currentPositionSeconds = Number(
+      readPlayerNumber(player, "currentTime", positionFallback).toFixed(1),
+    )
+    const totalDurationSeconds = Number(
+      readPlayerNumber(player, "duration", durationFallback).toFixed(1),
+    )
+    const playbackRate = Number(readPlayerNumber(player, "playbackRate", 1).toFixed(2))
+
     if (!force && watchedSeconds < WATCH_REPORT_INTERVAL_SECONDS) {
       return
     }
@@ -323,14 +371,13 @@ export function VideoPlayer({
 
     isReportingWatchRef.current = true
     const watchedSecondsChunk = Number(watchedSeconds.toFixed(1))
-    const totalDurationSeconds = Number((player.duration?.() || durationRef.current || 0).toFixed(1))
 
     try {
       await apiClient.reportWatchHours({
         video_id: currentVideoId,
         position_seconds: currentPositionSeconds,
         duration_seconds: totalDurationSeconds,
-        playback_rate: Number((player.playbackRate?.() || 1).toFixed(2)),
+        playback_rate: playbackRate,
         client_timestamp: Math.floor(Date.now() / 1000),
         device_id: getWatchDeviceId() || undefined,
         session_id: watchSessionIdRef.current,
@@ -350,7 +397,7 @@ export function VideoPlayer({
       if (process.env.NODE_ENV === "development") {
         console.log("[hiffi] Watchhours reported:", {
           video_id: currentVideoId,
-          position_seconds: Number((player.currentTime?.() || 0).toFixed(1)),
+          position_seconds: currentPositionSeconds,
           duration_seconds: totalDurationSeconds,
           watched_seconds_chunk: watchedSecondsChunk,
         })
@@ -590,11 +637,16 @@ export function VideoPlayer({
           player.muted(true)
           // Explicitly clear source to prevent the old frame from showing
           // when the player is trying to load a new one
-          player.src({ src: '', type: '' })
+          player.src({ src: "", type: "" })
+          player.error(null)
         } catch (err) {
           console.log("[hiffi] Player cleanup failed:", err)
         }
       }
+      mp4FallbackAttemptsRef.current.clear()
+      baseUrlRef.current = ""
+      lastProcessedUrlRef.current = ""
+      signedVideoUrlRef.current = ""
       setIsPlaying(false)
       setIsBuffering(true)
       setIsLoadingUrl(true)
@@ -1115,12 +1167,21 @@ export function VideoPlayer({
       }
     }
 
+    const profileToMp4Url = (baseUrl: string, profile: string) =>
+      profile === "original" ? `${baseUrl}/original.mp4` : `${baseUrl}/${profile}.mp4`
+
     const handleError = () => {
       const error = player.error()
       if (!error) return
 
       const code = error.code
       const message = error.message
+      const activeVideoId = videoIdRef.current
+      const currentSrc = (player.currentSrc() || signedVideoUrlRef.current || "").trim()
+
+      // Ignore errors from intentional src clears while switching playlist tracks.
+      if (!currentSrc) return
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
 
       // MEDIA_ERR_NETWORK (2)
       if (code === 2) {
@@ -1129,37 +1190,54 @@ export function VideoPlayer({
         return
       }
 
-      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try fallback to original MP4
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
       if (code === 4 || code === 3) {
         let baseUrl = baseUrlRef.current
         if (!baseUrl) {
-          const currentSrc = player.currentSrc() || signedVideoUrlRef.current || ""
-          if (currentSrc) {
-            baseUrl = currentSrc.replace(/\/[^/]+$/, "")
-          }
+          baseUrl = currentSrc.replace(/\/[^/]+$/, "")
         }
-        if (baseUrl) {
-          console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, message)
-          const fallbackUrl = `${baseUrl}/original.mp4`
-
-          setVideoSourceType("mp4")
-          videoSourceTypeRef.current = "mp4"
-          baseUrlRef.current = baseUrl
-          setSignedVideoUrl(fallbackUrl)
-          signedVideoUrlRef.current = fallbackUrl
-          setUrlError("")
-
-          player.error(null)
-          player.src({ src: fallbackUrl, type: "video/mp4" })
-          player.load()
-          player
-            .play()
-            .catch((e: any) => {
-              console.error("[hiffi] Fallback MP4 playback failed:", e)
-              setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-            })
+        if (!baseUrl) {
+          console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+          setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
           return
         }
+
+        const attemptKey = `${activeVideoId}:${currentSrc}`
+        if (mp4FallbackAttemptsRef.current.has(attemptKey)) {
+          return
+        }
+        mp4FallbackAttemptsRef.current.add(attemptKey)
+
+        const candidates: string[] = []
+        const origProfile = originalProfileRef.current
+        if (origProfile) candidates.push(profileToMp4Url(baseUrl, origProfile))
+        for (const profile of availableProfilesRef.current || []) {
+          candidates.push(profileToMp4Url(baseUrl, profile))
+        }
+        candidates.push(`${baseUrl}/original.mp4`)
+
+        const nextUrl = candidates.find((url) => {
+          if (!url || url === currentSrc) return false
+          return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${url}`)
+        })
+
+        if (!nextUrl) {
+          console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+          setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
+          return
+        }
+
+        mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
+        console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, nextUrl)
+
+        setVideoSourceType("mp4")
+        videoSourceTypeRef.current = "mp4"
+        baseUrlRef.current = baseUrl
+        player.error(null)
+        setSignedVideoUrl(nextUrl)
+        signedVideoUrlRef.current = nextUrl
+        setUrlError("")
+        return
       }
 
       console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
@@ -1217,12 +1295,28 @@ export function VideoPlayer({
     stopOtherMediaElements()
     player.muted(isMutedRef.current)
     player.volume(volumeRef.current)
+    const mimeType = signedVideoUrl.endsWith(".m3u8")
+      ? "application/x-mpegURL"
+      : "video/mp4"
     player.src({
       src: signedVideoUrl,
-      type: "video/mp4"
+      type: mimeType,
     })
     lastReadyNotifiedSourceRef.current = ""
-    
+
+    if (autoPlay) {
+      player.one("loadedmetadata", () => {
+        if (signedUrlVideoIdRef.current !== videoId) return
+        void safePlay(player).catch((err: unknown) => {
+          const errorName =
+            err && typeof err === "object" && "name" in err ? String((err as { name?: string }).name) : ""
+          if (errorName !== "AbortError") {
+            console.error("[hiffi] Autoplay after source change failed:", err)
+          }
+        })
+      })
+    }
+
     // Safety timeout for source changes too
     if (autoPlay) {
       if (autoplayAttemptTimeoutRef.current) clearTimeout(autoplayAttemptTimeoutRef.current)

@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation"
 import { WatchNoscriptSeo } from "@/components/watch/watch-noscript-seo"
 import { WatchStaticBody } from "@/components/watch/watch-static-body"
 import { fetchVideoForSeo } from "@/lib/seo/fetch-public"
@@ -14,6 +15,7 @@ async function resolvedParams(params: Promise<{ videoId: string }> | { videoId: 
 export default async function WatchPage({ params }: PageProps) {
   const { videoId } = await resolvedParams(params)
   const seoVideo = await fetchVideoForSeo(videoId)
+  if (!seoVideo) notFound()
 
   // SEO title, description, and JSON-LD are in layout.tsx (server <head>).
   // initialSeoVideo seeds the client so the page does not flash empty while loading.

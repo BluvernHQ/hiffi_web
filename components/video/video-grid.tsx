@@ -3,7 +3,8 @@
 import { VideoCard } from "./video-card"
 import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
-import { useEffect, useRef, useCallback, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react"
+import type { PlaylistNavigation } from "@/lib/playlist-session"
 
 /** Extra rows to prefetch before the sentinel enters the scroll container. */
 const PREFETCH_ROWS = 1
@@ -16,8 +17,11 @@ function useGridColumnCount(): number {
   useEffect(() => {
     if (typeof window === "undefined") return
     const mq = window.matchMedia("(min-width: 1024px)")
-    const sync = () => setColumns(mq.matches ? 4 : 2)
-    sync()
+    const sync = (e: { matches: boolean }) => {
+      const next = e.matches ? 4 : 2
+      setColumns((prev) => (prev === next ? prev : next))
+    }
+    sync(mq)
     mq.addEventListener("change", sync)
     return () => mq.removeEventListener("change", sync)
   }, [])
@@ -58,6 +62,14 @@ interface VideoGridProps {
   hideTimestamp?: boolean
   /** When true, do not show the default “no videos” empty state (parent shows error UI). */
   suppressEmptyState?: boolean
+  /** Custom empty-state title when the grid has no items. */
+  emptyTitle?: string
+  /** Apply DM Sans to card metadata (title, artist, views). */
+  metadataFontDmSans?: boolean
+  /** Skip CSS fade-in on cards (use when GSAP handles entrance). */
+  skipCardEntrance?: boolean
+  /** Open videos in playlist watch mode (queue + next/prev). */
+  playlistNavigation?: PlaylistNavigation
 }
 
 export function VideoGrid({
@@ -70,15 +82,25 @@ export function VideoGrid({
   openVideoUiName = "opened_video",
   hideTimestamp = false,
   suppressEmptyState = false,
+  emptyTitle,
+  metadataFontDmSans = false,
+  skipCardEntrance = false,
+  playlistNavigation,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const rowHeightRef = useRef(DEFAULT_ROW_HEIGHT_PX)
   const lastLoadTime = useRef<number>(0)
-  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null)
+  const scrollRootRef = useRef<HTMLElement | null>(null)
   const columnsPerRow = useGridColumnCount()
 
   const safeVideos = videos || []
+
+  /** Sentinel sits one row above the bottom so the next page starts loading early. */
+  const prefetchSentinelIndex =
+    hasMore && safeVideos.length > 0
+      ? Math.max(0, safeVideos.length - columnsPerRow - 1)
+      : -1
 
   useEffect(() => {
     const measureRowHeight = () => {
@@ -92,25 +114,25 @@ export function VideoGrid({
     return () => window.removeEventListener("resize", measureRowHeight)
   }, [safeVideos.length, columnsPerRow])
 
-  useEffect(() => {
-    const syncScrollRoot = () => {
-      const root = document.getElementById("main-content")
-      setScrollRoot((prev) => {
-        if (prev === root) return prev
-        return root
-      })
-    }
-
-    syncScrollRoot()
-
-    // Keep in sync when layout remounts the scroll container after navigation.
-    const domObserver = new MutationObserver(syncScrollRoot)
-    domObserver.observe(document.body, { childList: true, subtree: true })
-
-    return () => {
-      domObserver.disconnect()
-    }
+  useLayoutEffect(() => {
+    scrollRootRef.current = document.getElementById("main-content")
   }, [])
+
+  const onLoadMoreRef = useRef(onLoadMore)
+  const loadingRef = useRef(loading)
+  const hasMoreRef = useRef(hasMore)
+
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore
+  }, [onLoadMore])
+
+  useEffect(() => {
+    loadingRef.current = loading
+  }, [loading])
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore
+  }, [hasMore])
 
   const throttledLoadMore = useCallback(() => {
     const now = Date.now()
@@ -118,15 +140,15 @@ export function VideoGrid({
       return
     }
     lastLoadTime.current = now
-    if (hasMore && !loading && onLoadMore) {
-      onLoadMore()
+    if (hasMoreRef.current && !loadingRef.current && onLoadMoreRef.current) {
+      onLoadMoreRef.current()
     }
-  }, [hasMore, loading, onLoadMore])
+  }, [])
 
   useEffect(() => {
     const target = observerTarget.current
-    if (!target || !hasMore || !scrollRoot) return
-    const prefetchPx = Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))
+    const scrollRoot = scrollRootRef.current ?? document.getElementById("main-content")
+    if (!target || !hasMore || !scrollRoot || prefetchSentinelIndex === -1) return
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -137,7 +159,8 @@ export function VideoGrid({
       {
         root: scrollRoot,
         threshold: 0,
-        rootMargin: `0px 0px ${prefetchPx}px 0px`,
+        // Calculate margin based on current row height
+        rootMargin: `0px 0px ${Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))}px 0px`,
       },
     )
 
@@ -145,16 +168,12 @@ export function VideoGrid({
 
     return () => {
       observer.unobserve(target)
+      observer.disconnect()
     }
-  }, [throttledLoadMore, hasMore, safeVideos.length, columnsPerRow, scrollRoot])
+  }, [throttledLoadMore, hasMore, prefetchSentinelIndex])
 
   const isInitialLoad = loading && safeVideos.length === 0
   const isLoadingMore = loading && safeVideos.length > 0
-  /** Sentinel sits one row above the bottom so the next page starts loading early. */
-  const prefetchSentinelIndex =
-    hasMore && safeVideos.length > 0
-      ? Math.max(0, safeVideos.length - columnsPerRow - 1)
-      : -1
 
   return (
     <div className="w-full">
@@ -177,18 +196,24 @@ export function VideoGrid({
                 key={video.videoId || video.video_id}
                 ref={index === prefetchSentinelIndex ? observerTarget : undefined}
                 data-video-card-cell
-                className="opacity-0 animate-fade-in"
-                style={{
-                  animationDelay: index < 8 ? `${Math.min(index * 30, 300)}ms` : "0ms",
-                  animationFillMode: "forwards",
-                }}
+                className={skipCardEntrance ? undefined : "opacity-0 animate-fade-in"}
+                style={
+                  skipCardEntrance
+                    ? undefined
+                    : {
+                        animationDelay: index < 8 ? `${Math.min(index * 30, 300)}ms` : "0ms",
+                        animationFillMode: "forwards",
+                      }
+                }
               >
                 <VideoCard
                   video={video}
                   priority={index < 4}
                   showDeleteOption={showDeleteOption}
                   hideTimestamp={hideTimestamp}
+                  metadataFontDmSans={metadataFontDmSans}
                   openVideoUiName={openVideoUiName}
+                  playlistNavigation={playlistNavigation}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id
                     if (deletedVideoId) {
@@ -225,7 +250,13 @@ export function VideoGrid({
       )}
 
       {!loading && safeVideos.length === 0 && !suppressEmptyState && (
-        <EmptyVideoState />
+        emptyTitle ? (
+          <p className="py-20 text-center text-sm text-[#555555] font-[family-name:var(--font-dm-sans)]">
+            {emptyTitle}
+          </p>
+        ) : (
+          <EmptyVideoState />
+        )
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,10 @@ import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/u
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
+import { readAdminTableUrlFilters, hasAdminTableDeepLink, stripAdminTableFilterParams } from "@/lib/report/admin-table-url-filters"
 import {
   Dialog,
   DialogContent,
@@ -22,11 +27,14 @@ import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
 
 export function AdminCommentsTable() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [filter, setFilter] = useState("")
+  const [filter, setFilter] = useState(() => readAdminTableUrlFilters(searchParams).commentFilter)
   const [showFilters, setShowFilters] = useState(true)
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
@@ -37,15 +45,20 @@ export function AdminCommentsTable() {
   const [videoNames, setVideoNames] = useState<Record<string, string>>({})
   const [loadingVideos, setLoadingVideos] = useState(false)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
   useEffect(() => {
+    if (hasAdminTableDeepLink(urlFilters)) {
+      setIsFilterCollapsed(false)
+      return
+    }
     const savedState = localStorage.getItem("admin-filter-collapsed")
     if (savedState !== null) {
       setIsFilterCollapsed(savedState === "true")
     }
-  }, [])
+  }, [urlFilters.commentFilter])
 
   // Save collapsed state to localStorage (shared across all admin pages)
   const handleToggleCollapse = () => {
@@ -53,6 +66,15 @@ export function AdminCommentsTable() {
     setIsFilterCollapsed(newState)
     localStorage.setItem("admin-filter-collapsed", String(newState))
   }
+
+  useEffect(() => {
+    const { commentFilter } = readAdminTableUrlFilters(searchParams)
+    if (!commentFilter) return
+    setFilter((prev) => (prev === commentFilter ? prev : commentFilter))
+    setIsFilterCollapsed(false)
+  }, [searchParams])
+
+  const resolvedFilter = filter.trim() || urlFilters.commentFilter
 
   const fetchVideoNames = async (videoIds: string[]) => {
     if (videoIds.length === 0) return
@@ -93,10 +115,17 @@ export function AdminCommentsTable() {
   }
 
   const fetchComments = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setComments([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       const offset = (page - 1) * limit
-      const params: any = { limit, offset, filter: filter || undefined }
+      const params: any = { limit, offset, filter: resolvedFilter || undefined }
       
       const response = await apiClient.adminListComments(params)
       let commentsData = response.comments || []
@@ -138,11 +167,11 @@ export function AdminCommentsTable() {
         await fetchVideoNames(videosToFetch)
       }
     } catch (error) {
-      console.error("[admin] Failed to fetch comments:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch comments",
-        variant: "destructive",
+      setComments([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch comments",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -151,7 +180,7 @@ export function AdminCommentsTable() {
 
   useEffect(() => {
     fetchComments()
-  }, [page, filter, sortKey, sortDirection])
+  }, [page, filter, sortKey, sortDirection, resolvedFilter])
 
   const handleSort = (key: string, direction: SortDirection) => {
     setSortKey(direction ? key : null)
@@ -172,6 +201,22 @@ export function AdminCommentsTable() {
   }
 
   const totalPages = Math.ceil(total / limit)
+
+  const clearFilters = () => {
+    setFilter("")
+    setPage(1)
+
+    const fromWindow =
+      typeof window !== "undefined" &&
+      window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
+    const params = stripAdminTableFilterParams(
+      new URLSearchParams(fromWindow ? window.location.search.slice(1) : searchParams.toString()),
+    )
+    if (!params.get("section")) params.set("section", "comments")
+    router.replace(`/admin/dashboard?${params.toString()}`)
+  }
+
+  const activeFilterCount = (filter.trim() || urlFilters.commentFilter) ? 1 : 0
 
   const handleDeleteClick = (comment: any) => {
     setCommentToDelete(comment)
@@ -216,14 +261,26 @@ export function AdminCommentsTable() {
     )
   }
 
+  if (networkError && comments.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchComments()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="flex gap-6 min-h-0 overflow-hidden">
       {/* Filter Sidebar */}
       <FilterSidebar
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
-        onClear={() => { setFilter(""); setPage(1) }}
-        activeFilterCount={filter ? 1 : 0}
+        onClear={clearFilters}
+        activeFilterCount={activeFilterCount}
         isCollapsed={isFilterCollapsed}
         onToggleCollapse={handleToggleCollapse}
       >
@@ -248,6 +305,7 @@ export function AdminCommentsTable() {
 
       {/* Main Content */}
       <div className="flex-1 space-y-4 min-w-0 overflow-hidden flex flex-col">
+        {urlFilters.returnTo ? <AdminReturnBanner returnTo={urlFilters.returnTo} /> : null}
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-4 shrink-0">
           <div className="relative flex-1 max-w-md">
@@ -322,9 +380,14 @@ export function AdminCommentsTable() {
                   const repliesCount = comment.total_replies || comment.totalReplies || 0
                   const commentedAt = comment.commented_at || comment.commentedAt
                   const videoName = videoId ? (videoNames[videoId] || (loadingVideos ? "Loading..." : "Loading...")) : null
+                  const isDeepLinked =
+                    !!resolvedFilter && commentId === resolvedFilter
 
                   return (
-                    <tr key={commentId} className="border-b hover:bg-muted/50 transition-colors">
+                    <tr
+                      key={commentId}
+                      className={`border-b hover:bg-muted/50 transition-colors ${isDeepLinked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
+                    >
                       <td className="px-4 py-3 sticky left-0 z-10 bg-background border-r">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">

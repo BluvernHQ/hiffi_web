@@ -3,7 +3,7 @@ import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
-const pageTitle = "Hiffi FAQ - Accounts, Video Features, and Support"
+const pageTitle = "FAQ"
 const pageDescription =
   "Frequently asked questions about Hiffi for viewers and creators, including account setup, discovery, playback, profiles, creator tools, and support."
 const pageUrl = absoluteUrl("/faq")
@@ -30,23 +30,24 @@ export const metadata: Metadata = {
     canonical: pageUrl,
   },
   openGraph: {
-    title: pageTitle,
+    title: `${pageTitle} | Hiffi`,
     description: pageDescription,
     url: pageUrl,
-    type: "article",
+    type: "website",
     siteName: "Hiffi",
     locale: "en_US",
     images: [{ url: absoluteUrl("/hiffi_logo.png"), alt: "Hiffi logo" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: pageTitle,
+    title: `${pageTitle} | Hiffi`,
     description: pageDescription,
     images: [absoluteUrl("/hiffi_logo.png")],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
 }
 
@@ -200,8 +201,9 @@ const faqItems: FaqItem[] = [
   {
     question: "How do I report an account or content issue?",
     answer:
-      "Contact support with relevant details at care@hiffi.com. Include profile links, video links, and screenshots to help faster review.",
+      "While signed in, use Report on a video, comment, or profile. Track your cases on My reports. You can also email care@hiffi.com with your case reference, profile links, video links, and screenshots.",
     category: "Account & Support",
+    answerLink: { href: "/support/reports", match: "My reports" },
   },
   {
     question: "How does Hiffi handle privacy and data security?",

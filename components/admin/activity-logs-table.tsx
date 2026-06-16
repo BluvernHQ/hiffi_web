@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { moodMixActivityLabel } from "@/lib/analytics/mood-mix-analytics"
 import { cn } from "@/lib/utils"
 
 type AnalyticsEvent = {
@@ -28,7 +31,6 @@ type VideoMeta = {
   creator: string
 }
 
-const HOUR_OPTIONS = [1, 6, 12, 24, 48, 72, 168]
 /** `GET /analytics/events` accepts limit 1–100. */
 const LIMIT_OPTIONS = [25, 50, 100]
 
@@ -74,6 +76,91 @@ function toTitleCase(value: string): string {
     .replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
 
+/** Map report analytics names to admin activity log titles. */
+function reportActivityLabel(uiName: string): string | null {
+  const raw = uiName.trim().toLowerCase()
+  if (raw === "report-video" || raw === "report-video-submitted") return "Report video"
+  if (raw === "report-comment" || raw === "report-comment-submitted") return "Report comment"
+  if (
+    raw === "report-user" ||
+    raw === "report-profile" ||
+    raw === "report-user-submitted" ||
+    raw === "report-creator" ||
+    raw === "report-creator-submitted"
+  ) {
+    return "Reported user"
+  }
+  return null
+}
+
+function getEventUiName(item: AnalyticsEvent): string {
+  return String((item as any).element_ui_name || item.properties?.element_ui_name || "").trim()
+}
+
+function getEventElementText(item: AnalyticsEvent): string {
+  return String((item as any).element_text || item.properties?.element_text || "").trim()
+}
+
+function getEventElementTag(item: AnalyticsEvent): string {
+  return String((item as any).element_tag || item.properties?.element_tag || "").trim()
+}
+
+function getEventElementChain(item: AnalyticsEvent): string {
+  return String((item as any).element_chain || item.properties?.element_chain || "").trim()
+}
+
+/** Autocapture text from the report dialog (reason select, form body, etc.). */
+function isReportDialogLikeText(text: string): boolean {
+  const t = text.trim().toLowerCase()
+  if (!t) return false
+  if (t.length > 60) return true
+  if (t.includes("reports are reviewed by our team")) return true
+  if (t.includes("false reports may result")) return true
+  if (t.includes("additional details") && t.includes("optional")) return true
+  if (t.includes("submit report") && t.includes("reason")) return true
+  if (t.includes("report video") && (t.includes("reason") || t.includes("misleading"))) return true
+  if (t.includes("report comment") && t.includes("reason")) return true
+  if (t.includes("report user") && t.includes("reason")) return true
+  if (t.includes("spam") && t.includes("misleading") && t.includes("copyright")) return true
+  if (t.includes("hate speech") || t.includes("child safety") || t.includes("sexual content")) return true
+  return false
+}
+
+/** Hide report-dialog dismiss/copy clicks and unnamed form interactions. */
+function isReportDialogNoiseClick(item: AnalyticsEvent): boolean {
+  if (item.event !== "$click") return false
+  const uiName = getEventUiName(item).toLowerCase()
+  const text = getEventElementText(item).toLowerCase()
+  const tag = getEventElementTag(item).toLowerCase()
+  const chain = getEventElementChain(item).toLowerCase()
+
+  if (reportActivityLabel(uiName)) return false
+
+  if (uiName.startsWith("report-dialog-")) return true
+
+  const shortNoiseText = [
+    "done",
+    "cancel",
+    "copy reference",
+    "copied",
+    "view my reports",
+    "submitting...",
+    "submit report",
+  ]
+  if (!uiName && shortNoiseText.includes(text)) return true
+
+  if (
+    !uiName &&
+    (tag === "select" || tag === "textarea" || tag === "option" || chain.includes("report-reason") || chain.includes("report-description"))
+  ) {
+    return true
+  }
+
+  if (!uiName && isReportDialogLikeText(text)) return true
+
+  return false
+}
+
 function normalizeUiAction(
   uiName?: string,
   elementText?: string,
@@ -87,15 +174,27 @@ function normalizeUiAction(
   const chain = String(elementChain || "").trim().toLowerCase()
   const path = String(targetPath || "").trim()
 
+  const reportLabel = reportActivityLabel(raw)
+  if (reportLabel) return reportLabel
+
+  const moodMixLabel = moodMixActivityLabel(raw)
+  if (moodMixLabel) return moodMixLabel
+
   if (raw === "liked" || raw === "like" || text === "like") return "Liked video"
   if (raw === "disliked" || raw === "dislike" || text === "dislike") return "Disliked video"
   if (raw === "shared-video" || raw === "share" || text === "share") return "Shared video"
   if (raw.includes("copy") || text === "copy") return "Copied share link"
+  if (raw.startsWith("report-")) return toTitleCase(raw)
   if (raw.includes("comment")) return "Comment interaction"
   if (raw.includes("playlist")) return "Playlist interaction"
   if (raw.includes("follow")) return "Follow interaction"
   if (raw) return toTitleCase(raw)
-  if (text) return toTitleCase(text)
+  if (text && !isReportDialogLikeText(text)) {
+    if (text.startsWith("report video")) return "Report video"
+    if (text.startsWith("report comment")) return "Report comment"
+    if (text.startsWith("report user") || text.startsWith("report profile") || text.startsWith("report creator")) return "Reported user"
+    if (text.length <= 40) return toTitleCase(text)
+  }
 
   // Heuristic interaction labels from DOM chain when ui_name is missing.
   if (path.startsWith("/watch/")) {
@@ -130,8 +229,9 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
   }
 
   if (eventName === "opened-video") {
+    const moodMixVideoLabel = moodMixActivityLabel(uiName)
     return {
-      title: "Opened video (play intent)",
+      title: moodMixVideoLabel || "Opened video (play intent)",
       detail: targetPath || "Video opened from feed",
     }
   }
@@ -293,10 +393,10 @@ function computeHasMorePage(
 
 export function AdminActivityLogsTable() {
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [events, setEvents] = useState<AnalyticsEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [hours, setHours] = useState(24)
   /** Request page size (API `limit`); pagination uses `offset` + `has_more`. */
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
@@ -314,15 +414,23 @@ export function AdminActivityLogsTable() {
 
   const fetchEvents = async (isRefresh = false) => {
     let refreshSucceeded = false
+    if (guardOfflineBeforeFetch()) {
+      setApiPageLength(0)
+      setHasMore(false)
+      setEvents([])
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
     try {
       if (isRefresh) {
         setRefreshing(true)
       } else {
         setLoading(true)
       }
+      clearNetworkError()
       const apiLimit = Math.min(Math.max(1, limit), 100)
       const response = await apiClient.adminGetAnalyticsEvents({
-        hours: usesCustomRange ? undefined : hours,
         limit: apiLimit,
         offset,
         filter: activityFilter,
@@ -364,11 +472,10 @@ export function AdminActivityLogsTable() {
     } catch (error) {
       setApiPageLength(0)
       setHasMore(false)
-      console.error("[admin] Failed to fetch activity logs:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch activity logs",
-        variant: "destructive",
+      setEvents([])
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch activity logs",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -391,15 +498,16 @@ export function AdminActivityLogsTable() {
       return
     }
     fetchEvents()
-  }, [hours, limit, offset, activityFilter, timestampAfter, timestampBefore, timestampRangeInvalid])
+  }, [limit, offset, activityFilter, timestampAfter, timestampBefore, timestampRangeInvalid])
 
   useEffect(() => {
     setOffset(0)
-  }, [query, activityFilter, hours, limit, timestampAfter, timestampBefore])
+  }, [query, activityFilter, limit, timestampAfter, timestampBefore])
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase()
     return events.filter((item) => {
+      if (isReportDialogNoiseClick(item)) return false
       if (!q) return true
       const ip = String(item.properties?._ingest_ip || "").toLowerCase()
       const title = String(item.properties?.title || "").toLowerCase()
@@ -505,6 +613,18 @@ export function AdminActivityLogsTable() {
     )
   }
 
+  if (networkError) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchEvents()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-lg border bg-background p-4">
@@ -543,27 +663,6 @@ export function AdminActivityLogsTable() {
               <option value="search">Search overlay</option>
               <option value="upload">Upload &amp; creator studio</option>
               <option value="player">Player controls (play/pause/seek/sound/fullscreen)</option>
-            </select>
-
-            <select
-              value={hours}
-              onChange={(e) => {
-                setHours(Number(e.target.value))
-              }}
-              disabled={usesCustomRange}
-              title={
-                usesCustomRange
-                  ? "Clear the date range to use a rolling hours window"
-                  : "Rolling time window (ignored when From/To is set)"
-              }
-              aria-label="Rolling time window in hours"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {HOUR_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  Last {option}h
-                </option>
-              ))}
             </select>
 
             <select
@@ -661,9 +760,7 @@ export function AdminActivityLogsTable() {
               .
             </>
           ) : (
-            <>
-              Last <span className="font-medium text-foreground">{hours}</span>h window.
-            </>
+            <>Use From/To to limit by date and time.</>
           )}{" "}
           Search applies to the current page only.
           {timestampRangeInvalid ? (

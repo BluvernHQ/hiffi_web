@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Bebas_Neue, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { GuestConversionProvider } from '@/components/conversion/guest-conversion-provider'
@@ -12,13 +12,18 @@ import { ClarityTracker } from '@/components/analytics/clarity-tracker'
 import { GATracker } from '@/components/analytics/ga-tracker'
 import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
+import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
-import { API_BASE_URL } from '@/lib/config'
+import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
+import { getAnalyticsAppVersion } from '@/lib/app-version'
+import { getApiBaseUrl } from '@/lib/config'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" })
 const _geistMono = Geist_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" })
+const _bebasNeue = Bebas_Neue({ weight: "400", subsets: ["latin"], display: "swap", variable: "--font-bebas" })
+const _dmSans = DM_Sans({ subsets: ["latin"], display: "swap", variable: "--font-dm-sans" })
 
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
@@ -122,9 +127,7 @@ const siteJsonLd = {
         email: "care@hiffi.com",
         availableLanguage: ["English"],
       },
-      // sameAs: add official social profile URLs here when available
-      // e.g. "https://twitter.com/hiffi", "https://instagram.com/hiffi"
-      sameAs: [],
+      sameAs: ORGANIZATION_SAME_AS,
     },
   ],
 }
@@ -154,15 +157,14 @@ export default function RootLayout({
     (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com")
   const apiAnalyticsEnabled =
     process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
-  const apiAnalyticsBaseUrl = API_BASE_URL.replace(/\/$/, "")
-  const apiAnalyticsSrc = apiAnalyticsEnabled
-    ? `${apiAnalyticsBaseUrl}/tracker.js`
-    : null
+  const apiAnalyticsBaseUrl = getApiBaseUrl().replace(/\/$/, "")
+  // Serve tracker via same-origin proxy so autocapture can route through wrapped capture().
+  const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
-  const analyticsAppVersion = "web-nextjs"
+  const analyticsAppVersion = getAnalyticsAppVersion()
 
   return (
-    <html lang="en" className={`${_geist.variable} ${_geistMono.variable}`}>
+    <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
       <head>
         <JsonLd data={siteJsonLd} />
         {/* Microsoft Clarity - ID from env only, never in source */}
@@ -248,6 +250,9 @@ export default function RootLayout({
         <Toaster />
         <Suspense fallback={null}>
           <UtmPoll />
+        </Suspense>
+        <Suspense fallback={null}>
+          <DeployStaleGuard />
         </Suspense>
         {/* Analytics */}
         {clarityId && <ClarityTracker />}

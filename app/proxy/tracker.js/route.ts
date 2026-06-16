@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server"
-import { API_BASE_URL } from "@/lib/config"
+import { getApiBaseUrl } from "@/lib/config"
 
 export async function GET() {
   try {
-    const upstream = `${API_BASE_URL.replace(/\/$/, "")}/tracker.js`
+    const upstream = `${getApiBaseUrl().replace(/\/$/, "")}/tracker.js`
     const res = await fetch(upstream, { cache: "no-store" })
-    const body = await res.text()
+    let body = await res.text()
+    // Route autocapture through HifiAnalytics.capture so app-side dedupe wraps click events.
+    body = body.replace(
+      "capture('$click', clickPayload);",
+      "global.HifiAnalytics.capture('$click', clickPayload);",
+    )
     return new NextResponse(body, {
       status: res.status,
       headers: {

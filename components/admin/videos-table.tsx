@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +15,10 @@ import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
+import { readAdminTableUrlFilters, hasAdminTableDeepLink, stripAdminTableFilterParams } from "@/lib/report/admin-table-url-filters"
 import {
   Dialog,
   DialogContent,
@@ -24,6 +29,9 @@ import {
 } from "@/components/ui/dialog"
 
 export function AdminVideosTable() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
   const [videos, setVideos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -39,6 +47,7 @@ export function AdminVideosTable() {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Refs to maintain focus on search input
@@ -50,11 +59,15 @@ export function AdminVideosTable() {
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
   useEffect(() => {
+    if (hasAdminTableDeepLink(urlFilters)) {
+      setIsFilterCollapsed(false)
+      return
+    }
     const savedState = localStorage.getItem("admin-filter-collapsed")
     if (savedState !== null) {
       setIsFilterCollapsed(savedState === "true")
     }
-  }, [])
+  }, [urlFilters.videoId])
 
   // Save collapsed state to localStorage (shared across all admin pages)
   const handleToggleCollapse = () => {
@@ -63,30 +76,41 @@ export function AdminVideosTable() {
     localStorage.setItem("admin-filter-collapsed", String(newState))
   }
 
-  // Filter state
-  const [filters, setFilters] = useState({
-    video_title: "",
-    video_description: "",
-    user_username: "",
-    user_uid: "",
-    video_tag: "",
-    video_views_min: "",
-    video_views_max: "",
-    video_upvotes_min: "",
-    video_upvotes_max: "",
-    video_downvotes_min: "",
-    video_downvotes_max: "",
-    video_comments_min: "",
-    video_comments_max: "",
-    created_after: "",
-    created_before: "",
-    updated_after: "",
-    updated_before: "",
+  // Filter state — seed from URL so the first fetch is already scoped
+  const [filters, setFilters] = useState(() => {
+    const fromUrl = readAdminTableUrlFilters(searchParams)
+    return {
+      video_id: fromUrl.videoId,
+      video_title: "",
+      video_description: "",
+      user_username: "",
+      video_views_min: "",
+      video_views_max: "",
+      video_upvotes_min: "",
+      video_upvotes_max: "",
+      video_downvotes_min: "",
+      video_downvotes_max: "",
+      video_comments_min: "",
+      video_comments_max: "",
+      created_after: "",
+      created_before: "",
+      updated_after: "",
+      updated_before: "",
+    }
   })
 
+  const resolvedVideoId = filters.video_id.trim() || urlFilters.videoId
+
   const fetchVideos = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setVideos([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
       const offset = Math.max(0, (page - 1) * limit)
       
@@ -94,11 +118,10 @@ export function AdminVideosTable() {
       const params: any = { limit, offset }
       
       console.log("[admin] Fetching videos:", { page, limit, offset })
+      if (resolvedVideoId) params.video_id = resolvedVideoId
       if (filters.video_title) params.video_title = filters.video_title
       if (filters.video_description) params.video_description = filters.video_description
       if (filters.user_username) params.user_username = filters.user_username
-      if (filters.user_uid) params.user_uid = filters.user_uid
-      if (filters.video_tag) params.video_tag = filters.video_tag
       if (filters.video_views_min) params.video_views_min = parseInt(filters.video_views_min)
       if (filters.video_views_max) params.video_views_max = parseInt(filters.video_views_max)
       if (filters.video_upvotes_min) params.video_upvotes_min = parseInt(filters.video_upvotes_min)
@@ -179,11 +202,11 @@ export function AdminVideosTable() {
         response: response
       })
     } catch (error) {
-      console.error("[admin] Failed to fetch videos:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch videos",
-        variant: "destructive",
+      setVideos([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch videos",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -191,8 +214,15 @@ export function AdminVideosTable() {
   }
 
   useEffect(() => {
+    const { videoId } = readAdminTableUrlFilters(searchParams)
+    if (!videoId) return
+    setFilters((prev) => (prev.video_id === videoId ? prev : { ...prev, video_id: videoId }))
+    setIsFilterCollapsed(false)
+  }, [searchParams])
+
+  useEffect(() => {
     fetchVideos()
-  }, [page, filters, sortKey, sortDirection])
+  }, [page, filters, sortKey, sortDirection, resolvedVideoId])
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -245,7 +275,6 @@ export function AdminVideosTable() {
     setFilters((prev) => ({
       ...prev,
       user_username: trimmed,
-      user_uid: "",
     }))
     setPage(1)
     setSelectedVideoIds([])
@@ -386,11 +415,10 @@ export function AdminVideosTable() {
 
   const clearFilters = () => {
     setFilters({
+      video_id: "",
       video_title: "",
       video_description: "",
       user_username: "",
-      user_uid: "",
-      video_tag: "",
       video_views_min: "",
       video_views_max: "",
       video_upvotes_min: "",
@@ -406,9 +434,19 @@ export function AdminVideosTable() {
     })
     setPage(1)
     setSelectedVideoIds([])
+
+    const fromWindow =
+      typeof window !== "undefined" &&
+      window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
+    const params = stripAdminTableFilterParams(
+      new URLSearchParams(fromWindow ? window.location.search.slice(1) : searchParams.toString()),
+    )
+    if (!params.get("section")) params.set("section", "videos")
+    router.replace(`/admin/dashboard?${params.toString()}`)
   }
 
-  const hasActiveFilters = Object.values(filters).some((v) => v !== "")
+  const hasActiveFilters =
+    Object.values(filters).some((v) => v !== "") || !!urlFilters.videoId
   const totalPages = Math.ceil(total / limit)
 
   // Helper function to convert ISO string to datetime-local format (local time)
@@ -432,6 +470,18 @@ export function AdminVideosTable() {
     )
   }
 
+  if (networkError && videos.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchVideos()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="flex gap-6 min-h-0 overflow-hidden">
       {/* Filter Sidebar */}
@@ -444,6 +494,14 @@ export function AdminVideosTable() {
         onToggleCollapse={handleToggleCollapse}
       >
         <FilterSection title="Search">
+          <FilterField label="Video ID" htmlFor="video_id">
+            <Input
+              id="video_id"
+              placeholder="Exact video ID..."
+              value={filters.video_id}
+              onChange={(e) => handleFilterChange("video_id", e.target.value)}
+            />
+          </FilterField>
           <FilterField label="Video Title" htmlFor="video_title">
             <Input
               id="video_title"
@@ -460,14 +518,6 @@ export function AdminVideosTable() {
               onChange={(e) => handleFilterChange("video_description", e.target.value)}
             />
           </FilterField>
-          <FilterField label="Video Tag" htmlFor="video_tag">
-            <Input
-              id="video_tag"
-              placeholder="Filter by tag..."
-              value={filters.video_tag}
-              onChange={(e) => handleFilterChange("video_tag", e.target.value)}
-            />
-          </FilterField>
         </FilterSection>
 
         <FilterSection title="Creator">
@@ -477,14 +527,6 @@ export function AdminVideosTable() {
               placeholder="Filter by creator..."
               value={filters.user_username}
               onChange={(e) => handleFilterChange("user_username", e.target.value)}
-            />
-          </FilterField>
-          <FilterField label="Creator UID" htmlFor="user_uid">
-            <Input
-              id="user_uid"
-              placeholder="Filter by creator UID..."
-              value={filters.user_uid}
-              onChange={(e) => handleFilterChange("user_uid", e.target.value)}
             />
           </FilterField>
         </FilterSection>
@@ -691,6 +733,7 @@ export function AdminVideosTable() {
 
       {/* Main Content */}
       <div className="flex-1 space-y-4 min-w-0 overflow-hidden flex flex-col">
+        {urlFilters.returnTo ? <AdminReturnBanner returnTo={urlFilters.returnTo} /> : null}
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-4 flex-1">
@@ -819,11 +862,13 @@ export function AdminVideosTable() {
                   const views = video.video_views || video.videoViews || 0
                   const createdAt = video.created_at || video.createdAt
                   const isSelected = selectedVideoIds.includes(videoId)
+                  const isDeepLinked =
+                    !!resolvedVideoId && videoId === resolvedVideoId
 
                   return (
                     <tr 
                       key={videoId} 
-                      className={`border-b hover:bg-muted/50 transition-colors ${isSelected ? "bg-primary/5" : ""}`}
+                      className={`border-b hover:bg-muted/50 transition-colors ${isSelected || isDeepLinked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
                     >
                       <td className="px-4 py-3 sticky left-0 z-10 bg-inherit border-r">
                         {videoId ? (

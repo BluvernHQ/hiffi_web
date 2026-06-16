@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { API_BASE_URL } from "@/lib/config"
+import { getApiBaseUrl } from "@/lib/config"
 
 /**
  * Same-origin proxy for public UTM poll ingestion (`POST /utm/poll` on the API).
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       headers["X-Utm-Poll-Ingest-Key"] = ingestKey
     }
 
-    const response = await fetch(`${API_BASE_URL}/utm/poll`, {
+    const response = await fetch(`${getApiBaseUrl()}/utm/poll`, {
       method: "POST",
       headers,
       body,

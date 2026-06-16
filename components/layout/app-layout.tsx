@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
 import { useSidebar } from "@/lib/sidebar-context"
+import { isContentPage } from "@/lib/content-pages"
 
 interface AppLayoutProps {
   children: ReactNode
@@ -26,6 +27,7 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
   const isAppDownloadPage = pathname === "/app"
+  const isContentPageRoute = isContentPage(pathname)
 
   const {
     isSidebarOpen,
@@ -43,28 +45,34 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
     >
       {/* Navbar - Fixed at top, always visible */}
       <Navbar
-        onMenuClick={() => {
-          // Toggle mobile sidebar on mobile, desktop sidebar on desktop
-          if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-            toggleDesktopSidebar()
-          } else {
-            toggleMobileSidebar()
-          }
-        }}
+        variant={isContentPageRoute ? "minimal" : "full"}
+        onMenuClick={
+          isContentPageRoute
+            ? undefined
+            : () => {
+                if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+                  toggleDesktopSidebar()
+                } else {
+                  toggleMobileSidebar()
+                }
+              }
+        }
         currentFilter={currentFilter}
       />
 
       {/* Main Layout Container */}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          className={isAppDownloadPage ? "lg:fixed lg:top-16 lg:left-0 lg:z-[85] lg:h-[calc(100dvh-4rem)]" : undefined}
-          isMobileOpen={isSidebarOpen}
-          onMobileClose={() => setIsSidebarOpen(false)}
-          isDesktopOpen={isDesktopSidebarOpen}
-          onDesktopToggle={() => toggleDesktopSidebar()}
-          currentFilter={currentFilter}
-          onFilterChange={onFilterChange}
-        />
+        {!isContentPageRoute && (
+          <Sidebar
+            className={isAppDownloadPage ? "lg:fixed lg:top-16 lg:left-0 lg:z-[85] lg:h-[calc(100dvh-4rem)]" : undefined}
+            isMobileOpen={isSidebarOpen}
+            onMobileClose={() => setIsSidebarOpen(false)}
+            isDesktopOpen={isDesktopSidebarOpen}
+            onDesktopToggle={() => toggleDesktopSidebar()}
+            currentFilter={currentFilter}
+            onFilterChange={onFilterChange}
+          />
+        )}
 
         {/* Main Content Area - Adapts to sidebar, never affects it */}
         <main id="main-content" className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">

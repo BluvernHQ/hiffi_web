@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { API_BASE_URL } from "@/lib/config"
+import { getApiBaseUrl } from "@/lib/config"
 
 export async function GET(request: NextRequest) {
   try {
     const query = request.nextUrl.search || ""
-    const targetUrl = `${API_BASE_URL}/admin/referals${query}`
+    const targetUrl = `${getApiBaseUrl()}/admin/referals${query}`
     const authHeader = request.headers.get("authorization")
 
     const response = await fetch(targetUrl, {

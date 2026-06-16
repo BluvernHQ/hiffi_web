@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2 } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2, Flag } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,16 +17,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ProfilePicture } from "@/components/profile/profile-picture"
+import { NavbarProfileAvatar } from "@/components/profile/navbar-profile-avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 
 
 interface NavbarProps {
   onMenuClick?: () => void
   currentFilter?: 'all' | 'following' | 'liked' | 'history'
+  variant?: 'full' | 'minimal'
+}
+
+function MinimalNavbarHeader() {
+  return (
+    <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center px-2 sm:px-3 md:px-4">
+        <Link href="/" className="flex items-center gap-3" data-analytics-name="navbar-home-logo-link">
+          <Image
+            src="/appbarlogo.png"
+            alt="Hiffi Logo"
+            width={132}
+            height={32}
+            className="h-8 w-auto object-contain"
+            style={{ width: "auto" }}
+            priority
+          />
+        </Link>
+      </div>
+    </header>
+  )
 }
 
 /** Radix Dialog + Dropdown can leave body pointer-events locked after close; confirm path already forces cleanup. */
@@ -149,6 +169,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 width={132}
                 height={32}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>
@@ -180,7 +201,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       : "truncate pl-10 pr-4 text-sm text-muted-foreground"
                   }
                 >
-                  Search...
+                  Search or @username...
                 </span>
               </div>
             </div>
@@ -203,9 +224,9 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             >
               <Search className="h-5 w-5" />
             </button>
-            {user && userData ? (
+            {user ? (
               <>
-                {showUploadButton && (
+                {showUploadButton && userData && (
                   <>
                     {userData.role === "creator" ? (
                       <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
@@ -226,25 +247,29 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 )}
                 <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <ProfilePicture user={userData} size="sm" />
-                    </Button>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Open account menu"
+                    >
+                      <NavbarProfileAvatar user={userData ?? user} />
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userData.name || userData.username}</p>
-                        <p className="text-xs leading-none text-muted-foreground">@{userData.username}</p>
+                        <p className="text-sm font-medium leading-none">{(userData ?? user).name || (userData ?? user).username}</p>
+                        <p className="text-xs leading-none text-muted-foreground">@{(userData ?? user).username}</p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/profile/${userData.username}`} data-analytics-name="navbar-profile-link">
+                      <Link href={`/profile/${(userData ?? user).username}`} data-analytics-name="navbar-profile-link">
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
-                    {userData.role === "creator" ? (
+                    {userData?.role === "creator" ? (
                       <>
                         <DropdownMenuItem asChild>
                           <Link href="/creator/apply" data-analytics-name="navbar-user-menu-hiffi-studio-link">
@@ -261,6 +286,12 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem asChild>
+                      <Link href="/support/reports" data-analytics-name="navbar-my-reports-link">
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>My reports</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={(e) => {
@@ -341,7 +372,11 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 }
 
 // Public Navbar component wrapped in Suspense
-export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+export function Navbar({ onMenuClick, currentFilter, variant = 'full' }: NavbarProps) {
+  if (variant === 'minimal') {
+    return <MinimalNavbarHeader />
+  }
+
   return (
     <Suspense fallback={
       <header className="sticky top-0 z-50 w-full border-b border-black/15 bg-[#f3f0e8]">
@@ -354,6 +389,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
                 width={132}
                 height={32}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>

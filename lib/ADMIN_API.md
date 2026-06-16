@@ -18,6 +18,13 @@ This document provides comprehensive API documentation for the Admin endpoints i
   - [Delete Comment](#8-delete-comment)
   - [Delete Reply](#9-delete-reply)
 - [Error Responses](#error-responses)
+- [Content Flags (separate doc)](#content-flags-separate-doc)
+
+---
+
+## Content Flags (separate doc)
+
+User and admin **content reports / flags** are documented in [`FLAGS_API.md`](FLAGS_API.md), including proxy routes and UI entry points. Backend paths: `/flags`, `/admin/flags`.
 
 ---
 
