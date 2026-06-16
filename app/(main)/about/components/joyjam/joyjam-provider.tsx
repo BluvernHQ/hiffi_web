@@ -18,16 +18,18 @@ export default function JoyJamProvider({ children }: { children: ReactNode }) {
       if (!root) return;
 
       const { lenis, destroy: destroyLenis, refresh } = initLenisScroll();
-      (window as Window & { lenis?: typeof lenis }).lenis = lenis;
 
       const cleanupAnimations = initJoyJamAnimations(root, lenis);
+
+      const onSectionLoaded = () => refresh();
+      window.addEventListener("joyjam:section-loaded", onSectionLoaded);
 
       refresh();
       window.dispatchEvent(new CustomEvent("joyjam:ready"));
 
       return () => {
+        window.removeEventListener("joyjam:section-loaded", onSectionLoaded);
         cleanupAnimations();
-        delete (window as Window & { lenis?: typeof lenis }).lenis;
         destroyLenis();
         ScrollTrigger.getAll().forEach((st) => st.kill());
       };

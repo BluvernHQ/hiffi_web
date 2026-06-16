@@ -12,7 +12,7 @@
 
 .page-wrapper {
   min-height: 100vh;
-  background-color: #0c0b0c;
+  /* background-color: #0c0b0c; */
   /* clip — not hidden — so benefits-sticky position:sticky still works */
   overflow-x: clip;
 }
@@ -51,6 +51,76 @@ html.lenis body {
     display: inline-flex;
     align-items: center;
   }
+}
+
+/* Hiffi navbar branding */
+.navbar .brand.navbar-s {
+  width: auto;
+  min-width: 7rem;
+}
+
+.navbar .hiffi-brand-logo {
+  display: flex;
+  align-items: center;
+  width: auto;
+  height: 1.75rem;
+}
+
+.navbar .hiffi-nav-cta.nav-button.change {
+  background-color: #ff2d3d;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.navbar .hiffi-nav-cta.nav-button.change:hover {
+  background-color: #e82635;
+  color: #ffffff;
+}
+
+.navbar .nav-link,
+.navbar .nav-link.w--current {
+  color: #ff2d3d;
+}
+
+.navbar .nav-link:hover {
+  color: #e82635;
+}
+
+.navbar .nav-link-hover-line.change {
+  background-image: linear-gradient(90deg, transparent, #ff2d3d 50%, transparent);
+}
+
+/* Hiffi footer branding */
+.footer-brand {
+  width: auto;
+  max-width: 12rem;
+}
+
+.footer-brand .hiffi-footer-logo {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Hiffi why-us card background (J replaced with H in asset) */
+.why-us-card.s2 {
+  background-image: url("/joyjam/why-us-card-bg-hiffi.png") !important;
+}
+
+/* Hero headline gradient text */
+.text-elements.hero-s .headline-h1,
+.text-elements.hero-s .headline-h1 .char {
+  background: linear-gradient(180deg, #fff 0%, #f04857 18.75%, #f14c5b 35.58%, #ed1c2f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Creators section — "An Enhanced Fan Experience" */
+.creators-headline .headline-h2,
+.creators-headline .headline-h2 .char {
+  color: #ed1c2f;
 }
 
 /* View-item entrance (navbar pill) */
@@ -142,10 +212,20 @@ html.lenis body {
 /* Circle slider flip card 3D */
 .circle-slide {
   transform-style: preserve-3d;
+  overflow: visible;
+}
+
+.circle-slide.active {
+  overflow: visible;
+}
+
+.full-container.hero-s {
+  overflow: visible;
 }
 
 .circle-slide-content {
   transform-style: preserve-3d;
+  overflow: visible;
 }
 
 .circle-slide-image {
@@ -163,11 +243,77 @@ html.lenis body {
 
 /* Local flip card backgrounds (joyjam.css points to wayback URLs) */
 .circle-slide-flip.s1 {
-  background-image: url("/joyjam/6821a59ae3bfe3007134251f_45ba1cf20198611a97c45e83addf77ef_flip-card-bg-1.webp");
+  background-color: #dbe6d6;
+  background-image: none !important;
+  overflow: visible;
+}
+
+/* Card 1 overlays — break frame partially (same motion as flip.css) */
+.circle-slide-flip.s1 .flip-widget-point {
+  z-index: 2;
+}
+
+.circle-slide-flip.s1 .flip-pop-message.card-1-s1 {
+  width: 8.75rem !important;
+}
+
+.circle-slide-flip.s1 .flip-pop-message.card-1-s2 {
+  width: 9rem !important;
+}
+
+@media screen and (min-width: 992px) {
+  .circle-slide-flip.s1 .flip-fire-sticker {
+    width: 3.2rem;
+    font-size: 1.8rem;
+  }
+
+  .circle-slide-flip.s1 .flip-pop-message.card-1-s1,
+  .circle-slide-flip.s1 .flip-pop-message.card-1-s2 {
+    width: 14rem !important;
+  }
+}
+
+/* Single artist portrait on s1 flip — replaces old composite bg + duplicate cover */
+.circle-slide-flip.s1::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 58%;
+  aspect-ratio: 1;
+  border: 0.32rem solid #fff;
+  border-radius: 50%;
+  background: url("/artist1.jpeg") center / cover no-repeat;
+  box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 12%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Front cover is the same artist — hide it when flipped so only one portrait shows */
+.circle-slide.active .circle-slide-content:has(.circle-slide-flip.s1) .circle-slide-image {
+  visibility: hidden;
 }
 
 .circle-slide-flip.s7 {
   background-image: url("/joyjam/6821a59ae3bfe30071342503_db56ff815a91678980d4cf069485d7cd_flip-card-bg-4.webp");
+}
+
+/* Hiffi artist portraits inside flip cards */
+.flip-artist-portrait {
+  aspect-ratio: 1;
+  border: 0.32rem solid #fff;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 12%);
+}
+
+.flip-card-bg .flip-artist-portrait {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 58%;
+  transform: translate(-50%, -50%);
 }
 
 .flip-photo-frame,
@@ -321,7 +467,7 @@ html.lenis body {
   width: 100%;
   max-width: 100rem;
   max-height: none;
-  background-image:
+  /* background-image:
     linear-gradient(
       180deg,
       var(--jam--oil-black, #0c0b0c),
@@ -330,7 +476,7 @@ html.lenis body {
       transparent 85%,
       var(--jam--oil-black, #0c0b0c)
     ),
-    url("/joyjam/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png");
+    url("/joyjam/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png"); */
 }
 
 @media screen and (max-width: 478px) {
@@ -364,7 +510,7 @@ html.lenis body {
     mask-position: center 11.5% !important;
   }
 
-  .benefits-bg {
+  /* .benefits-bg {
     background-image:
       linear-gradient(
         180deg,
@@ -375,7 +521,7 @@ html.lenis body {
         var(--jam--oil-black, #0c0b0c)
       ),
       url("/joyjam/6821a59ae3bfe3007134260f_465848268cc696b2f54df0a2420c0e39_benefits-bg-p.png");
-  }
+  } */
 }
 
 .iphone-ui {
@@ -395,6 +541,58 @@ html.lenis body {
 
 .values-card-light.s1 {
   background-image: url("/joyjam/6821a59ae3bfe30071342502_velue-card-lights-1.png");
+}
+
+.values-card-position.s1 .values-card-headline .headline-h5,
+.values-card-position.s2 .values-card-headline .headline-h5 {
+  color: #fff;
+}
+
+/* Creators slider — white text on dark/orange cards */
+.creators-slide-content.s2 .headline-h5,
+.creators-slide-content.s2 .body-regular-s,
+.creators-slide-content.s3 .headline-h5,
+.creators-slide-content.s3 .body-regular-s {
+  color: #fff !important;
+}
+
+.fans-benefits-s-cover.black .fans-benefits-s-text .body-regular-s {
+  color: #fff !important;
+}
+
+/* Creators card stack — fan spread (cs-slider) */
+.cs-slider.creators-s,
+.cs-slider-wrapper.creators-s {
+  overflow: visible;
+}
+
+.cs-slider.creators-s,
+.cs-slider.fanas-benefits-s,
+.cs-slider.reviews-s {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.cs-slider.creators-s:active,
+.cs-slider.fanas-benefits-s:active,
+.cs-slider.reviews-s:active {
+  cursor: grabbing;
+}
+
+.cs-slide.creators-s {
+  transform-origin: center center;
+}
+
+.cs-slide.cs-slide-offscreen {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* CTA flip cards — white text on image/color backgrounds */
+.cta-front-card .headline-h3,
+.cta-back-card .body-medium-m {
+  color: #fff !important;
 }
 
 .values-card-light.s2 {
@@ -444,6 +642,17 @@ html.lenis body {
   will-change: transform, height;
   z-index: 1;
   height: 0%;
+}
+
+/* Center-origin zoom — only during fullscreen scale (keeps peek visible before) */
+.benefits-sticky.is-phone-zoom .iphone-position {
+  top: 0;
+  bottom: 0;
+  align-items: center;
+}
+
+.benefits-sticky.is-phone-zoom .iphone {
+  transform-origin: center center !important;
 }
 
 /* Pre-JS: cards off-screen, white sheet collapsed */

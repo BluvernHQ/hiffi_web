@@ -1,16 +1,12 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useEffect, useRef } from "react";
 import { joyjamAsset } from "./assets";
 import { BenefitsTagIcon } from "./benefits-tag-icon";
+import { useJoyJamSectionInit } from "./use-joyjam-section-init";
 
-gsap.registerPlugin(ScrollTrigger, useGSAP);
-
-const CREATOR_TAGS = ["Visibility", "Empowerment", "Collaboration", "Monetization"];
-const FAN_TAGS = ["Discovery", "Connection", "Influence"];
+const CREATOR_TAGS = ["Visibility", "Amplification", "Community", "Monetization"];
+const FAN_TAGS = ["Discovery", "Connection", "Culture"];
 
 function BenefitTag({ label, variant }: { label: string; variant: "blue" | "orange" }) {
   const iconFirst = variant === "orange";
@@ -62,10 +58,8 @@ function BenefitsCard({
 }
 
 export default function JoyJamBenefits() {
-  const heightRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useJoyJamSectionInit("benefits-sc");
   const videoRef = useRef<HTMLVideoElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
-  const valuesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -74,55 +68,18 @@ export default function JoyJamBenefits() {
     }
   }, []);
 
-  useEffect(() => {
-    const section = heightRef.current;
-    if (!section) return;
-
-    const onScroll = () => {
-      const rect = section.getBoundingClientRect();
-      const sectionTop = window.scrollY + rect.top;
-      const scrollable = Math.max(section.offsetHeight - window.innerHeight, 1);
-      const raw = (window.scrollY - sectionTop) / scrollable;
-      const progress = Math.min(1, Math.max(0, raw));
-
-      const cards = cardsRef.current;
-      if (cards) {
-        const cardProgress = Math.min(1, Math.max(0, (progress - 0.28) / 0.32));
-        cards.style.opacity = String(cardProgress);
-        cards.style.visibility = cardProgress > 0.02 ? "visible" : "hidden";
-        cards.style.transform = `translateY(${(1 - cardProgress) * 6}rem)`;
-      }
-
-      const values = valuesRef.current;
-      if (values) {
-        const valuesProgress = Math.min(1, Math.max(0, (progress - 0.55) / 0.3));
-        values.style.opacity = String(valuesProgress);
-        values.style.visibility = valuesProgress > 0.02 ? "visible" : "hidden";
-        values.style.pointerEvents = valuesProgress > 0.5 ? "auto" : "none";
-      }
-    };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
-
   return (
-    <section className="benefits-sc">
-      <div ref={heightRef} className="benefits-height">
+    <section ref={sectionRef} className="benefits-sc">
+      <div className="benefits-height">
         <div className="benefits-subheight">
           <div className="benefits-sticky">
             <div className="full-container benefits-s">
-              <div className="benefits-bg" aria-hidden />
+              <div className="" aria-hidden />
 
               <div className="text-elements benefits-s">
                 <div className="headline-wrapper benefits-s">
                   <h2 data-split="chars-blur" className="headline-h1">
-                    The Music App
+                    The Hiffi Experience
                   </h2>
                 </div>
               </div>
@@ -142,7 +99,7 @@ export default function JoyJamBenefits() {
                         "6821a59ae3bfe300713424d4_a8205c64f42f4b831c38526cf87d0a93_hero-slider-cover-1.webp"
                       )}
                     >
-                      <source src={joyjamAsset("benefits-video.mp4")} type="video/mp4" />
+                      <source src={joyjamAsset("benefits-screen-video.mp4")} type="video/mp4" />
                     </video>
                   </div>
                   <div className="iphone-ui" aria-hidden />
@@ -153,12 +110,12 @@ export default function JoyJamBenefits() {
                     <div className="values-screen-pop">
                       <div className="text-elements iphone-pop-s">
                         <div className="headline-wrapper iphone-pop-s">
-                          <h2 className="iphone-pop-headline">Experience Music Beyond the Screen</h2>
+                          <h2 className="iphone-pop-headline">Experience Culture Beyond the Screen</h2>
                         </div>
                         <div className="description-wrapper iphone-pop-s">
                           <p className="iphone-pop-description">
-                            JoyJam goes beyond digital engagement—we bring music creators and fans together in real
-                            life.
+                            Hiffi goes beyond streaming—we connect rappers, producers, DJs, and fans through authentic
+                            music experiences.
                           </p>
                         </div>
                         <div className="values-headline-mask" />
@@ -169,10 +126,10 @@ export default function JoyJamBenefits() {
                 </div>
               </div>
 
-              <div ref={cardsRef} className="beneftis-cards benefits-cards-layer">
+              <div className="beneftis-cards">
                 <BenefitsCard
                   className="benefits-card-wrapper s1"
-                  title="MUSIC CREATOR BENEFITS"
+                  title="ARTIST BENEFITS"
                   tags={CREATOR_TAGS}
                   variant="blue"
                 />
@@ -184,7 +141,7 @@ export default function JoyJamBenefits() {
                 />
               </div>
 
-              <div ref={valuesRef} className="values-cards benefits-values-layer">
+              <div className="values-cards">
                 <div className="values-card-position s1">
                   <div className="values-card-wrapper s1" {...{ "scroll-scale": "0.8" }}>
                     <div className="values-card">
@@ -192,9 +149,9 @@ export default function JoyJamBenefits() {
                         <div className="values-card-light s1" />
                         <div className="values-card-headline">
                           <p className="headline-h5">
-                            Live Shows,
+                            Freestyles, Cyphers,
                             <br />
-                            Real Opportunities
+                            Live Performances
                           </p>
                         </div>
                         <div className="value-slider">
@@ -215,8 +172,8 @@ export default function JoyJamBenefits() {
                         </div>
                         <div className="values-card-description">
                           <p className="body-regular-s neutral-300">
-                            We host in-person events featuring music creators, giving them a stage to showcase their
-                            talent and connect with fans.
+                            From underground rap and boom bap to trap and drill — showcase your
+                            talent and connect with fans who genuinely care.
                           </p>
                         </div>
                       </div>
@@ -281,8 +238,8 @@ export default function JoyJamBenefits() {
                         </div>
                         <div className="values-card-description">
                           <p className="body-regular-s neutral-300">
-                            Fans don&apos;t just watch, they meet, interact, and support their favorite music creators
-                            in a way social media can&apos;t.
+                            Music discovery should feel human. Hiffi focuses on meaningful connections between creators
+                            and listeners who genuinely care about the work.
                           </p>
                         </div>
                       </div>
@@ -290,6 +247,8 @@ export default function JoyJamBenefits() {
                   </div>
                 </div>
               </div>
+
+              <div className="benefits-bg" aria-hidden />
             </div>
           </div>
         </div>

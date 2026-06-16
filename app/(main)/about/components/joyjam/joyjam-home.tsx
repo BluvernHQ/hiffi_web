@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import JoyJamHeader from "./header";
+import HiffiHeader from "./header";
 import JoyJamHero from "./hero";
 import JoyJamProvider from "./joyjam-provider";
 import JoyJamSections from "./joyjam-sections";
@@ -16,7 +16,7 @@ export default function JoyJamHome() {
 
     history.scrollRestoration = "manual";
     html.style.fontSize = "1vw";
-    document.body.style.backgroundColor = "#0c0b0c";
+    // document.body.style.backgroundColor = "#0c0b0c";
     html.classList.add("w-mod-js");
 
     return () => {
@@ -30,7 +30,7 @@ export default function JoyJamHome() {
   return (
     <JoyJamProvider>
       <div className="page-wrapper">
-        <JoyJamHeader />
+        <HiffiHeader />
         <main className="main">
           <JoyJamHero />
           <JoyJamSections />

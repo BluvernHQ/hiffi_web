@@ -1,4 +1,11 @@
-import { joyjamAsset } from "./assets";
+import { joyjamAsset, slideAsset } from "./assets";
+
+const ARTIST_IMAGES = {
+  s1: "/artist1.jpeg",
+  s4: "/artist3.jpeg",
+  s6: "/artist2.jpeg",
+  s8: "/artist4.jpeg",
+} as const;
 
 function AssetImg({
   file,
@@ -14,11 +21,20 @@ function AssetImg({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={joyjamAsset(file)}
+      src={slideAsset(file)}
       alt={alt}
       loading="lazy"
       className={cover ? "image-cover" : className}
     />
+  );
+}
+
+function ArtistPortrait({ variant }: { variant: keyof typeof ARTIST_IMAGES }) {
+  return (
+    <div className={`flip-photo-frame flip-artist-portrait ${variant}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={ARTIST_IMAGES[variant]} alt="" loading="lazy" className="image-cover" />
+    </div>
   );
 }
 
@@ -98,7 +114,7 @@ export function FlipSlideContent({ variant }: { variant: string }) {
       return (
         <>
           <div className="flip-card-bg card-4">
-            <AssetImg file="6821a59ae3bfe3007134251b_21b59b23948f18a5ca27284510bebcb6_flip-card-bg-2.webp" />
+            <ArtistPortrait variant="s4" />
           </div>
           <div className="flip-widget-point card-4-s1">
             <div className="flip-pop-message card-3-s1">
@@ -141,7 +157,7 @@ export function FlipSlideContent({ variant }: { variant: string }) {
       return (
         <>
           <div className="flip-card-bg card-6">
-            <AssetImg file="6821a59ae3bfe300713424e0_a42bd0651b7aae6553bc021a365d96b6_flip-card-bg-3.webp" />
+            <ArtistPortrait variant="s6" />
           </div>
           <div className="flip-widget-point card-6-s1">
             <div className="flip-pop-message card-6-s1">
@@ -200,12 +216,14 @@ export function FlipSlideContent({ variant }: { variant: string }) {
         <>
           <div className="flip-widget-point card-8-s1">
             <div className="flip-photo-frame card-8-scale">
-              <AssetImg file="6821a59ae3bfe30071342507_450123f5b59921a87dc705753b688268_flip-photo-9.webp" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ARTIST_IMAGES.s8} alt="" loading="lazy" className="image-cover" />
             </div>
           </div>
           <div className="flip-widget-point card-8-s2">
             <div className="flip-photo-frame card-8-scale">
-              <AssetImg file="6821a59ae3bfe30071342509_1ea53f3488a024149445675ef0aaeb31_flip-photo-10.webp" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ARTIST_IMAGES.s8} alt="" loading="lazy" className="image-cover" />
             </div>
           </div>
           <div className="flip-widget-point card-8-s3">

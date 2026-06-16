@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { joyjamAsset } from "./assets";
+import { slideAsset } from "./assets";
 import { FlipSlideContent } from "./flip-slide-content";
 import slidesData from "./slides-data.json";
 
@@ -159,7 +159,7 @@ export default function CircleSlider() {
                 <div className="circle-slide-content">
                   <div className="circle-slide-image">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={joyjamAsset(slide.cover)} alt="" loading="lazy" className="image-cover" />
+                    <img src={slideAsset(slide.cover)} alt="" loading="lazy" className="image-cover" />
                   </div>
                   {slide.flipClass && !flipOutside ? <SlideFlip flipClass={slide.flipClass} /> : null}
                 </div>

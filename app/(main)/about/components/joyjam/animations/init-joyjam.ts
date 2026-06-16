@@ -4,6 +4,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { initBenefitsScroll } from "./init-benefits-scroll";
 import { initCreatorsScroll } from "./init-creators-scroll";
+import { initCsSliders } from "./init-cs-slider";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -344,59 +345,21 @@ export function initAutoplayVideos(root: ParentNode) {
   });
 }
 
-let csSliderLoaded = false;
-
-export function loadCsSlider() {
-  if (csSliderLoaded || document.getElementById("cs-slider-config")) {
-    if (!document.querySelector('script[src="/joyjam/cs-slider.js"]')) {
-      const script = document.createElement("script");
-      script.src = "/joyjam/cs-slider.js";
-      script.defer = true;
-      document.body.appendChild(script);
-    }
-    return;
-  }
-
-  fetch("/joyjam/sections/cs-slider-config.json")
-    .then((r) => r.text())
-    .then((json) => {
-      const config = document.createElement("script");
-      config.type = "application/json";
-      config.id = "cs-slider-config";
-      config.textContent = json;
-      document.body.appendChild(config);
-
-      const script = document.createElement("script");
-      script.src = "/joyjam/cs-slider.js";
-      script.defer = true;
-      document.body.appendChild(script);
-      csSliderLoaded = true;
-    })
-    .catch(() => undefined);
-}
-
 export function reinitJoyJamDom(root: ParentNode) {
   const cleanupSplit = initSplitText(root);
   const cleanupView = initViewItems(root);
   const cleanupSpans = initSpanText(root);
-  const cleanupBenefits = root.querySelector(".benefits-height")
-    ? initBenefitsScroll(root)
-    : undefined;
-  const cleanupCreators = root.querySelector(".creators-video-area")
-    ? initCreatorsScroll(root)
-    : undefined;
+  const cleanupCsSliders = initCsSliders(root);
 
   initWaveHovers(root);
   initAutoplayVideos(root);
-  loadCsSlider();
   ScrollTrigger.refresh();
 
   return () => {
     cleanupSplit();
     cleanupView();
     cleanupSpans();
-    cleanupBenefits?.();
-    cleanupCreators?.();
+    cleanupCsSliders();
   };
 }
 
@@ -406,10 +369,15 @@ export function initJoyJamAnimations(root: HTMLElement, lenis: Lenis) {
   const cleanupNav = initNavColor(root, lenis);
   const cleanupScale = initScrollScale(root, lenis);
   const cleanupSpans = initSpanText(root);
+  const cleanupBenefits = initBenefitsScroll(root);
+  const cleanupCreators = initCreatorsScroll(root);
+
+  const cleanupCsSliders = initCsSliders(root);
 
   initWaveHovers(root);
   initAutoplayVideos(root);
-  loadCsSlider();
+
+  requestAnimationFrame(() => ScrollTrigger.refresh());
 
   return () => {
     cleanupSplit();
@@ -417,5 +385,8 @@ export function initJoyJamAnimations(root: HTMLElement, lenis: Lenis) {
     cleanupNav();
     cleanupScale();
     cleanupSpans();
+    cleanupBenefits();
+    cleanupCreators();
+    cleanupCsSliders();
   };
 }

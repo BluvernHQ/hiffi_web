@@ -1,6 +1,6 @@
 [
   {
-    "cover": "6821a59ae3bfe300713424d5_2eeb3457918bde31bfed14ed509f80b6_hero-slider-cover-8.webp",
+    "cover": "/artist1.jpeg",
     "flipClass": "s1"
   },
   {
@@ -12,7 +12,7 @@
     "flipClass": "s3"
   },
   {
-    "cover": "6821a59ae3bfe300713424c5_f6bec1f9a81f7b8c2064e2cab1a42d4e_hero-slider-cover-3.webp",
+    "cover": "/artist3.jpeg",
     "flipClass": "s4"
   },
   {
@@ -24,11 +24,11 @@
     "flipClass": "s7"
   },
   {
-    "cover": "6821a59ae3bfe300713424e1_a3c193392ba9262965b91ca37506d1bf_hero-slider-cover-5.webp",
+    "cover": "/artist4.jpeg",
     "flipClass": "s8"
   },
   {
-    "cover": "6821a59ae3bfe300713424d5_2eeb3457918bde31bfed14ed509f80b6_hero-slider-cover-8.webp",
+    "cover": "/artist1.jpeg",
     "flipClass": "s1"
   },
   {
@@ -40,7 +40,7 @@
     "flipClass": "s3"
   },
   {
-    "cover": "6821a59ae3bfe300713424c5_f6bec1f9a81f7b8c2064e2cab1a42d4e_hero-slider-cover-3.webp",
+    "cover": "/artist3.jpeg",
     "flipClass": "s4"
   },
   {
@@ -48,7 +48,7 @@
     "flipClass": "s5"
   },
   {
-    "cover": "6821a59ae3bfe300713424da_73a1fc96142a3ff3ef8e7f5e533178c4_hero-slider-cover-7.webp",
+    "cover": "/artist2.jpeg",
     "flipClass": "s6"
   },
   {
@@ -56,7 +56,7 @@
     "flipClass": "s7"
   },
   {
-    "cover": "6821a59ae3bfe300713424e1_a3c193392ba9262965b91ca37506d1bf_hero-slider-cover-5.webp",
+    "cover": "/artist4.jpeg",
     "flipClass": "s8"
   }
 ]

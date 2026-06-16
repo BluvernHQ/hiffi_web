@@ -16,7 +16,7 @@ function seg(
   tl.to(target, { ...vars, ease: "none", duration }, at);
 }
 
-type TagController = { play: () => void };
+type TagController = { play: () => void; reset: () => void };
 
 function createTagController(
   wrapper: HTMLElement | null,
@@ -37,13 +37,17 @@ function createTagController(
   const initialX = variant === "blue" ? [50, -50, 50, -50] : [50, -50, 50];
   const initialIconX = variant === "blue" ? [50, 20, -20, 20] : [50, -20, 20];
 
-  tags.forEach((tag, i) => {
-    gsap.set(tag, { xPercent: initialX[i % initialX.length] ?? 0 });
-  });
-  tagTexts.forEach((text) => gsap.set(text, { width: 0 }));
-  tagIcons.forEach((icon, i) => {
-    gsap.set(icon, { xPercent: initialIconX[i % initialIconX.length] ?? 0 });
-  });
+  const applyInitial = () => {
+    tags.forEach((tag, i) => {
+      gsap.set(tag, { xPercent: initialX[i % initialX.length] ?? 0 });
+    });
+    tagTexts.forEach((text) => gsap.set(text, { width: 0 }));
+    tagIcons.forEach((icon, i) => {
+      gsap.set(icon, { xPercent: initialIconX[i % initialIconX.length] ?? 0 });
+    });
+  };
+
+  applyInitial();
 
   let played = false;
 
@@ -74,6 +78,12 @@ function createTagController(
         overwrite: "auto",
       });
     },
+    reset() {
+      if (!played) return;
+      played = false;
+      gsap.killTweensOf([...tags, ...tagTexts, ...tagIcons]);
+      applyInitial();
+    },
   };
 }
 
@@ -87,6 +97,8 @@ function setupBenefitTags(root: HTMLElement) {
   return {
     playCreator: () => creator?.play(),
     playFan: () => fan?.play(),
+    resetCreator: () => creator?.reset(),
+    resetFan: () => fan?.reset(),
   };
 }
 
@@ -158,6 +170,46 @@ function layoutPhoneY(
   };
 }
 
+/** Keep center-zoom layout while scale is still mid-zoom on reverse scroll */
+function syncPhoneZoomLayout(
+  progress: number,
+  lastProgress: number,
+  zoomStart: number,
+  zoomEnd: number,
+  iphone: HTMLElement,
+  sticky: HTMLElement | null
+) {
+  const scale = Number(gsap.getProperty(iphone, "scale")) || 0;
+  const scrollingDown = progress >= lastProgress;
+  const inZoomBand = progress >= zoomStart && progress < zoomEnd;
+  const useCenterZoom = scrollingDown
+    ? inZoomBand
+    : inZoomBand || (progress < zoomStart && scale > 0.21);
+
+  sticky?.classList.toggle("is-phone-zoom", useCenterZoom);
+  gsap.set(iphone, {
+    transformOrigin: useCenterZoom ? "center center" : "center bottom",
+  });
+}
+
+/** Keep white fullscreen until scale settles on reverse scroll */
+function syncWhiteMode(
+  progress: number,
+  lastProgress: number,
+  whiteStart: number,
+  iphone: HTMLElement,
+  sticky: HTMLElement | null
+) {
+  const scale = Number(gsap.getProperty(iphone, "scale")) || 0;
+  const scrollingDown = progress >= lastProgress;
+  const useWhite = scrollingDown
+    ? progress >= whiteStart
+    : progress >= whiteStart || (progress < whiteStart && scale > 0.85);
+
+  sticky?.classList.toggle("is-white-mode", useWhite);
+  sticky?.classList.toggle("is-white-bg", useWhite);
+}
+
 /**
  * Desktop scroll flow:
  *   1  Hold — headline up + phone peeking (initial layout)
@@ -209,6 +261,7 @@ function buildDesktopTimeline(root: HTMLElement) {
   sticky?.classList.remove(
     "is-white-mode",
     "is-white-bg",
+    "is-phone-zoom",
     "is-phone-pop",
     "is-phone-risen",
     "is-cards-reveal",
@@ -221,6 +274,8 @@ function buildDesktopTimeline(root: HTMLElement) {
   };
   ScrollTrigger.addEventListener("refreshInit", onRefreshInit);
 
+  let lastProgress = 0;
+
   const tl = gsap.timeline({
     scrollTrigger: {
       trigger: height,
@@ -231,11 +286,15 @@ function buildDesktopTimeline(root: HTMLElement) {
       onUpdate(self) {
         const p = self.progress;
         sticky?.classList.toggle("is-phone-risen", p >= 0.1);
-        sticky?.classList.toggle("is-cards-reveal", p >= 0.1 && p < 0.34);
-        sticky?.classList.toggle("is-phone-pop", p >= 0.38 && p < 0.66);
-        // Fullscreen CSS only after zoom completes — avoids phone jump on scroll-back
-        sticky?.classList.toggle("is-white-mode", p >= 0.66);
-        sticky?.classList.toggle("is-white-bg", p >= 0.66);
+        sticky?.classList.toggle("is-cards-reveal", p >= 0.1 && p < 0.30);
+        sticky?.classList.toggle("is-phone-pop", p >= 0.30 && p < 0.66);
+        syncPhoneZoomLayout(p, lastProgress, 0.54, 0.66, iphone, sticky);
+        syncWhiteMode(p, lastProgress, 0.66, iphone, sticky);
+        if (p < 0.18) {
+          tags.resetCreator();
+          tags.resetFan();
+        }
+        lastProgress = p;
       },
     },
   });
@@ -244,23 +303,23 @@ function buildDesktopTimeline(root: HTMLElement) {
 
   // ── 2. Phone, headline, and both cards rise together (10% → 32%) ────
   seg(tl, 0.1, 0.22, iphonePosition, { y: () => layout.pinnedY });
-  seg(tl, 0.1, 0.22, headline, { y: "-30vh" });
+  seg(tl, 0.1, 0.22, headline, { y: "-52vh" });
   if (cardS1) seg(tl, 0.1, 0.22, cardS1, { y: 0 });
   if (cardS2) seg(tl, 0.1, 0.22, cardS2, { y: 0 });
   tl.call(() => tags.playCreator(), undefined, 0.22);
   tl.call(() => tags.playFan(), undefined, 0.24);
 
-  // ── 3. Cards exit upward, headline fully out (34% → 42%) ─────────────
-  seg(tl, 0.34, 0.08, headline, { y: "-90vh" });
-  if (cardS1) seg(tl, 0.34, 0.08, cardS1, { y: "-55vh" });
-  if (cardS2) seg(tl, 0.34, 0.08, cardS2, { y: "-55vh" });
+  // ── 3. Cards exit upward, headline fully out (30% → 38%) ─────────────
+  seg(tl, 0.30, 0.08, headline, { y: "-120vh" });
+  if (cardS1) seg(tl, 0.30, 0.08, cardS1, { y: "-55vh" });
+  if (cardS2) seg(tl, 0.30, 0.08, cardS2, { y: "-55vh" });
 
-  // ── 5. White sheet scrubs to 50%, faint pop text (40% → 54%) ─────────
-  if (benefitsBg) seg(tl, 0.4, 0.04, benefitsBg, { opacity: 0 });
-  seg(tl, 0.4, 0.14, screenPop, { yPercent: 0, height: "50%" });
-  if (popText) seg(tl, 0.42, 0.12, popText, { opacity: 0.35, scale: 1.15, yPercent: -25 });
+  // ── 5. White sheet scrubs to 50% once cards reach top (30% → 44%) ─────
+  if (benefitsBg) seg(tl, 0.30, 0.04, benefitsBg, { opacity: 0 });
+  seg(tl, 0.30, 0.14, screenPop, { yPercent: 0, height: "50%" });
+  if (popText) seg(tl, 0.36, 0.12, popText, { opacity: 0.35, scale: 1.15, yPercent: -25 });
 
-  // ── 6. Phone zooms, white → 100%, Experience text in (54% → 66%) ─────
+  // ── 6. Phone zooms from center, white → 100%, Experience text in (54% → 66%) ─────
   seg(tl, 0.54, 0.12, iphone, { scale: 1 });
   seg(tl, 0.54, 0.12, screenPop, { height: "100%" });
   seg(tl, 0.54, 0.12, iphonePosition, { y: 0 });
@@ -332,6 +391,7 @@ function buildMobileTimeline(root: HTMLElement) {
   sticky?.classList.remove(
     "is-white-mode",
     "is-white-bg",
+    "is-phone-zoom",
     "is-phone-pop",
     "is-phone-risen",
     "is-cards-reveal",
@@ -344,6 +404,8 @@ function buildMobileTimeline(root: HTMLElement) {
     pinnedY: computePhonePinnedY(sticky, iphonePosition, iphone, 0.42),
   };
 
+  let lastProgress = 0;
+
   const tl = gsap.timeline({
     scrollTrigger: {
       trigger: height,
@@ -354,28 +416,33 @@ function buildMobileTimeline(root: HTMLElement) {
       onUpdate(self) {
         const p = self.progress;
         sticky?.classList.toggle("is-phone-risen", p >= 0.1);
-        sticky?.classList.toggle("is-cards-reveal", p >= 0.1 && p < 0.36);
-        sticky?.classList.toggle("is-phone-pop", p >= 0.4 && p < 0.66);
-        sticky?.classList.toggle("is-white-mode", p >= 0.66);
-        sticky?.classList.toggle("is-white-bg", p >= 0.66);
+        sticky?.classList.toggle("is-cards-reveal", p >= 0.1 && p < 0.30);
+        sticky?.classList.toggle("is-phone-pop", p >= 0.30 && p < 0.66);
+        syncPhoneZoomLayout(p, lastProgress, 0.56, 0.66, iphone, sticky);
+        syncWhiteMode(p, lastProgress, 0.66, iphone, sticky);
+        if (p < 0.18) {
+          tags.resetCreator();
+          tags.resetFan();
+        }
+        lastProgress = p;
       },
     },
   });
 
   seg(tl, 0.1, 0.2, iphonePosition, { y: () => mobileLayout.pinnedY });
-  seg(tl, 0.1, 0.2, headline, { y: "-26vh" });
+  seg(tl, 0.1, 0.2, headline, { y: "-42vh" });
   if (cards) seg(tl, 0.1, 0.2, cards, { xPercent: 0 });
   tl.call(() => {
     tags.playCreator();
     tags.playFan();
   }, undefined, 0.22);
 
-  if (cards) seg(tl, 0.34, 0.1, cards, { xPercent: -150 });
-  seg(tl, 0.34, 0.08, headline, { y: "-80vh" });
+  if (cards) seg(tl, 0.30, 0.1, cards, { xPercent: -150 });
+  seg(tl, 0.30, 0.08, headline, { y: "-105vh" });
 
-  if (benefitsBg) seg(tl, 0.4, 0.04, benefitsBg, { opacity: 0 });
-  seg(tl, 0.4, 0.14, screenPop, { yPercent: 0, height: "50%" });
-  if (popText) seg(tl, 0.42, 0.12, popText, { opacity: 0.35, scale: 1.15, yPercent: -25 });
+  if (benefitsBg) seg(tl, 0.30, 0.04, benefitsBg, { opacity: 0 });
+  seg(tl, 0.30, 0.14, screenPop, { yPercent: 0, height: "50%" });
+  if (popText) seg(tl, 0.36, 0.12, popText, { opacity: 0.35, scale: 1.15, yPercent: -25 });
 
   seg(tl, 0.56, 0.1, iphone, { scale: 1 });
   seg(tl, 0.56, 0.1, screenPop, { height: "100%" });
@@ -446,6 +513,7 @@ export function initBenefitsScroll(root: ParentNode) {
     sticky?.classList.remove(
       "is-white-mode",
       "is-white-bg",
+      "is-phone-zoom",
       "is-phone-pop",
       "is-phone-risen",
       "is-cards-reveal",
