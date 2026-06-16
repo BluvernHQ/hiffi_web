@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { Play, X } from "lucide-react"
+import { ChevronLeft, Play } from "lucide-react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
 import { MOOD_MIX_FULL_FEED } from "@/lib/analytics/mood-mix-analytics"
 import type { MoodDef } from "@/lib/mood-tabs"
@@ -52,9 +52,9 @@ export function ActiveMoodBar({ mood, onPlay, onClose }: ActiveMoodBarProps) {
           type="button"
           onClick={onClose}
           className="flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Clear mood and show full feed"
+          aria-label="Back to full feed"
         >
-          <X className="h-4 w-4" />
+          <ChevronLeft className="h-5 w-5" />
         </button>
 
         <MoodOrb gradient={mood.gradient} image={mood.image} size="sm" />

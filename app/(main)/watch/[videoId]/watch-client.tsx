@@ -28,7 +28,7 @@ import {
 } from "@/lib/playlist-session"
 import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
 import { useToast } from "@/hooks/use-toast"
-import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
+import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import { GuestWatchNudge } from "@/components/conversion/guest-watch-nudge"
@@ -1542,6 +1542,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const currentVideo = video || persistedWatchUiState?.video // Alias for readability
   const descriptionText = getVideoDescriptionFromRecord(currentVideo)
   const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
+  const videoViewCount = getVideoViewCount(currentVideo)
+  const showVideoViewCount = shouldShowVideoViewCount(videoViewCount)
   const shouldShowMetadataSkeleton = !currentVideo && (isMetadataLoading || isLoading)
 
   useEffect(() => {
@@ -1926,9 +1928,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                     </div>
                   ) : (
                     <>
-                      <div className="flex gap-2 font-medium mb-2">
-                        <span>{(currentVideo?.videoViews || currentVideo?.video_views || 0).toLocaleString()} views</span>
-                      </div>
+                      {showVideoViewCount && (
+                        <div className="flex gap-2 font-medium mb-2">
+                          <span>{videoViewCount.toLocaleString()} views</span>
+                        </div>
+                      )}
                       {hasVideoDescription ? (
                         <>
                           <div
