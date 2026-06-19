@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
+import { isCreator } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2, Flag } from "lucide-react"
@@ -228,7 +229,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <>
                 {showUploadButton && userData && (
                   <>
-                    {userData.role === "creator" ? (
+                    {isCreator(userData) ? (
                       <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
                         <Link href="/creator/apply">
                           <Upload className="h-5 w-5" />
@@ -269,7 +270,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
-                    {userData?.role === "creator" ? (
+                    {isCreator(userData) ? (
                       <>
                         <DropdownMenuItem asChild>
                           <Link href="/creator/apply" data-analytics-name="navbar-user-menu-hiffi-studio-link">

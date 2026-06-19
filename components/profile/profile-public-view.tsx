@@ -1,4 +1,5 @@
 import { format } from "date-fns"
+import Link from "next/link"
 import { Calendar, Check, Copy, Edit, Flag, Mail, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -203,6 +204,17 @@ export function ProfilePublicView(props: {
                   </CardHeader>
                   <CardContent className="space-y-3 sm:space-y-4 pt-0">
                     <p className="text-xs sm:text-sm leading-relaxed break-words">{profileUser.bio || "No bio available"}</p>
+
+                    {!isOwnProfile ? (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        <Link
+                          href={`/collaborate?artist=${encodeURIComponent(username)}`}
+                          className="font-medium text-foreground/80 underline-offset-4 transition-colors hover:text-primary hover:underline"
+                        >
+                          Is your brand aligned with this artist?
+                        </Link>
+                      </p>
+                    ) : null}
 
                     {/* Email display below bio */}
                     {(profileUser.email || (isOwnProfile && currentUserData?.email)) && (

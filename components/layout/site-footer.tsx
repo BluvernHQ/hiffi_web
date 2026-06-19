@@ -21,7 +21,7 @@ function TikTokIcon({ className }: { className?: string }) {
 
 type FooterColumn = {
   title: string
-  links: Array<{ label: string; href: string }>
+  links: Array<{ label: string; href: string; external?: boolean }>
 }
 
 const columns: FooterColumn[] = [
@@ -33,18 +33,28 @@ const columns: FooterColumn[] = [
     title: "ABOUT US",
     links: [
       { label: "About", href: "/about" },
-      { label: "Blogs", href: "/blogs" },
+      { label: "Blogs", href: "https://www.blog.hiffi.com/", external: true },
     ],
   },
   {
     title: "BUSINESS",
-    links: [{ label: "Hiffi Advertising", href: "/advertising" }],
+    links: [
+      { label: "Hiffi Advertising", href: "/advertising" },
+      { label: "Brand collaboration", href: "/collaborate" },
+    ],
   },
   {
     title: "CREATORS",
     links: [
       { label: "Hiffi Artists", href: "/artists" },
       { label: "Hiffi Creators", href: "/creator/apply" },
+    ],
+  },
+  {
+    title: "DISCOVER",
+    links: [
+      { label: "Hip-Hop", href: "/hip-hop" },
+      { label: "Search", href: "/search" },
     ],
   },
   {
@@ -135,6 +145,9 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
                   <li key={l.href}>
                     <Link
                       href={l.href}
+                      {...(l.external
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {})}
                       className={
                         isApp
                           ? "text-sm text-black/85 underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"

@@ -132,11 +132,17 @@ export function AdminReferralsTable() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [query, setQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
   const [selectedCode, setSelectedCode] = useState<string | null>(null)
   const [limit, setLimit] = useState(20)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
   const [selectedSheetCode, setSelectedSheetCode] = useState<string | null>(null)
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 350)
+    return () => clearTimeout(t)
+  }, [query])
 
   const fetchReferrals = async (isRefresh = false) => {
     let refreshSucceeded = false
@@ -155,7 +161,12 @@ export function AdminReferralsTable() {
       }
       clearNetworkError()
 
-      const response = await apiClient.adminGetReferals({ limit, offset })
+      const response = await apiClient.adminGetReferals({
+        limit,
+        offset,
+        ...(selectedCode ? { code: selectedCode } : {}),
+        ...(debouncedQuery ? { referrer_username: debouncedQuery } : {}),
+      })
       const raw = (response.referals || []) as Record<string, unknown>[]
       setRows(raw.map(normalizeReferralRow))
       setCount(response.count || 0)
@@ -181,23 +192,21 @@ export function AdminReferralsTable() {
 
   useEffect(() => {
     fetchReferrals()
-  }, [limit, offset])
+  }, [limit, offset, debouncedQuery, selectedCode])
 
   const avatarMaps = useMemo(() => buildReferralAvatarMaps(rows), [rows])
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return rows.filter((item) => {
-      const matchesCode = selectedCode ? item.code.toLowerCase() === selectedCode.toLowerCase() : true
-      if (!matchesCode) return false
-      if (!q) return true
-      return [item.code, item.referrer_username, item.referrer_name, item.referred_username, item.referred_name]
+    if (!q) return rows
+    return rows.filter((item) =>
+      [item.code, item.referrer_username, item.referrer_name, item.referred_username, item.referred_name]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(q)
-    })
-  }, [rows, query, selectedCode])
+        .includes(q),
+    )
+  }, [rows, query])
 
   type GroupedReferral = {
     code: string
@@ -269,7 +278,7 @@ export function AdminReferralsTable() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by referral code, referrer, referred user..."
+              placeholder="Filter by referrer username (server-side)…"
               className="pl-9"
             />
           </div>

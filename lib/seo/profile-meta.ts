@@ -9,7 +9,7 @@ export function buildProfilePageTitle(username: string, profile: SeoProfile | nu
 export function buildProfilePageDescription(username: string, profile: SeoProfile | null): string {
   const handle = (profile?.username || username).trim()
   if (profile?.bio?.length) return profile.bio
-  return `Videos and profile of @${handle} on Hiffi.`
+  return `Hip-hop music videos and profile of @${handle} on Hiffi — independent rap artist streaming platform.`
 }
 
 export type ProfileVideoSummary = {

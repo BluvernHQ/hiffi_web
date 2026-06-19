@@ -7,6 +7,7 @@ export type AdminVideoRow = Record<string, any>
 export type AdminCommentRow = Record<string, any>
 export type AdminReplyRow = Record<string, any>
 export type AdminFollowerRow = Record<string, any>
+export type AdminSearchRow = Record<string, any>
 
 export type AdminListResult<Row> = {
   status: string
@@ -212,12 +213,34 @@ export async function adminListFollowers(
   return normalizeList<AdminFollowerRow>(res, "followers", Number(params.limit ?? 20), Number(params.offset ?? 0))
 }
 
+export async function adminResyncCounters(ctx: ApiClientContext): Promise<{ success: boolean; message?: string }> {
+  const res = await ctx.request<Record<string, unknown>>(
+    "/admin/counters/resync",
+    { method: "POST", body: JSON.stringify({}) },
+    true,
+  )
+  const inner = unwrapSuccessData<{ message?: string }>(res)
+  const ok = Boolean(res?.status === "success" || res?.success)
+  return {
+    success: ok,
+    message: String(inner?.message ?? res?.message ?? "Counters resynced successfully"),
+  }
+}
+
 export async function adminDisableUser(ctx: ApiClientContext, username: string) {
-  return ctx.request(`/admin/disable/${encodeURIComponent(username)}`, { method: "POST", body: JSON.stringify({}) }, true)
+  return ctx.request(
+    `/admin/users/${encodeURIComponent(username)}/disable`,
+    { method: "POST", body: JSON.stringify({}) },
+    true,
+  )
 }
 
 export async function adminEnableUser(ctx: ApiClientContext, username: string) {
-  return ctx.request(`/admin/enable/${encodeURIComponent(username)}`, { method: "POST", body: JSON.stringify({}) }, true)
+  return ctx.request(
+    `/admin/users/${encodeURIComponent(username)}/enable`,
+    { method: "POST", body: JSON.stringify({}) },
+    true,
+  )
 }
 
 export async function adminGetAnalyticsEvents(
@@ -240,10 +263,37 @@ export async function adminGetAnalyticsEvents(
   return ctx.proxyRequest("/proxy/admin-events", sp)
 }
 
-export async function adminGetReferals(ctx: ApiClientContext, params: { limit?: number; offset?: number } = {}) {
+export async function adminListSearches(
+  ctx: ApiClientContext,
+  params: Record<string, string | number | undefined>,
+): Promise<AdminListResult<AdminSearchRow> & { has_more?: boolean }> {
+  const queryParams = toSearchParams(params)
+  const endpoint = `/admin/searches${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
+  const res = await ctx.request<any>(endpoint, { method: "GET" }, true)
+  const base = normalizeList<AdminSearchRow>(res, "searches", Number(params.limit ?? 20), Number(params.offset ?? 0))
+  const data = res?.success && res?.data ? res.data : res
+  return {
+    ...base,
+    has_more: Boolean(data?.has_more),
+  }
+}
+
+export async function adminGetReferals(
+  ctx: ApiClientContext,
+  params: {
+    limit?: number
+    offset?: number
+    referrer_username?: string
+    referred_username?: string
+    code?: string
+  } = {},
+) {
   const sp = new URLSearchParams()
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
+  if (params.referrer_username?.trim()) sp.set("referrer_username", params.referrer_username.trim())
+  if (params.referred_username?.trim()) sp.set("referred_username", params.referred_username.trim())
+  if (params.code?.trim()) sp.set("code", params.code.trim())
   const raw = (await ctx.proxyRequest<Record<string, unknown>>("/proxy/admin-referals", sp)) as Record<string, unknown>
   // API returns `{ success, data: { count, referals, limit, offset } }`; older clients expected a flat shape.
   const inner =

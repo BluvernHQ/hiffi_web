@@ -15,7 +15,9 @@ import {
   adminListComments as adminAdminListComments,
   adminListReplies as adminAdminListReplies,
   adminCounters as adminAdminCounters,
+  adminResyncCounters as adminAdminResyncCounters,
   adminListFollowers as adminAdminListFollowers,
+  adminListSearches as adminAdminListSearches,
   adminDisableUser as adminAdminDisableUser,
   adminEnableUser as adminAdminEnableUser,
   adminGetAnalyticsEvents as adminAdminGetAnalyticsEvents,
@@ -29,6 +31,7 @@ import {
   type AdminUserRow,
   type AdminVideoRow,
   type AdminFollowerRow,
+  type AdminSearchRow,
   type AdminCommentRow,
   type AdminReplyRow,
 } from "@/lib/api/admin"
@@ -1976,7 +1979,7 @@ class ApiClient {
           limit?: number
           offset?: number
         }
-      }>(endpoint, { method: "GET" }, false)
+      }>(endpoint, { method: "GET" }, true)
 
       const ok = response.success === true || response.status === "success"
       const data = response.data
@@ -2755,6 +2758,11 @@ class ApiClient {
     return adminAdminCounters(this, noCache)
   }
 
+  // POST /admin/counters/resync - Manually resync platform counters
+  async adminResyncCounters(): Promise<{ success: boolean; message?: string }> {
+    return adminAdminResyncCounters(this)
+  }
+
   // Admin endpoints - List Followers
   // GET /admin/followers - List all follower relationships with optional filtering
   async adminListFollowers(params: {
@@ -2769,6 +2777,47 @@ class ApiClient {
   }): Promise<{ status: string; followers: AdminFollowerRow[]; limit: number; offset: number; count: number; filters?: Record<string, unknown> }> {
     const res: AdminListResult<AdminFollowerRow> = await adminAdminListFollowers(this, params as any)
     return { status: res.status, followers: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
+  }
+
+  // GET /admin/searches - List recorded search queries
+  async adminListSearches(params: {
+    limit?: number
+    offset?: number
+    query?: string
+    distinct_id?: string
+    session_id?: string
+    platform?: string
+    source?: string
+    client_ip?: string
+    path?: string
+    search_type?: string
+    result_count_min?: number
+    result_count_max?: number
+    limit_min?: number
+    limit_max?: number
+    offset_min?: number
+    offset_max?: number
+    created_after?: string
+    created_before?: string
+  }): Promise<{
+    status: string
+    searches: AdminSearchRow[]
+    limit: number
+    offset: number
+    count: number
+    has_more?: boolean
+    filters?: Record<string, unknown>
+  }> {
+    const res = await adminAdminListSearches(this, params as Record<string, string | number | undefined>)
+    return {
+      status: res.status,
+      searches: res.items,
+      limit: res.limit,
+      offset: res.offset,
+      count: res.count,
+      has_more: res.has_more,
+      filters: res.filters,
+    }
   }
 
   // Admin endpoints - Delete User
@@ -3022,7 +3071,7 @@ class ApiClient {
         query: string
       }
       error?: { message?: string } | string
-    }>(`/search/users/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, false)
+    }>(`/search/users/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, true)
     
     if (response.success && response.data) {
       return {
@@ -3067,7 +3116,7 @@ class ApiClient {
         query: string
       }
       error?: { message?: string } | string
-    }>(`/search/videos/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, false)
+    }>(`/search/videos/${encodeURIComponent(normalizedQuery)}?${params.toString()}`, {}, true)
     
     if (response.success && response.data) {
       console.log("[API] searchVideos response:", {
@@ -3124,7 +3173,13 @@ class ApiClient {
     return adminAdminGetAnalyticsEvents(this, params) as any
   }
 
-  async adminGetReferals(params: { limit?: number; offset?: number } = {}): Promise<{
+  async adminGetReferals(params: {
+    limit?: number
+    offset?: number
+    referrer_username?: string
+    referred_username?: string
+    code?: string
+  } = {}): Promise<{
     count: number
     referals: Array<any>
     limit: number

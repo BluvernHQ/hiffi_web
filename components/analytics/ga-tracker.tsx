@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { isAdminAnalyticsSurface } from '@/lib/analytics/admin-analytics-guard'
 
 /**
  * Inner GATracker component that uses useSearchParams
@@ -12,6 +13,8 @@ function GATrackerInner({ gaId }: { gaId: string }) {
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    if (isAdminAnalyticsSurface(pathname)) return
+
     // Only track if gtag is loaded and available
     if (typeof window !== 'undefined' && (window as any).gtag) {
       // Track page view on route change

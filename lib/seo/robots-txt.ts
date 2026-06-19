@@ -15,15 +15,21 @@ const DISALLOW_PATHS = [
 ] as const
 
 const AI_AND_SEARCH_BOTS = [
+  // Search / citation bots — allow so Hiffi appears in AI answers
   "GPTBot",
+  "OAI-SearchBot",
   "ChatGPT-User",
-  "Google-Extended",
+  "PerplexityBot",
+  "Perplexity-User",
+  "ClaudeBot",
+  "Claude-SearchBot",
+  "Claude-User",
   "Googlebot",
   "Bingbot",
-  "PerplexityBot",
-  "ClaudeBot",
-  "anthropic-ai",
   "Applebot",
+  // Training opt-outs (no effect on search ranking / AI citation)
+  "Google-Extended",
+  // Training crawlers (low-value; blocking is low risk)
   "CCBot",
 ] as const
 

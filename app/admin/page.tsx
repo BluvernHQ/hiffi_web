@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Shield, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { isAdmin } from "@/lib/auth"
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("")
@@ -36,24 +37,12 @@ export default function AdminLoginPage() {
   // Check if user is admin and redirect to dashboard
   useEffect(() => {
     if (!authLoading && user && userData && !isRedirecting) {
-      console.log("[Admin] Checking user role:", userData.role)
-      console.log("[Admin] Role type:", typeof userData.role)
-      console.log("[Admin] Role comparison:", userData.role === "admin")
-      console.log("[Admin] Full userData:", JSON.stringify(userData, null, 2))
-      
-      // Check role (case-insensitive and trimmed)
-      const userRole = String(userData.role || "").toLowerCase().trim()
-      if (userRole === "admin") {
-        console.log("[Admin] User is admin, redirecting to dashboard")
+      if (isAdmin(userData)) {
         setIsRedirecting(true)
         router.push("/admin/dashboard")
-      } else {
-        // User is logged in but not admin - show login form for admin credentials
-        console.log("[Admin] User is not admin, role:", userRole)
-        // Don't redirect - let them see the login form to enter admin credentials
       }
     }
-  }, [user, userData, authLoading, router, toast, isRedirecting])
+  }, [user, userData, authLoading, router, isRedirecting])
 
   // Show loading state while checking auth or redirecting
   if (authLoading || isRedirecting) {
@@ -75,8 +64,7 @@ export default function AdminLoginPage() {
   // Don't render login form if already logged in as admin (redirect will happen)
   // If user is logged in but not admin, show login form with message
   if (user && userData) {
-    const userRole = String(userData.role || "").toLowerCase().trim()
-    if (userRole === "admin") {
+    if (isAdmin(userData)) {
       // Show loading state while redirect happens
       return (
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background px-4">
@@ -141,18 +129,13 @@ export default function AdminLoginPage() {
         
         // Check userData from context (should be updated by login)
         const userDataToCheck = refreshedUserData || userData
-        const userRole = String(userDataToCheck?.role || "").toLowerCase().trim()
-        
-        console.log("[Admin] User role after login:", userRole)
-        console.log("[Admin] Full userData:", JSON.stringify(userDataToCheck, null, 2))
-        
-        if (userRole === "admin") {
+
+        if (isAdmin(userDataToCheck)) {
           console.log("[Admin] User is admin, redirecting to dashboard")
           setIsRedirecting(true)
           router.push("/admin/dashboard")
         } else {
-          // User is not admin - show error and clear auth
-          console.log("[Admin] User is not admin, role:", userRole)
+          console.log("[Admin] User is not admin")
           await logout()
           setError("This account does not have admin privileges. Please log in with an admin account.")
           setIsLoading(false)

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
+import { MOODS } from "@/lib/mood-tabs"
 
 export const revalidate = 3600
 
@@ -76,6 +77,19 @@ function buildStaticEntries(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    // Hip-hop hub + mood landing pages
+    {
+      url: absoluteUrl("/hip-hop"),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "weekly",
+      priority: 0.95,
+    },
+    ...MOODS.map((mood) => ({
+      url: absoluteUrl(`/hip-hop/mood/${encodeURIComponent(mood.query.replace(/\s+/g, "-").toLowerCase())}`),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "weekly" as const,
+      priority: 0.85,
+    })),
   ]
 }
 

@@ -6,6 +6,9 @@
 // isn't ready (ad-blocker, env off, etc.) and so every event is
 // automatically tagged with the currently identified user.
 
+import { isAdminAnalyticsSurface } from "@/lib/analytics/admin-analytics-guard"
+import { isThirdPartyAnalyticsDisabled } from "@/lib/analytics/third-party-analytics"
+
 type UmamiEventData = Record<string, string | number | boolean | null | undefined>
 
 type UmamiApi = {
@@ -35,6 +38,7 @@ let identifiedUser: UmamiEventData | null = null
 export function setUmamiUser(user: UmamiEventData | null): void {
   identifiedUser = user
   if (typeof window === "undefined") return
+  if (isAdminAnalyticsSurface() || isThirdPartyAnalyticsDisabled()) return
   try {
     // Pass an empty object on logout — Umami treats this as clearing session data.
     window.umami?.identify(user ?? {})
@@ -45,6 +49,7 @@ export function setUmamiUser(user: UmamiEventData | null): void {
 
 export function trackUmami(eventName: UmamiGoalEvent | string, data?: UmamiEventData): void {
   if (typeof window === "undefined") return
+  if (isAdminAnalyticsSurface() || isThirdPartyAnalyticsDisabled()) return
   try {
     const payload = identifiedUser ? { ...identifiedUser, ...(data ?? {}) } : data
     window.umami?.track(eventName, payload)

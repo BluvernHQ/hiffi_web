@@ -21,7 +21,7 @@ export function buildWatchPageDescription(video: SeoVideo): string {
   }
   const artist = (video.creatorDisplayName || video.creatorUsername || "").trim()
   if (artist) {
-    return `Watch ${video.title} by ${artist} on Hiffi — music video streaming for independent artists.`
+    return `Watch ${video.title} by ${artist} on Hiffi — hip-hop and rap music video streaming for independent artists.`
   }
-  return `Watch ${video.title} on Hiffi — music video streaming for independent artists.`
+  return `Watch ${video.title} on Hiffi — hip-hop and rap music video streaming for independent artists.`
 }

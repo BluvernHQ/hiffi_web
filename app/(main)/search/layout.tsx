@@ -2,9 +2,9 @@ import type { ReactNode } from "react"
 import { routeMetadata } from "@/lib/seo/route-metadata"
 
 export const metadata = routeMetadata({
-  title: "Search creators & videos",
+  title: "Search Hip-Hop Artists & Rap Music Videos",
   description:
-    "Search Hiffi for independent artists, music videos, and creator profiles. Find lossless audio and high-fidelity uploads in one place.",
+    "Search Hiffi for independent hip-hop and rap artists, music videos, drill, trap, conscious rap, and creator profiles.",
   path: "/search",
 })
 

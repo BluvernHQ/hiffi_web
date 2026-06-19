@@ -3,13 +3,13 @@ import { getAuth } from "firebase/auth"
 import { getAnalytics } from "firebase/analytics"
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB8nH1Cqyatc5lLGbQppUFzBpBSUAa2Lzg",
-  authDomain: "hiffi-432a0.firebaseapp.com",
-  projectId: "hiffi-432a0",
-  storageBucket: "hiffi-432a0.firebasestorage.app",
-  messagingSenderId: "13822028321",
-  appId: "1:13822028321:web:5e715cea8c553d005f1160",
-  measurementId: "G-9YS22FKD9T",
+  apiKey: "AIzaSyC_N-0rUCVDZKIz0qxIUagHiS5V0t0iMLo",
+  authDomain: "hiffi-d003f.firebaseapp.com",
+  projectId: "hiffi-d003f",
+  storageBucket: "hiffi-d003f.firebasestorage.app",
+  messagingSenderId: "488334531782",
+  appId: "1:488334531782:web:360dc46ee3009eb43c0bc7",
+  measurementId: "G-NVEG22FGFX",
 }
 
 // Initialize Firebase

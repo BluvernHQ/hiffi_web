@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { isAdminAnalyticsSurface } from '@/lib/analytics/admin-analytics-guard'
 
 /**
  * Inner ClarityTracker component that uses useSearchParams
@@ -12,6 +13,8 @@ function ClarityTrackerInner() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    if (isAdminAnalyticsSurface(pathname)) return
+
     // Wait for Clarity to be fully initialized before tracking
     const trackPageView = () => {
       try {

@@ -3,9 +3,9 @@ import { routeMetadata } from "@/lib/seo/route-metadata"
 import { SiteFooter } from "@/components/layout/site-footer"
 
 export const metadata = routeMetadata({
-  title: "Become a creator",
+  title: "Upload Rap & Hip-Hop Music Videos — Become a Creator",
   description:
-    "Apply to publish on Hiffi as an independent artist—upload videos, grow your audience, and keep creative control.",
+    "Apply to publish on Hiffi as an independent hip-hop or rap artist. Upload music videos, grow your audience, and keep creative control — no label required.",
   path: "/creator/apply",
 })
 

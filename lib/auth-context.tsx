@@ -11,6 +11,7 @@ import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents
 import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
 import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
 import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
+import { isAdmin } from "@/lib/auth"
 import { debugLog, debugWarn } from "@/lib/debug"
 import { normalizeUserProfilePictureFields } from "@/lib/utils"
 import {
@@ -458,9 +459,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearGuestHistory()
 
       // Only force admin dashboard redirect for explicit admin-login flows.
-      const userRole = String(finalUserData?.role || "").toLowerCase().trim()
       const shouldForceAdminDashboard =
-        options?.forceAdminDashboardRedirect === true && userRole === "admin"
+        options?.forceAdminDashboardRedirect === true && isAdmin(finalUserData)
 
       if (shouldForceAdminDashboard) {
         debugLog("[hiffi] User is admin, redirecting to admin dashboard")

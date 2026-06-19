@@ -17,8 +17,12 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  UserPlus,
+  Search as SearchIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { usePermissions } from "@/hooks/use-permissions"
+import type { Permission } from "@/lib/auth"
 
 interface AdminSidebarProps {
   className?: string
@@ -28,51 +32,77 @@ interface AdminSidebarProps {
   onToggleCollapse?: () => void
 }
 
-const navItems = [
+const navItems: Array<{
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string
+  permission: Permission
+}> = [
   {
     icon: BarChart3,
     label: "Overview",
     value: "overview",
+    permission: "admin:overview",
   },
   {
     icon: Users,
     label: "Users",
     value: "users",
+    permission: "admin:users",
   },
   {
     icon: Video,
     label: "Videos",
     value: "videos",
+    permission: "admin:videos",
   },
   {
     icon: MessageSquare,
     label: "Comments",
     value: "comments",
+    permission: "admin:comments",
   },
   {
     icon: Reply,
     label: "Replies",
     value: "replies",
+    permission: "admin:replies",
   },
   {
     icon: Flag,
     label: "Reports",
     value: "flags",
+    permission: "admin:flags",
   },
   {
     icon: Activity,
     label: "Activity Logs",
     value: "activity",
+    permission: "admin:activity",
   },
   {
     icon: UsersRound,
     label: "Referrals",
     value: "referrals",
+    permission: "admin:referrals",
+  },
+  {
+    icon: UserPlus,
+    label: "Followers",
+    value: "followers",
+    permission: "admin:followers",
+  },
+  {
+    icon: SearchIcon,
+    label: "Searches",
+    value: "searches",
+    permission: "admin:searches",
   },
   {
     icon: Megaphone,
     label: "UTM campaigns",
     value: "utm_polls",
+    permission: "admin:utm",
   },
 ]
 
@@ -85,6 +115,8 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { can } = usePermissions()
+  const visibleNavItems = navItems.filter((item) => can(item.permission))
   const section = searchParams.get("flagId")
     ? "flags"
     : searchParams.get("section") || "overview"
@@ -172,7 +204,7 @@ export function AdminSidebar({
             aria-label="Admin navigation"
           >
             <div className="space-y-1 min-h-0">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon
                 const isActive = section === item.value
                 

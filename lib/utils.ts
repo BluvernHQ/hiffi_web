@@ -244,9 +244,5 @@ export function getProfilePictureProxyUrl(profilePictureUrl: string): string {
   return getImageProxyUrl(profilePictureUrl, 'profile-picture');
 }
 
-// Check if user is a creator
-// Handles both 'role' field and legacy 'is_creator' field
-export function isCreator(user: any): boolean {
-  if (!user) return false;
-  return user.role === "creator" || user.is_creator === true;
-}
+// Check if user is a creator (includes admin). Re-exported from RBAC module.
+export { isCreator } from "@/lib/auth/roles"

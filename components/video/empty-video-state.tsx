@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { usePathname, useSearchParams } from "next/navigation"
 import { buildLoginUrl } from "@/lib/auth-utils"
+import { isCreator } from "@/lib/auth"
 
 interface EmptyVideoStateProps {
   title?: string
@@ -21,7 +22,7 @@ export function EmptyVideoState({
   const { user, userData } = useAuth()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const isCreator = userData?.role === "creator"
+  const userIsCreator = isCreator(userData)
   const defaultDescription = user 
     ? "Be the first to share a video and start the community!"
     : "Sign in to share your first video and start the community!"
@@ -40,7 +41,7 @@ export function EmptyVideoState({
         {description || defaultDescription}
       </p>
       
-      {showUploadButton && user && isCreator && (
+      {showUploadButton && user && userIsCreator && (
         <Button asChild size="lg" className="mt-2">
           <Link href="/upload">
             <Upload className="mr-2 h-4 w-4" />
@@ -49,7 +50,7 @@ export function EmptyVideoState({
         </Button>
       )}
       
-      {showUploadButton && user && !isCreator && (
+      {showUploadButton && user && !userIsCreator && (
         <Button asChild size="lg" variant="outline" className="mt-2">
           <Link href="/creator/apply">
             <Sparkles className="mr-2 h-4 w-4" />

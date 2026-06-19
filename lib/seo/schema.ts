@@ -157,7 +157,7 @@ export function buildMusicVideoJsonLd(video: SeoVideo) {
     name: video.title,
     url: pageUrl,
     embedUrl: pageUrl,
-    ...(video.tags?.[0] ? { genre: video.tags[0] } : { genre: "Music" }),
+    ...(video.tags?.[0] ? { genre: video.tags[0] } : { genre: "Hip hop" }),
     isFamilyFriendly: true,
     inLanguage: "en",
   }

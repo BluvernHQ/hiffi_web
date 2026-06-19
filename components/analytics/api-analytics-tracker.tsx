@@ -1,7 +1,7 @@
 "use client"
 
 import Script from "next/script"
-import { usePathname } from "next/navigation"
+import { installAdminAnalyticsGuard, isAdminAnalyticsSurface } from "@/lib/analytics/admin-analytics-guard"
 import { installCaptureDeduper } from "@/lib/analytics/dedupe-click-capture"
 
 interface ApiAnalyticsTrackerProps {
@@ -9,14 +9,13 @@ interface ApiAnalyticsTrackerProps {
   baseUrl: string
   ingestKey: string | null
   appVersion: string
+  pathname: string
 }
 
-export function ApiAnalyticsTracker({ src, baseUrl, ingestKey, appVersion }: ApiAnalyticsTrackerProps) {
-  const pathname = usePathname()
-  const isAdminRoute = pathname?.startsWith("/admin")
+export function ApiAnalyticsTracker({ src, baseUrl, ingestKey, appVersion, pathname }: ApiAnalyticsTrackerProps) {
+  const isAdminRoute = isAdminAnalyticsSurface(pathname)
 
-  // Do not initialize first-party analytics in admin surfaces.
-  // This prevents admin navigation/click noise from being ingested.
+  // Do not initialize first-party analytics on admin-only entry — avoids an admin $pageview.
   if (isAdminRoute) {
     return null
   }
@@ -34,10 +33,11 @@ export function ApiAnalyticsTracker({ src, baseUrl, ingestKey, appVersion }: Api
         if (!analytics?.init || typeof analytics.capture !== "function") return
 
         const originalCapture = analytics.capture.bind(analytics)
-        analytics.capture = installCaptureDeduper(originalCapture)
+        analytics.capture = installCaptureDeduper(installAdminAnalyticsGuard(originalCapture))
 
         analytics.init({
-          baseUrl: baseUrl.replace(/\/$/, ""),
+          baseUrl: typeof window !== "undefined" ? window.location.origin : baseUrl.replace(/\/$/, ""),
+          batchPath: "/proxy/analytics/events/batch",
           ingestKey,
           appVersion,
           autocapture: true,

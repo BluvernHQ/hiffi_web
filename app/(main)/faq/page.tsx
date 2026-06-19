@@ -5,7 +5,7 @@ import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 const pageTitle = "FAQ"
 const pageDescription =
-  "Frequently asked questions about Hiffi for viewers and creators, including account setup, discovery, playback, profiles, creator tools, and support."
+  "Frequently asked questions about Hiffi — the hip-hop-first streaming platform for independent rap artists and fans. Account setup, discovery, playback, creator tools, and support."
 const pageUrl = absoluteUrl("/faq")
 
 export const metadata: Metadata = {
@@ -13,18 +13,17 @@ export const metadata: Metadata = {
   description: pageDescription,
   keywords: [
     "Hiffi FAQ",
+    "hip hop streaming platform FAQ",
+    "rap music video platform",
+    "best platform for independent hip hop artists",
+    "upload rap music video",
+    "underground rap streaming",
+    "drill music app",
     "Hiffi support",
     "creator video platform",
-    "creator profiles",
-    "high quality video platform",
+    "hip hop app",
     "video platform FAQ",
-    "video search",
-    "playlists",
-    "comments and replies",
-    "follow creators",
-    "global creator platform",
-    "USA creator platform",
-    "India creator platform",
+    "global hip hop platform",
   ],
   alternates: {
     canonical: pageUrl,
@@ -68,8 +67,9 @@ const faqItems: FaqItem[] = [
   {
     question: "What is Hiffi?",
     answer:
-      "Hiffi is a creator-first platform where independent artists can publish video content and connect with audiences through discovery and engagement features.",
+      "Hiffi is a hip-hop-first music and video streaming platform built for independent rap artists and fans. Hip-hop accounts for roughly 25% of global music streams (IFPI Global Music Report), yet most major platforms are built for every genre at once. Hiffi is purpose-built for hip-hop — artists publish music videos and connect directly with audiences, no algorithmic gatekeeping, no label required.",
     category: "Getting Started",
+    answerLink: { href: "/hip-hop", match: "hip-hop" },
   },
   {
     question: "Where is Hiffi available?",
@@ -123,8 +123,29 @@ const faqItems: FaqItem[] = [
   {
     question: "Is Hiffi for hip-hop and rap artists?",
     answer:
-      "Hiffi is built with hip-hop and rap culture in mind and welcomes independent artists and fans across related genres. You can discover music videos, follow creators, and stream high-quality audio in the app.",
+      "Absolutely. Hiffi is built specifically for the hip-hop and rap community — both artists and fans. Independent rappers, drill artists, conscious rap creators, and boom bap producers are all welcome. Upload your music videos, grow your audience, and get discovered without paying for placement.",
     category: "App & downloads",
+    answerLink: { href: "/creator/apply", match: "Upload your music videos" },
+  },
+  {
+    question: "What hip-hop subgenres are on Hiffi?",
+    answer:
+      "Hiffi supports the full spectrum of hip-hop: drill, trap, conscious rap, boom bap, lo-fi hip-hop, melodic rap, rage rap, and more. Explore our hip-hop hub to browse by mood and vibe — from hard-hitting drill bangers to late-night introspective rap.",
+    category: "App & downloads",
+    answerLink: { href: "/hip-hop", match: "hip-hop hub" },
+  },
+  {
+    question: "How is Hiffi different from YouTube for rap artists?",
+    answer:
+      "Hiffi is purpose-built for hip-hop and rap creators, not a general video platform. Studies show that niche-specific platforms generate 3–5x higher engagement per view than general platforms for genre content. On Hiffi, your content reaches an audience that came specifically for hip-hop — no competition with unrelated content, no algorithmic suppression, and creator-first tools that put artists in control.",
+    category: "App & downloads",
+  },
+  {
+    question: "Can underground rappers upload to Hiffi?",
+    answer:
+      "Yes. Hiffi is designed for independent and underground rap artists. Apply through the Become a Creator flow, upload your official music videos, and build your fanbase directly — no label, no gatekeeping.",
+    category: "App & downloads",
+    answerLink: { href: "/creator/apply", match: "Become a Creator flow" },
   },
   {
     question: "How do I find videos on Hiffi?",

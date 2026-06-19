@@ -2,11 +2,21 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, Share2, RefreshCw } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, RefreshCw, RotateCcw } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { apiClient } from "@/lib/api-client"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { useToast } from "@/hooks/use-toast"
 
 interface AnalyticsData {
   totalUsers: number
@@ -27,6 +37,9 @@ interface AnalyticsData {
 export function AnalyticsOverview() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [resyncing, setResyncing] = useState(false)
+  const [resyncDialogOpen, setResyncDialogOpen] = useState(false)
+  const { toast } = useToast()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
 
   const fetchAnalytics = async () => {
@@ -107,6 +120,31 @@ export function AnalyticsOverview() {
   useEffect(() => {
     void fetchAnalytics()
   }, [])
+
+  const handleResyncCounters = async () => {
+    if (guardOfflineBeforeFetch()) return
+    try {
+      setResyncing(true)
+      const result = await apiClient.adminResyncCounters()
+      if (result.success) {
+        toast({
+          title: "Counters resynced",
+          description: result.message || "Platform counters have been recalculated from database counts.",
+        })
+        setResyncDialogOpen(false)
+        await fetchAnalytics()
+      } else {
+        throw new Error(result.message || "Failed to resync counters")
+      }
+    } catch (error) {
+      handleFetchError(error, {
+        genericMessage: "Failed to resync counters",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+      })
+    } finally {
+      setResyncing(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -203,15 +241,26 @@ export function AnalyticsOverview() {
 
   return (
     <div className="space-y-6">
-      {/* Last Updated Indicator */}
-      {analytics.lastUpdated && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <RefreshCw className="h-4 w-4" />
-          <span>
-            Last updated {formatDistanceToNow(new Date(analytics.lastUpdated), { addSuffix: true })}
-          </span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {analytics.lastUpdated && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <RefreshCw className="h-4 w-4" />
+            <span>
+              Last updated {formatDistanceToNow(new Date(analytics.lastUpdated), { addSuffix: true })}
+            </span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
+          <Button variant="outline" size="sm" onClick={() => void fetchAnalytics()} disabled={loading}>
+            <RefreshCw className="h-4 w-4 mr-1.5" />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setResyncDialogOpen(true)} disabled={resyncing}>
+            <RotateCcw className="h-4 w-4 mr-1.5" />
+            Resync counters
+          </Button>
         </div>
-      )}
+      </div>
       
       {/* Key Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -401,6 +450,33 @@ export function AnalyticsOverview() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={resyncDialogOpen} onOpenChange={setResyncDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resync platform counters?</DialogTitle>
+            <DialogDescription>
+              This recalculates all counters from actual table counts. Use if counters may be out of sync after direct
+              database changes. This may take longer on large datasets.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResyncDialogOpen(false)} disabled={resyncing}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleResyncCounters()} disabled={resyncing}>
+              {resyncing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resyncing…
+                </>
+              ) : (
+                "Resync counters"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

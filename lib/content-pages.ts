@@ -12,7 +12,13 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
   { href: "/support", label: "Support" },
 ]
 
-export const CONTENT_PAGE_PATHS = CONTENT_PAGE_LINKS.map((link) => link.href)
+/** Lead / marketing forms that use the same minimal chrome as content pages. */
+export const MINIMAL_CHROME_PATHS = ["/collaborate"] as const
+
+export const CONTENT_PAGE_PATHS = [
+  ...CONTENT_PAGE_LINKS.map((link) => link.href),
+  ...MINIMAL_CHROME_PATHS,
+]
 
 export function isContentPage(pathname: string | null): boolean {
   if (!pathname) return false

@@ -1,16 +1,15 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { Geist, Geist_Mono, Bebas_Neue, DM_Sans } from 'next/font/google'
-import Script from 'next/script'
 import { AuthProvider } from '@/lib/auth-context'
 import { GuestConversionProvider } from '@/components/conversion/guest-conversion-provider'
 import { SidebarProvider } from '@/lib/sidebar-context'
 import { VideoUploadQueueProvider } from '@/lib/video-upload-queue-context'
 import { VideoProvider } from '@/lib/video-context'
 import { Toaster } from '@/components/ui/toaster'
-import { ClarityTracker } from '@/components/analytics/clarity-tracker'
-import { GATracker } from '@/components/analytics/ga-tracker'
-import { ApiAnalyticsTracker } from '@/components/analytics/api-analytics-tracker'
+import { ApiAnalyticsShell } from '@/components/analytics/api-analytics-shell'
+import { ThirdPartyAnalyticsShell } from '@/components/analytics/third-party-analytics-shell'
+import { AnalyticsRouteGuard } from '@/components/analytics/analytics-route-guard'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
 import { JsonLd } from '@/components/seo/json-ld'
@@ -27,23 +26,30 @@ const _dmSans = DM_Sans({ subsets: ["latin"], display: "swap", variable: "--font
 
 const SITE_NAME = "Hiffi"
 const SITE_DESCRIPTION =
-  "Hiffi is a creator-first, high-fidelity video and lossless audio streaming platform for independent artists. Discover, stream, and support creators without algorithmic interference."
+  "Hiffi is a hip-hop-first music and video streaming platform for independent rap artists and fans. Discover music videos, follow creators, and stream in high quality — no algorithmic interference."
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteOrigin()),
   title: {
-    default: `${SITE_NAME} — High-Fidelity Streaming for Creators`,
+    default: `${SITE_NAME} — Hip-Hop Music Videos & Streaming for Independent Artists`,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
   keywords: [
-    "high fidelity streaming",
-    "lossless audio",
-    "independent artists",
-    "creator platform",
-    "music videos",
-    "video streaming",
+    "hip hop streaming",
+    "rap music videos",
+    "independent hip hop artists",
+    "underground rap streaming",
+    "drill music",
+    "trap music",
+    "conscious rap",
+    "boom bap",
+    "hip hop music video platform",
+    "independent rap artists",
     "hiffi",
+    "music video platform",
+    "lossless audio",
+    "creator platform",
   ],
   authors: [{ name: "Hiffi", url: getSiteOrigin() }],
   creator: "Hiffi",
@@ -63,13 +69,13 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: getSiteOrigin(),
     siteName: SITE_NAME,
-    title: `${SITE_NAME} — High-Fidelity Streaming for Creators`,
+    title: `${SITE_NAME} — Hip-Hop Music Videos & Streaming`,
     description: SITE_DESCRIPTION,
     images: [{ url: absoluteUrl("/hiffi_logo.png"), alt: "Hiffi" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — High-Fidelity Streaming for Creators`,
+    title: `${SITE_NAME} — Hip-Hop Music Videos & Streaming`,
     description: SITE_DESCRIPTION,
     images: [absoluteUrl("/hiffi_logo.png")],
   },
@@ -90,7 +96,7 @@ const siteJsonLd = {
       "@id": `${getSiteOrigin()}/#website`,
       url: getSiteOrigin(),
       name: SITE_NAME,
-      description: SITE_DESCRIPTION,
+      description: "Hip-hop-first music and video streaming platform for independent rap artists and fans.",
       inLanguage: "en",
       // publisher cross-references Organization by @id — no duplicate data
       publisher: { "@id": `${getSiteOrigin()}/#organization` },
@@ -120,6 +126,18 @@ const siteJsonLd = {
       },
       image: { "@id": `${getSiteOrigin()}/#logo` },
       // GEO / E-E-A-T: single canonical Organization — referenced by FAQ, profiles, and VideoObject.
+      knowsAbout: [
+        "Hip hop music",
+        "Rap music",
+        "Drill music",
+        "Trap music",
+        "Conscious rap",
+        "Boom bap",
+        "Lo-fi hip-hop",
+        "Independent music",
+        "Music video streaming",
+        "Lossless audio streaming",
+      ],
       areaServed: ["US", "IN", "Worldwide"],
       contactPoint: {
         "@type": "ContactPoint",
@@ -167,75 +185,32 @@ export default function RootLayout({
     <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
       <head>
         <JsonLd data={siteJsonLd} />
-        {/* Microsoft Clarity - ID from env only, never in source */}
-        {clarityId && (
-          <Script
-            id="microsoft-clarity"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function(c,l,a,r,i,t,y){
-                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                })(window, document, "clarity", "script", "${clarityId}");
-              `,
-            }}
-          />
-        )}
-        {/* Google tag (gtag.js) - beforeInteractive so it runs in initial HTML like Google recommends */}
-        {gaId && (
-          <>
-            <Script
-              id="google-gtag-src"
-              strategy="beforeInteractive"
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-            />
-            <Script
-              id="google-gtag-config"
-              strategy="beforeInteractive"
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${gaId}');
-                `,
-              }}
-            />
-          </>
-        )}
-        {/* Umami Tracker - MUST load before recorder.js */}
-        {umamiWebsiteId && (isProd || isBeta) && (
-          <Script
-            src="https://analytics.superlabs.co/script.js"
-            data-website-id={umamiWebsiteId}
-            data-domains={umamiDomains}
-            data-performance={isBeta ? "true" : umamiPerformanceEnabled ? "true" : undefined}
-            strategy="afterInteractive"
-          />
-        )}
-        {/* Umami Session Replay */}
-        {isProd && umamiWebsiteId && umamiReplayEnabled && (
-          <Script
-            src="https://analytics.superlabs.co/recorder.js"
-            data-website-id={umamiWebsiteId}
-            data-sample-rate="100"
-            data-mask-level="moderate"
-            data-max-duration="300000"
-            data-domains={umamiDomains}
-            strategy="afterInteractive"
-          />
-        )}
-        {/* First-party analytics script from API (same base as NEXT_PUBLIC_API_URL) */}
+        {/* First-party + third-party analytics load client-side; skipped on /admin routes */}
+        <Suspense fallback={null}>
+          <AnalyticsRouteGuard gaId={gaId} />
+        </Suspense>
         {apiAnalyticsSrc && (
-          <ApiAnalyticsTracker
-            src={apiAnalyticsSrc}
-            baseUrl={apiAnalyticsBaseUrl}
-            ingestKey={analyticsIngestKey}
-            appVersion={analyticsAppVersion}
-          />
+          <Suspense fallback={null}>
+            <ApiAnalyticsShell
+              src={apiAnalyticsSrc}
+              baseUrl={apiAnalyticsBaseUrl}
+              ingestKey={analyticsIngestKey}
+              appVersion={analyticsAppVersion}
+            />
+          </Suspense>
         )}
+        <Suspense fallback={null}>
+          <ThirdPartyAnalyticsShell
+            clarityId={clarityId}
+            gaId={gaId}
+            umamiWebsiteId={umamiWebsiteId}
+            umamiDomains={umamiDomains}
+            umamiPerformanceEnabled={umamiPerformanceEnabled}
+            umamiReplayEnabled={umamiReplayEnabled}
+            isProd={isProd}
+            isBeta={isBeta}
+          />
+        </Suspense>
       </head>
       <body className="font-sans antialiased">
         <AuthProvider>
@@ -254,9 +229,6 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <DeployStaleGuard />
         </Suspense>
-        {/* Analytics */}
-        {clarityId && <ClarityTracker />}
-        {gaId && <GATracker gaId={gaId} />}
       </body>
     </html>
   )

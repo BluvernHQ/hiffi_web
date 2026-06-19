@@ -51,14 +51,12 @@ export async function generateMetadata({
       title,
       description,
       siteName: "Hiffi",
-      ...(video.thumbnailUrl
-        ? { images: [{ url: video.thumbnailUrl, alt: title }] }
-        : {}),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      // thumbnail served via opengraph-image.tsx file convention (same segment)
       ...(video.thumbnailUrl ? { images: [video.thumbnailUrl] } : {}),
     },
   }

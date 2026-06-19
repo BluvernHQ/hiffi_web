@@ -28,7 +28,7 @@ export async function generateMetadata({
   const title = `@${handle} — ${display}`
   const description = profile?.bio?.length
     ? truncateMetaDescription(profile.bio)
-    : `Videos and profile of @${handle} on Hiffi.`
+    : `Hip-hop music videos and profile of @${handle} on Hiffi — independent rap artist streaming platform.`
 
   const canonical = absoluteUrl(`/profile/${encodeURIComponent(handle)}`)
 

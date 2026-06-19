@@ -14,14 +14,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Loader2, Shield, LogOut, Menu } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
+import { useRequireRole } from "@/hooks/use-require-role"
+import { usePermissions } from "@/hooks/use-permissions"
+import { canAccessAdminSection } from "@/lib/auth"
 import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
 import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
 import { AdminReferralsTable } from "@/components/admin/referrals-table"
+import { AdminFollowersTable } from "@/components/admin/followers-table"
+import { AdminSearchesTable } from "@/components/admin/searches-table"
 import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
 import { AdminFlagsTable } from "@/components/admin/flags-table"
 import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
@@ -33,60 +37,37 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 function AdminDashboardContent() {
-  const { user, userData, loading: authLoading, logout } = useAuth()
+  const { userData, logout } = useAuth()
+  const { verified: isAuthVerified, authLoading } = useRequireRole("admin", "/admin")
+  const { can } = usePermissions()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [isAuthVerified, setIsAuthVerified] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   
-  const section = searchParams.get("section") || "overview"
+  const section = searchParams.get("flagId") ? "flags" : searchParams.get("section") || "overview"
   const flagId = searchParams.get("flagId")
+  const activeSection = canAccessAdminSection(userData, section) ? section : "overview"
 
   // Redirect to overview if no section is specified
   useEffect(() => {
-    if (!searchParams.get("section") && !authLoading) {
+    if (!searchParams.get("section") && !authLoading && isAuthVerified) {
       router.replace("/admin/dashboard?section=overview")
     }
-  }, [searchParams, router, authLoading])
+  }, [searchParams, router, authLoading, isAuthVerified])
 
-  // Verify auth in background - don't block UI rendering
+  // Redirect if user lacks permission for the requested section
   useEffect(() => {
-    if (!authLoading) {
-      // If no user data, wait a moment for state to update (might be a race condition after login)
-      if (!user || !userData) {
-        // Give it a moment for state to propagate after redirect
-        const timeoutId = setTimeout(() => {
-          if (!user || !userData) {
-            console.log("[Admin Dashboard] No user data after timeout, redirecting to admin login")
-            router.replace("/admin")
-          } else {
-            // User data appeared, verify role
-            const userRole = String(userData.role || "").toLowerCase().trim()
-            if (userRole !== "admin") {
-              console.log("[Admin Dashboard] User is not admin, redirecting to admin login")
-              router.replace("/admin")
-            } else {
-              setIsAuthVerified(true)
-            }
-          }
-        }, 500) // Reduced timeout since we're showing UI immediately
-        return () => clearTimeout(timeoutId)
-      } else {
-        // User data is available, verify role immediately
-        const userRole = String(userData.role || "").toLowerCase().trim()
-        if (userRole !== "admin") {
-          console.log("[Admin Dashboard] User is not admin, redirecting to admin login")
-          router.replace("/admin")
-        } else {
-          setIsAuthVerified(true)
-        }
-      }
+    if (!isAuthVerified || authLoading) return
+    if (section !== activeSection) {
+      router.replace(`/admin/dashboard?section=${activeSection}`)
     }
-  }, [user, userData, authLoading, router])
+  }, [section, activeSection, isAuthVerified, authLoading, router])
+
+  const showContent = isAuthVerified
 
   const handleLogoutClick = () => {
     setLogoutDialogOpen(true)
@@ -149,10 +130,6 @@ function AdminDashboardContent() {
       }
     }
   }
-
-  // Show dashboard immediately with shimmer loaders while auth verifies
-  // Only redirect if auth fails after verification
-  const showContent = isAuthVerified || (!authLoading && user && userData)
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -225,7 +202,7 @@ function AdminDashboardContent() {
         )}>
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-full mx-auto">
-              {section === "overview" && (
+              {activeSection === "overview" && can("admin:overview") && (
                 <div className="space-y-4 sm:space-y-6">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -251,7 +228,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "users" && (
+              {activeSection === "users" && can("admin:users") && (
                 <div className="h-full flex flex-col min-h-0">
                   <div className="mb-4 shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
@@ -265,7 +242,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "videos" && (
+              {activeSection === "videos" && can("admin:videos") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Videos</h1>
@@ -277,7 +254,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "comments" && (
+              {activeSection === "comments" && can("admin:comments") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Comments</h1>
@@ -289,7 +266,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "replies" && (
+              {activeSection === "replies" && can("admin:replies") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Replies</h1>
@@ -301,7 +278,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "flags" && (
+              {activeSection === "flags" && can("admin:flags") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!flagId && (
                     <div className="shrink-0">
@@ -325,7 +302,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "activity" && (
+              {activeSection === "activity" && can("admin:activity") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Activity Logs</h1>
@@ -337,7 +314,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "referrals" && (
+              {activeSection === "referrals" && can("admin:referrals") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Referrals</h1>
@@ -349,7 +326,35 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "utm_polls" && (
+              {activeSection === "followers" && can("admin:followers") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Followers</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      View follower relationships between users
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminFollowersTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "searches" && can("admin:searches") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Recorded Searches</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Server-side search queries from ClickHouse analytics
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminSearchesTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "utm_polls" && can("admin:utm") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">UTM campaigns</h1>

@@ -26,11 +26,14 @@ export function normalizeConversionSource(raw?: string | null, sourcePath?: stri
   return "recommended"
 }
 
+import { isAdminAnalyticsSurface } from "@/lib/analytics/admin-analytics-guard"
+
 export function captureConversionEvent(
   eventName: ConversionEventName,
   properties: Record<string, unknown> = {},
 ) {
   if (typeof window === "undefined") return
+  if (isAdminAnalyticsSurface()) return
   try {
     const analytics = (window as any).HifiAnalytics
     if (!analytics || typeof analytics.capture !== "function") return

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Upload, ImageIcon, CheckCircle2, Sparkles, Video, User as UserIcon } from 'lucide-react';
+import { Upload, ImageIcon, CheckCircle2, Sparkles, Video } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useSidebar } from '@/lib/sidebar-context';
 import { useToast } from '@/hooks/use-toast';
@@ -28,8 +28,10 @@ import { takePendingVideoFile } from '@/lib/upload-pending-video';
 import { registerUploadNavigationGuard } from '@/lib/upload-navigation-guard';
 import { useVideoUploadQueue } from '@/lib/video-upload-queue-context';
 import { cn } from '@/lib/utils';
+import { isCreator } from '@/lib/auth';
 import { UploadProgressCard } from '@/components/upload/upload-progress-card';
 import { UploadSuccessCard } from '@/components/upload/upload-success-card';
+import { CreatorStudioSelect } from '@/components/creator/studio/creator-studio-select';
 
 export default function UploadPage() {
   const { user, userData, loading: authLoading } = useAuth();
@@ -94,6 +96,8 @@ export default function UploadPage() {
   const [cancelSelectDialogOpen, setCancelSelectDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   /** While upload runs in background, video id appears on the job after ack — enables Watch Video on this screen. */
   const uploadingWatchVideoId = useMemo(() => {
@@ -105,8 +109,7 @@ export default function UploadPage() {
   // Check if user is a creator - MUST be before any conditional returns
   useEffect(() => {
     if (!authLoading && user && userData) {
-      const isCreator = userData.role === "creator" || userData.is_creator === true
-      if (!isCreator) {
+      if (!isCreator(userData)) {
         toast({
           title: "Creator Status Required",
           description: "You need to become a creator to upload videos.",
@@ -170,8 +173,7 @@ export default function UploadPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user || !userData) return;
-    const isCreatorUser = userData.role === 'creator' || userData.is_creator === true;
-    if (!isCreatorUser) return;
+    if (!isCreator(userData)) return;
 
     const pending = takePendingVideoFile();
     if (!pending) return;
@@ -287,14 +289,38 @@ export default function UploadPage() {
     };
   }, [autoThumbnails]);
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (e.dataTransfer.types.includes("Files")) {
+      e.dataTransfer.dropEffect = "copy";
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       await applySelectedVideoFile(e.dataTransfer.files[0]);
@@ -461,135 +487,16 @@ export default function UploadPage() {
                   onChange={handleFileSelect}
                 />
 
-                <section
-                  className={cn(
-                    "mb-5 flex overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm",
-                    "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-md",
-                    "sm:mb-6 sm:rounded-2xl",
-                    "lg:mb-8",
-                  )}
-                  aria-labelledby="studio-status-label"
-                >
-                  <div className="hidden w-1 shrink-0 bg-primary/85 lg:block" aria-hidden />
-                  <div className="relative min-w-0 flex-1 px-4 py-4 pl-5 sm:px-6 sm:py-5 sm:pl-6 lg:py-4 lg:pl-6">
-                    <div className="absolute bottom-3 left-0 top-3 w-0.5 rounded-full bg-primary lg:hidden" aria-hidden />
-                    <div className="pl-3 lg:flex lg:items-center lg:justify-between lg:gap-8 lg:pl-0">
-                      <div className="lg:flex lg:items-baseline lg:gap-3">
-                        <p
-                          id="studio-status-label"
-                          className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
-                        >
-                          Creator status
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold leading-none tracking-tight text-primary lg:mt-0 lg:text-xl">
-                          Active
-                        </p>
-                      </div>
-                      <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground lg:mt-0 lg:max-w-md lg:text-right">
-                        Your channel is active and ready to publish.
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6">
-                  <section
-                    aria-labelledby="upload-action-title"
-                    className={cn(
-                      "group rounded-xl border border-primary/25 bg-card p-5 shadow-sm",
-                      "transition-[border-color,box-shadow,transform] duration-200",
-                      "hover:border-primary/40 hover:shadow-md",
-                      "motion-safe:hover:-translate-y-px",
-                      "sm:rounded-2xl sm:p-7",
-                      "lg:col-span-7 lg:flex lg:flex-col lg:p-8",
-                      "xl:col-span-8",
-                    )}
+                <Suspense fallback={null}>
+                  <CreatorStudioSelect
+                    fileInputRef={fileInputRef}
+                    isDragOver={isDragOver}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
-                  >
-                    <div className="flex flex-1 flex-col gap-5 sm:gap-6 lg:flex-1">
-                      <div className="flex items-start gap-4">
-                        <div
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary/[0.14] sm:h-12 sm:w-12"
-                          aria-hidden
-                        >
-                          <Video className="size-5 sm:size-[22px]" strokeWidth={1.65} />
-                        </div>
-                        <div className="min-w-0 flex-1 pt-0.5">
-                          <h2
-                            id="upload-action-title"
-                            className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
-                          >
-                            Upload a video
-                          </h2>
-                          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-                            Share a new release with your audience.
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="lg"
-                        data-analytics-name="creator-studio-upload-new-video-button"
-                        className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:mt-auto lg:h-12"
-                        onClick={() => fileInputRef.current?.click()}
-                        aria-label="Choose a video file to upload"
-                      >
-                        <Video className="size-4 opacity-95" aria-hidden />
-                        Upload new video
-                      </Button>
-
-                      <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                        Tip: drag & drop file into this card.
-                      </p>
-                    </div>
-                  </section>
-
-                  <section
-                    aria-labelledby="profile-action-title"
-                    className={cn(
-                      "rounded-xl border border-border/80 bg-muted/30 p-5 shadow-sm",
-                      "transition-[border-color,background-color,box-shadow] duration-200",
-                      "hover:border-border hover:bg-muted/40 hover:shadow-sm",
-                      "dark:bg-card/60 dark:hover:bg-card/80",
-                      "sm:rounded-2xl sm:p-6",
-                      "lg:col-span-5 lg:flex lg:flex-col lg:justify-between lg:p-6",
-                      "xl:col-span-4",
-                    )}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-muted-foreground dark:bg-background/50"
-                        aria-hidden
-                      >
-                        <UserIcon className="size-[18px]" strokeWidth={1.65} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <h2
-                          id="profile-action-title"
-                          className="text-sm font-semibold tracking-tight text-foreground sm:text-[15px]"
-                        >
-                          Creator profile
-                        </h2>
-                        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
-                          Update how viewers see you across Hiffi.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="default"
-                      data-analytics-name="creator-studio-manage-profile-button"
-                      className="mt-6 h-10 w-full rounded-xl border-border bg-background/90 text-[13px] font-medium motion-safe:active:scale-[0.99] hover:bg-muted/50 dark:bg-transparent dark:hover:bg-muted/30 lg:mt-6"
-                    >
-                      <Link href={userData?.username ? `/profile/${userData.username}` : "/"}>
-                        Manage profile
-                      </Link>
-                    </Button>
-                  </section>
-                </div>
+                  />
+                </Suspense>
               </>
             )}
 
