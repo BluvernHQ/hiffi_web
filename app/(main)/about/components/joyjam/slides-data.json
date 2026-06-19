@@ -1,0 +1,62 @@
+[
+  {
+    "cover": "/artist1.jpeg",
+    "flipClass": "s1"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424d4_a8205c64f42f4b831c38526cf87d0a93_hero-slider-cover-1.webp",
+    "flipClass": "s2"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424df_899186bf04465bbe587d2898e0a7b18b_hero-slider-cover-2.webp",
+    "flipClass": "s3"
+  },
+  {
+    "cover": "/artist3.jpeg",
+    "flipClass": "s4"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424c1_3c89dc9fb4121203ab5523944f44bda7_hero-slider-cover-4.webp",
+    "flipClass": "s5"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424d9_9279b3672e3d626d13acea7324adb62b_hero-slider-cover-6.webp",
+    "flipClass": "s7"
+  },
+  {
+    "cover": "/artist4.jpeg",
+    "flipClass": "s8"
+  },
+  {
+    "cover": "/artist1.jpeg",
+    "flipClass": "s1"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424d4_a8205c64f42f4b831c38526cf87d0a93_hero-slider-cover-1.webp",
+    "flipClass": "s2"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424df_899186bf04465bbe587d2898e0a7b18b_hero-slider-cover-2.webp",
+    "flipClass": "s3"
+  },
+  {
+    "cover": "/artist3.jpeg",
+    "flipClass": "s4"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424c1_3c89dc9fb4121203ab5523944f44bda7_hero-slider-cover-4.webp",
+    "flipClass": "s5"
+  },
+  {
+    "cover": "/artist2.jpeg",
+    "flipClass": "s6"
+  },
+  {
+    "cover": "6821a59ae3bfe300713424d9_9279b3672e3d626d13acea7324adb62b_hero-slider-cover-6.webp",
+    "flipClass": "s7"
+  },
+  {
+    "cover": "/artist4.jpeg",
+    "flipClass": "s8"
+  }
+]

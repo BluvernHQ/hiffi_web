@@ -18,6 +18,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     router.push(filter === "following" ? "/following" : "/")
   }
 
+  if (pathname === "/about") {
+    return <>{children}</>
+  }
+
   return (
     <AppLayout currentFilter={currentFilter} onFilterChange={onFilterChange}>
       {children}
