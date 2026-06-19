@@ -27,17 +27,18 @@ html.lenis body {
   display: inline-block;
 }
 
-/* Desktop navbar — Webflow mobile collapse rules must not apply */
-@media screen and (min-width: 480px) {
-  .navbar .nav-menu-wrapper {
-    width: auto;
-    height: auto;
-    overflow: visible;
+/* Desktop navbar — full horizontal menu */
+@media screen and (min-width: 992px) {
+  .navbar .hiffi-nav-toggle,
+  .navbar .nav-open-button {
+    display: none !important;
   }
 
-  .w-nav[data-collapse="none"] .w-nav-menu {
-    display: block;
-    float: none;
+  .navbar .nav-menu-wrapper {
+    display: flex !important;
+    width: auto;
+    height: auto !important;
+    overflow: visible !important;
     position: static;
   }
 
@@ -53,6 +54,184 @@ html.lenis body {
   }
 }
 
+/* Mobile navbar — JoyJam floating pill (sizes in vw — rem = vw on this page) */
+@media screen and (max-width: 991px) {
+  .navbar {
+    width: 100% !important;
+    padding-left: 6.4vw !important;
+    padding-right: 6.4vw !important;
+    padding-top: 3.2vw !important;
+    padding-bottom: 0 !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+  }
+
+  .navbar .nav-container,
+  .navbar .nav-container.change {
+    display: flex !important;
+    flex-flow: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 4.2vw !important;
+    border-radius: 2rem !important;
+    position: relative !important;
+    box-sizing: border-box;
+    background-color: #ffffffeb !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border: 1px solid #00000012 !important;
+    box-shadow: 0 4px 20px #0000000f !important;
+  }
+
+  /* Closed — compact pill */
+  .navbar:not(.hiffi-nav-is-open) .nav-container {
+    flex-flow: row nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 3.2vw 13vw 3.2vw 4.5vw !important;
+    min-height: 13.5vw !important;
+    border-radius: 999px !important;
+  }
+
+  .navbar.hiffi-nav-is-open .nav-container {
+    border-radius: 8vw !important;
+    padding: 4.2vw !important;
+  }
+
+  .navbar .nav-container > .wave-area {
+    display: none !important;
+  }
+
+  .navbar .brand.navbar-s {
+    width: auto !important;
+    max-width: calc(100% - 12vw);
+    margin: 0 !important;
+    margin-right: auto !important;
+    align-self: center !important;
+    flex-shrink: 0;
+  }
+
+  .navbar .hiffi-brand-logo {
+    height: clamp(1.35rem, 5.8vw, 1.85rem) !important;
+  }
+
+  .navbar .hiffi-brand-logo img {
+    height: clamp(1.35rem, 5.8vw, 1.85rem) !important;
+    width: auto !important;
+  }
+
+  .navbar .nav-open-button.hiffi-nav-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: clamp(2.75rem, 10vw, 3.25rem) !important;
+    height: clamp(2.75rem, 10vw, 3.25rem) !important;
+    min-width: clamp(2.75rem, 10vw, 3.25rem) !important;
+    padding: 0;
+    position: absolute !important;
+    top: 50% !important;
+    right: 2.8vw !important;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #080808;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 2;
+  }
+
+  .navbar.hiffi-nav-is-open .nav-open-button.hiffi-nav-toggle {
+    top: 4.2vw !important;
+    right: 4.2vw !important;
+    transform: none;
+  }
+
+  .hiffi-nav-toggle-svg {
+    display: block;
+    width: clamp(1.25rem, 5vw, 1.5rem) !important;
+    height: auto;
+  }
+
+  .navbar .nav-menu-wrapper {
+    display: none !important;
+    width: 100% !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: static !important;
+    padding: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .navbar.hiffi-nav-is-open .nav-menu-wrapper {
+    display: block !important;
+  }
+
+  .navbar .nav-menu {
+    flex-flow: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100%;
+    padding: 6vw 0 0 !important;
+    gap: 0;
+  }
+
+  .navbar .nav-links {
+    flex-flow: column !important;
+    align-items: center !important;
+    width: 100%;
+    text-align: center;
+  }
+
+  .navbar .nav-link {
+    font-size: clamp(1.2rem, 4.2vw, 1.65rem) !important;
+    line-height: 1.35 !important;
+    padding: clamp(0.7rem, 3.2vw, 1.1rem) 0 !important;
+    color: #080808 !important;
+    text-align: center !important;
+  }
+
+  .navbar .nav-link.w--current {
+    color: #ed1c2f !important;
+  }
+
+  .navbar .nav-link-hover {
+    display: none;
+  }
+
+  .navbar .nav-button-wrapper {
+    width: 100%;
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .navbar .nav-button {
+    width: auto;
+    min-width: 11rem;
+    justify-content: center;
+    border-radius: 999px !important;
+    padding: 0.9rem 2rem !important;
+    font-size: clamp(0.9rem, 3.2vw, 1rem) !important;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .navbar.hiffi-nav-is-open .nav-container {
+    border-radius: 8vw !important;
+  }
+
+  .navbar:not(.hiffi-nav-is-open) .nav-container {
+    border-radius: 999px !important;
+  }
+}
+
 /* Hiffi navbar branding */
 .navbar .brand.navbar-s {
   width: auto;
@@ -64,6 +243,11 @@ html.lenis body {
   align-items: center;
   width: auto;
   height: 1.75rem;
+}
+
+.navbar .hiffi-nav-logo-img {
+  height: 1.75rem;
+  width: auto;
 }
 
 .navbar .hiffi-nav-cta.nav-button.change {
@@ -107,10 +291,11 @@ html.lenis body {
   background-image: url("/joyjam/why-us-card-bg-hiffi.png") !important;
 }
 
-/* Hero headline gradient text */
+/* Hero headline — readable on light hero background */
 .text-elements.hero-s .headline-h1,
-.text-elements.hero-s .headline-h1 .char {
-  background: linear-gradient(180deg, #fff 0%, #f04857 18.75%, #f14c5b 35.58%, #ed1c2f 100%);
+.text-elements.hero-s .headline-h1 .char,
+.text-elements.hero-s .headline-h1 .line {
+  background: linear-gradient(180deg, #ff4d5e 0%, #ed1c2f 55%, #c41222 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -788,4 +973,159 @@ html.lenis body {
 
 .creators-sc {
   background-color: #fff;
+}
+
+/* Hero copy — line-based split, JoyJam-style stacking (cards untouched) */
+.text-elements.hero-s {
+  width: 100%;
+  max-width: 92vw;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.headline-wrapper.hero-s,
+.description-wrapper.hero-s {
+  width: 100%;
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.text-elements.hero-s .headline-h1.hero-headline,
+.text-elements.hero-s .headline-h1.hero-headline .line {
+  display: block;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.text-elements.hero-s .subheadline-m.hero-subline {
+  display: block;
+  width: 100%;
+  color: #080808;
+  text-wrap: pretty;
+}
+
+@media screen and (max-width: 991px) {
+  .hero-sc {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh;
+  }
+
+  .full-container.hero-s {
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    display: flex !important;
+    flex-flow: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    width: 100%;
+    height: 100svh !important;
+    height: 100dvh !important;
+    min-height: 100svh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding-top: calc(13.5vw + 3.2vw) !important;
+    padding-bottom: max(5vw, env(safe-area-inset-bottom, 0px), 1.25rem) !important;
+    position: relative;
+    gap: 0;
+  }
+
+  .hero-sc .circle-slider-position {
+    top: 2vw !important;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .text-elements.hero-s {
+    position: relative !important;
+    top: auto !important;
+    z-index: 30;
+    width: 100%;
+    max-width: 92vw;
+    margin-top: 0 !important;
+    margin-bottom: 0;
+    padding: 34vw 0 0 !important;
+    isolation: isolate;
+    flex-shrink: 0;
+  }
+
+  .text-elements.hero-s::before {
+    content: "";
+    position: absolute;
+    left: -6vw;
+    right: -6vw;
+    top: 28vw;
+    bottom: -0.5rem;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.9) 22%,
+      rgba(255, 255, 255, 0.98) 100%
+    );
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .text-elements.hero-s .headline-h1.hero-headline {
+    font-size: 10.5vw !important;
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.9));
+  }
+
+  .description-wrapper.hero-s {
+    width: 88vw !important;
+    max-width: 88vw !important;
+    padding-top: 1.25rem;
+  }
+
+  .text-elements.hero-s .subheadline-m.hero-subline {
+    font-size: 4.1vw !important;
+    line-height: 1.45 !important;
+    max-width: none !important;
+  }
+
+  .text-elements.hero-s .app-buttons {
+    margin-top: 0.75rem;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .text-elements.hero-s .headline-h1.hero-headline {
+    font-size: 11.5vw !important;
+    line-height: 0.92 !important;
+  }
+
+  .description-wrapper.hero-s {
+    width: 90vw !important;
+    max-width: 90vw !important;
+  }
+
+  .text-elements.hero-s .subheadline-m.hero-subline {
+    font-size: 4.26vw !important;
+    line-height: 1.5 !important;
+  }
+
+  .headline-wrapper.hero-s {
+    max-width: 92vw;
+  }
+}
+
+@media screen and (min-width: 992px) and (max-width: 1279px) {
+  .text-elements.hero-s .headline-h1.hero-headline {
+    font-size: 7.2vw !important;
+  }
+}
+
+@media screen and (min-width: 1280px) {
+  .text-elements.hero-s .headline-h1.hero-headline {
+    font-size: 6.2vw !important;
+    max-width: 14ch;
+    margin-inline: auto;
+  }
+
+  .text-elements.hero-s .subheadline-m.hero-subline {
+    font-size: 1.2rem !important;
+  }
 }

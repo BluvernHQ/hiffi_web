@@ -11,13 +11,14 @@ export default function JoyJamHero() {
         <CircleSlider />
         <div className="text-elements hero-s">
           <div className="headline-wrapper hero-s">
-            <h1 data-split="chars-blur" className="headline-h1">
-              Artist-First <br />
+            <h1 data-split="lines-blur" className="headline-h1 hero-headline">
+              Artist-First
+              <br />
               Platform
             </h1>
           </div>
           <div className="description-wrapper hero-s">
-            <p data-split="lines-blur" className="subheadline-m">
+            <p className="subheadline-m hero-subline">
               Hiffi puts creators, culture, and community at the center.
             </p>
           </div>

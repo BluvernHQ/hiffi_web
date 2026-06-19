@@ -2,14 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-function useNavLinkHover() {
+const MOBILE_NAV_MAX_WIDTH = 991;
+
+function useNavLinkHover(enabled: boolean) {
   const navLinksRef = useRef<HTMLDivElement>(null);
   const hoverLineRef = useRef<HTMLDivElement>(null);
-  const isFirstHoverRef = useRef(true);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const navWrapper = navLinksRef.current;
     const hoverLine = hoverLineRef.current;
     if (!navWrapper || !hoverLine) return;
@@ -19,7 +22,6 @@ function useNavLinkHover() {
 
     const onMouseLeave = () => {
       isFirstHover = true;
-      isFirstHoverRef.current = true;
       hoverLine.style.opacity = "0";
     };
 
@@ -36,7 +38,6 @@ function useNavLinkHover() {
         void hoverLine.offsetWidth;
         hoverLine.style.transition = "opacity 0.4s ease, transform 0.4s ease, width 0.4s ease";
         isFirstHover = false;
-        isFirstHoverRef.current = false;
       } else {
         hoverLine.style.width = `${width}px`;
         hoverLine.style.transform = `translateX(${offsetLeft}px)`;
@@ -56,14 +57,21 @@ function useNavLinkHover() {
       navWrapper.removeEventListener("mouseleave", onMouseLeave);
       handlers.forEach(({ link, handler }) => link.removeEventListener("mouseenter", handler));
     };
-  }, []);
+  }, [enabled]);
 
   return { navLinksRef, hoverLineRef };
 }
 
+function isMobileNav() {
+  return typeof window !== "undefined" && window.innerWidth <= MOBILE_NAV_MAX_WIDTH;
+}
+
 export default function HiffiHeader() {
-  const { navLinksRef, hoverLineRef } = useNavLinkHover();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { navLinksRef, hoverLineRef } = useNavLinkHover(!menuOpen);
   const navContainerRef = useRef<HTMLDivElement>(null);
+  const menuWrapperRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const el = navContainerRef.current;
@@ -72,6 +80,106 @@ export default function HiffiHeader() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const menuWrapper = menuWrapperRef.current;
+    if (!menuWrapper) return;
+
+    const resetDesktopMenu = () => {
+      menuWrapper.style.transition = "";
+      menuWrapper.style.height = "";
+      menuWrapper.style.overflow = "";
+      menuWrapper.style.display = "";
+      setMenuOpen(false);
+    };
+
+    if (!isMobileNav()) {
+      resetDesktopMenu();
+    }
+
+    const onResize = () => {
+      if (!isMobileNav()) {
+        resetDesktopMenu();
+      }
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    const menuWrapper = menuWrapperRef.current;
+    if (!menuWrapper || !isMobileNav()) return;
+
+    if (menuOpen) {
+      menuWrapper.style.display = "block";
+      menuWrapper.style.overflow = "hidden";
+      menuWrapper.style.height = "0px";
+      requestAnimationFrame(() => {
+        menuWrapper.style.transition = "height 0.45s ease";
+        menuWrapper.style.height = `${menuWrapper.scrollHeight}px`;
+      });
+      return;
+    }
+
+    if (menuWrapper.style.height === "auto" || menuWrapper.scrollHeight === 0) {
+      menuWrapper.style.display = "none";
+      menuWrapper.style.height = "0px";
+      return;
+    }
+
+    menuWrapper.style.transition = "height 0.45s ease";
+    menuWrapper.style.height = `${menuWrapper.scrollHeight}px`;
+    void menuWrapper.offsetHeight;
+    menuWrapper.style.height = "0px";
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const menuWrapper = menuWrapperRef.current;
+    if (!menuWrapper) return;
+
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.propertyName !== "height" || !isMobileNav()) return;
+
+      if (menuOpen) {
+        menuWrapper.style.height = "auto";
+        menuWrapper.style.overflow = "visible";
+        return;
+      }
+
+      menuWrapper.style.display = "none";
+      menuWrapper.style.overflow = "hidden";
+    };
+
+    menuWrapper.addEventListener("transitionend", onTransitionEnd);
+    return () => menuWrapper.removeEventListener("transitionend", onTransitionEnd);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen || !isMobileNav()) return;
+
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const menuWrapper = menuWrapperRef.current;
+      const toggle = toggleRef.current;
+      if (!menuWrapper || !toggle) return;
+
+      if (!menuWrapper.contains(target) && !toggle.contains(target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("click", onDocumentClick);
+    return () => document.removeEventListener("click", onDocumentClick);
+  }, [menuOpen]);
+
+  const closeMenu = () => setMenuOpen(false);
+
+  const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!isMobileNav()) return;
+    event.stopPropagation();
+    setMenuOpen((open) => !open);
+  };
+
   return (
     <header className="header">
       <div
@@ -79,36 +187,62 @@ export default function HiffiHeader() {
         data-collapse="none"
         data-duration="400"
         role="banner"
-        className="navbar w-nav"
+        className={`navbar w-nav${menuOpen ? " hiffi-nav-is-open" : ""}`}
         {...{ "navbar-element": "" }}
       >
-        <div ref={navContainerRef} className="nav-container change" {...{ "view-item": "from-center" }}>
-          <Link aria-label="Hiffi Home" href="/" className="brand navbar-s w-inline-block">
+        <div
+          ref={navContainerRef}
+          className="nav-container change"
+          {...{ "view-item": "from-center" }}
+        >
+          <Link aria-label="Hiffi Home" href="/" className="brand navbar-s w-inline-block" onClick={closeMenu}>
             <div className="brand-svg change w-embed hiffi-brand-logo">
               <Image
                 src="/appbarlogo.png"
                 alt="Hiffi"
                 width={132}
                 height={32}
-                className="h-[1.75rem] w-auto object-contain"
+                className="hiffi-nav-logo-img w-auto object-contain"
                 priority
               />
             </div>
           </Link>
 
-          <nav role="navigation" className="nav-menu-wrapper w-nav-menu">
+          <nav
+            ref={menuWrapperRef}
+            role="navigation"
+            className={`nav-menu-wrapper w-nav-menu${menuOpen ? " hiffi-nav-menu-open" : ""}`}
+            {...{ "nav-menu-wrapper": "" }}
+          >
             <div className="nav-menu">
               <div ref={navLinksRef} className="nav-links">
-                <Link aria-label="For Creators" href="/creator/apply" className="nav-link w-nav-link">
+                <Link
+                  aria-label="For Creators"
+                  href="/creator/apply"
+                  className="nav-link w-nav-link"
+                  onClick={closeMenu}
+                >
                   For creators
                 </Link>
-                <Link aria-label="For Fans" href="/signup" className="nav-link w-nav-link">
+                <Link aria-label="For Fans" href="/signup" className="nav-link w-nav-link" onClick={closeMenu}>
                   For fans
                 </Link>
-                <Link aria-label="About" href="/about" className="nav-link w-nav-link w--current" {...{ "change-color": "" }}>
+                <Link
+                  aria-label="About"
+                  href="/about"
+                  className="nav-link w-nav-link w--current"
+                  {...{ "change-color": "" }}
+                  onClick={closeMenu}
+                >
                   About
                 </Link>
-                <Link aria-label="Contact Us" href="/support" className="nav-link w-nav-link" {...{ "change-color": "" }}>
+                <Link
+                  aria-label="Contact Us"
+                  href="/support"
+                  className="nav-link w-nav-link"
+                  {...{ "change-color": "" }}
+                  onClick={closeMenu}
+                >
                   Contact us
                 </Link>
                 <div ref={hoverLineRef} className="nav-link-hover">
@@ -123,6 +257,7 @@ export default function HiffiHeader() {
                   aria-label="Sign up for Hiffi"
                   className="nav-button change hiffi-nav-cta"
                   {...{ "wave-parent-infinity": "" }}
+                  onClick={closeMenu}
                 >
                   <div>Sign Up</div>
                   <div aria-hidden="true" className="wave-area">
@@ -137,6 +272,49 @@ export default function HiffiHeader() {
           <div wave-parent-default="" className="wave-area">
             <div data-expand="1.5" change-color="" className="wave-line-default navbar-s change" />
           </div>
+
+          <button
+            ref={toggleRef}
+            type="button"
+            className="nav-open-button hiffi-nav-toggle"
+            data-nav-open=""
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            onClick={toggleMenu}
+          >
+            {menuOpen ? (
+              <svg
+                className="hiffi-nav-toggle-svg"
+                width="22"
+                height="22"
+                viewBox="0 0 22 22"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 4L18 18M18 4L4 18"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="hiffi-nav-toggle-svg"
+                width="22"
+                height="16"
+                viewBox="0 0 22 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M1 1.5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M1 8H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M1 14.5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
     </header>
