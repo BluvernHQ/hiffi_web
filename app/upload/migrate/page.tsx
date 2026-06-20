@@ -56,13 +56,6 @@ export default function MigrateContentPage() {
     )
   }
 
-  const defaultArtistName =
-    typeof userData?.name === "string"
-      ? userData.name
-      : typeof userData?.username === "string"
-        ? userData.username
-        : null
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar onMenuClick={handleMenuClick} currentFilter="all" />
@@ -87,7 +80,7 @@ export default function MigrateContentPage() {
         />
         <main className="h-[calc(100dvh-4rem)] min-w-0 w-full flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-6xl">
-            <MigrateContentForm defaultArtistName={defaultArtistName} />
+            <MigrateContentForm />
           </div>
         </main>
       </div>

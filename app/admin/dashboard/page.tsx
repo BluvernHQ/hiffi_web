@@ -33,6 +33,7 @@ import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-requests-table"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
@@ -363,6 +364,20 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showContent ? <AdminUtmPollsPanel /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {activeSection === "migrations" && can("admin:migrations") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Migration Requests</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Review and manage creator content migration requests
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminMigrationRequestsTable /> : <TableSkeleton />}
+                  </div>
                 </div>
               )}
             </div>

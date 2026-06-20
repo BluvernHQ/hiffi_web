@@ -58,6 +58,14 @@ export function AdminUsersTable() {
     [router, searchParams],
   )
 
+  const stripDeepLinkParamsFromUrl = useCallback(() => {
+    skipUrlSyncRef.current = true
+    const params = stripAdminTableFilterParams(new URLSearchParams(searchParams.toString()))
+    if (!params.get("section")) params.set("section", "users")
+    params.delete(USERS_PAGE_QUERY)
+    router.replace(`/admin/dashboard?${params.toString()}`)
+  }, [router, searchParams])
+
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -94,8 +102,12 @@ export function AdminUsersTable() {
 
   // Search bar state (separate from sidebar filters)
   // searchInput is the immediate input value, searchQuery is debounced for actual searching
-  const [searchInput, setSearchInput] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchInput, setSearchInput] = useState(() => (searchParams.get("q") || "").trim())
+  const [searchQuery, setSearchQuery] = useState(() => (searchParams.get("q") || "").trim())
+  
+  const fetchGenerationRef = useRef(0)
+  /** Skip one URL→state sync cycle after programmatic clear (prevents stale ?q= re-applying). */
+  const skipUrlSyncRef = useRef(false)
   
   // Refs to maintain focus on search inputs
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
@@ -132,6 +144,7 @@ export function AdminUsersTable() {
   const resolvedUsername = filters.username.trim() || urlFilters.userUsername
 
   const fetchUsers = async () => {
+    const generation = ++fetchGenerationRef.current
     if (guardOfflineBeforeFetch()) {
       setUsers([])
       setTotal(0)
@@ -292,6 +305,8 @@ export function AdminUsersTable() {
         }
       }
       
+      if (generation !== fetchGenerationRef.current) return
+
       // Client-side sorting
       if (sortKey && sortDirection) {
         usersData = [...usersData].sort((a, b) => {
@@ -342,6 +357,7 @@ export function AdminUsersTable() {
         searchQuery: isSearchBarActive ? searchQuery : undefined,
       })
     } catch (error) {
+      if (generation !== fetchGenerationRef.current) return
       setUsers([])
       setTotal(0)
       handleFetchError(error, {
@@ -349,17 +365,27 @@ export function AdminUsersTable() {
         onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
-      setLoading(false)
+      if (generation === fetchGenerationRef.current) {
+        setLoading(false)
+      }
     }
   }
 
   // Debounce search input - wait 500ms after user stops typing before searching
-  // Clear immediately if input is empty
   useEffect(() => {
     if (searchInput.trim() === "") {
-      // Clear search immediately when input is empty
       setSearchQuery("")
-      syncUsersPageToUrl(1)
+      // Only touch the URL when deep-link params are present — avoid re-reading stale ?q=
+      // from window.location via syncUsersPageToUrl (which would undo Clear).
+      const hasDeepLink =
+        !!(searchParams.get("q") || "").trim() ||
+        !!readAdminTableUrlFilters(searchParams).userUid ||
+        !!readAdminTableUrlFilters(searchParams).userUsername
+      if (hasDeepLink) {
+        stripDeepLinkParamsFromUrl()
+      } else if (page !== 1) {
+        syncUsersPageToUrl(1)
+      }
       return
     }
 
@@ -369,17 +395,22 @@ export function AdminUsersTable() {
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [searchInput])
+  }, [searchInput, searchParams, page, stripDeepLinkParamsFromUrl, syncUsersPageToUrl])
 
-  // Hydrate search from URL query (e.g., /admin/dashboard?section=users&q=username)
+  // Sync search bar when URL ?q= changes (e.g. deep link from migration requests)
   useEffect(() => {
-    const q = (searchParams.get("q") || "").trim()
-    if (q) {
-      setSearchInput(q)
-      setSearchQuery(q)
-      syncUsersPageToUrl(1)
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false
+      return
     }
 
+    const q = (searchParams.get("q") || "").trim()
+    setSearchInput(q)
+    setSearchQuery(q)
+  }, [searchParams])
+
+  // Hydrate sidebar uid/username from URL deep links only when present
+  useEffect(() => {
     const { userUid, userUsername } = readAdminTableUrlFilters(searchParams)
     if (userUid || userUsername) {
       setFilters((prev) => ({
@@ -538,6 +569,7 @@ export function AdminUsersTable() {
   }
 
   const clearFilters = () => {
+    skipUrlSyncRef.current = true
     setSearchInput("")
     setSearchQuery("")
     setFilters({
@@ -557,23 +589,14 @@ export function AdminUsersTable() {
       updated_before: "",
     })
 
-    const fromWindow =
-      typeof window !== "undefined" &&
-      window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
-    const params = stripAdminTableFilterParams(
-      new URLSearchParams(fromWindow ? window.location.search.slice(1) : searchParams.toString()),
-    )
-    if (!params.get("section")) params.set("section", "users")
-    params.delete(USERS_PAGE_QUERY)
-    router.replace(`/admin/dashboard?${params.toString()}`)
+    stripDeepLinkParamsFromUrl()
   }
 
   const hasActiveFilters =
     searchQuery.trim() !== "" ||
     Object.values(filters).some((v) => v !== "") ||
     !!urlFilters.userUid ||
-    !!urlFilters.userUsername ||
-    !!(searchParams.get("q") || "").trim()
+    !!urlFilters.userUsername
   const totalPages = Math.ceil(total / limit)
   const maxUsersPage = total <= 0 ? 1 : Math.max(1, totalPages)
 

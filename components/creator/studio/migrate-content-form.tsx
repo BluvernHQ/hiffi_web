@@ -1,24 +1,34 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   MIGRATION_CONTENT_TYPE_LABELS,
   MIGRATION_STATUS_LABELS,
+  buildMigrationNote,
   type MigrationContentType,
-  type MigrationRequestStatus,
-  type YoutubeMigrationRequest,
+  type MigrationRequest,
 } from "@/lib/types/youtube-migration"
-import { appendMigrationRequest, loadMigrationRequests, MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
+import { MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
 import { isValidYoutubeUrl } from "@/lib/youtube-migration-validation"
 import { verifyYoutubeChannelOwnership } from "@/lib/youtube-channel-verification"
 import { MigrationRequestsTable } from "@/components/creator/studio/migration-requests-table"
 import { useToast } from "@/hooks/use-toast"
+import { apiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 
 const CONTENT_TYPES: MigrationContentType[] = [
@@ -35,19 +45,15 @@ const NEXT_STEPS = [
   { title: "You are notified", description: "Status updates sent to your account." },
 ] as const
 
-const STATUS_LEGEND: MigrationRequestStatus[] = [
-  "submitted",
-  "under_review",
-  "processing",
-  "completed",
-  "rejected",
-]
+const STATUS_LEGEND = Object.keys(MIGRATION_STATUS_LABELS) as Array<
+  keyof typeof MIGRATION_STATUS_LABELS
+>
 
-function statusBadgeClass(status: MigrationRequestStatus): string {
+function statusBadgeClass(status: MigrationRequest["status"]): string {
   if (status === "completed") return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
   if (status === "rejected") return "bg-red-500/15 text-red-700 dark:text-red-400"
-  if (status === "processing") return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-  if (status === "submitted") return "bg-muted text-muted-foreground"
+  if (status === "approved") return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+  if (status === "pending") return "bg-muted text-muted-foreground"
   return "bg-blue-500/15 text-blue-700 dark:text-blue-400"
 }
 
@@ -74,28 +80,40 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
-type MigrateContentFormProps = {
-  defaultArtistName?: string | null
-}
-
-export function MigrateContentForm({ defaultArtistName }: MigrateContentFormProps) {
+export function MigrateContentForm() {
   const router = useRouter()
   const { toast } = useToast()
+  const { userData } = useAuth()
 
   const [youtubeUrl, setYoutubeUrl] = useState("")
-  const [artistName, setArtistName] = useState(defaultArtistName ?? "")
   const [contentType, setContentType] = useState<MigrationContentType>("music_videos")
   const [googleVerified, setGoogleVerified] = useState(false)
   const [verifiedChannelId, setVerifiedChannelId] = useState<string | null>(null)
   const [verifiedGoogleEmail, setVerifiedGoogleEmail] = useState<string | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [ownershipConfirmed, setOwnershipConfirmed] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [migrationRequests, setMigrationRequests] = useState<YoutubeMigrationRequest[]>([])
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+
+  // API-backed migration requests list
+  const [migrationRequests, setMigrationRequests] = useState<MigrationRequest[]>([])
+  const [loadingRequests, setLoadingRequests] = useState(true)
+
+  const fetchRequests = useCallback(async () => {
+    try {
+      const request = await apiClient.getMyMigrationStatus()
+      setMigrationRequests(request ? [request] : [])
+    } catch {
+      setMigrationRequests([])
+    } finally {
+      setLoadingRequests(false)
+    }
+  }, [])
 
   useEffect(() => {
-    setMigrationRequests(loadMigrationRequests())
-  }, [])
+    void fetchRequests()
+  }, [fetchRequests])
 
   const resetVerification = () => {
     setGoogleVerified(false)
@@ -163,38 +181,64 @@ export function MigrateContentForm({ defaultArtistName }: MigrateContentFormProp
   const handleSubmit = () => {
     const nextErrors: Record<string, string> = {}
     const trimmedUrl = youtubeUrl.trim()
-    const trimmedArtist = artistName.trim()
 
     if (!trimmedUrl) nextErrors.youtubeUrl = "Enter a YouTube channel or playlist URL."
     else if (!isValidYoutubeUrl(trimmedUrl)) {
       nextErrors.youtubeUrl = "Enter a supported YouTube channel or playlist URL."
     }
 
-    if (!trimmedArtist) nextErrors.artistName = "Enter your artist or creator name."
     if (!googleVerified) nextErrors.googleVerified = "Verify ownership via Google before submitting."
     if (!ownershipConfirmed) nextErrors.ownershipConfirmed = "Confirm ownership to continue."
 
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
-    const request: YoutubeMigrationRequest = {
-      id: crypto.randomUUID(),
-      submittedAt: new Date().toISOString(),
-      youtubeUrl: trimmedUrl,
-      artistName: trimmedArtist,
-      contentType,
-      status: "submitted",
-      googleVerified: true,
-      verifiedChannelId: verifiedChannelId ?? undefined,
-      verifiedGoogleEmail: verifiedGoogleEmail ?? undefined,
-    }
+    setConfirmDialogOpen(true)
+  }
 
-    appendMigrationRequest(request)
-    toast({
-      title: "Migration request submitted",
-      description: "Track progress in Migration Requests on Hiffi Studio.",
-    })
-    router.push(MIGRATION_REQUESTS_STUDIO_URL)
+  const handleConfirmedSubmit = async () => {
+    setConfirmDialogOpen(false)
+    setIsSubmitting(true)
+    const trimmedUrl = youtubeUrl.trim()
+    const username = (userData?.username as string | undefined) || undefined
+    try {
+      await apiClient.createMigrationRequest({
+        platform: "youtube",
+        channel_url: trimmedUrl,
+        artist_name: username,
+        note: buildMigrationNote(contentType),
+        verified_channel_id: verifiedChannelId ?? undefined,
+        verified_google_email: verifiedGoogleEmail ?? undefined,
+      })
+
+      toast({
+        title: "Migration request submitted",
+        description: "Track progress in Migration Requests on Hiffi Studio.",
+      })
+      router.push(MIGRATION_REQUESTS_STUDIO_URL)
+    } catch (err) {
+      const apiErr = err as { message?: string; status?: number }
+      const msg =
+        apiErr?.message ||
+        (err instanceof Error ? err.message : null) ||
+        "Failed to submit request. Please try again."
+
+      if (apiErr?.status === 409) {
+        toast({
+          title: "Request already exists",
+          description: msg,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Submission failed",
+          description: msg,
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -279,28 +323,6 @@ export function MigrateContentForm({ defaultArtistName }: MigrateContentFormProp
                 ) : null}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="migration-artist-name">
-                  Artist / Creator Name <span className="text-primary">*</span>
-                </Label>
-                <Input
-                  id="migration-artist-name"
-                  value={artistName}
-                  onChange={(e) => {
-                    setArtistName(e.target.value)
-                    setErrors((prev) => {
-                      const next = { ...prev }
-                      delete next.artistName
-                      return next
-                    })
-                  }}
-                  placeholder="Your artist or creator name"
-                  autoComplete="name"
-                />
-                {errors.artistName ? (
-                  <p className="text-sm text-destructive">{errors.artistName}</p>
-                ) : null}
-              </div>
 
               <fieldset className="space-y-3">
                 <legend className="text-sm font-medium leading-none">
@@ -423,8 +445,9 @@ export function MigrateContentForm({ defaultArtistName }: MigrateContentFormProp
                 className="h-11 rounded-xl text-sm font-semibold sm:min-w-[220px]"
                 data-analytics-name="creator-studio-start-migration-submit-button"
                 onClick={handleSubmit}
+                disabled={isSubmitting}
               >
-                Submit migration request
+                {isSubmitting ? "Submitting…" : "Submit migration request"}
               </Button>
               <Button
                 type="button"
@@ -496,7 +519,46 @@ export function MigrateContentForm({ defaultArtistName }: MigrateContentFormProp
         </aside>
       </div>
 
-      <MigrationRequestsTable requests={migrationRequests} />
+      {!loadingRequests && <MigrationRequestsTable requests={migrationRequests} />}
+
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit migration request?</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  You are about to submit a request to migrate content from{" "}
+                  <span className="font-medium text-foreground break-all">
+                    {youtubeUrl.trim()}
+                  </span>{" "}
+                  to Hiffi.
+                </p>
+                <p>
+                  Once submitted, this request cannot be cancelled or modified until the
+                  migration process is complete. Our team will review it and reach out if
+                  anything needs clarification.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Go back
+            </Button>
+            <Button
+              onClick={() => void handleConfirmedSubmit()}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting…" : "Yes, submit request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

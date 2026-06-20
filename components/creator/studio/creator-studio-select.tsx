@@ -6,8 +6,9 @@ import { useSearchParams } from "next/navigation"
 import { Video, Youtube } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MigrationRequestsTable } from "@/components/creator/studio/migration-requests-table"
-import type { YoutubeMigrationRequest } from "@/lib/types/youtube-migration"
-import { loadMigrationRequests, MIGRATION_REQUESTS_SECTION_ID, MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
+import type { MigrationRequest } from "@/lib/types/youtube-migration"
+import { MIGRATION_REQUESTS_SECTION_ID, MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
+import { apiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 
 type CreatorStudioSelectProps = {
@@ -36,14 +37,19 @@ export function CreatorStudioSelect({
 }: CreatorStudioSelectProps) {
   const searchParams = useSearchParams()
   const migrationSectionRef = useRef<HTMLElement>(null)
-  const [migrationRequests, setMigrationRequests] = useState<YoutubeMigrationRequest[]>([])
+  const [migrationRequests, setMigrationRequests] = useState<MigrationRequest[]>([])
 
-  const refreshMigrationRequests = useCallback(() => {
-    setMigrationRequests(loadMigrationRequests())
+  const refreshMigrationRequests = useCallback(async () => {
+    try {
+      const request = await apiClient.getMyMigrationStatus()
+      setMigrationRequests(request ? [request] : [])
+    } catch {
+      setMigrationRequests([])
+    }
   }, [])
 
   useEffect(() => {
-    refreshMigrationRequests()
+    void refreshMigrationRequests()
   }, [refreshMigrationRequests])
 
   useEffect(() => {
@@ -54,7 +60,7 @@ export function CreatorStudioSelect({
 
       if (!shouldScroll) return
 
-      refreshMigrationRequests()
+      void refreshMigrationRequests()
       requestAnimationFrame(() => {
         migrationSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
       })

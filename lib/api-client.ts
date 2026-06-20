@@ -52,6 +52,21 @@ import type {
   FlagsConfigResponse,
   UpdateContentFlagInput,
 } from "@/lib/types/content-flag"
+import {
+  getMigrationConfig as migrationGetConfig,
+  createMigrationRequest as migrationCreate,
+  getMyMigrationStatus as migrationGetMyStatus,
+  adminListMigrationRequests as migrationAdminList,
+  adminGetMigrationRequest as migrationAdminGet,
+  adminUpdateMigrationRequest as migrationAdminUpdate,
+} from "@/lib/api/migration-requests"
+import type {
+  AdminListMigrationRequestsParams,
+  CreateMigrationRequestInput,
+  MigrationConfig,
+  MigrationRequest,
+  UpdateMigrationRequestInput,
+} from "@/lib/types/youtube-migration"
 const TOKEN_KEY = "hiffi_auth_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
@@ -1506,6 +1521,41 @@ class ApiClient {
   // PATCH /admin/flags/{flagID} - Update status / resolution notes (admin)
   async adminUpdateContentFlag(flagId: string, body: UpdateContentFlagInput): Promise<ContentFlag> {
     return flagsAdminUpdateContentFlag(this, flagId, body)
+  }
+
+  // GET /migration-requests/config - Public config (platforms + statuses)
+  async getMigrationConfig(): Promise<MigrationConfig> {
+    return migrationGetConfig(this)
+  }
+
+  // POST /migration-requests - Submit a channel migration request (user auth)
+  async createMigrationRequest(body: CreateMigrationRequestInput): Promise<MigrationRequest> {
+    return migrationCreate(this, body)
+  }
+
+  // GET /migration-requests/status - The current user's most recent migration request (or null)
+  async getMyMigrationStatus(): Promise<MigrationRequest | null> {
+    return migrationGetMyStatus(this)
+  }
+
+  // GET /admin/migration-requests - List all migration requests (admin)
+  async adminListMigrationRequests(
+    params?: AdminListMigrationRequestsParams,
+  ): Promise<{ requests: MigrationRequest[]; total: number }> {
+    return migrationAdminList(this, params)
+  }
+
+  // GET /admin/migration-requests/{id} - Single request by UUID (admin)
+  async adminGetMigrationRequest(id: string): Promise<MigrationRequest> {
+    return migrationAdminGet(this, id)
+  }
+
+  // PATCH /admin/migration-requests/{id} - Update status / admin notes (admin)
+  async adminUpdateMigrationRequest(
+    id: string,
+    body: UpdateMigrationRequestInput,
+  ): Promise<MigrationRequest> {
+    return migrationAdminUpdate(this, id, body)
   }
 
   // POST /signals/watchhours - Report watched playback telemetry

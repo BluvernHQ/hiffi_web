@@ -19,6 +19,7 @@ import {
   ChevronRight,
   UserPlus,
   Search as SearchIcon,
+  ArrowDownToLine,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { usePermissions } from "@/hooks/use-permissions"
@@ -103,6 +104,12 @@ const navItems: Array<{
     label: "UTM campaigns",
     value: "utm_polls",
     permission: "admin:utm",
+  },
+  {
+    icon: ArrowDownToLine,
+    label: "Migration Requests",
+    value: "migrations",
+    permission: "admin:migrations",
   },
 ]
 

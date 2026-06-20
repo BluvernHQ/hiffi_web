@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   "admin:followers": ["admin"],
   "admin:searches": ["admin"],
   "admin:utm": ["admin"],
+  "admin:migrations": ["admin"],
   "creator:upload": ["creator", "admin"],
   "creator:studio": ["creator", "admin"],
 } as const satisfies Record<string, readonly UserRole[]>
@@ -42,6 +43,7 @@ export const ADMIN_SECTION_PERMISSION: Record<string, Permission> = {
   followers: "admin:followers",
   searches: "admin:searches",
   utm_polls: "admin:utm",
+  migrations: "admin:migrations",
 }
 
 export function canAccessAdminSection(user: UserLike, section: string): boolean {
