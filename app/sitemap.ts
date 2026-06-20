@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next"
+import { SITEMAP_STATIC_CONTENT_PAGES } from "@/lib/content-pages"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
 import { MOODS } from "@/lib/mood-tabs"
@@ -89,6 +90,12 @@ function buildStaticEntries(): MetadataRoute.Sitemap {
       lastModified: STATIC_LAST_MODIFIED,
       changeFrequency: "weekly" as const,
       priority: 0.85,
+    })),
+    ...SITEMAP_STATIC_CONTENT_PAGES.map(({ path, changeFrequency, priority }) => ({
+      url: absoluteUrl(path),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency,
+      priority,
     })),
   ]
 }

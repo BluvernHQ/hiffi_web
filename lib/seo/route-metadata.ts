@@ -12,16 +12,18 @@ export function routeMetadata(opts: {
   title: string
   description: string
   path: string
+  keywords?: string[]
   /** Default true. Use false for auth, personalized, or internal surfaces */
   index?: boolean
 }): Metadata {
-  const { title, description, path, index = true } = opts
+  const { title, description, path, keywords, index = true } = opts
   const url = absoluteUrl(path)
   const ogImage = { url: absoluteUrl("/hiffi_logo.png"), alt: SITE_NAME }
 
   return {
     title,
     description,
+    ...(keywords?.length ? { keywords } : {}),
     alternates: { canonical: url },
     robots: index
       ? {

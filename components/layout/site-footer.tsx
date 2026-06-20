@@ -33,7 +33,10 @@ const columns: FooterColumn[] = [
     title: "ABOUT US",
     links: [
       { label: "About", href: "/about" },
-      { label: "Blogs", href: "https://www.blog.hiffi.com/", external: true },
+      { label: "What is Hiffi?", href: "/what-is-hiffi" },
+      { label: "How it works", href: "/how-it-works" },
+      { label: "Press kit", href: "/press" },
+      { label: "Blog", href: "https://www.blog.hiffi.com/", external: true },
     ],
   },
   {
@@ -47,7 +50,8 @@ const columns: FooterColumn[] = [
     title: "CREATORS",
     links: [
       { label: "Hiffi Artists", href: "/artists" },
-      { label: "Hiffi Creators", href: "/creator/apply" },
+      { label: "Creator Playbook", href: "/creator-playbook" },
+      { label: "Apply as creator", href: "/creator/apply" },
     ],
   },
   {
