@@ -16,6 +16,7 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
 /** Marketing / informational pages with the same minimal chrome. */
 export const MARKETING_PAGE_PATHS = [
   "/about",
+  "/app",
   "/what-is-hiffi",
   "/how-it-works",
   "/advertising",

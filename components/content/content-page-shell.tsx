@@ -34,6 +34,16 @@ type ContentPageShellProps = {
   relatedLinks?: ContentPageRelatedLink[]
   /** Shown in breadcrumb + JSON-LD; defaults to eyebrow or title */
   breadcrumbLabel?: string
+  /** Override page background, e.g. white + red gradient for `/app` */
+  className?: string
+  /** Override hero card styling */
+  heroClassName?: string
+  /** Override section card styling */
+  sectionClassName?: string
+  /** Override sidebar + mobile TOC card styling */
+  navCardClassName?: string
+  /** Override bottom CTA block styling */
+  ctaClassName?: string
 }
 
 function CtaLink({ cta, variant }: { cta: ContentPageCta; variant: "primary" | "secondary" }) {
@@ -63,6 +73,11 @@ export function ContentPageShell({
   secondaryCta,
   relatedLinks,
   breadcrumbLabel,
+  className,
+  heroClassName,
+  sectionClassName,
+  navCardClassName,
+  ctaClassName,
 }: ContentPageShellProps) {
   const crumb = breadcrumbLabel ?? eyebrow ?? title
   const toc = sections.map((s) => ({ id: sectionId(s.title), label: s.title }))
@@ -75,7 +90,12 @@ export function ContentPageShell({
   })
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-rose-50/70 via-background to-background">
+    <div
+      className={cn(
+        "min-h-full bg-gradient-to-b from-rose-50/70 via-background to-background",
+        className,
+      )}
+    >
       <JsonLd data={jsonLd} />
 
       <article className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
@@ -99,13 +119,18 @@ export function ContentPageShell({
         </nav>
 
         {/* Hero */}
-        <header className="relative mb-10 overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur-sm sm:p-8 lg:mb-12">
+        <header
+          className={cn(
+            "relative mb-10 overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur-sm sm:p-8 lg:mb-12",
+            heroClassName,
+          )}
+        >
           <div
             className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-rose-200/30 blur-3xl"
+            className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
             aria-hidden
           />
           <div className="relative space-y-4">
@@ -129,7 +154,10 @@ export function ContentPageShell({
                   key={section.title}
                   id={id}
                   aria-labelledby={`${id}-heading`}
-                  className="scroll-mt-24 rounded-xl border border-border/70 bg-card/50 p-5 shadow-sm sm:p-6"
+                  className={cn(
+                    "scroll-mt-24 rounded-xl border border-border/70 bg-card/50 p-5 shadow-sm sm:p-6",
+                    sectionClassName,
+                  )}
                 >
                   <div className="mb-4 flex items-start gap-3">
                     <span
@@ -162,7 +190,10 @@ export function ContentPageShell({
             {(cta || secondaryCta) && (
               <section
                 aria-label="Get started"
-                className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-rose-50/80 to-card p-6 sm:p-8"
+                className={cn(
+                  "relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-rose-50/80 to-card p-6 sm:p-8",
+                  ctaClassName,
+                )}
               >
                 <div
                   className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/15 blur-2xl"
@@ -185,7 +216,10 @@ export function ContentPageShell({
           {/* Sidebar: TOC + related */}
           <aside className="hidden lg:block">
             <div className="sticky top-24 space-y-6">
-              <nav aria-label="On this page" className="rounded-xl border border-border/70 bg-card/60 p-4">
+              <nav
+                aria-label="On this page"
+                className={cn("rounded-xl border border-border/70 bg-card/60 p-4", navCardClassName)}
+              >
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   On this page
                 </p>
@@ -204,7 +238,10 @@ export function ContentPageShell({
               </nav>
 
               {relatedLinks && relatedLinks.length > 0 ? (
-                <nav aria-label="Related pages" className="rounded-xl border border-border/70 bg-card/60 p-4">
+                <nav
+                  aria-label="Related pages"
+                  className={cn("rounded-xl border border-border/70 bg-card/60 p-4", navCardClassName)}
+                >
                   <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Related
                   </p>
@@ -229,7 +266,10 @@ export function ContentPageShell({
         {/* Mobile TOC */}
         <nav
           aria-label="On this page"
-          className="mt-8 rounded-xl border border-border/70 bg-card/60 p-4 lg:hidden"
+          className={cn(
+            "mt-8 rounded-xl border border-border/70 bg-card/60 p-4 lg:hidden",
+            navCardClassName,
+          )}
         >
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">On this page</p>
           <ul className="flex flex-wrap gap-2">

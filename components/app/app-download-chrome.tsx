@@ -151,8 +151,8 @@ function StoreLink({
       className={cn(
         pillBase,
         primary
-          ? "border-black bg-black text-white shadow-[7px_7px_0_#DA291C] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[6px_6px_0_#DA291C]"
-          : "border-black bg-[#fffdf8] text-black shadow-[6px_6px_0_#111] hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-[#f8f5ec]",
+          ? "border-primary bg-primary text-primary-foreground shadow-[7px_7px_0_rgba(237,28,47,0.35)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[6px_6px_0_rgba(237,28,47,0.45)]"
+          : "border-primary/25 bg-white text-foreground shadow-[6px_6px_0_rgba(237,28,47,0.15)] hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-red-50/60",
       )}
     >
       {isApple ? (
@@ -216,11 +216,11 @@ function QrCard({
     <div className="flex flex-col items-center gap-4 text-center">
       <div
         aria-label={ariaLabel}
-        className="rounded-xl bg-white p-4 shadow-lg ring-1 ring-black/5"
+        className="rounded-xl border border-red-100 bg-white p-4 shadow-sm ring-1 ring-primary/10"
       >
         <QRCodeSVG value={url} size={168} level="M" includeMargin={false} />
       </div>
-      <span className="text-sm font-medium text-black/90">{label}</span>
+      <span className="text-sm font-medium text-foreground/90">{label}</span>
     </div>
   )
 }
@@ -277,20 +277,20 @@ export function AppDownloadChrome({
         </defs>
       </svg>
 
-      <header className="relative min-h-[min(100dvh,920px)] overflow-hidden border-b border-black/20 bg-[#f3f0e8] pb-16 pt-12 text-[#121212] md:pb-24 md:pt-16">
+      <header className="relative min-h-[min(100dvh,920px)] overflow-hidden border-b border-red-100 bg-gradient-to-b from-white via-white to-red-50/50 pb-16 pt-12 text-foreground md:pb-24 md:pt-16">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          className="pointer-events-none absolute inset-0 opacity-40"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 10%, rgba(0,0,0,0.08) 0, rgba(0,0,0,0) 40%), radial-gradient(circle at 85% 60%, rgba(0,0,0,0.07) 0, rgba(0,0,0,0) 38%)",
+              "radial-gradient(circle at 20% 10%, rgba(237,28,47,0.08) 0, rgba(237,28,47,0) 40%), radial-gradient(circle at 85% 60%, rgba(237,28,47,0.06) 0, rgba(237,28,47,0) 38%)",
           }}
           aria-hidden
         />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.03)_1px,transparent_1px)] bg-[length:100%_44px] opacity-30" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(237,28,47,0.04)_1px,transparent_1px)] bg-[length:100%_44px] opacity-50" aria-hidden />
         <NoiseOverlay filterId={filterId} />
         <p
           className={cn(
-            "pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 select-none text-center text-[clamp(5rem,16vw,13rem)] leading-none tracking-[-0.04em] text-black/[0.06]",
+            "pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 select-none text-center text-[clamp(5rem,16vw,13rem)] leading-none tracking-[-0.04em] text-primary/[0.07]",
             heroDisplayFont.className,
           )}
           aria-hidden
@@ -300,54 +300,54 @@ export function AppDownloadChrome({
 
         <div className="relative z-[1] mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
           <div className={cn("transition-opacity duration-200", isResolving ? "opacity-95" : "opacity-100")}>
-            <p className={cn("text-[12px] uppercase tracking-[0.3em] text-[#DA291C]", editorialMonoFont.className)}>
+            <p className={cn("text-[12px] uppercase tracking-[0.3em] text-primary", editorialMonoFont.className)}>
               {heroEyebrow}
             </p>
 
             {showPlatformHero && isIos ? (
               <h1
                 className={cn(
-                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-black",
+                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-foreground",
                   heroDisplayFont.className,
                 )}
               >
-                Download <span className="text-[#DA291C]">Hiffi</span> for <span className="text-[#DA291C]">iPhone &amp; iPad</span>
+                Download <span className="text-primary">Hiffi</span> for <span className="text-primary">iPhone &amp; iPad</span>
               </h1>
             ) : showPlatformHero && isAndroid ? (
               <h1
                 className={cn(
-                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-black",
+                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-foreground",
                   heroDisplayFont.className,
                 )}
               >
-                Download <span className="text-[#DA291C]">Hiffi</span> for <span className="text-[#DA291C]">Android</span>
+                Download <span className="text-primary">Hiffi</span> for <span className="text-primary">Android</span>
               </h1>
             ) : (
               <h1
                 className={cn(
-                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-black",
+                  "mx-auto mt-4 max-w-5xl text-[clamp(3.5rem,12vw,9rem)] font-bold uppercase leading-[0.92] tracking-[-0.04em] text-foreground",
                   heroDisplayFont.className,
                 )}
               >
-                Download <span className="text-[#DA291C]">Hiffi</span> for <span className="text-[#DA291C]">iOS</span> and{" "}
-                <span className="text-[#DA291C]">Android</span>
+                Download <span className="text-primary">Hiffi</span> for <span className="text-primary">iOS</span> and{" "}
+                <span className="text-primary">Android</span>
               </h1>
             )}
 
-            <p className={cn("mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-black/80 md:text-2xl", editorialMonoFont.className)}>
+            <p className={cn("mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-foreground/80 md:text-2xl", editorialMonoFont.className)}>
               {heroDescription}
             </p>
 
             {showPlatformHero && isIos && (
-              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-black/90">
-                <span className="font-semibold text-black">Also on Android</span>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
+                <span className="font-semibold text-foreground">Also on Android</span>
                 {" — "}
                 Hiffi is the same app on Google Play for phones and tablets.{" "}
                 <a
                   href={HIFFI_PLAY_STORE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[#DA291C] underline-offset-2 hover:underline"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   View on Google Play
                 </a>
@@ -355,15 +355,15 @@ export function AppDownloadChrome({
               </p>
             )}
             {showPlatformHero && isAndroid && (
-              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-black/90">
-                <span className="font-semibold text-black">Also on iPhone &amp; iPad</span>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-foreground/90">
+                <span className="font-semibold text-foreground">Also on iPhone &amp; iPad</span>
                 {" — "}
                 The same Hiffi experience is on the App Store for iOS.{" "}
                 <a
                   href={HIFFI_APP_STORE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[#DA291C] underline-offset-2 hover:underline"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   View on App Store
                 </a>
@@ -381,21 +381,21 @@ export function AppDownloadChrome({
               <button
                 type="button"
                 onClick={() => setShowAllStores(true)}
-                className={cn("text-sm text-black/70 underline-offset-4 transition-colors hover:text-black hover:underline", editorialMonoFont.className)}
+                className={cn("text-sm text-foreground/70 underline-offset-4 transition-colors hover:text-primary hover:underline", editorialMonoFont.className)}
               >
                 Not your device?
               </button>
             </div>
           )}
           {showAllStores && !isDesktop && (os === "ios" || os === "android") && (
-            <p className={cn("mt-4 text-sm text-black/75", editorialMonoFont.className)}>Showing all download options.</p>
+            <p className={cn("mt-4 text-sm text-foreground/75", editorialMonoFont.className)}>Showing all download options.</p>
           )}
 
           <div className="mx-auto mt-16 hidden max-w-2xl md:block">
-            <p className={cn("text-center text-[11px] uppercase tracking-[0.25em] text-[#DA291C]", editorialMonoFont.className)}>
+            <p className={cn("text-center text-[11px] uppercase tracking-[0.25em] text-primary", editorialMonoFont.className)}>
               Scan to download
             </p>
-            <p className={cn("mt-2 text-center text-sm text-black/75", editorialMonoFont.className)}>
+            <p className={cn("mt-2 text-center text-sm text-foreground/75", editorialMonoFont.className)}>
               Scan the QR code with your phone to download Hiffi.
             </p>
             <div className="mt-8 grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-8">
@@ -416,11 +416,11 @@ export function AppDownloadChrome({
 
       {children}
 
-      <footer className="border-t border-black/20 bg-[#ece8dd] py-16 md:py-20">
+      <footer className="border-t border-red-100 bg-gradient-to-b from-red-50/40 to-white py-16 md:py-20">
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-          <p className={cn("text-[11px] uppercase tracking-[0.28em] text-[#DA291C]", editorialMonoFont.className)}>Get the app</p>
-          <p className={cn("mt-3 text-3xl uppercase tracking-tight text-black md:text-5xl", heroDisplayFont.className)}>Ready to discover?</p>
-          <p className={cn("mt-2 text-black/75", editorialMonoFont.className)}>Download Hiffi now.</p>
+          <p className={cn("text-[11px] uppercase tracking-[0.28em] text-primary", editorialMonoFont.className)}>Get the app</p>
+          <p className={cn("mt-3 text-3xl uppercase tracking-tight text-foreground md:text-5xl", heroDisplayFont.className)}>Ready to discover?</p>
+          <p className={cn("mt-2 text-foreground/75", editorialMonoFont.className)}>Download Hiffi now.</p>
           <div className="mt-8 flex justify-center">
             <StoreButtonRow visual={visual} />
           </div>

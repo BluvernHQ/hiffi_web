@@ -71,9 +71,10 @@ export type SiteFooterVariant = "default" | "app"
 
 type SiteFooterProps = {
   variant?: SiteFooterVariant
+  className?: string
 }
 
-export function SiteFooter({ variant = "default" }: SiteFooterProps) {
+export function SiteFooter({ variant = "default", className }: SiteFooterProps) {
   const isApp = variant === "app"
 
   return (
@@ -81,8 +82,9 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
       className={cn(
         "border-t",
         isApp
-          ? "mt-0 border-black/15 bg-[#e4e0d5] py-12 text-[#121212] md:py-14"
+          ? "mt-0 border-red-100 bg-gradient-to-b from-red-50/40 to-white py-12 text-foreground md:py-14"
           : "mt-10 border-border/40 bg-rose-50/80 py-10",
+        className,
       )}
     >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -90,7 +92,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
           <div
             className={
               isApp
-                ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#DA291C]"
+                ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
                 : "text-sm text-muted-foreground"
             }
           >
@@ -99,14 +101,14 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
           <div
             className={cn(
               "flex items-center gap-4",
-              isApp ? "text-black/55 [&_svg]:transition-colors" : "text-muted-foreground",
+              isApp ? "text-foreground/55 [&_svg]:transition-colors" : "text-muted-foreground",
             )}
           >
             <a
               href={HIFFI_SOCIAL_PROFILES.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
+              className={cn("transition-colors", isApp ? "hover:text-primary" : "hover:text-foreground")}
               aria-label="Instagram"
             >
               <Instagram className="h-4 w-4" />
@@ -115,7 +117,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               href={HIFFI_SOCIAL_PROFILES.x}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
+              className={cn("transition-colors", isApp ? "hover:text-primary" : "hover:text-foreground")}
               aria-label="X"
             >
               <X className="h-4 w-4" />
@@ -124,7 +126,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               href={HIFFI_SOCIAL_PROFILES.tiktok}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn("transition-colors", isApp ? "hover:text-[#DA291C]" : "hover:text-foreground")}
+              className={cn("transition-colors", isApp ? "hover:text-primary" : "hover:text-foreground")}
               aria-label="TikTok"
             >
               <TikTokIcon />
@@ -138,7 +140,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               <div
                 className={
                   isApp
-                    ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-[#DA291C]"
+                    ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
                     : "text-xs font-semibold tracking-wide text-primary/80"
                 }
               >
@@ -154,7 +156,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
                         : {})}
                       className={
                         isApp
-                          ? "text-sm text-black/85 underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"
+                          ? "text-sm text-foreground/85 underline-offset-4 transition-colors hover:text-primary hover:underline"
                           : "text-sm text-foreground/90 underline-offset-4 hover:text-foreground hover:underline"
                       }
                     >
@@ -167,7 +169,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
           ))}
         </div>
 
-        <div className={cn("mt-10 border-t pt-6", isApp ? "border-black/15" : "border-border/40")}>
+        <div className={cn("mt-10 border-t pt-6", isApp ? "border-red-100" : "border-border/40")}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <Image
@@ -183,7 +185,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
             <div
               className={
                 isApp
-                  ? "flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-black/65"
+                  ? "flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-foreground/65"
                   : "flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground"
               }
             >
@@ -193,7 +195,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
                   href={href}
                   className={
                     isApp
-                      ? "underline-offset-4 transition-colors hover:text-[#DA291C] hover:underline"
+                      ? "underline-offset-4 transition-colors hover:text-primary hover:underline"
                       : "underline-offset-4 hover:text-foreground hover:underline"
                   }
                 >
@@ -208,7 +210,7 @@ export function SiteFooter({ variant = "default" }: SiteFooterProps) {
               size="sm"
               className={
                 isApp
-                  ? "h-10 w-fit gap-2 rounded-none border-2 border-black bg-[#fffdf8] text-black shadow-[5px_5px_0_#111] transition-all hover:translate-x-px hover:translate-y-px hover:bg-black hover:text-white hover:shadow-[4px_4px_0_#DA291C]"
+                  ? "h-10 w-fit gap-2 rounded-none border-2 border-primary/25 bg-white text-foreground shadow-[5px_5px_0_rgba(237,28,47,0.12)] transition-all hover:translate-x-px hover:translate-y-px hover:bg-primary hover:text-primary-foreground hover:shadow-[4px_4px_0_rgba(237,28,47,0.25)]"
                   : "w-fit rounded-full"
               }
             >

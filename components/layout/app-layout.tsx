@@ -26,7 +26,6 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
-  const isAppDownloadPage = pathname === "/app"
   const isContentPageRoute = isContentPage(pathname)
 
   const {
@@ -38,11 +37,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   } = useSidebar()
 
   return (
-    <div
-      className={`h-[100dvh] flex flex-col bg-background overflow-hidden relative ${
-        isAppDownloadPage ? "dark" : ""
-      }`}
-    >
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden relative">
       {/* Navbar - Fixed at top, always visible */}
       <Navbar
         variant={isContentPageRoute ? "minimal" : "full"}
@@ -64,7 +59,6 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
       <div className="flex flex-1 overflow-hidden">
         {!isContentPageRoute && (
           <Sidebar
-            className={isAppDownloadPage ? "lg:fixed lg:top-16 lg:left-0 lg:z-[85] lg:h-[calc(100dvh-4rem)]" : undefined}
             isMobileOpen={isSidebarOpen}
             onMobileClose={() => setIsSidebarOpen(false)}
             isDesktopOpen={isDesktopSidebarOpen}
