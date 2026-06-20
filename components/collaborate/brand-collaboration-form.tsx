@@ -7,13 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  BRAND_COLLAB_BUDGET_RANGES,
-  BRAND_COLLAB_HEARD_ABOUT,
-  BRAND_COLLAB_TIMELINES,
-  BRAND_COLLAB_TYPES,
-  type BrandCollabTypeId,
-} from "@/lib/types/brand-collaboration"
 import { cn } from "@/lib/utils"
 import { CheckCircle2 } from "lucide-react"
 
@@ -21,12 +14,6 @@ type FieldErrors = Record<string, string>
 
 const fieldClass =
   "border-0 bg-muted/55 shadow-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:bg-muted/40"
-
-const selectClass = cn(
-  "flex h-11 w-full appearance-none rounded-lg px-3.5 py-2 text-sm text-foreground",
-  "border-0 bg-muted/55",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-)
 
 const labelClass = "text-[13px] font-medium text-foreground/85"
 
@@ -72,10 +59,6 @@ export function BrandCollaborationForm() {
   const [contactName, setContactName] = useState("")
   const [contactEmail, setContactEmail] = useState("")
   const [brandDescription, setBrandDescription] = useState("")
-  const [collabTypes, setCollabTypes] = useState<BrandCollabTypeId[]>([])
-  const [budgetRange, setBudgetRange] = useState("")
-  const [timeline, setTimeline] = useState("")
-  const [heardAbout, setHeardAbout] = useState("")
   const [collaborationGoal, setCollaborationGoal] = useState("")
   const [anythingElse, setAnythingElse] = useState(
     referredArtist ? `Interested in partnering with @${referredArtist.replace(/^@/, "")}.` : "",
@@ -88,12 +71,6 @@ export function BrandCollaborationForm() {
     if (!referredArtist) return null
     return `@${referredArtist.replace(/^@/, "")}`
   }, [referredArtist])
-
-  const toggleCollabType = (id: BrandCollabTypeId) => {
-    setCollabTypes((prev) =>
-      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id],
-    )
-  }
 
   const clearError = (key: string) => {
     setErrors((prev) => {
@@ -116,9 +93,6 @@ export function BrandCollaborationForm() {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
-    const heardAboutLabel =
-      BRAND_COLLAB_HEARD_ABOUT.find((o) => o.id === heardAbout)?.label ?? heardAbout
-
     setIsSubmitting(true)
     try {
       const response = await fetch("/api/collab", {
@@ -130,10 +104,6 @@ export function BrandCollaborationForm() {
           contactName: contactName.trim(),
           contactEmail: contactEmail.trim(),
           brandDescription: brandDescription.trim() || undefined,
-          collabTypes,
-          budgetRange: budgetRange || undefined,
-          timeline: timeline || undefined,
-          heardAbout: heardAboutLabel || undefined,
           collaborationGoal: collaborationGoal.trim() || undefined,
           anythingElse: anythingElse.trim() || undefined,
           referredArtist: referredArtist || undefined,
@@ -255,87 +225,7 @@ export function BrandCollaborationForm() {
       </section>
 
       <section className="space-y-6 border-t border-border/40 pt-12 sm:pt-14">
-        <SectionHeader number={2} title="Partnership type" />
-
-        <fieldset className="space-y-3.5">
-          <legend className={labelClass}>Select interest areas (multiple)</legend>
-          <div className="flex flex-wrap gap-2">
-            {BRAND_COLLAB_TYPES.map((type) => {
-              const selected = collabTypes.includes(type.id)
-              return (
-                <button
-                  key={type.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => toggleCollabType(type.id)}
-                  className={cn(
-                    "rounded-md px-3.5 py-2 text-[12px] font-medium leading-snug transition-colors sm:text-[13px]",
-                    selected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/60 text-foreground/75 hover:bg-muted/80 hover:text-foreground",
-                  )}
-                >
-                  {type.label}
-                </button>
-              )
-            })}
-          </div>
-          <p className="pt-2 text-[12px] text-muted-foreground">Select all that apply.</p>
-        </fieldset>
-
-        <div className="grid gap-5 sm:grid-cols-3">
-          <FieldGroup id="budget-range" label="Campaign budget range">
-            <select
-              id="budget-range"
-              value={budgetRange}
-              onChange={(e) => setBudgetRange(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">Select a range</option>
-              {BRAND_COLLAB_BUDGET_RANGES.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FieldGroup>
-
-          <FieldGroup id="timeline" label="Timeline">
-            <select
-              id="timeline"
-              value={timeline}
-              onChange={(e) => setTimeline(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">Select a timeline</option>
-              {BRAND_COLLAB_TIMELINES.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FieldGroup>
-
-          <FieldGroup id="heard-about" label="How did you hear about us?">
-            <select
-              id="heard-about"
-              value={heardAbout}
-              onChange={(e) => setHeardAbout(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">Select one</option>
-              {BRAND_COLLAB_HEARD_ABOUT.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FieldGroup>
-        </div>
-      </section>
-
-      <section className="space-y-6 border-t border-border/40 pt-12 sm:pt-14">
-        <SectionHeader number={3} title="Tell us more" />
+        <SectionHeader number={2} title="Tell us more" />
 
         <div className="space-y-5">
           <FieldGroup id="collaboration-goal" label="Collaboration goal">
