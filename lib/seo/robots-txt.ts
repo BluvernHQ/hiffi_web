@@ -3,7 +3,7 @@ import { getSiteOrigin } from "@/lib/seo/site"
 const DISALLOW_PATHS = [
   "/admin/",
   "/api/",
-  "/upload",
+  "/studio",
   "/login",
   "/signup",
   "/forgot-password",

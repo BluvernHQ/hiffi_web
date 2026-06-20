@@ -231,7 +231,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                   <>
                     {isCreator(userData) ? (
                       <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
-                        <Link href="/creator/apply">
+                        <Link href="/studio">
                           <Upload className="h-5 w-5" />
                           <span className="sr-only">Hiffi Studio</span>
                         </Link>
@@ -273,7 +273,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                     {isCreator(userData) ? (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link href="/creator/apply" data-analytics-name="navbar-user-menu-hiffi-studio-link">
+                          <Link href="/studio" data-analytics-name="navbar-user-menu-hiffi-studio-link">
                             <Video className="mr-2 h-4 w-4" />
                             <span>Hiffi Studio</span>
                           </Link>

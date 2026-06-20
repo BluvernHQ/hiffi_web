@@ -207,7 +207,7 @@ function normalizeUiAction(
   if (path.startsWith("/profile/")) return `${tagLabel} on profile page`
   if (path.startsWith("/search")) return `${tagLabel} on search page`
   if (path.startsWith("/playlists")) return `${tagLabel} in playlists`
-  if (path.startsWith("/upload")) return `${tagLabel} on upload page`
+  if (path.startsWith("/studio") || path.startsWith("/upload")) return `${tagLabel} on creator studio`
   if (path) return `${tagLabel} on ${path}`
   return tagLabel
 }

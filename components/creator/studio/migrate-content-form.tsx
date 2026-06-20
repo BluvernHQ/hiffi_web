@@ -24,6 +24,7 @@ import {
   type MigrationRequest,
 } from "@/lib/types/youtube-migration"
 import { MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
+import { STUDIO_HOME } from "@/lib/studio-routes"
 import { isValidYoutubeUrl } from "@/lib/youtube-migration-validation"
 import { verifyYoutubeChannelOwnership } from "@/lib/youtube-channel-verification"
 import { MigrationRequestsTable } from "@/components/creator/studio/migration-requests-table"
@@ -246,7 +247,7 @@ export function MigrateContentForm() {
       <nav aria-label="Breadcrumb" className="text-[13px] text-muted-foreground">
         <ol className="flex flex-wrap items-center gap-1.5">
           <li>
-            <Link href="/upload" className="transition-colors hover:text-foreground">
+            <Link href={STUDIO_HOME} className="transition-colors hover:text-foreground">
               Creator Studio
             </Link>
           </li>
@@ -456,7 +457,7 @@ export function MigrateContentForm() {
                 className="h-11 rounded-xl text-sm font-semibold"
                 asChild
               >
-                <Link href="/upload">Cancel</Link>
+                <Link href={STUDIO_HOME}>Cancel</Link>
               </Button>
             </div>
 

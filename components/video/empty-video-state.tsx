@@ -43,7 +43,7 @@ export function EmptyVideoState({
       
       {showUploadButton && user && userIsCreator && (
         <Button asChild size="lg" className="mt-2">
-          <Link href="/upload">
+          <Link href="/studio">
             <Upload className="mr-2 h-4 w-4" />
             Upload Your First Video
           </Link>

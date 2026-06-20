@@ -1,19 +1,27 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
 import { Sidebar } from "@/components/layout/sidebar"
-import { MigrateContentForm } from "@/components/creator/studio/migrate-content-form"
 import { useAuth } from "@/lib/auth-context"
 import { useSidebar } from "@/lib/sidebar-context"
-import { useToast } from "@/hooks/use-toast"
-import { isCreator } from "@/lib/auth"
+import { STUDIO_HOME } from "@/lib/studio-routes"
 
-export default function MigrateContentPage() {
-  const { user, userData, loading: authLoading } = useAuth()
+type StudioShellProps = {
+  children: ReactNode
+  maxWidthClass?: string
+  loginRedirect?: string
+}
+
+export function StudioShell({
+  children,
+  maxWidthClass = "max-w-5xl",
+  loginRedirect = STUDIO_HOME,
+}: StudioShellProps) {
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const { toast } = useToast()
   const {
     isSidebarOpen,
     setIsSidebarOpen,
@@ -22,24 +30,6 @@ export default function MigrateContentPage() {
     toggleMobileSidebar,
   } = useSidebar()
 
-  useEffect(() => {
-    if (!authLoading && user && userData) {
-      if (!isCreator(userData)) {
-        toast({
-          title: "Creator Status Required",
-          description: "You need to become a creator to migrate content.",
-        })
-        router.push("/creator/apply")
-      }
-    }
-  }, [user, userData, authLoading, router, toast])
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/login?redirect=/upload/migrate")
-    }
-  }, [authLoading, user, router])
-
   const handleMenuClick = () => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
       toggleDesktopSidebar()
@@ -47,6 +37,24 @@ export default function MigrateContentPage() {
       toggleMobileSidebar()
     }
   }
+
+  const onFilterChange = (filter: "all" | "following" | "liked" | "history") => {
+    router.push(
+      filter === "following"
+        ? "/following"
+        : filter === "liked"
+          ? "/liked"
+          : filter === "history"
+            ? "/history"
+            : "/",
+    )
+  }
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace(`/login?redirect=${encodeURIComponent(loginRedirect)}`)
+    }
+  }, [authLoading, user, router, loginRedirect])
 
   if (authLoading || !user) {
     return (
@@ -66,22 +74,10 @@ export default function MigrateContentPage() {
           isDesktopOpen={isDesktopSidebarOpen}
           onDesktopToggle={() => toggleDesktopSidebar()}
           currentFilter="all"
-          onFilterChange={(filter) => {
-            router.push(
-              filter === "following"
-                ? "/following"
-                : filter === "liked"
-                  ? "/liked"
-                  : filter === "history"
-                    ? "/history"
-                    : "/",
-            )
-          }}
+          onFilterChange={onFilterChange}
         />
         <main className="h-[calc(100dvh-4rem)] min-w-0 w-full flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-6xl">
-            <MigrateContentForm />
-          </div>
+          <div className={`mx-auto ${maxWidthClass}`}>{children}</div>
         </main>
       </div>
     </div>

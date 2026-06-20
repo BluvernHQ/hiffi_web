@@ -45,7 +45,7 @@ export function BecomeCreatorCta() {
 
   useEffect(() => {
     if (!authLoading && !isChecking && isCreator) {
-      router.replace("/upload")
+      router.replace("/studio")
     }
   }, [authLoading, isChecking, isCreator, router])
 

@@ -33,6 +33,20 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_PUBLIC_APP_BUILD_ID: resolveBuildId(),
   },
+  async redirects() {
+    return [
+      {
+        source: "/upload",
+        destination: "/studio",
+        permanent: true,
+      },
+      {
+        source: "/upload/migrate",
+        destination: "/studio/tools/migrate",
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig
