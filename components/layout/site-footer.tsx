@@ -122,28 +122,6 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
               />
             </div>
 
-            <div
-              className={
-                isApp
-                  ? "flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-foreground/65"
-                  : "flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground"
-              }
-            >
-              {CONTENT_PAGE_LINKS.map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={
-                    isApp
-                      ? "underline-offset-4 transition-colors hover:text-primary hover:underline"
-                      : "underline-offset-4 hover:text-foreground hover:underline"
-                  }
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
-
             <Button
               asChild
               variant={isApp ? "outline" : "secondary"}
