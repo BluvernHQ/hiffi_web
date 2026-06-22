@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search, X } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
@@ -102,7 +102,7 @@ export function AdminSearchesTable() {
         if (filters.created_after.trim()) params.created_after = new Date(filters.created_after).toISOString()
         if (filters.created_before.trim()) params.created_before = new Date(filters.created_before).toISOString()
 
-        const response = await apiClient.adminListSearches(params)
+        const response = await adminApiClient.adminListSearches(params)
         const raw = (response.searches || []) as Record<string, unknown>[]
         setRows(
           raw.map((r) => ({

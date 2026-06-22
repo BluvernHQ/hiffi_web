@@ -18,8 +18,8 @@ export const PERMISSIONS = {
   "admin:searches": ["admin"],
   "admin:utm": ["admin"],
   "admin:migrations": ["admin"],
-  "creator:upload": ["creator", "admin"],
-  "creator:studio": ["creator", "admin"],
+  "creator:upload": ["creator"],
+  "creator:studio": ["creator"],
 } as const satisfies Record<string, readonly UserRole[]>
 
 export type Permission = keyof typeof PERMISSIONS

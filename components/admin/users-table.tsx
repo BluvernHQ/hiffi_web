@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Ban, CheckCircle } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
 import { readAdminTableUrlFilters, hasAdminTableDeepLink, stripAdminTableFilterParams } from "@/lib/report/admin-table-url-filters"
@@ -29,6 +30,7 @@ import { SortableHeader, SortDirection } from "./sortable-header"
 const USERS_PAGE_QUERY = "users_page"
 
 export function AdminUsersTable() {
+  const { canWrite } = useAdminPermissions()
   const searchParams = useSearchParams()
   const router = useRouter()
   const page = useMemo(() => {
@@ -192,7 +194,7 @@ export function AdminUsersTable() {
           let hasMore = true
           
           while (hasMore) {
-            const response = await apiClient.adminListUsers({
+            const response = await adminApiClient.adminListUsers({
               ...params,
               offset: currentOffset,
               limit,
@@ -280,7 +282,7 @@ export function AdminUsersTable() {
         if (filters.updated_after) params.updated_after = filters.updated_after
         if (filters.updated_before) params.updated_before = filters.updated_before
 
-        const response = await apiClient.adminListUsers(params)
+        const response = await adminApiClient.adminListUsers(params)
         usersData = response.users || []
         
         // Handle total count - API might return count as page size, not total
@@ -629,7 +631,7 @@ export function AdminUsersTable() {
 
     try {
       setDeletingUsername(userToDelete.username)
-      await apiClient.deleteUserByUsername(userToDelete.username)
+      await adminApiClient.deleteUserByUsername(userToDelete.username)
       
       toast({
         title: "Success",
@@ -656,7 +658,7 @@ export function AdminUsersTable() {
 
     try {
       setTogglingUserId(user.uid || user.username)
-      const response = await apiClient.adminDisableUser(user.username)
+      const response = await adminApiClient.adminDisableUser(user.username)
       
       toast({
         title: "Success",
@@ -681,7 +683,7 @@ export function AdminUsersTable() {
 
     try {
       setTogglingUserId(user.uid || user.username)
-      const response = await apiClient.adminEnableUser(user.username)
+      const response = await adminApiClient.adminEnableUser(user.username)
       
       toast({
         title: "Success",
@@ -1179,7 +1181,7 @@ export function AdminUsersTable() {
                           <Button variant="ghost" size="sm" asChild>
                         <Link href={`/profile/${user.username}`}>View</Link>
                       </Button>
-                          {user.disabled ? (
+                          {canWrite && (user.disabled ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1209,7 +1211,8 @@ export function AdminUsersTable() {
                                 <Ban className="h-4 w-4" />
                               )}
                             </Button>
-                          )}
+                          ))}
+                          {canWrite && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1223,6 +1226,7 @@ export function AdminUsersTable() {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
+                          )}
                         </div>
                     </td>
                   </tr>

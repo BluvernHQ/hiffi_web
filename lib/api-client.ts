@@ -107,6 +107,18 @@ export interface Video {
   user_profile_picture?: string // Creator profile picture from video metadata
 }
 
+/** Public curated playlist row from GET /playlists/curated (no owner) */
+export interface CuratedPlaylistSummary {
+  playlist_id: string
+  title: string
+  description?: string
+  total_videos?: number
+  created_at?: string
+  updated_at?: string
+  /** @deprecated use total_videos — kept for sidebar compat */
+  item_count?: number
+}
+
 /** Owner playlist row from GET /playlists/list/self */
 export interface PlaylistSummary {
   playlist_id: string
@@ -1896,7 +1908,7 @@ class ApiClient {
   // --- Playlists (owner-only, /playlists) ---
   async listCuratedPlaylists(params: { limit?: number; offset?: number } = {}): Promise<{
     success: boolean
-    playlists: PlaylistSummary[]
+    playlists: CuratedPlaylistSummary[]
   }> {
     const limit = params.limit ?? 20
     const offset = params.offset ?? 0
@@ -1923,14 +1935,14 @@ class ApiClient {
       (response as any).data?.data ||
       []
 
-    const playlists: PlaylistSummary[] = Array.isArray(rawPlaylists)
+    const playlists: CuratedPlaylistSummary[] = Array.isArray(rawPlaylists)
       ? rawPlaylists.map((p: any) => ({
           playlist_id: String(p.playlist_id || p.playlistId || ""),
-          owner_uid: p.owner_uid,
           title: String(p.title || p.playlist_title || ""),
           description: p.description,
           created_at: p.created_at,
           updated_at: p.updated_at,
+          total_videos: p.total_videos ?? p.item_count,
           item_count: p.total_videos ?? p.item_count,
         }))
       : []
@@ -1942,7 +1954,7 @@ class ApiClient {
   async getCuratedPlaylist(
     playlistId: string,
     itemsParams: { limit?: number; offset?: number } = {},
-  ): Promise<{ success: boolean; playlist?: PlaylistSummary; items?: PlaylistItem[] }> {
+  ): Promise<{ success: boolean; playlist?: CuratedPlaylistSummary; items?: PlaylistItem[] }> {
     if (!playlistId || playlistId.trim() === "") return { success: false, items: [] }
 
     const limit = itemsParams.limit ?? 100
@@ -1961,10 +1973,10 @@ class ApiClient {
     const rawPlaylist = response.data?.playlist ?? response.playlist
     if (!ok || !rawPlaylist) return { success: false, items: [] }
 
-    const playlist: PlaylistSummary = {
-      ...rawPlaylist,
+    const playlist: CuratedPlaylistSummary = {
       playlist_id: String(rawPlaylist.playlist_id || rawPlaylist.playlistId || playlistId),
       title: String(rawPlaylist.title || rawPlaylist.playlist_title || ""),
+      total_videos: rawPlaylist.total_videos ?? rawPlaylist.item_count,
       item_count: rawPlaylist.total_videos ?? rawPlaylist.item_count,
       description: rawPlaylist.description,
       created_at: rawPlaylist.created_at,

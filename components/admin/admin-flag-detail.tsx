@@ -18,8 +18,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import type { ContentFlag, ContentFlagStatus } from "@/lib/types/content-flag"
 import { applyReporterDisplay, buildFlagDisplayModel } from "@/lib/report/flag-display"
 import { getFlagApiErrorMessage } from "@/lib/report/flag-api-error"
@@ -55,6 +56,7 @@ function ReportTypeIcon({ reportType }: { reportType: string }) {
 }
 
 export function AdminFlagDetail({ flagId }: { flagId: string }) {
+  const { canWrite } = useAdminPermissions()
   const router = useRouter()
   const { toast } = useToast()
   const [flag, setFlag] = useState<ContentFlag | null>(null)
@@ -82,14 +84,14 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
     try {
       setLoading(true)
       const [full, cfg] = await Promise.all([
-        apiClient.adminGetContentFlag(flagId),
-        apiClient.getFlagsConfig().catch(() => null),
+        adminApiClient.adminGetContentFlag(flagId),
+        adminApiClient.getFlagsConfig().catch(() => null),
       ])
       if (cfg?.statuses?.length) setStatuses(cfg.statuses as ContentFlagStatus[])
 
       let model = buildFlagDisplayModel(full)
       try {
-        const usersRes = await apiClient.adminListUsers({ uid: full.reporter_id, limit: 1 })
+        const usersRes = await adminApiClient.adminListUsers({ uid: full.reporter_id, limit: 1 })
         const reporter = usersRes.users?.[0]
         if (reporter) {
           model = applyReporterDisplay(
@@ -150,10 +152,10 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
 
     try {
       setSaving(true)
-      let updated = await apiClient.adminUpdateContentFlag(flag.id, body)
+      let updated = await adminApiClient.adminUpdateContentFlag(flag.id, body)
 
       if (!updated.reference_id || !updated.status) {
-        updated = await apiClient.adminGetContentFlag(flag.id)
+        updated = await adminApiClient.adminGetContentFlag(flag.id)
       }
 
       let model = buildFlagDisplayModel(updated)
@@ -434,7 +436,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as ContentFlagStatus)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs"
-                  disabled={saving}
+                  disabled={saving || !canWrite}
                 >
                   {statuses.map((s) => (
                     <option key={s} value={s}>
@@ -467,7 +469,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                   }}
                   rows={4}
                   placeholder="Internal notes for your team…"
-                  disabled={saving}
+                  disabled={saving || !canWrite}
                   maxLength={MAX_RESOLUTION_NOTES_LENGTH}
                   className="resize-none"
                 />
@@ -486,6 +488,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                   <p className="text-xs text-destructive">{notesValidationError}</p>
                 )}
               </div>
+              {canWrite && (
               <div className="flex flex-col gap-2 pt-1">
                 <Button onClick={handleSave} disabled={saving || !hasChanges} className="w-full">
                   {saving ? (
@@ -502,6 +505,8 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                     No changes yet. Saving now will show a validation message.
                   </p>
                 )}
+              </div>
+              )}
                 <Button
                   variant="outline"
                   className="w-full"
@@ -509,7 +514,6 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                 >
                   Back to queue
                 </Button>
-              </div>
             </CardContent>
           </Card>
         </div>

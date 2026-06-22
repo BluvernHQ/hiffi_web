@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { cn } from "@/lib/utils"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 
 const UTM_PARAM_ERROR = "Only letters, numbers, hyphens, and underscores are allowed"
 const UTM_MEDIUM_TEXT_ERROR = "Enter descriptive text — numbers-only values are not allowed"
@@ -94,6 +95,7 @@ function UtmFieldMeta({
 }
 
 export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
+  const { canWrite } = useAdminPermissions()
   const { toast } = useToast()
   const [url, setUrl] = useState("")
   const [urlError, setUrlError] = useState("")
@@ -190,7 +192,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
     }
     setIsSaving(true)
     try {
-      const res = await apiClient.adminCreateUtmGeneratedUrl({
+      const res = await adminApiClient.adminCreateUtmGeneratedUrl({
         url: generatedUrl,
         utm_source: source,
         label: campaign,
@@ -382,6 +384,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
               </>
             )}
           </Button>
+          {canWrite && (
           <Button
             onClick={handleSave}
             size="lg"
@@ -392,6 +395,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
             {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
             {isDuplicateInSession ? "Already Saved" : "Save Link"}
           </Button>
+          )}
           <Button
             type="button"
             onClick={handleCancel}

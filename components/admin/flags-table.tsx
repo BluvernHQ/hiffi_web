@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
@@ -101,7 +102,7 @@ export function AdminFlagsTable() {
       setLoading(true)
       clearNetworkError()
       const offset = (page - 1) * limit
-      const result = await apiClient.adminListContentFlags({
+      const result = await adminApiClient.adminListContentFlags({
         limit,
         offset,
         status: filterStatus || undefined,

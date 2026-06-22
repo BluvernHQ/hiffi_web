@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
@@ -68,7 +68,7 @@ export function AdminFollowersTable() {
         if (filters.followed_after.trim()) params.followed_after = new Date(filters.followed_after).toISOString()
         if (filters.followed_before.trim()) params.followed_before = new Date(filters.followed_before).toISOString()
 
-        const response = await apiClient.adminListFollowers(params)
+        const response = await adminApiClient.adminListFollowers(params)
         const raw = (response.followers || []) as Record<string, unknown>[]
         setRows(
           raw.map((r) => ({

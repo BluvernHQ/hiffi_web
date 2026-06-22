@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useMemo } from "react"
 import { format } from "date-fns"
 import { Loader2, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, Activity, Globe, MousePointerClick, Hash, Clock } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -138,7 +138,7 @@ export function AdminUtmPollsPanel() {
         if (isRefresh) setListRefreshing(true)
         else setListLoading(true)
         clearNetworkError()
-        const res = await apiClient.adminListUtmPollEvents({
+        const res = await adminApiClient.adminListUtmPollEvents({
           limit: listLimit,
           offset: listOffset,
           utm_source: applied.utm_source || undefined,
@@ -181,7 +181,7 @@ export function AdminUtmPollsPanel() {
     setAnalyzeLoading(true)
     try {
       clearNetworkError()
-      const res = await apiClient.adminAnalyzeUtmPollEvents({
+      const res = await adminApiClient.adminAnalyzeUtmPollEvents({
         limit: groupLimit,
         utm_source: applied.utm_source || undefined,
         utm_medium: applied.utm_medium || undefined,
@@ -225,7 +225,7 @@ export function AdminUtmPollsPanel() {
     setSavedLoading(true)
     try {
       clearNetworkError()
-      const res = await apiClient.adminListUtmGeneratedUrls({
+      const res = await adminApiClient.adminListUtmGeneratedUrls({
         limit: 50,
         offset: savedOffset,
       })

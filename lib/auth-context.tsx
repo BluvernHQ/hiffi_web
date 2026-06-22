@@ -11,7 +11,6 @@ import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents
 import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
 import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
 import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
-import { isAdmin } from "@/lib/auth"
 import { debugLog, debugWarn } from "@/lib/debug"
 import { normalizeUserProfilePictureFields } from "@/lib/utils"
 import {
@@ -35,7 +34,6 @@ interface AuthContextType {
     identifier: string,
     password: string,
     redirectPath?: string | null,
-    options?: { forceAdminDashboardRedirect?: boolean },
   ) => Promise<void>
   signup: (username: string, password: string, name: string, email: string) => Promise<{ success: boolean; registrationId?: string; error?: string }>
   verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
@@ -339,7 +337,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     identifier: string,
     password: string,
     redirectPath?: string | null,
-    options?: { forceAdminDashboardRedirect?: boolean },
   ) => {
     try {
       const trimmedIdentifier = identifier.trim()
@@ -458,19 +455,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetGuestConversionSession()
       clearGuestHistory()
 
-      // Only force admin dashboard redirect for explicit admin-login flows.
-      const shouldForceAdminDashboard =
-        options?.forceAdminDashboardRedirect === true && isAdmin(finalUserData)
-
-      if (shouldForceAdminDashboard) {
-        debugLog("[hiffi] User is admin, redirecting to admin dashboard")
-        router.replace("/admin/dashboard")
-      } else {
-        // Use redirect path if provided (from query param), otherwise go to home
-        const destination = sanitizeInternalPath(redirectPath || "/", "/")
-        debugLog("[hiffi] Redirecting after login to:", destination)
-        router.replace(destination)
-      }
+      // Use redirect path if provided (from query param), otherwise go to home
+      const destination = sanitizeInternalPath(redirectPath || "/", "/")
+      debugLog("[hiffi] Redirecting after login to:", destination)
+      router.replace(destination)
     } catch (error: any) {
       console.error("[hiffi] Sign in failed:", error)
       const errorMessage = error.message || "Failed to sign in. Please check your credentials."

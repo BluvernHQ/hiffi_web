@@ -38,7 +38,6 @@ import {
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { getThumbnailUrl } from "@/lib/storage"
 import { setPlaylistSession } from "@/lib/playlist-session"
-import { notifyCuratedPlaylistsUpdated } from "@/lib/curated-playlists-events"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import {
   DUPLICATE_PLAYLIST_NAME_USER_MESSAGE,
@@ -576,7 +575,6 @@ function PlaylistsPageContent() {
       const res = await apiClient.deletePlaylist(selectedId)
       if (!res.success) throw new Error(res.message || "Delete failed")
       toast({ title: "Playlist deleted" })
-      notifyCuratedPlaylistsUpdated()
       setDeletePlaylistOpen(false)
       setSelectedId(null)
       setDetailPlaylist(null)
@@ -658,7 +656,6 @@ function PlaylistsPageContent() {
       const res = await apiClient.deletePlaylist(selectedId)
       if (!res.success) throw new Error(res.message || "Delete failed")
       toast({ title: "Playlist deleted", description: "You removed the last video, so the playlist was deleted too." })
-      notifyCuratedPlaylistsUpdated()
       setConfirmRemoveOpen(false)
       setPendingRemoveVideoId(null)
       setPendingRemoveDeletesPlaylist(false)
@@ -778,7 +775,7 @@ function PlaylistsPageContent() {
             </span>
             <h1 className="mt-2 text-[1.75rem] font-bold tracking-tight text-foreground sm:text-4xl">My playlists</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Curated collections you can jump into from any watch page.
+              Personal playlists you create and manage. Add videos from any watch page.
             </p>
           </div>
 

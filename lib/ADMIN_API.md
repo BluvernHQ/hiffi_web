@@ -38,21 +38,70 @@ The Admin API provides endpoints for administrative operations including listing
 
 ## Authentication
 
+Admin and consumer apps use **separate JWT principals**. Never mix tokens.
+
+### Admin login
+
+```
+POST /admin/auth/login
+{ "username": "...", "password": "..." }
+→ { "success": true, "data": { "token": "<admin_jwt>", "admin": { "admin_id", "username", "email", "role" } } }
+```
+
+Store `data.token` as `hiffi_admin_token` (frontend: `adminApiClient`). Use for all `/admin/*` requests only.
+
+### Admin roles
+
+| Role | Dashboard read | Writes | Curated playlists | Admin management |
+|------|----------------|--------|-------------------|------------------|
+| `super_admin` | Yes | Yes | Yes | Yes |
+| `read_only` | Yes | No | No | No |
+| `curator` | No | No | Yes | No |
+
+### Additional admin auth endpoints
+
+- `POST /admin/auth/verify-invite` — complete invite after email OTP
+- `POST /admin/auth/reset-password/request` — request OTP
+- `POST /admin/auth/reset-password/verify` — set new password
+- `POST /admin/admins/invite` — super_admin invites new admins
+- `GET /admin/admins` — list admin accounts
+
+### Curated playlists (admin)
+
+Base path: `/admin/curated-playlists` — requires admin JWT; roles `super_admin` or `curator`.
+
+Public read (unchanged): `GET /playlists/curated`, `GET /playlists/curated/{id}` — no auth; no `owner_uid`.
+
+---
+
+## Authentication (legacy section)
+
 All endpoints require authentication via JWT token. The token should be included in the `Authorization` header:
 
 ```
-Authorization: Bearer <jwt_token>
+Authorization: Bearer <admin_jwt>
 ```
 
-The token is validated using the `Auth.GetClaims` function, which extracts and validates the JWT claims from the request.
+The token must be an **admin JWT** (`principal_type: "admin"`). User JWTs are rejected with `401`.
 
 ---
 
 ## Authorization
 
-All admin endpoints require the authenticated user to have the `admin` role. Users with roles `user` or `creator` will receive a `403 Forbidden` response.
+All admin endpoints require an **admin JWT** with the appropriate role. Consumer user JWTs are rejected (`401`). Users with insufficient role receive `403 Forbidden`.
 
-**Required Role:** `admin`
+**Admin roles:** `super_admin`, `read_only`, `curator` (see Authentication above).
+
+---
+
+## Backend migration deploy notes (admin auth split)
+
+When backend migrations `034`–`036` have run:
+
+1. Existing `users.role = admin` accounts are copied to the `admins` table as `super_admin` with the same username/password.
+2. Those user rows are downgraded to `role: "user"` in the consumer app.
+3. Curated playlists migrate to `curated_playlists` with **new `playlist_id` values** — refresh from `GET /playlists/curated`; old bookmarked IDs may 404.
+4. Admins sign in at **`/admin`** (not `/login`) using the same credentials as before.
 
 ---
 

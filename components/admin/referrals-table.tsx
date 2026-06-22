@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
@@ -161,7 +161,7 @@ export function AdminReferralsTable() {
       }
       clearNetworkError()
 
-      const response = await apiClient.adminGetReferals({
+      const response = await adminApiClient.adminGetReferals({
         limit,
         offset,
         ...(selectedCode ? { code: selectedCode } : {}),

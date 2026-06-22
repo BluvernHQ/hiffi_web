@@ -9,12 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
 import { Loader2, Search, ChevronLeft, ChevronRight, Play, Trash2, Filter, CheckCircle2, AlertCircle } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 
 export function AdminVideosTable() {
+  const { canWrite } = useAdminPermissions()
   const searchParams = useSearchParams()
   const router = useRouter()
   const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
@@ -135,7 +137,7 @@ export function AdminVideosTable() {
       if (filters.updated_after) params.updated_after = filters.updated_after
       if (filters.updated_before) params.updated_before = filters.updated_before
 
-      const response = await apiClient.adminListVideos(params)
+      const response = await adminApiClient.adminListVideos(params)
       let videosData = response.videos || []
       
       // Client-side sorting
@@ -352,7 +354,7 @@ export function AdminVideosTable() {
 
         for (const videoId of selectedVideoIds) {
           try {
-            await apiClient.deleteVideoByVideoId(videoId)
+            await adminApiClient.deleteVideoByVideoId(videoId)
             successCount++
           } catch (error) {
             console.error(`[admin] Failed to delete video ${videoId}:`, error)
@@ -389,7 +391,7 @@ export function AdminVideosTable() {
 
       try {
         setDeletingVideoId(videoId)
-        await apiClient.deleteVideoByVideoId(videoId)
+        await adminApiClient.deleteVideoByVideoId(videoId)
         
         toast({
           title: "Success",
@@ -762,7 +764,7 @@ export function AdminVideosTable() {
               />
             </div>
             
-            {selectedVideoIds.length > 0 && (
+            {canWrite && selectedVideoIds.length > 0 && (
               <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                 <span className="text-sm font-medium text-muted-foreground">
                   {selectedVideoIds.length} selected
@@ -957,6 +959,7 @@ export function AdminVideosTable() {
                             <Button variant="ghost" size="sm" asChild className="hover:bg-primary/10">
                               <Link href={`/watch/${videoId}`}>View</Link>
                             </Button>
+                            {canWrite && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -970,6 +973,7 @@ export function AdminVideosTable() {
                                 <Trash2 className="h-4 w-4" />
                               )}
                             </Button>
+                            )}
                           </div>
                         )}
                       </td>

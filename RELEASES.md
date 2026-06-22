@@ -109,6 +109,13 @@ Existing tags: `web-v1.0.0`, `web-v1.0.1`.
 - `NEXT_PUBLIC_APP_BUILD_ID` defaults to the short git SHA (`GITHUB_SHA` / `VERCEL_GIT_COMMIT_SHA` in CI).
 - `DeployStaleGuard` polls `/api/version` and prompts users to refresh when the live build ID differs from their tab.
 
+### Admin auth split (coordinate with backend migrations 034–036)
+
+- Deploy **backend migrations first**, then this frontend release.
+- Existing admins: same username/password at `/admin` (not consumer `/login`).
+- Curated playlist IDs change after migration — sidebar refetches automatically; no hardcoded IDs in the app.
+- Admin JWT (`hiffi_admin_token`) and user JWT (`hiffi_auth_token`) must remain separate in browser storage.
+
 ## Support triage
 
 1. Ask user for environment URL.

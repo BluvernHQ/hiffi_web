@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { cn } from "@/lib/utils"
@@ -72,6 +73,7 @@ interface DetailPanelProps {
 
 function DetailPanel({ request, onBack, onUpdated }: DetailPanelProps) {
   const { toast } = useToast()
+  const { canWrite } = useAdminPermissions()
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<MigrationRequestStatus>(request.status)
   const [adminNotes, setAdminNotes] = useState(request.admin_notes ?? "")
@@ -82,7 +84,7 @@ function DetailPanel({ request, onBack, onUpdated }: DetailPanelProps) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const updated = await apiClient.adminUpdateMigrationRequest(request.id, {
+      const updated = await adminApiClient.adminUpdateMigrationRequest(request.id, {
         status,
         admin_notes: adminNotes || undefined,
       })
@@ -226,6 +228,7 @@ function DetailPanel({ request, onBack, onUpdated }: DetailPanelProps) {
               />
             </div>
 
+            {canWrite && (
             <Button
               onClick={handleSave}
               disabled={saving || !isDirty}
@@ -234,6 +237,7 @@ function DetailPanel({ request, onBack, onUpdated }: DetailPanelProps) {
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Save changes
             </Button>
+            )}
           </div>
         </div>
       </div>
@@ -269,7 +273,7 @@ export function AdminMigrationRequestsTable() {
       setLoading(true)
       clearNetworkError()
       const offset = (page - 1) * limit
-      const result = await apiClient.adminListMigrationRequests({
+      const result = await adminApiClient.adminListMigrationRequests({
         limit,
         offset,
         status: (filterStatus as MigrationRequestStatus) || undefined,

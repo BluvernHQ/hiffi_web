@@ -14,16 +14,19 @@ import {
   Megaphone,
   Flag,
   Shield,
+  ShieldCheck,
   X,
   ChevronLeft,
   ChevronRight,
   UserPlus,
   Search as SearchIcon,
   ArrowDownToLine,
+  ListMusic,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { usePermissions } from "@/hooks/use-permissions"
-import type { Permission } from "@/lib/auth"
+import { Badge } from "@/components/ui/badge"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
+import type { AdminPermission } from "@/lib/auth/admin-permissions"
 
 interface AdminSidebarProps {
   className?: string
@@ -33,111 +36,109 @@ interface AdminSidebarProps {
   onToggleCollapse?: () => void
 }
 
-const navItems: Array<{
+type NavItem = {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
-  permission: Permission
-}> = [
+  permission: AdminPermission
+}
+
+type NavSection = {
+  title: string
+  items: NavItem[]
+}
+
+const navSections: NavSection[] = [
   {
-    icon: BarChart3,
-    label: "Overview",
-    value: "overview",
-    permission: "admin:overview",
+    title: "Overview",
+    items: [
+      { icon: BarChart3, label: "Dashboard", value: "overview", permission: "admin:overview" },
+    ],
   },
   {
-    icon: Users,
-    label: "Users",
-    value: "users",
-    permission: "admin:users",
+    title: "Editorial",
+    items: [
+      { icon: ListMusic, label: "Curated Playlists", value: "curated_playlists", permission: "admin:curated" },
+    ],
   },
   {
-    icon: Video,
-    label: "Videos",
-    value: "videos",
-    permission: "admin:videos",
+    title: "Moderation",
+    items: [
+      { icon: Video, label: "Videos", value: "videos", permission: "admin:videos" },
+      { icon: MessageSquare, label: "Comments", value: "comments", permission: "admin:comments" },
+      { icon: Reply, label: "Replies", value: "replies", permission: "admin:replies" },
+      { icon: Flag, label: "Reports", value: "flags", permission: "admin:flags" },
+    ],
   },
   {
-    icon: MessageSquare,
-    label: "Comments",
-    value: "comments",
-    permission: "admin:comments",
+    title: "Community",
+    items: [
+      { icon: Users, label: "Users", value: "users", permission: "admin:users" },
+      { icon: UserPlus, label: "Followers", value: "followers", permission: "admin:followers" },
+      { icon: UsersRound, label: "Referrals", value: "referrals", permission: "admin:referrals" },
+    ],
   },
   {
-    icon: Reply,
-    label: "Replies",
-    value: "replies",
-    permission: "admin:replies",
+    title: "Insights",
+    items: [
+      { icon: Activity, label: "Activity Logs", value: "activity", permission: "admin:activity" },
+      { icon: SearchIcon, label: "Searches", value: "searches", permission: "admin:searches" },
+      { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: "admin:utm" },
+    ],
   },
   {
-    icon: Flag,
-    label: "Reports",
-    value: "flags",
-    permission: "admin:flags",
+    title: "Operations",
+    items: [
+      { icon: ArrowDownToLine, label: "Migration Requests", value: "migrations", permission: "admin:migrations" },
+    ],
   },
   {
-    icon: Activity,
-    label: "Activity Logs",
-    value: "activity",
-    permission: "admin:activity",
-  },
-  {
-    icon: UsersRound,
-    label: "Referrals",
-    value: "referrals",
-    permission: "admin:referrals",
-  },
-  {
-    icon: UserPlus,
-    label: "Followers",
-    value: "followers",
-    permission: "admin:followers",
-  },
-  {
-    icon: SearchIcon,
-    label: "Searches",
-    value: "searches",
-    permission: "admin:searches",
-  },
-  {
-    icon: Megaphone,
-    label: "UTM campaigns",
-    value: "utm_polls",
-    permission: "admin:utm",
-  },
-  {
-    icon: ArrowDownToLine,
-    label: "Migration Requests",
-    value: "migrations",
-    permission: "admin:migrations",
+    title: "Administration",
+    items: [
+      { icon: ShieldCheck, label: "Admins", value: "admins", permission: "admin:admins" },
+    ],
   },
 ]
 
-export function AdminSidebar({ 
-  className, 
-  isMobileOpen = false, 
+function adminInitials(username: string, email: string): string {
+  const source = username.trim() || email.trim()
+  if (!source) return "A"
+  const parts = source.split(/[\s@._-]+/).filter(Boolean)
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  return source.slice(0, 2).toUpperCase()
+}
+
+export function AdminSidebar({
+  className,
+  isMobileOpen = false,
   onMobileClose,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
 }: AdminSidebarProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { can } = usePermissions()
-  const visibleNavItems = navItems.filter((item) => can(item.permission))
+  const { can, admin, role } = useAdminPermissions()
+
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => can(item.permission)),
+    }))
+    .filter((section) => section.items.length > 0)
+
   const section = searchParams.get("flagId")
     ? "flags"
-    : searchParams.get("section") || "overview"
+    : searchParams.get("playlistId")
+      ? "curated_playlists"
+      : searchParams.get("section") || "overview"
 
   const handleSectionChange = (value: string) => {
     router.push(`/admin/dashboard?section=${value}`)
-    if (onMobileClose) {
-      onMobileClose()
-    }
+    onMobileClose?.()
   }
 
   return (
     <>
-      {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
@@ -146,25 +147,18 @@ export function AdminSidebar({
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
-          // Base styles - responsive width
           "flex-shrink-0 border-r bg-background transition-all duration-300 ease-in-out",
-          // Mobile: fixed overlay (full screen height)
           "fixed left-0 top-0 z-40 h-screen shadow-xl",
-          // Desktop: sticky positioning (below header)
           "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100vh-4rem)] lg:shadow-none",
-          // Width: collapsed vs expanded
           isCollapsed ? "w-16 lg:w-16" : "w-[280px] sm:w-64 lg:w-64",
-          // Hide on mobile when closed, always visible on desktop
           !isMobileOpen && "-translate-x-full lg:translate-x-0",
-          className
+          className,
         )}
         aria-label="Admin navigation sidebar"
       >
         <div className="flex flex-col h-full">
-          {/* Mobile Header */}
           <div className="flex h-16 items-center justify-between border-b px-4 lg:hidden shrink-0">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -172,17 +166,11 @@ export function AdminSidebar({
               </div>
               <h2 className="text-lg font-semibold">Admin</h2>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMobileClose}
-              className="h-8 w-8"
-            >
+            <Button variant="ghost" size="icon" onClick={onMobileClose} className="h-8 w-8">
               <X className="h-5 w-5" />
             </Button>
           </div>
 
-          {/* Desktop Collapse Toggle */}
           {onToggleCollapse && (
             <div className="hidden lg:flex items-center justify-end border-b px-2 py-2 shrink-0">
               <Button
@@ -192,56 +180,94 @@ export function AdminSidebar({
                 className="h-8 w-8"
                 aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
-                {isCollapsed ? (
-                  <ChevronRight className="h-4 w-4" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4" />
-                )}
+                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>
             </div>
           )}
 
-          {/* Navigation - Scrollable */}
-          <nav 
-            className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:pt-4"
-            style={{
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent'
-            }}
+          <nav
+            className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 lg:pt-4"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0, 0, 0, 0.2) transparent" }}
             aria-label="Admin navigation"
           >
-            <div className="space-y-1 min-h-0">
-              {visibleNavItems.map((item) => {
-                const Icon = item.icon
-                const isActive = section === item.value
-                
-                return (
-                  <button
-                    key={item.value}
-                    onClick={() => handleSectionChange(item.value)}
-                    aria-current={isActive ? "page" : undefined}
-                    title={isCollapsed ? item.label : undefined}
-                    className={cn(
-                      "w-full flex items-center rounded-lg text-sm font-medium transition-colors text-left",
-                      "hover:bg-accent hover:text-accent-foreground active:scale-[0.98]",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      "disabled:opacity-50 disabled:pointer-events-none",
-                      // Collapsed: center icon, expanded: left align with gap
-                      isCollapsed 
-                        ? "justify-center px-2 py-3" 
-                        : "gap-4 px-4 py-3",
-                      isActive && "bg-accent text-accent-foreground"
-                    )}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                    {!isCollapsed && (
-                      <span className="truncate">{item.label}</span>
-                    )}
-                  </button>
-                )
-              })}
+            <div className="space-y-5 min-h-0">
+              {visibleSections.map((navSection, sectionIndex) => (
+                <div key={navSection.title}>
+                  {!isCollapsed ? (
+                    <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {navSection.title}
+                    </p>
+                  ) : sectionIndex > 0 ? (
+                    <div className="mb-2 border-t border-border/60" aria-hidden />
+                  ) : null}
+                  <ul className="space-y-0.5">
+                    {navSection.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive = section === item.value
+                      return (
+                        <li key={item.value}>
+                          <button
+                            type="button"
+                            onClick={() => handleSectionChange(item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            title={isCollapsed ? item.label : undefined}
+                            className={cn(
+                              "w-full flex items-center rounded-lg text-sm transition-colors text-left",
+                              "hover:bg-muted/80 active:scale-[0.99]",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                              isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
+                              isActive
+                                ? "bg-primary/10 text-foreground font-medium"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                "h-[18px] w-[18px] flex-shrink-0",
+                                isActive ? "text-primary" : "text-muted-foreground",
+                              )}
+                              aria-hidden="true"
+                            />
+                            {!isCollapsed && <span className="truncate">{item.label}</span>}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
             </div>
           </nav>
+
+          {admin && !isCollapsed ? (
+            <div className="shrink-0 border-t p-3">
+              <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                  {adminInitials(admin.username, admin.email)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium leading-tight">{admin.username}</p>
+                  <p className="truncate text-xs text-muted-foreground">{admin.email}</p>
+                </div>
+              </div>
+              {role ? (
+                <Badge variant="secondary" className="mt-2 w-full justify-center capitalize text-[11px]">
+                  {role.replace("_", " ")}
+                </Badge>
+              ) : null}
+            </div>
+          ) : null}
+
+          {admin && isCollapsed ? (
+            <div className="shrink-0 border-t p-2 flex justify-center">
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
+                title={admin.email}
+              >
+                {adminInitials(admin.username, admin.email)}
+              </div>
+            </div>
+          ) : null}
         </div>
       </aside>
     </>

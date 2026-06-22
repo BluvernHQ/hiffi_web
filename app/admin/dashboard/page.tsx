@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/dialog"
 import { Loader2, Shield, LogOut, Menu } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { useRequireRole } from "@/hooks/use-require-role"
-import { usePermissions } from "@/hooks/use-permissions"
-import { canAccessAdminSection } from "@/lib/auth"
+import { useRequireAdmin } from "@/hooks/use-require-admin"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
+import { canAdminAccessSection, getFirstAllowedSection } from "@/lib/auth"
 import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
@@ -34,13 +34,17 @@ import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-requests-table"
+import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
+import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
+import { AdminsPanel } from "@/components/admin/admins-panel"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 function AdminDashboardContent() {
-  const { userData, logout } = useAuth()
-  const { verified: isAuthVerified, authLoading } = useRequireRole("admin", "/admin")
-  const { can } = usePermissions()
+  const { admin, logout } = useAdminAuth()
+  const { verified: isAuthVerified, authLoading } = useRequireAdmin("/admin")
+  const { can } = useAdminPermissions()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -48,17 +52,22 @@ function AdminDashboardContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  
-  const section = searchParams.get("flagId") ? "flags" : searchParams.get("section") || "overview"
-  const flagId = searchParams.get("flagId")
-  const activeSection = canAccessAdminSection(userData, section) ? section : "overview"
 
-  // Redirect to overview if no section is specified
+  const section = searchParams.get("flagId")
+    ? "flags"
+    : searchParams.get("playlistId")
+      ? "curated_playlists"
+      : searchParams.get("section") || "overview"
+  const flagId = searchParams.get("flagId")
+  const playlistId = searchParams.get("playlistId")
+  const fallbackSection = admin ? getFirstAllowedSection(admin) : "overview"
+  const activeSection = canAdminAccessSection(admin, section) ? section : fallbackSection
+
   useEffect(() => {
-    if (!searchParams.get("section") && !authLoading && isAuthVerified) {
-      router.replace("/admin/dashboard?section=overview")
+    if (!searchParams.get("section") && !searchParams.get("flagId") && !searchParams.get("playlistId") && !authLoading && isAuthVerified && admin) {
+      router.replace(`/admin/dashboard?section=${getFirstAllowedSection(admin)}`)
     }
-  }, [searchParams, router, authLoading, isAuthVerified])
+  }, [searchParams, router, authLoading, isAuthVerified, admin])
 
   // Redirect if user lacks permission for the requested section
   useEffect(() => {
@@ -67,6 +76,8 @@ function AdminDashboardContent() {
       router.replace(`/admin/dashboard?section=${activeSection}`)
     }
   }, [section, activeSection, isAuthVerified, authLoading, router])
+
+  const homeSection = admin ? getFirstAllowedSection(admin) : "overview"
 
   const showContent = isAuthVerified
 
@@ -138,25 +149,25 @@ function AdminDashboardContent() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 md:gap-6 px-3 sm:px-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="lg:hidden h-9 w-9" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden h-9 w-9"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label="Toggle sidebar"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="hidden lg:flex h-9 w-9" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden lg:flex h-9 w-9"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/admin/dashboard?section=overview" className="flex items-center gap-2">
+            <Link href={`/admin/dashboard?section=${homeSection}`} className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                 <Shield className="h-4 w-4 text-primary-foreground" />
               </div>
@@ -165,8 +176,15 @@ function AdminDashboardContent() {
             </div>
 
           <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4 px-3 sm:px-4">
-            <div className="hidden md:block text-sm text-muted-foreground truncate max-w-[200px]">
-                {showContent && userData ? (userData?.name || userData?.username || "Administrator") : (
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground truncate max-w-[280px]">
+                {showContent && admin ? (
+                  <>
+                    <span className="truncate">{admin.username}</span>
+                    <Badge variant="secondary" className="shrink-0 text-xs capitalize">
+                      {admin.role.replace("_", " ")}
+                    </Badge>
+                  </>
+                ) : (
                   <div className="h-4 w-24 bg-muted rounded animate-shimmer" />
                 )}
           </div>
@@ -186,7 +204,6 @@ function AdminDashboardContent() {
 
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar */}
         <AdminSidebar 
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
@@ -377,6 +394,44 @@ function AdminDashboardContent() {
                   </div>
                   <div className="flex-1 min-h-0">
                     {showContent ? <AdminMigrationRequestsTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "curated_playlists" && can("admin:curated") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  {!playlistId && (
+                    <div className="shrink-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Curated Playlists</h1>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Manage editorial playlists shown in the consumer app
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? (
+                      playlistId ? (
+                        <CuratedPlaylistDetail playlistId={playlistId} />
+                      ) : (
+                        <CuratedPlaylistsPanel />
+                      )
+                    ) : (
+                      <TableSkeleton />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "admins" && can("admin:admins") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Accounts</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Invite and manage dashboard administrators
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminsPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

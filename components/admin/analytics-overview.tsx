@@ -13,10 +13,11 @@ import {
 } from "@/components/ui/dialog"
 import { Loader2, Users, Video, MessageSquare, Clock, TrendingUp, Eye, Heart, RefreshCw, RotateCcw } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 
 interface AnalyticsData {
   totalUsers: number
@@ -35,6 +36,7 @@ interface AnalyticsData {
 }
 
 export function AnalyticsOverview() {
+  const { canWrite } = useAdminPermissions()
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [resyncing, setResyncing] = useState(false)
@@ -53,7 +55,7 @@ export function AnalyticsOverview() {
       clearNetworkError()
         
         // Fetch counters from API - get raw values from counters endpoint
-        const countersResponse = await apiClient.adminCounters()
+        const countersResponse = await adminApiClient.adminCounters()
         
         if (!countersResponse.success) {
           throw new Error("Failed to fetch counters")
@@ -125,7 +127,7 @@ export function AnalyticsOverview() {
     if (guardOfflineBeforeFetch()) return
     try {
       setResyncing(true)
-      const result = await apiClient.adminResyncCounters()
+      const result = await adminApiClient.adminResyncCounters()
       if (result.success) {
         toast({
           title: "Counters resynced",
@@ -255,10 +257,12 @@ export function AnalyticsOverview() {
             <RefreshCw className="h-4 w-4 mr-1.5" />
             Refresh
           </Button>
+          {canWrite && (
           <Button variant="outline" size="sm" onClick={() => setResyncDialogOpen(true)} disabled={resyncing}>
             <RotateCcw className="h-4 w-4 mr-1.5" />
             Resync counters
           </Button>
+          )}
         </div>
       </div>
       

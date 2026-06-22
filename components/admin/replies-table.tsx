@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Filter } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/utils"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -69,7 +69,7 @@ export function AdminRepliesTable() {
       await Promise.all(
         commentIds.map(async (commentId) => {
           try {
-            const commentResponse = await apiClient.adminListComments({ 
+            const commentResponse = await adminApiClient.adminListComments({ 
               filter: commentId,
               limit: 1 
             })
@@ -122,7 +122,7 @@ export function AdminRepliesTable() {
       await Promise.all(
         videoIds.map(async (videoId) => {
           try {
-            const videoResponse = await apiClient.adminListVideos({ 
+            const videoResponse = await adminApiClient.adminListVideos({ 
               video_id: videoId, 
               limit: 1 
             })
@@ -160,7 +160,7 @@ export function AdminRepliesTable() {
       const offset = (page - 1) * limit
       const params: any = { limit, offset, filter: filter || undefined }
       
-      const response = await apiClient.adminListReplies(params)
+      const response = await adminApiClient.adminListReplies(params)
       let repliesData = response.replies || []
       
       // Client-side sorting
@@ -245,7 +245,7 @@ export function AdminRepliesTable() {
 
     try {
       setDeletingReplyId(replyId)
-      await apiClient.deleteReplyByReplyId(replyId)
+      await adminApiClient.deleteReplyByReplyId(replyId)
       
       toast({
         title: "Success",

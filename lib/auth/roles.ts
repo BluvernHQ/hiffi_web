@@ -21,6 +21,7 @@ export function getEffectiveRole(user: UserLike): UserRole {
   return "user"
 }
 
+/** @deprecated Admin accounts are separate from consumer users. Use admin dashboard auth instead. */
 export function isAdmin(user: UserLike): boolean {
   return getEffectiveRole(user) === "admin"
 }

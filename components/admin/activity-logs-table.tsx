@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import { Loader2, RefreshCw, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -430,7 +430,7 @@ export function AdminActivityLogsTable() {
       }
       clearNetworkError()
       const apiLimit = Math.min(Math.max(1, limit), 100)
-      const response = await apiClient.adminGetAnalyticsEvents({
+      const response = await adminApiClient.adminGetAnalyticsEvents({
         limit: apiLimit,
         offset,
         filter: activityFilter,
@@ -579,7 +579,7 @@ export function AdminActivityLogsTable() {
       const entries = await Promise.all(
         ids.map(async (videoId) => {
           try {
-            const response = await apiClient.getVideo(videoId)
+            const response = await adminApiClient.getVideo(videoId)
             const video = response.video || {}
             const title = String(video.video_title || video.videoTitle || "").trim()
             const creator = String(video.user_username || video.userUsername || "").trim()

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { routeMetadata } from "@/lib/seo/route-metadata"
+import { AdminAuthProvider } from "@/lib/admin-auth-context"
 
 export const metadata = routeMetadata({
   title: "Admin",
@@ -9,5 +10,5 @@ export const metadata = routeMetadata({
 })
 
 export default function AdminSegmentLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>
+  return <AdminAuthProvider>{children}</AdminAuthProvider>
 }

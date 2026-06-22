@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Filter } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/utils"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -87,7 +87,7 @@ export function AdminCommentsTable() {
       await Promise.all(
         videoIds.map(async (videoId) => {
           try {
-            const videoResponse = await apiClient.adminListVideos({ 
+            const videoResponse = await adminApiClient.adminListVideos({ 
               video_id: videoId, 
               limit: 1 
             })
@@ -127,7 +127,7 @@ export function AdminCommentsTable() {
       const offset = (page - 1) * limit
       const params: any = { limit, offset, filter: resolvedFilter || undefined }
       
-      const response = await apiClient.adminListComments(params)
+      const response = await adminApiClient.adminListComments(params)
       let commentsData = response.comments || []
       
       // Client-side sorting
@@ -230,7 +230,7 @@ export function AdminCommentsTable() {
 
     try {
       setDeletingCommentId(commentId)
-      await apiClient.deleteCommentByCommentId(commentId)
+      await adminApiClient.deleteCommentByCommentId(commentId)
       
       toast({
         title: "Success",
