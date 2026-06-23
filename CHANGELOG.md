@@ -6,36 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-06-23
+
 ### Added
 
+- Hiffi Studio (`/studio`) — creator hub with drag-and-drop upload and YouTube content migration
+- Brand collaboration intake at `/collaborate` wired to backend API (`POST /collaboration/`)
+- Hip-hop SEO hub at `/hip-hop` and seven mood subgenre landing pages
+- Marketing pages: About, What is Hiffi, How it Works, Advertising, Artists, Creator Playbook, Creators for Change, Press, Copyright, Community Guidelines
 - Separate admin authentication (`POST /admin/auth/login`) with isolated `hiffi_admin_token` storage
 - Admin roles: `super_admin`, `curator`, `read_only` with permission-gated dashboard navigation
 - Curated playlists admin UI (`/admin/dashboard?section=curated_playlists`) — create, edit, reorder, delete
 - Admin account management (`/admin/dashboard?section=admins`) — invite + list admins
 - Admin password reset (`/admin/forgot-password`) and invite verification (`/admin/verify-invite`)
-
-### Changed
-
-- **Breaking:** Admin dashboard no longer uses consumer `POST /auth/login` or `user.role === "admin"`
-- Admin API calls use `adminApiClient` with admin JWT only; consumer `apiClient` unchanged
-- Public curated playlists no longer expose `owner_uid` in API mappers
-- User playlists page copy clarified as personal playlists (not curated editorial)
-
-### Removed
-
-- `forceAdminDashboardRedirect` from consumer auth flow
-- Admin role from creator upload/studio permissions (admins are a separate principal)
-
-## [2.1.0] — 2026-06-22
-
-### Added
-
-- Hiffi Studio (`/studio`) — creator hub with drag-and-drop upload and YouTube content migration
-- Brand collaboration intake at `/collaborate` with email notifications
-- Hip-hop SEO hub at `/hip-hop` and seven mood subgenre landing pages
-- Marketing pages: About, What is Hiffi, How it Works, Advertising, Artists, Creator Playbook, Creators for Change, Press, Copyright, Community Guidelines
-- Admin RBAC with permission-gated sidebar and new sections: Followers, Searches, Migration Requests
-- AI/GEO discovery: expanded `llms.txt`, citation bot rules, hip-hop-first site metadata
+- Admin collaboration inquiries table (`GET /admin/collaboration-inquiries`)
+- Admin RBAC with permission-gated sidebar and sections: Followers, Searches, Migration Requests
+- AI/GEO discovery: expanded `llms.txt`, markdown registry, citation bot rules, hip-hop-first site metadata
 
 ### Changed
 
@@ -43,6 +29,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 - Site footer reorganized with Discover, Business, and Creators columns
 - Homepage, search, FAQ, creator apply, and profile metadata aligned to hip-hop positioning
 - Third-party analytics (Clarity, GA, Umami) excluded from admin surfaces
+- **Breaking:** Admin dashboard no longer uses consumer `POST /auth/login` or `user.role === "admin"`
+- Admin API calls use `adminApiClient` with admin JWT only; consumer `apiClient` unchanged
+- Public curated playlists no longer expose `owner_uid` in API mappers
+- User playlists page copy clarified as personal playlists (not curated editorial)
+- YouTube migration form simplified — removed Google OAuth channel verification step
+
+### Removed
+
+- Legacy `/api/collab` route and email-based collaboration intake
+- `forceAdminDashboardRedirect` from consumer auth flow
+- Admin role from creator upload/studio permissions (admins are a separate principal)
 
 ## [2.0.2] — 2026-06-16
 
