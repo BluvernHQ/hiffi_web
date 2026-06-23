@@ -54,6 +54,8 @@ export function middleware(req: NextRequest) {
     normalizedPathname.startsWith("/favicon") ||
     normalizedPathname.startsWith("/robots.txt") ||
     normalizedPathname.startsWith("/llms.txt") ||
+    normalizedPathname.endsWith(".md") ||
+    normalizedPathname.startsWith("/llms-md") ||
     normalizedPathname.startsWith("/sitemap") ||
     normalizedPathname.startsWith("/appbarlogo") // allow logo used on maintenance page
 

@@ -47,6 +47,14 @@ const nextConfig = {
       },
     ]
   },
+  async rewrites() {
+    return [
+      {
+        source: "/:path*.md",
+        destination: "/llms-md/:path*",
+      },
+    ]
+  },
 }
 
 export default nextConfig
