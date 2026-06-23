@@ -7,7 +7,7 @@ import { Video, Youtube } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MigrationRequestsTable } from "@/components/creator/studio/migration-requests-table"
 import type { MigrationRequest } from "@/lib/types/youtube-migration"
-import { MIGRATION_REQUESTS_SECTION_ID, MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
+import { MIGRATION_REQUESTS_SECTION_ID } from "@/lib/youtube-migration-storage"
 import { STUDIO_MIGRATE, STUDIO_UPLOAD } from "@/lib/studio-routes"
 import { setPendingVideoFile } from "@/lib/upload-pending-video"
 import { apiClient } from "@/lib/api-client"
@@ -254,7 +254,7 @@ export function CreatorStudioSelect() {
                 </div>
               </div>
 
-              <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-auto">
                 <Button
                   type="button"
                   size="lg"
@@ -264,14 +264,6 @@ export function CreatorStudioSelect() {
                 >
                   <Link href={STUDIO_MIGRATE}>Start migration</Link>
                 </Button>
-                {migrationRequests.length > 0 ? (
-                  <Link
-                    href={MIGRATION_REQUESTS_STUDIO_URL}
-                    className="text-[13px] font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-                  >
-                    View migration requests
-                  </Link>
-                ) : null}
               </div>
             </div>
           </section>

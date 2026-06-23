@@ -262,23 +262,13 @@ export function MigrateContentForm() {
         </ol>
       </nav>
 
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
-            Migrate Content
-          </h1>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-            Import your existing YouTube content to Hiffi. Our team reviews every request.
-          </p>
-        </div>
-        {migrationRequests.length > 0 ? (
-          <Link
-            href={MIGRATION_REQUESTS_STUDIO_URL}
-            className="shrink-0 text-[13px] font-medium text-primary underline-offset-4 transition-colors hover:underline"
-          >
-            View migration requests
-          </Link>
-        ) : null}
+      <header className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+          Migrate Content
+        </h1>
+        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+          Import your existing YouTube content to Hiffi. Our team reviews every request.
+        </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
