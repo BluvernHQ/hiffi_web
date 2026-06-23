@@ -26,7 +26,6 @@ import {
 import { MIGRATION_REQUESTS_STUDIO_URL } from "@/lib/youtube-migration-storage"
 import { STUDIO_HOME } from "@/lib/studio-routes"
 import { isValidYoutubeUrl } from "@/lib/youtube-migration-validation"
-import { verifyYoutubeChannelOwnership } from "@/lib/youtube-channel-verification"
 import { MigrationRequestsTable } from "@/components/creator/studio/migration-requests-table"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api-client"
@@ -40,7 +39,7 @@ const CONTENT_TYPES: MigrationContentType[] = [
 ]
 
 const NEXT_STEPS = [
-  { title: "Submit request", description: "Verify channel ownership and submit your request." },
+  { title: "Submit request", description: "Share your channel URL and content details." },
   { title: "Team review", description: "We verify your content and rights." },
   { title: "Content goes live", description: "Approved content published on Hiffi." },
   { title: "You are notified", description: "Status updates sent to your account." },
@@ -58,29 +57,6 @@ function statusBadgeClass(status: MigrationRequest["status"]): string {
   return "bg-blue-500/15 text-blue-700 dark:text-blue-400"
 }
 
-function GoogleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-      />
-    </svg>
-  )
-}
-
 export function MigrateContentForm() {
   const router = useRouter()
   const { toast } = useToast()
@@ -88,16 +64,11 @@ export function MigrateContentForm() {
 
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [contentType, setContentType] = useState<MigrationContentType>("music_videos")
-  const [googleVerified, setGoogleVerified] = useState(false)
-  const [verifiedChannelId, setVerifiedChannelId] = useState<string | null>(null)
-  const [verifiedGoogleEmail, setVerifiedGoogleEmail] = useState<string | null>(null)
-  const [isVerifying, setIsVerifying] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [ownershipConfirmed, setOwnershipConfirmed] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
 
-  // API-backed migration requests list
   const [migrationRequests, setMigrationRequests] = useState<MigrationRequest[]>([])
   const [loadingRequests, setLoadingRequests] = useState(true)
 
@@ -116,69 +87,6 @@ export function MigrateContentForm() {
     void fetchRequests()
   }, [fetchRequests])
 
-  const resetVerification = () => {
-    setGoogleVerified(false)
-    setVerifiedChannelId(null)
-    setVerifiedGoogleEmail(null)
-  }
-
-  const handleGoogleVerify = async () => {
-    const trimmedUrl = youtubeUrl.trim()
-    if (!trimmedUrl) {
-      setErrors((prev) => ({
-        ...prev,
-        youtubeUrl: "Enter your YouTube channel or playlist URL before verifying.",
-      }))
-      return
-    }
-    if (!isValidYoutubeUrl(trimmedUrl)) {
-      setErrors((prev) => ({
-        ...prev,
-        youtubeUrl: "Enter a supported YouTube channel or playlist URL.",
-      }))
-      return
-    }
-
-    setIsVerifying(true)
-    setErrors((prev) => {
-      const next = { ...prev }
-      delete next.googleVerified
-      return next
-    })
-
-    try {
-      const result = await verifyYoutubeChannelOwnership(trimmedUrl)
-      if (!result.verified) {
-        if (result.reason === "invalid_url" || result.reason === "channel_not_found") {
-          setErrors((prev) => ({ ...prev, youtubeUrl: result.message }))
-        } else {
-          setErrors((prev) => ({ ...prev, googleVerified: result.message }))
-        }
-        resetVerification()
-        if (result.reason !== "auth_cancelled") {
-          toast({
-            title: "Verification failed",
-            description: result.message,
-            variant: "destructive",
-          })
-        }
-        return
-      }
-
-      setGoogleVerified(true)
-      setVerifiedChannelId(result.channelId)
-      setVerifiedGoogleEmail(result.googleEmail)
-      toast({
-        title: "Channel verified",
-        description: result.googleEmail
-          ? `${result.googleEmail} manages this YouTube channel.`
-          : "Your Google account manages this YouTube channel.",
-      })
-    } finally {
-      setIsVerifying(false)
-    }
-  }
-
   const handleSubmit = () => {
     const nextErrors: Record<string, string> = {}
     const trimmedUrl = youtubeUrl.trim()
@@ -188,7 +96,6 @@ export function MigrateContentForm() {
       nextErrors.youtubeUrl = "Enter a supported YouTube channel or playlist URL."
     }
 
-    if (!googleVerified) nextErrors.googleVerified = "Verify ownership via Google before submitting."
     if (!ownershipConfirmed) nextErrors.ownershipConfirmed = "Confirm ownership to continue."
 
     setErrors(nextErrors)
@@ -208,8 +115,6 @@ export function MigrateContentForm() {
         channel_url: trimmedUrl,
         artist_name: username,
         note: buildMigrationNote(contentType),
-        verified_channel_id: verifiedChannelId ?? undefined,
-        verified_google_email: verifiedGoogleEmail ?? undefined,
       })
 
       toast({
@@ -267,7 +172,8 @@ export function MigrateContentForm() {
           Migrate Content
         </h1>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-          Import your existing YouTube content to Hiffi. Our team reviews every request.
+          Import your existing YouTube content to Hiffi. Our team reviews every request and verifies
+          ownership before migration begins.
         </p>
       </header>
 
@@ -294,11 +200,9 @@ export function MigrateContentForm() {
                   value={youtubeUrl}
                   onChange={(e) => {
                     setYoutubeUrl(e.target.value)
-                    resetVerification()
                     setErrors((prev) => {
                       const next = { ...prev }
                       delete next.youtubeUrl
-                      delete next.googleVerified
                       return next
                     })
                   }}
@@ -306,14 +210,12 @@ export function MigrateContentForm() {
                   autoComplete="off"
                 />
                 <p className="text-[12px] text-muted-foreground">
-                  Accepts channel URLs (@handle, /channel/…) or playlist URLs. Enter your URL first,
-                  then verify with the Google account that manages that channel.
+                  Accepts channel URLs (@handle, /channel/…) or playlist URLs.
                 </p>
                 {errors.youtubeUrl ? (
                   <p className="text-sm text-destructive">{errors.youtubeUrl}</p>
                 ) : null}
               </div>
-
 
               <fieldset className="space-y-3">
                 <legend className="text-sm font-medium leading-none">
@@ -339,71 +241,13 @@ export function MigrateContentForm() {
               </fieldset>
 
               <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium leading-none">
-                    Ownership Verification <span className="text-primary">*</span>
-                  </p>
-                  <p className="mt-1.5 text-[12px] text-muted-foreground">
-                    Sign in with the Google account that manages this YouTube channel.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-border/80 bg-muted/20 p-4 sm:p-5">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/80 bg-background">
-                        <GoogleIcon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground">Verify with Google</p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                          Grants read-only YouTube access to confirm you manage the channel above.
-                        </p>
-                        {verifiedGoogleEmail ? (
-                          <p className="mt-2 text-[12px] text-foreground/80">{verifiedGoogleEmail}</p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 text-[12px] font-medium",
-                          googleVerified ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "size-2 rounded-full",
-                            googleVerified ? "bg-emerald-500" : "bg-muted-foreground/50",
-                          )}
-                          aria-hidden
-                        />
-                        {googleVerified ? "Verified" : "Not verified"}
-                      </span>
-                      {!googleVerified ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 rounded-lg text-[13px]"
-                          onClick={() => void handleGoogleVerify()}
-                          disabled={isVerifying}
-                        >
-                          {isVerifying ? "Verifying…" : "Verify"}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-                {errors.googleVerified ? (
-                  <p className="text-sm text-destructive">{errors.googleVerified}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-3">
                 <p className="text-sm font-medium leading-none">
                   Ownership Confirmation <span className="text-primary">*</span>
+                </p>
+                <p className="text-[12px] text-muted-foreground">
+                  By submitting, you attest that you own or control the rights to the content at the
+                  URL above. Our team may contact you to verify ownership before approving the
+                  request.
                 </p>
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/80 p-4">
                   <Checkbox
@@ -526,9 +370,9 @@ export function MigrateContentForm() {
                   to Hiffi.
                 </p>
                 <p>
-                  Once submitted, this request cannot be cancelled or modified until the
-                  migration process is complete. Our team will review it and reach out if
-                  anything needs clarification.
+                  Once submitted, this request cannot be cancelled or modified until the migration
+                  process is complete. Our team will review it and reach out if anything needs
+                  clarification.
                 </p>
               </div>
             </DialogDescription>
@@ -541,10 +385,7 @@ export function MigrateContentForm() {
             >
               Go back
             </Button>
-            <Button
-              onClick={() => void handleConfirmedSubmit()}
-              disabled={isSubmitting}
-            >
+            <Button onClick={() => void handleConfirmedSubmit()} disabled={isSubmitting}>
               {isSubmitting ? "Submitting…" : "Yes, submit request"}
             </Button>
           </DialogFooter>
