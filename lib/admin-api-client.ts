@@ -68,13 +68,20 @@ import type {
   ContentFlagsListResult,
   UpdateContentFlagInput,
 } from "./types/content-flag"
-import { getVideo as publicGetVideo } from "./api/public"
+import {
+  adminListCollaborationInquiries as collaborationAdminList,
+} from "./api/collaboration"
 import { getFlagsConfig as flagsGetFlagsConfig } from "./api/flags"
+import type {
+  AdminListCollaborationInquiriesParams,
+  CollaborationInquiryListResponse,
+} from "./types/collaboration-inquiry"
 import type {
   AdminListMigrationRequestsParams,
   MigrationRequest,
   UpdateMigrationRequestInput,
 } from "./types/youtube-migration"
+import { getVideo as publicGetVideo } from "./api/public"
 
 const ADMIN_TOKEN_KEY = "hiffi_admin_token"
 const ADMIN_DATA_KEY = "hiffi_admin_data"
@@ -414,6 +421,12 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminUpdateContentFlag(flagId: string, body: UpdateContentFlagInput): Promise<ContentFlag> {
     return flagsAdminUpdateContentFlag(this, flagId, body)
+  }
+
+  async adminListCollaborationInquiries(
+    params?: AdminListCollaborationInquiriesParams,
+  ): Promise<CollaborationInquiryListResponse> {
+    return collaborationAdminList(this, params)
   }
 
   async adminListMigrationRequests(params?: AdminListMigrationRequestsParams) {

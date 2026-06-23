@@ -32,6 +32,67 @@ function extractContentType(note: string | null | undefined): string {
   return "—"
 }
 
+function MigrationRequestCard({ request }: { request: MigrationRequest }) {
+  const contentType = extractContentType(request.note)
+
+  return (
+    <article className="space-y-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Reference</p>
+          {request.reference_id ? (
+            <p className="mt-0.5 break-all font-mono text-[12px] font-medium text-foreground">
+              {request.reference_id}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-[13px] text-muted-foreground">—</p>
+          )}
+        </div>
+        <span
+          className={cn(
+            "shrink-0 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-medium capitalize",
+            statusBadgeClass(request.status),
+          )}
+        >
+          {MIGRATION_STATUS_LABELS[request.status] ?? request.status}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Submitted</p>
+          <p className="mt-0.5 text-[13px] text-foreground">
+            {format(new Date(request.created_at), "dd MMM yyyy")}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Platform</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            {MIGRATION_PLATFORM_LABELS[request.platform] ?? request.platform}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Channel URL</p>
+        <a
+          href={request.channel_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-0.5 block break-all text-[13px] text-blue-600 hover:underline dark:text-blue-400"
+        >
+          {displayChannelUrl(request.channel_url)}
+        </a>
+      </div>
+
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Content type</p>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">{contentType}</p>
+      </div>
+    </article>
+  )
+}
+
 type MigrationRequestsTableProps = {
   requests: MigrationRequest[]
   sectionRef?: React.RefObject<HTMLElement | null>
@@ -50,7 +111,7 @@ export function MigrationRequestsTable({ requests, sectionRef }: MigrationReques
       id={MIGRATION_REQUESTS_SECTION_ID}
       ref={sectionRef}
       aria-labelledby="migration-requests-title"
-      className="scroll-mt-6"
+      className="scroll-mt-6 min-w-0"
     >
       <h2
         id="migration-requests-title"
@@ -59,9 +120,9 @@ export function MigrationRequestsTable({ requests, sectionRef }: MigrationReques
         Migration requests
       </h2>
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm sm:rounded-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] table-fixed text-left text-sm">
+      <div className="mt-4 min-w-0 rounded-xl border border-border/80 bg-card shadow-sm sm:rounded-2xl">
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full min-w-[720px] table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border/80 bg-muted/30">
                 <th className="w-[18%] px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-5">
@@ -141,6 +202,12 @@ export function MigrationRequestsTable({ requests, sectionRef }: MigrationReques
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-border/60">
+          {sorted.map((request) => (
+            <MigrationRequestCard key={request.id} request={request} />
+          ))}
         </div>
       </div>
     </section>

@@ -9,13 +9,54 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { CheckCircle2 } from "lucide-react"
-
-type FieldErrors = Record<string, string>
+import {
+  submitCollaborationInquiry,
+  validateCollaborationInquiryForm,
+  type CollaborationFormFieldErrors,
+} from "@/lib/api/collaboration"
+import { COLLABORATION_FIELD_LIMITS } from "@/lib/types/collaboration-inquiry"
 
 const fieldClass =
   "border-0 bg-muted/55 shadow-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:bg-muted/40"
 
 const labelClass = "text-[13px] font-medium text-foreground/85"
+
+const API_FIELD_TO_FORM: Record<string, string> = {
+  brand_name: "brandName",
+  contact_name: "contactName",
+  contact_email: "contactEmail",
+  brand_description: "brandDescription",
+  collaboration_goal: "collaborationGoal",
+  anything_else: "anythingElse",
+  website: "website",
+}
+
+function mapApiErrors(errors: CollaborationFormFieldErrors): Record<string, string> {
+  const mapped: Record<string, string> = {}
+  for (const [key, message] of Object.entries(errors)) {
+    if (!message) continue
+    if (key === "form") {
+      mapped.form = message
+      continue
+    }
+    mapped[API_FIELD_TO_FORM[key] ?? key] = message
+  }
+  return mapped
+}
+
+function CharCount({ value, max }: { value: string; max: number }) {
+  const count = [...value].length
+  return (
+    <p
+      className={cn(
+        "text-right text-[11px] tabular-nums text-muted-foreground",
+        count > max && "text-destructive",
+      )}
+    >
+      {count}/{max}
+    </p>
+  )
+}
 
 function SectionHeader({ number, title }: { number: number; title: string }) {
   return (
@@ -63,7 +104,7 @@ export function BrandCollaborationForm() {
   const [anythingElse, setAnythingElse] = useState(
     referredArtist ? `Interested in partnering with @${referredArtist.replace(/^@/, "")}.` : "",
   )
-  const [errors, setErrors] = useState<FieldErrors>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
@@ -81,44 +122,38 @@ export function BrandCollaborationForm() {
     })
   }
 
+  const buildAnythingElse = () => {
+    const base = anythingElse.trim()
+    if (!referredArtist) return base || undefined
+    const artistLine = `Interested in partnering with @${referredArtist.replace(/^@/, "")}.`
+    if (base.includes(artistLine)) return base || undefined
+    return base ? `${artistLine}\n\n${base}` : artistLine
+  }
+
   const handleSubmit = async () => {
-    const nextErrors: FieldErrors = {}
-    if (!brandName.trim()) nextErrors.brandName = "Brand name is required."
-    if (!contactName.trim()) nextErrors.contactName = "Contact name is required."
-    if (!contactEmail.trim()) nextErrors.contactEmail = "Contact email is required."
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
-      nextErrors.contactEmail = "Enter a valid email address."
+    const form = {
+      brand_name: brandName,
+      website: website.trim() || undefined,
+      contact_name: contactName,
+      contact_email: contactEmail,
+      brand_description: brandDescription,
+      collaboration_goal: collaborationGoal,
+      anything_else: buildAnythingElse(),
     }
 
+    const validationErrors = validateCollaborationInquiryForm(form)
+    const nextErrors = mapApiErrors(validationErrors)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
     setIsSubmitting(true)
     try {
-      const response = await fetch("/api/collab", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brandName: brandName.trim(),
-          website: website.trim() || undefined,
-          contactName: contactName.trim(),
-          contactEmail: contactEmail.trim(),
-          brandDescription: brandDescription.trim() || undefined,
-          collaborationGoal: collaborationGoal.trim() || undefined,
-          anythingElse: anythingElse.trim() || undefined,
-          referredArtist: referredArtist || undefined,
-        }),
-      })
-
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
-      if (!response.ok) {
-        setErrors({ form: data.error ?? "Something went wrong. Please try again." })
-        return
-      }
-
+      await submitCollaborationInquiry(form)
       setSubmitted(true)
-    } catch {
-      setErrors({ form: "Something went wrong. Please try again." })
+    } catch (error) {
+      setErrors({
+        form: error instanceof Error ? error.message : "Something went wrong. Please try again.",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -132,9 +167,9 @@ export function BrandCollaborationForm() {
         </div>
         <h2 className="mt-5 text-xl font-semibold tracking-tight text-foreground">Request received</h2>
         <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-muted-foreground">
-          Thanks for reaching out. We sent a confirmation to{" "}
-          <span className="font-medium text-foreground">{contactEmail}</span>. The Hiffi partnerships
-          team will reply within 3–5 business days.
+          Thanks for reaching out. The Hiffi partnerships team will reply to{" "}
+          <span className="font-medium text-foreground">{contactEmail.trim()}</span> within 3–5 business
+          days.
         </p>
       </section>
     )
@@ -164,17 +199,22 @@ export function BrandCollaborationForm() {
                   clearError("brandName")
                 }}
                 placeholder="e.g. Acme Studio"
+                maxLength={COLLABORATION_FIELD_LIMITS.brand_name}
                 className={cn("h-11 rounded-lg", fieldClass)}
               />
             </FieldGroup>
 
-            <FieldGroup id="brand-website" label="Website">
+            <FieldGroup id="brand-website" label="Website" error={errors.website}>
               <Input
                 id="brand-website"
                 value={website}
-                onChange={(e) => setWebsite(e.target.value)}
+                onChange={(e) => {
+                  setWebsite(e.target.value)
+                  clearError("website")
+                }}
                 placeholder="https://..."
                 autoComplete="url"
+                maxLength={COLLABORATION_FIELD_LIMITS.website}
                 className={cn("h-11 rounded-lg", fieldClass)}
               />
             </FieldGroup>
@@ -191,6 +231,7 @@ export function BrandCollaborationForm() {
                 }}
                 placeholder="Full name"
                 autoComplete="name"
+                maxLength={COLLABORATION_FIELD_LIMITS.contact_name}
                 className={cn("h-11 rounded-lg", fieldClass)}
               />
             </FieldGroup>
@@ -206,20 +247,30 @@ export function BrandCollaborationForm() {
                 }}
                 placeholder="email@brand.com"
                 autoComplete="email"
+                maxLength={COLLABORATION_FIELD_LIMITS.contact_email}
                 className={cn("h-11 rounded-lg", fieldClass)}
               />
             </FieldGroup>
           </div>
 
-          <FieldGroup id="brand-description" label="Brand description">
+          <FieldGroup
+            id="brand-description"
+            label="About your brand"
+            required
+            error={errors.brandDescription}
+          >
             <Textarea
               id="brand-description"
               value={brandDescription}
-              onChange={(e) => setBrandDescription(e.target.value)}
+              onChange={(e) => {
+                setBrandDescription(e.target.value)
+                clearError("brandDescription")
+              }}
               placeholder="Tell us about your brand's heritage and current focus..."
               rows={5}
               className={cn("min-h-[140px] resize-y rounded-lg", fieldClass)}
             />
+            <CharCount value={brandDescription} max={COLLABORATION_FIELD_LIMITS.brand_description} />
           </FieldGroup>
         </div>
       </section>
@@ -228,26 +279,39 @@ export function BrandCollaborationForm() {
         <SectionHeader number={2} title="Tell us more" />
 
         <div className="space-y-5">
-          <FieldGroup id="collaboration-goal" label="Collaboration goal">
+          <FieldGroup
+            id="collaboration-goal"
+            label="What are you looking for?"
+            required
+            error={errors.collaborationGoal}
+          >
             <Textarea
               id="collaboration-goal"
               value={collaborationGoal}
-              onChange={(e) => setCollaborationGoal(e.target.value)}
+              onChange={(e) => {
+                setCollaborationGoal(e.target.value)
+                clearError("collaborationGoal")
+              }}
               placeholder="What does success look like for this partnership?"
               rows={5}
               className={cn("min-h-[140px] resize-y rounded-lg", fieldClass)}
             />
+            <CharCount value={collaborationGoal} max={COLLABORATION_FIELD_LIMITS.collaboration_goal} />
           </FieldGroup>
 
-          <FieldGroup id="anything-else" label="Anything else?">
+          <FieldGroup id="anything-else" label="Anything else?" error={errors.anythingElse}>
             <Textarea
               id="anything-else"
               value={anythingElse}
-              onChange={(e) => setAnythingElse(e.target.value)}
+              onChange={(e) => {
+                setAnythingElse(e.target.value)
+                clearError("anythingElse")
+              }}
               placeholder="Additional notes, specific artists of interest, or relevant links..."
               rows={5}
               className={cn("min-h-[140px] resize-y rounded-lg", fieldClass)}
             />
+            <CharCount value={anythingElse} max={COLLABORATION_FIELD_LIMITS.anything_else} />
           </FieldGroup>
         </div>
       </section>

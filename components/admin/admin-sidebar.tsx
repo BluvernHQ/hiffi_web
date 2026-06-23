@@ -12,6 +12,7 @@ import {
   Reply,
   UsersRound,
   Megaphone,
+  Handshake,
   Flag,
   Shield,
   ShieldCheck,
@@ -84,6 +85,7 @@ const navSections: NavSection[] = [
       { icon: Activity, label: "Activity Logs", value: "activity", permission: "admin:activity" },
       { icon: SearchIcon, label: "Searches", value: "searches", permission: "admin:searches" },
       { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: "admin:utm" },
+      { icon: Handshake, label: "Collaboration", value: "collaboration", permission: "admin:collaboration" },
     ],
   },
   {

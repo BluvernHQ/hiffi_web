@@ -12,7 +12,13 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { ArrowRight, Bookmark, ChevronRight, Flag, Heart, MessageSquare, SendHorizontal, Share2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ArrowRight, Bookmark, ChevronRight, Flag, Heart, MessageSquare, MoreHorizontal, SendHorizontal, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -1677,7 +1683,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                     </h1>
                   )}
                   {!shouldShowMetadataSkeleton && currentVideo && (
-                    <div className="hidden shrink-0 items-center gap-0.5 md:flex">
+                    <div className="flex shrink-0 items-center gap-0.5">
                       <Button
                         type="button"
                         variant="ghost"
@@ -1705,52 +1711,45 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       >
                         <Share2 className="h-5 w-5" />
                       </Button>
-                      {canReportVideo && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          data-analytics-name="report-video"
-                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                          onClick={() => setReportDialogOpen(true)}
-                          aria-label="Report video"
-                          title="Report"
-                        >
-                          <Flag className="h-5 w-5" />
-                        </Button>
-                      )}
-                      <AddToPlaylistDialogLazy
-                        open={addToPlaylistOpen}
-                        onOpenChange={setAddToPlaylistOpen}
-                        videoId={String(playerVideoId || currentVideoId || "")}
-                        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
-                        artistName={
-                          currentVideo?.userUsername ||
-                          currentVideo?.user_username ||
-                          undefined
-                        }
-                        thumbnailUrl={thumbnailUrl || undefined}
-                      >
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          data-analytics-name="added-to-playlist"
-                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                          onClick={openAddToPlaylist}
-                          aria-label="Add to playlist"
-                          title="Add to playlist"
-                        >
-                          <Bookmark className="h-5 w-5" />
-                        </Button>
-                      </AddToPlaylistDialogLazy>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                            aria-label="More actions"
+                            title="More"
+                          >
+                            <MoreHorizontal className="h-5 w-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            data-analytics-name="added-to-playlist"
+                            onClick={openAddToPlaylist}
+                          >
+                            <Bookmark className="h-4 w-4" />
+                            Save to playlist
+                          </DropdownMenuItem>
+                          {canReportVideo && (
+                            <DropdownMenuItem
+                              data-analytics-name="report-video"
+                              onClick={() => setReportDialogOpen(true)}
+                            >
+                              <Flag className="h-4 w-4" />
+                              Report
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-3">
                   {/* Mobile metadata layout */}
-                  <div className="md:hidden space-y-3">
+                  <div className="md:hidden">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         {currentVideo ? (
@@ -1785,83 +1784,27 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         </div>
                       </div>
 
-                      {!shouldShowMetadataSkeleton && currentVideo && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                      {!shouldShowMetadataSkeleton &&
+                        currentVideo &&
+                        (userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && (
                           <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
-                              isLiked && "text-primary hover:text-primary",
-                            )}
-                            onClick={handleLike}
-                            aria-pressed={isLiked}
-                            aria-label={isLiked ? "Remove from Liked videos" : "Save to Liked videos"}
-                            title={isLiked ? "Remove from Liked" : "Save to Liked"}
+                            variant={isFollowing ? "secondary" : "default"}
+                            size="sm"
+                            data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
+                            className="rounded-full flex-shrink-0 px-4"
+                            onClick={handleFollow}
+                            disabled={isCheckingFollow || isFollowingAction}
                           >
-                            <Heart className={cn("h-5 w-5", isLiked && "fill-primary text-primary")} />
+                            {isCheckingFollow
+                              ? "Checking..."
+                              : isFollowingAction
+                                ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                                : isFollowing
+                                  ? "Following"
+                                  : "Follow"}
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            data-analytics-name="shared-video"
-                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                            onClick={() => setShareDialogOpen(true)}
-                            aria-label="Share video"
-                            title="Share"
-                          >
-                            <Share2 className="h-5 w-5" />
-                          </Button>
-                          {canReportVideo && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              data-analytics-name="report-video"
-                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                              onClick={() => setReportDialogOpen(true)}
-                              aria-label="Report video"
-                              title="Report"
-                            >
-                              <Flag className="h-5 w-5" />
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            data-analytics-name="added-to-playlist"
-                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                            onClick={openAddToPlaylist}
-                            aria-label="Add to playlist"
-                            title="Add to playlist"
-                          >
-                            <Bookmark className="h-5 w-5" />
-                          </Button>
-                          {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) ? (
-                            <Button
-                              variant={isFollowing ? "secondary" : "default"}
-                              size="sm"
-                              data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
-                              className="rounded-full flex-shrink-0 px-4"
-                              onClick={handleFollow}
-                              disabled={isCheckingFollow || isFollowingAction}
-                            >
-                              {isCheckingFollow
-                                ? "Checking..."
-                                : isFollowingAction
-                                  ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
-                                  : isFollowing
-                                    ? "Following"
-                                    : "Follow"}
-                            </Button>
-                          ) : null}
-                        </div>
-                      )}
+                        )}
                     </div>
-
                   </div>
 
                   {/* Desktop/tablet metadata layout */}
@@ -2307,6 +2250,18 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           })()
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
+      />
+      <AddToPlaylistDialogLazy
+        open={addToPlaylistOpen}
+        onOpenChange={setAddToPlaylistOpen}
+        videoId={String(playerVideoId || currentVideoId || "")}
+        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+        artistName={
+          currentVideo?.userUsername ||
+          currentVideo?.user_username ||
+          undefined
+        }
+        thumbnailUrl={thumbnailUrl || undefined}
       />
       {canReportVideo && currentVideo && (
         <ContentReportDialog
