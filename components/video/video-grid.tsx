@@ -70,6 +70,8 @@ interface VideoGridProps {
   skipCardEntrance?: boolean
   /** Open videos in playlist watch mode (queue + next/prev). */
   playlistNavigation?: PlaylistNavigation
+  /** Muted hover preview on desktop (home feed). */
+  enableHoverPreview?: boolean
 }
 
 export function VideoGrid({
@@ -86,6 +88,7 @@ export function VideoGrid({
   metadataFontDmSans = false,
   skipCardEntrance = false,
   playlistNavigation,
+  enableHoverPreview = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -214,6 +217,7 @@ export function VideoGrid({
                   metadataFontDmSans={metadataFontDmSans}
                   openVideoUiName={openVideoUiName}
                   playlistNavigation={playlistNavigation}
+                  hoverPreviewEnabled={enableHoverPreview}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id
                     if (deletedVideoId) {

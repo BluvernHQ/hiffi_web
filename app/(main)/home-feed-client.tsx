@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
+import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
 import { MoodPickerCard } from "@/components/home/mood-picker-card"
 import { ActiveMoodBar } from "@/components/home/active-mood-bar"
 import { MoodFeedAnimated } from "@/components/home/mood-feed-animated"
@@ -555,27 +556,30 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
           />
         ) : null}
 
-        <MoodFeedAnimated
-          feedKey={activeMood ?? "all"}
-          loading={loading || loadingMore}
-          videoCount={videos.length}
-          isMoodFeed={isMoodFeed}
-        >
-          <VideoGrid
-            videos={videos}
+        <FeedVideoPreviewProvider>
+          <MoodFeedAnimated
+            feedKey={activeMood ?? "all"}
             loading={loading || loadingMore}
-            hasMore={hasMore}
-            hideTimestamp
-            metadataFontDmSans={isMoodFeed}
-            skipCardEntrance={isMoodFeed}
-            openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
-            playlistNavigation={moodPlaylistNavigation}
-            onLoadMore={loadMore}
-            suppressEmptyState={Boolean(feedError && videos.length === 0)}
-            emptyTitle={moodEmpty && isMoodFeed ? "No tracks yet" : undefined}
-            onVideoDeleted={handleVideoDeleted}
-          />
-        </MoodFeedAnimated>
+            videoCount={videos.length}
+            isMoodFeed={isMoodFeed}
+          >
+            <VideoGrid
+              videos={videos}
+              loading={loading || loadingMore}
+              hasMore={hasMore}
+              hideTimestamp
+              metadataFontDmSans={isMoodFeed}
+              skipCardEntrance={isMoodFeed}
+              enableHoverPreview
+              openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
+              playlistNavigation={moodPlaylistNavigation}
+              onLoadMore={loadMore}
+              suppressEmptyState={Boolean(feedError && videos.length === 0)}
+              emptyTitle={moodEmpty && isMoodFeed ? "No tracks yet" : undefined}
+              onVideoDeleted={handleVideoDeleted}
+            />
+          </MoodFeedAnimated>
+        </FeedVideoPreviewProvider>
       </div>
     </div>
   )

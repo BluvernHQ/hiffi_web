@@ -210,6 +210,18 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     return (Array.isArray(p) ? p[0] : p as string) || ""
   })
 
+  // Main feed/content is rendered inside #main-content (custom scroll container),
+  // so we must reset that container when entering or switching videos on watch.
+  useLayoutEffect(() => {
+    const mainContent = document.getElementById("main-content")
+    if (mainContent && mainContent.scrollTop > 0) {
+      mainContent.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }
+  }, [pathname, currentVideoId])
+
   // Sync currentVideoId when the URL param changes via real Next.js navigation
   // (deep links, browser address bar, etc.) so those paths still work correctly.
   useEffect(() => {
