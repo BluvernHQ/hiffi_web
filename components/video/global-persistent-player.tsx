@@ -96,6 +96,8 @@ export function GlobalPersistentPlayer() {
           autoPlay={true}
           isMini={mode === 'mini'}
           suggestedVideos={suggestedVideos}
+          availableProfiles={activeVideo.profiles}
+          originalProfile={activeVideo.original_profile || activeVideo.originalProfile}
           onVideoEnd={() => {
             if (typeof window !== 'undefined' && (window as any).hiffiOnVideoEnd) {
               (window as any).hiffiOnVideoEnd()

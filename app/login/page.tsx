@@ -6,7 +6,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { validateRedirect, buildSignupUrl } from "@/lib/auth-utils"
+import { validateRedirect, buildSignupUrl, resolveSkipDestination } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -77,9 +77,7 @@ function LoginForm() {
   }
 
   const handleSkip = () => {
-    // If there's a valid redirect, go there; otherwise go home
-    const destination = redirectPath || "/"
-    router.replace(destination)
+    router.replace(resolveSkipDestination(redirectPath))
   }
 
   return (

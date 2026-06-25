@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import type { AdminPermission } from "@/lib/auth/admin-permissions"
+import { AdminViewSiteLink } from "@/components/admin/admin-view-site-link"
 
 interface AdminSidebarProps {
   className?: string
@@ -192,6 +193,10 @@ export function AdminSidebar({
             style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0, 0, 0, 0.2) transparent" }}
             aria-label="Admin navigation"
           >
+            <div className="mb-4 border-b border-border/60 pb-4">
+              <AdminViewSiteLink isCollapsed={isCollapsed} />
+            </div>
+
             <div className="space-y-5 min-h-0">
               {visibleSections.map((navSection, sectionIndex) => (
                 <div key={navSection.title}>

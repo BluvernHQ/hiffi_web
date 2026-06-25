@@ -36,6 +36,15 @@ function releaseActivePreview(el: HTMLVideoElement) {
   }
 }
 
+/** Pause whichever card is currently playing — called before a new hover claims preview. */
+export function pauseActiveHoverPreview(): void {
+  if (!activePreviewElement) return
+  activePreviewElement.pause()
+  activePreviewStopFn?.()
+  activePreviewElement = null
+  activePreviewStopFn = null
+}
+
 function formatPreviewTime(seconds: number): string {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
   const minutes = Math.floor(safe / 60)
@@ -136,6 +145,8 @@ export function VideoCardHoverPreview({
   // always calls the latest closure without needing to re-register.
   const stopFnRef = useRef<() => void>(() => {})
   const audioEnabledRef = useRef(false)
+  const shouldLoadRef = useRef(shouldLoad)
+  shouldLoadRef.current = shouldLoad
 
   const syncAudioEnabledRef = useCallback((muted: boolean) => {
     audioEnabledRef.current = !muted
@@ -222,18 +233,37 @@ export function VideoCardHoverPreview({
       el.load()
     }
 
+    // Claim before play() so the previous hovered card stops immediately.
+    claimActivePreview(el, () => stopFnRef.current())
+
+    if (!shouldLoadRef.current) {
+      el.pause()
+      el.muted = true
+      releaseActivePreview(el)
+      return
+    }
+
     const playPromise = el.play()
     if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        if (!startMuted) {
-          applyPreviewAudio(el, true)
-          syncAudioEnabledRef(true)
-        }
-        void el.play().catch(() => {
-          setIsPlaying(false)
-          onVisibleChange?.(false)
+      playPromise
+        .then(() => {
+          if (!shouldLoadRef.current) {
+            el.pause()
+            el.muted = true
+            releaseActivePreview(el)
+          }
         })
-      })
+        .catch(() => {
+          if (!shouldLoadRef.current) return
+          if (!startMuted) {
+            applyPreviewAudio(el, true)
+            syncAudioEnabledRef(true)
+          }
+          void el.play().catch(() => {
+            setIsPlaying(false)
+            onVisibleChange?.(false)
+          })
+        })
     }
 
     return () => {
@@ -287,9 +317,12 @@ export function VideoCardHoverPreview({
           setRemainingSeconds(Math.max(0, duration - el.currentTime))
         }}
         onPlaying={() => {
+          if (!shouldLoadRef.current) {
+            videoRef.current?.pause()
+            return
+          }
           const el = videoRef.current
           if (el) {
-            // Pass a stable-ref stop callback — evicts the old card's React state too.
             claimActivePreview(el, () => stopFnRef.current())
           }
           setIsPlaying(true)

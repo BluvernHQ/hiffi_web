@@ -192,7 +192,7 @@ const faqItems: FaqItem[] = [
   {
     question: "How do I become a creator on Hiffi?",
     answer:
-      "Use the Become a Creator flow to apply from your account. Once approved in-app, creator tools such as upload are available.",
+      "Use the Become a Creator flow from your account. Hip-hop and rap artists unlock creator tools instantly — upload from Studio or the app right away.",
     category: "Creators",
   },
   {

@@ -1,14 +1,22 @@
 /**
- * Module-level singleton video warmer — starts HTTP fetch synchronously on hover,
- * before React state propagates. Populates the HTTP cache for the visible player.
+ * Module-level video warmer + parallel byte-range prefetch.
+ * Hover uses a hidden <video> for instant decode; viewport/initial prefetch uses
+ * fetch(Range) so many cards can warm HTTP cache at once without evicting each other.
  */
 
-const MAX_VIEWPORT_PREFETCHES = 3
+/** ~3–5s of 360p preview — enough to start hover playback from cache. */
+const HEAD_PREFETCH_BYTES = 512 * 1024
+
+const MAX_VIEWPORT_PREFETCHES = 8
 
 let warmerEl: HTMLVideoElement | null = null
 
 /** Tail moov already requested for this stream URL. */
 const moovTailFetched = new Set<string>()
+
+/** Head range already requested (or in flight) for this stream URL. */
+const headPrefetchDone = new Set<string>()
+const headPrefetchInFlight = new Set<string>()
 
 /** Viewport prefetch slots (by video id). */
 const activePrefetches = new Set<string>()
@@ -57,6 +65,45 @@ export function fetchMoovTail(url: string): void {
   })
 }
 
+/**
+ * Low-priority head fetch — parallel across URLs, fills HTTP cache for hover <video>.
+ * Safe to call many times; deduped per URL.
+ */
+export function prefetchVideoHead(url: string): void {
+  if (typeof window === "undefined" || !url) return
+  if (headPrefetchDone.has(url) || headPrefetchInFlight.has(url)) return
+
+  headPrefetchInFlight.add(url)
+
+  void fetch(url, {
+    headers: { Range: `bytes=0-${HEAD_PREFETCH_BYTES - 1}` },
+    priority: "low",
+    credentials: "same-origin",
+  })
+    .then((res) => {
+      if (res.ok || res.status === 206) headPrefetchDone.add(url)
+    })
+    .catch(() => {
+      // Allow retry on next viewport pass or hover.
+    })
+    .finally(() => {
+      headPrefetchInFlight.delete(url)
+    })
+}
+
+/** Head + moov tail — used for viewport and initial batch prefetch. */
+export function prefetchVideoForViewport(url: string): void {
+  prefetchVideoHead(url)
+  fetchMoovTail(url)
+}
+
+/** Eager prefetch on feed load / pagination — no viewport slot cap. */
+export function prefetchInitialVideos(urls: string[]): void {
+  for (const url of urls) {
+    if (url) prefetchVideoForViewport(url)
+  }
+}
+
 /** Warmer + moov tail — the only prefetch path (no separate range fetch on the head). */
 export function warmVideoWithMoov(url: string): void {
   warmVideo(url)
@@ -69,13 +116,13 @@ export function warmWatchHandoff(url: string | null | undefined): void {
   warmVideoWithMoov(url)
 }
 
-/** Viewport prefetch — capped at 3 concurrent videos. */
+/** Viewport prefetch — capped concurrent cards; uses parallel fetch, not the singleton warmer. */
 export function prefetchViewportVideo(videoId: string, url: string): boolean {
   if (!videoId || !url) return false
   if (activePrefetches.has(videoId)) return false
   if (activePrefetches.size >= MAX_VIEWPORT_PREFETCHES) return false
   activePrefetches.add(videoId)
-  warmVideoWithMoov(url)
+  prefetchVideoForViewport(url)
   return true
 }
 
@@ -89,5 +136,7 @@ export function destroyPreviewWarmer(): void {
   }
   warmerEl = null
   moovTailFetched.clear()
+  headPrefetchDone.clear()
+  headPrefetchInFlight.clear()
   activePrefetches.clear()
 }

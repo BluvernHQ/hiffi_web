@@ -1,4 +1,10 @@
 import { getVideoUrl } from "@/lib/storage"
+import {
+  profileHeight,
+  profileToPlaybackUrl,
+  resolvePrimaryPlaybackUrl,
+  resolveVideoBaseUrl,
+} from "@/lib/video-profiles"
 
 const previewSourcesCache = new Map<string, string[]>()
 
@@ -11,34 +17,24 @@ export type PreviewVideo = {
   videoUrl?: string
   video_url?: string
   profiles?: string[] | null
+  original_profile?: string | null
+  originalProfile?: string | null
 }
 
 export function previewVideoKey(video: PreviewVideo): string {
   const directPath = (video.videoUrl || video.video_url || "").trim()
-  return directPath || (video.videoId || video.video_id || "").trim()
+  const originalProfile = video.original_profile ?? video.originalProfile
+  return `${directPath || (video.videoId || video.video_id || "").trim()}|${originalProfile ?? ""}`
 }
 
 export function buildPreviewStreamUrl(workersUrl: string): string {
   return `/proxy/video/stream?url=${encodeURIComponent(workersUrl)}`
 }
 
-function profileHeight(profile: string): number {
-  const normalized = profile.trim().toLowerCase()
-  if (normalized === "original") return Number.MAX_SAFE_INTEGER
-  const match = /^(\d+)p$/.exec(normalized)
-  return match ? Number(match[1]) : 10_000
-}
-
 function sortProfilesLowestFirst(profiles: string[]): string[] {
   return [...new Set(profiles.map((p) => p.trim()).filter(Boolean))].sort(
     (a, b) => profileHeight(a) - profileHeight(b),
   )
-}
-
-function profileToWorkersUrl(baseUrl: string, profile: string): string {
-  const cleanBase = baseUrl.replace(/\/$/, "")
-  const normalized = profile.trim().toLowerCase()
-  return normalized === "original" ? `${cleanBase}/original.mp4` : `${cleanBase}/${normalized}.mp4`
 }
 
 function collectProfiles(video: PreviewVideo): string[] {
@@ -48,30 +44,17 @@ function collectProfiles(video: PreviewVideo): string[] {
   return sorted.slice(0, 2)
 }
 
-/** Sync base-url resolution — no network, no API round-trip. */
-function resolveBaseUrlSync(targetPath: string): string | null {
+function resolvePreviewBaseUrl(video: PreviewVideo): string | null {
+  const directPath = (video.videoUrl || video.video_url || "").trim()
+  const targetPath = directPath || (video.videoId || video.video_id || "").trim()
   if (!targetPath) return null
-
-  const isDirectMediaFile = /\.(mp4|webm|mov|m4v)$/i.test(targetPath)
-  if (isDirectMediaFile) {
-    const directUrl = getVideoUrl(targetPath)
-    return directUrl ? directUrl.replace(/\/[^/]+$/, "") : null
-  }
-
-  const cleanPath = targetPath
-    .replace(/\/original\.mp4$/, "")
-    .replace(/\/source\.mp4$/, "")
-    .replace(/\/original\/source\.mp4$/, "")
-    .replace(/\/hls\/master\.m3u8$/, "")
-    .replace(/\/hls\/$/, "")
-
-  const baseUrl = getVideoUrl(cleanPath).replace(/\/$/, "")
+  const baseUrl = resolveVideoBaseUrl(targetPath)
   return baseUrl || null
 }
 
 function buildCandidateStreamUrls(baseUrl: string, profiles: string[]): string[] {
   return sortProfilesLowestFirst(profiles).map((profile) =>
-    buildPreviewStreamUrl(profileToWorkersUrl(baseUrl, profile)),
+    buildPreviewStreamUrl(profileToPlaybackUrl(baseUrl, profile)),
   )
 }
 
@@ -86,9 +69,7 @@ export function getFeedPreviewSources(video: PreviewVideo): string[] {
   const cached = previewSourcesCache.get(key)
   if (cached) return cached
 
-  const directPath = (video.videoUrl || video.video_url || "").trim()
-  const targetPath = directPath || key
-  const baseUrl = resolveBaseUrlSync(targetPath)
+  const baseUrl = resolvePreviewBaseUrl(video)
   if (!baseUrl) return []
 
   const streamUrls = buildCandidateStreamUrls(baseUrl, collectProfiles(video))
@@ -101,23 +82,16 @@ export function getPrimaryPreviewStreamUrl(video: PreviewVideo): string | null {
   return sources[0] ?? null
 }
 
-/** Direct URL the watch player resolves to (typically original.mp4 on workers). */
+/** Direct URL the watch player resolves to for the primary encoded profile. */
 export function getWatchStreamDirectUrl(video: PreviewVideo): string | null {
-  const directPath = (video.videoUrl || video.video_url || "").trim()
-  const targetPath = directPath || previewVideoKey(video)
-  if (!targetPath) return null
+  const baseUrl = resolvePreviewBaseUrl(video)
+  if (!baseUrl) return null
 
-  const isDirectMediaFile = /\.(mp4|webm|mov|m4v)$/i.test(targetPath)
-  if (isDirectMediaFile) {
-    const directUrl = getVideoUrl(targetPath)
-    return directUrl || null
-  }
-
-  const baseUrl = resolveBaseUrlSync(targetPath)
-  return baseUrl ? `${baseUrl}/original.mp4` : null
+  const originalProfile = video.original_profile ?? video.originalProfile
+  return resolvePrimaryPlaybackUrl(baseUrl, originalProfile)
 }
 
-/** Proxied URL the full watch player loads (typically original.mp4). */
+/** Proxied URL the full watch player loads. */
 export function getWatchStreamProxyUrl(video: PreviewVideo): string | null {
   const workersUrl = getWatchStreamDirectUrl(video)
   if (!workersUrl) return null

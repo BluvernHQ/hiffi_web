@@ -64,6 +64,7 @@ import { debugLog, debugWarn } from "@/lib/debug"
 import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
+import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import type { SeoVideo } from "@/lib/seo/fetch-public"
 
 // Mock video data
@@ -192,6 +193,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const { user, userData } = useAuth()
   const { activeVideo } = useGlobalVideo()
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (!user) return
+    prefetchMyPlaylists()
+  }, [user])
 
   const routeVideoId = useMemo(() => {
     const p = params.videoId
@@ -992,10 +998,14 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           }
 
           // Build complete video object with streaming URL and all metadata
+          const gatewayUrl = String(videoResponse.video_url || "").trim()
+          const storagePath = String(videoData.video_url || "").trim()
+          const streamingBase = gatewayUrl || storagePath
+
           const completeVideo = {
             ...videoData,
-            video_url: videoResponse.video_url, // Streaming URL from API
-            streaming_url: videoResponse.video_url, // Alias for compatibility
+            video_url: streamingBase,
+            streaming_url: streamingBase,
             userUsername: videoData.user_username, // Alias for compatibility
             user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
@@ -1711,18 +1721,34 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       >
                         <Heart className={cn("h-5 w-5", isLiked && "fill-primary text-primary")} />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        data-analytics-name="shared-video"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                        onClick={() => setShareDialogOpen(true)}
-                        aria-label="Share video"
-                        title="Share"
+                      <AddToPlaylistDialogLazy
+                        open={addToPlaylistOpen}
+                        onOpenChange={setAddToPlaylistOpen}
+                        videoId={String(playerVideoId || currentVideoId || "")}
+                        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+                        artistName={
+                          currentVideo?.userUsername ||
+                          currentVideo?.user_username ||
+                          undefined
+                        }
+                        thumbnailUrl={thumbnailUrl || undefined}
+                        popoverSide="bottom"
+                        popoverAlign="end"
                       >
-                        <Share2 className="h-5 w-5" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          data-analytics-name="added-to-playlist"
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={openAddToPlaylist}
+                          onPointerEnter={prefetchMyPlaylists}
+                          aria-label="Save to playlist"
+                          title="Save to playlist"
+                        >
+                          <Bookmark className="h-5 w-5" />
+                        </Button>
+                      </AddToPlaylistDialogLazy>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -1738,11 +1764,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
-                            data-analytics-name="added-to-playlist"
-                            onClick={openAddToPlaylist}
+                            data-analytics-name="shared-video"
+                            onClick={() => setShareDialogOpen(true)}
                           >
-                            <Bookmark className="h-4 w-4" />
-                            Save to playlist
+                            <Share2 className="h-4 w-4" />
+                            Share
                           </DropdownMenuItem>
                           {canReportVideo && (
                             <DropdownMenuItem
@@ -2262,18 +2288,6 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           })()
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
-      />
-      <AddToPlaylistDialogLazy
-        open={addToPlaylistOpen}
-        onOpenChange={setAddToPlaylistOpen}
-        videoId={String(playerVideoId || currentVideoId || "")}
-        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
-        artistName={
-          currentVideo?.userUsername ||
-          currentVideo?.user_username ||
-          undefined
-        }
-        thumbnailUrl={thumbnailUrl || undefined}
       />
       {canReportVideo && currentVideo && (
         <ContentReportDialog

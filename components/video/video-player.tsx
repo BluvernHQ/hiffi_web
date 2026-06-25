@@ -20,6 +20,12 @@ import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, getWorkersBaseUrl } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
+import {
+  buildFallbackUrls,
+  buildProfileMenu,
+  getPrimaryProfileKey,
+  profileToPlaybackUrl,
+} from "@/lib/video-profiles"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import { recordGuestVideoPlay } from "@/lib/guest-conversion/session"
 import { NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
@@ -72,6 +78,7 @@ const STORAGE_KEYS = {
   WATCH_DEVICE_ID: "hiffi_watch_device_id",
 } as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
+const EMPTY_PROFILES: string[] = []
 
 type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
 
@@ -105,7 +112,7 @@ export function VideoPlayer({
   suggestedVideos, 
   onVideoEnd,
   onMediaReady,
-  availableProfiles = ["original"],
+  availableProfiles,
   originalProfile,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
@@ -114,6 +121,8 @@ export function VideoPlayer({
   previousVideoDisabled = false,
   initialSeekSeconds,
 }: VideoPlayerProps) {
+  const resolvedProfiles = availableProfiles ?? EMPTY_PROFILES
+  const availableProfilesKey = JSON.stringify(resolvedProfiles)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
@@ -139,7 +148,8 @@ export function VideoPlayer({
   const videoSourceTypeRef = useRef<VideoSourceType | null>(null)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [profiles, setProfiles] = useState<Record<string, { label: string; path: string }>>({})
-  const [currentProfile, setCurrentProfile] = useState<string>("original")
+  const primaryProfileKey = getPrimaryProfileKey(originalProfile)
+  const [currentProfile, setCurrentProfile] = useState<string>(primaryProfileKey)
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const [urlError, setUrlError] = useState<string>("")
   const [playbackNetworkBanner, setPlaybackNetworkBanner] = useState("")
@@ -265,18 +275,13 @@ export function VideoPlayer({
   const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
   const pendingForcedReportRef = useRef(false)
-  const availableProfilesRef = useRef(availableProfiles)
+  const availableProfilesRef = useRef(resolvedProfiles)
   const originalProfileRef = useRef(originalProfile)
   /** Tracks attempted MP4 URLs per video to avoid fallback loops / stale errors on skip. */
   const mp4FallbackAttemptsRef = useRef<Set<string>>(new Set())
 
-  useEffect(() => {
-    availableProfilesRef.current = availableProfiles
-  }, [availableProfiles])
-
-  useEffect(() => {
-    originalProfileRef.current = originalProfile
-  }, [originalProfile])
+  availableProfilesRef.current = resolvedProfiles
+  originalProfileRef.current = originalProfile
 
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
@@ -647,6 +652,7 @@ export function VideoPlayer({
       baseUrlRef.current = ""
       lastProcessedUrlRef.current = ""
       signedVideoUrlRef.current = ""
+      setCurrentProfile(getPrimaryProfileKey(originalProfileRef.current))
       setIsPlaying(false)
       setIsBuffering(true)
       setIsLoadingUrl(true)
@@ -724,7 +730,7 @@ export function VideoPlayer({
           }
         }
 
-        const source = await resolveVideoSource(targetPath)
+        const source = await resolveVideoSource(targetPath, { originalProfile })
         if (requestId !== resolveRequestIdRef.current) return
         console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
         
@@ -735,6 +741,7 @@ export function VideoPlayer({
         signedVideoUrlRef.current = source.url
         signedUrlVideoIdRef.current = videoId || ""
         baseUrlRef.current = source.baseUrl || ""
+        setCurrentProfile(source.profileKey || getPrimaryProfileKey(originalProfile))
         setUrlError("")
         setHasResolvedOnce(true)
       } catch (error) {
@@ -748,39 +755,30 @@ export function VideoPlayer({
     }
 
     fetchUrl()
-  }, [videoUrl, videoId, skipVideoLookup])
+  }, [videoUrl, videoId, skipVideoLookup, originalProfile])
 
   // Build profiles map from availableProfiles prop when signedVideoUrl is available
   useEffect(() => {
     if (!signedVideoUrl) {
-      setProfiles({})
+      setProfiles((prev) => (Object.keys(prev).length === 0 ? prev : {}))
       return
     }
 
-    const profilesMap: Record<string, { label: string; path: string }> = {}
-    
-    // Default to at least "original" if no profiles provided
-    const profilesList = (availableProfiles && availableProfiles.length > 0) 
-      ? availableProfiles 
-      : ["original"]
+    const profilesMap = buildProfileMenu(originalProfile, resolvedProfiles)
 
-    profilesList.forEach(p => {
-      if (p === 'original') {
-        profilesMap[p] = { label: 'Original', path: 'original.mp4' }
-      } else {
-        profilesMap[p] = { label: p, path: `${p}.mp4` }
-      }
-    })
-    
     // Only update if the map has actually changed to prevent render loops
-    setProfiles(prev => {
-      const isSame = Object.keys(prev).length === Object.keys(profilesMap).length &&
-        Object.keys(profilesMap).every(key => 
-          prev[key] && prev[key].label === profilesMap[key].label && prev[key].path === profilesMap[key].path
+    setProfiles((prev) => {
+      const isSame =
+        Object.keys(prev).length === Object.keys(profilesMap).length &&
+        Object.keys(profilesMap).every(
+          (key) =>
+            prev[key] &&
+            prev[key].label === profilesMap[key].label &&
+            prev[key].path === profilesMap[key].path,
         )
       return isSame ? prev : profilesMap
     })
-  }, [signedVideoUrl, JSON.stringify(availableProfiles)])
+  }, [signedVideoUrl, availableProfilesKey, originalProfile])
 
   const switchQuality = (profile: string) => {
     const player = playerRef.current
@@ -794,9 +792,7 @@ export function VideoPlayer({
     const wasPaused = player.paused()
 
     // Progressive MP4 switching
-    const newSrc = profile === 'original' 
-      ? `${baseUrlRef.current}/original.mp4` 
-      : `${baseUrlRef.current}/${profile}.mp4`
+    const newSrc = profileToPlaybackUrl(baseUrlRef.current, profile)
       
       player.src({
       src: newSrc, 
@@ -994,8 +990,9 @@ export function VideoPlayer({
         durationRef.current = newDuration
       }
 
-      // Identify "original" profile resolution for MP4
-      if (currentProfile === 'original') {
+      // Enrich source label with detected height for pre-embed originals.
+      const primaryKey = getPrimaryProfileKey(originalProfileRef.current)
+      if (currentProfile === primaryKey && primaryKey === "original") {
         const height = player.videoHeight()
         if (height > 0) {
           const label = getResolutionProfile(height)
@@ -1167,9 +1164,6 @@ export function VideoPlayer({
       }
     }
 
-    const profileToMp4Url = (baseUrl: string, profile: string) =>
-      profile === "original" ? `${baseUrl}/original.mp4` : `${baseUrl}/${profile}.mp4`
-
     const handleError = () => {
       const error = player.error()
       if (!error) return
@@ -1208,16 +1202,15 @@ export function VideoPlayer({
         }
         mp4FallbackAttemptsRef.current.add(attemptKey)
 
-        const candidates: string[] = []
-        const origProfile = originalProfileRef.current
-        if (origProfile) candidates.push(profileToMp4Url(baseUrl, origProfile))
-        for (const profile of availableProfilesRef.current || []) {
-          candidates.push(profileToMp4Url(baseUrl, profile))
-        }
-        candidates.push(`${baseUrl}/original.mp4`)
+        const candidates = buildFallbackUrls(
+          baseUrl,
+          originalProfileRef.current,
+          availableProfilesRef.current,
+          currentSrc,
+        )
 
         const nextUrl = candidates.find((url) => {
-          if (!url || url === currentSrc) return false
+          if (!url) return false
           return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${url}`)
         })
 
@@ -1229,6 +1222,11 @@ export function VideoPlayer({
 
         mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
         console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, nextUrl)
+
+        const fallbackMatch = nextUrl.match(/\/(original|\d+p)\.mp4$/i)
+        if (fallbackMatch?.[1]) {
+          setCurrentProfile(fallbackMatch[1].toLowerCase())
+        }
 
         setVideoSourceType("mp4")
         videoSourceTypeRef.current = "mp4"

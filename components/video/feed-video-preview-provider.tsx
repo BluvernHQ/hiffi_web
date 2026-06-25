@@ -16,6 +16,7 @@ import {
   warmVideoWithMoov,
   prefetchViewportVideo,
   releaseViewportPrefetch,
+  prefetchInitialVideos,
 } from "@/lib/feed-preview/preview-warmer"
 
 /** Activate immediately on hover — YouTube does not debounce intent. */
@@ -45,6 +46,8 @@ type FeedVideoPreviewContextValue = {
   /** Warm bytes when card enters viewport (low priority, capped). */
   prefetchViewportPreview: (video: PreviewVideo) => void
   releaseViewportPreview: (video: PreviewVideo) => void
+  /** Eager head prefetch for first visible rows on load / pagination. */
+  prefetchBatch: (videos: PreviewVideo[], limit?: number) => void
 }
 
 const FeedVideoPreviewContext = createContext<FeedVideoPreviewContextValue | null>(null)
@@ -169,6 +172,19 @@ export function FeedVideoPreviewProvider({
     if (videoId) releaseViewportPrefetch(videoId)
   }, [])
 
+  const prefetchBatch = useCallback(
+    (videos: PreviewVideo[], limit = 8) => {
+      if (!previewsAllowed) return
+      const urls: string[] = []
+      for (const video of videos.slice(0, limit)) {
+        const sources = getFeedPreviewSources(video)
+        if (sources[0]) urls.push(sources[0])
+      }
+      if (urls.length > 0) prefetchInitialVideos(urls)
+    },
+    [previewsAllowed],
+  )
+
   const value = useMemo(
     () => ({
       activeVideoId,
@@ -181,8 +197,9 @@ export function FeedVideoPreviewProvider({
       prefetchPreview,
       prefetchViewportPreview,
       releaseViewportPreview,
+      prefetchBatch,
     }),
-    [activeVideoId, previewsAllowed, audioForcedMute, requestPreview, releasePreview, stopAllPreviews, isPreviewActive, prefetchPreview, prefetchViewportPreview, releaseViewportPreview],
+    [activeVideoId, previewsAllowed, audioForcedMute, requestPreview, releasePreview, stopAllPreviews, isPreviewActive, prefetchPreview, prefetchViewportPreview, releaseViewportPreview, prefetchBatch],
   )
 
   return <FeedVideoPreviewContext.Provider value={value}>{children}</FeedVideoPreviewContext.Provider>

@@ -1,6 +1,7 @@
 import { cache } from "react"
 import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
+import { resolvePrimaryPlaybackUrl, resolveVideoBaseUrl } from "@/lib/video-profiles"
 import { extractCreatorSameAs } from "@/lib/seo/social"
 
 const REVALIDATE_SECONDS = 300
@@ -114,22 +115,26 @@ const VIDEO_FILE_RE = /\.(mp4|webm|mov|m4v|m3u8)(\?.*)?$/i
 function resolveSeoVideoContentUrl(
   gatewayUrl: string | undefined,
   storagePath: string | undefined,
+  originalProfile?: string | null,
 ): string {
+  const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
+
+  if (gateway && VIDEO_FILE_RE.test(gateway)) return gateway
+
+  const baseUrl = gateway
+    ? gateway.replace(/\/$/, "")
+    : nested
+      ? resolveVideoBaseUrl(nested)
+      : ""
+
+  if (baseUrl) {
+    return resolvePrimaryPlaybackUrl(baseUrl, originalProfile)
+  }
+
   if (nested) {
     const nestedUrl = nested.startsWith("http") ? nested : getVideoUrl(nested)
     if (VIDEO_FILE_RE.test(nestedUrl)) return nestedUrl
-  }
-
-  const gateway = String(gatewayUrl || "").trim()
-  if (gateway) {
-    if (VIDEO_FILE_RE.test(gateway)) return gateway
-    const base = gateway.replace(/\/$/, "")
-    return `${base}/original.mp4`
-  }
-
-  if (nested) {
-    return nested.startsWith("http") ? nested : getVideoUrl(nested)
   }
 
   return ""
@@ -164,9 +169,13 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     const title = (v.video_title || "Video").trim() || "Video"
     const description = (v.video_description || "").trim()
     const thumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
-    const contentUrl = resolveSeoVideoContentUrl(norm.video_url, v.video_url)
-    const creator = (v.user_username || "").trim()
     const raw = v as Record<string, unknown>
+    const contentUrl = resolveSeoVideoContentUrl(
+      norm.video_url,
+      v.video_url,
+      (raw.original_profile ?? raw.originalProfile) as string | undefined,
+    )
+    const creator = (v.user_username || "").trim()
     const dataVideo =
       json && typeof json === "object"
         ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video

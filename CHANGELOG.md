@@ -13,6 +13,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 - Curated playlists admin UI (`/admin/dashboard?section=curated_playlists`) — create, edit, reorder, delete
 - Admin account management (`/admin/dashboard?section=admins`) — invite + list admins
 - Admin password reset (`/admin/forgot-password`) and invite verification (`/admin/verify-invite`)
+- **Artist Index** at `/artist-index` — searchable artist rankings, profile pages, claim flow, and community edit suggestions
+- Admin sidebar **View site** link (opens the public site using the current deployment host)
+- Playlist picker prefetch cache — warms the signed-in user’s playlist list before opening Save to playlist
+- Video profile resolution (`original_profile` + `profiles`) for quality menus and playback fallbacks
 
 ### Changed
 
@@ -20,11 +24,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 - Admin API calls use `adminApiClient` with admin JWT only; consumer `apiClient` unchanged
 - Public curated playlists no longer expose `owner_uid` in API mappers
 - User playlists page copy clarified as personal playlists (not curated editorial)
+- Watch page actions: **Save to playlist** is a top-level button; **Share** moved into the more (⋯) menu
+- Save to playlist on watch uses a popover anchored to the save button (not a full-screen dialog)
+- Creator Playbook expanded with YouTube-style guidance; removed monetization/sample-work steps
+- Marketing copy: instant creator access for hip-hop/rap artists (no application wait) on Artists, FAQ, How it Works, and What is Hiffi
+- Hip-hop hub and Artists pages: removed algorithm gatekeeping and monetization claims
+- Advertising page section title: “Brand safety & transparency” (fixed `&amp;` entity)
+- What is Hiffi: removed outdated Kinimi Corporation reference
+- Artist index route renamed from `/artistindex` to `/artist-index` (redirects in `next.config.mjs`)
+
+### Fixed
+
+- Save to playlist picker on watch: popover no longer pins to the viewport corner; header and footer stay visible while the playlist list scrolls (Radix available-height constraint)
+- Login and signup **Skip** no longer loops back to login when the redirect target requires auth (e.g. My reports → Support)
+- Video player infinite React update loop when resolving playback profiles
+- Video playback and SEO fetch aligned with gateway `video_url`, stable paths, and `original_profile` transcodes
 
 ### Removed
 
 - `forceAdminDashboardRedirect` from consumer auth flow
 - Admin role from creator upload/studio permissions (admins are a separate principal)
+- Hip-hop hub “No Algorithmic Gatekeeping” card and related copy
+- Monetization promises from Artists page and creator onboarding copy
 
 ## [2.1.0] — 2026-06-22
 

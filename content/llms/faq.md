@@ -90,7 +90,7 @@ Set up a profile, upload and manage video content, and build an audience through
 
 ### How do I become a creator on Hiffi?
 
-Use the Become a Creator flow at https://www.hiffi.com/creator/apply. Once approved, creator tools such as upload are available.
+Use the Become a Creator flow at https://www.hiffi.com/creator/apply. Hip-hop and rap artists get instant access — upload from Studio right away.
 
 ### How do creators upload videos?
 

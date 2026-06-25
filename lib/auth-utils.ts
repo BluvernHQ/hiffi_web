@@ -33,6 +33,34 @@ export function buildSignupUrl(currentPath: string, searchParams?: string): stri
 }
 
 /**
+ * Routes that require a signed-in session. Skip on login/signup must not return here
+ * or the user gets stuck in a redirect loop.
+ */
+const AUTH_REQUIRED_PATH_PREFIXES = ["/support/reports"] as const
+
+export function isAuthRequiredPath(path: string | null | undefined): boolean {
+  if (!path) return false
+  const pathname = path.split("?")[0]?.split("#")[0] ?? ""
+  return AUTH_REQUIRED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+/**
+ * Where to send users who skip login/signup. Protected redirect targets fall back to
+ * a public page (e.g. /support/reports → /support) instead of looping back to login.
+ */
+export function resolveSkipDestination(redirectPath: string | null): string {
+  if (!redirectPath) return "/"
+  if (!isAuthRequiredPath(redirectPath)) return redirectPath
+
+  const pathname = redirectPath.split("?")[0]?.split("#")[0] ?? ""
+  if (pathname.startsWith("/support/")) return "/support"
+
+  return "/"
+}
+
+/**
  * Validates and sanitizes a redirect URL
  * Ensures redirect only points to internal routes (security)
  * 

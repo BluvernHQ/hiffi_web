@@ -25,9 +25,10 @@ import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { DeleteVideoDialog } from "./delete-video-dialog"
 import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 import { useFeedVideoPreview } from "./feed-video-preview-provider"
-import { VideoCardHoverPreview } from "./video-card-hover-preview"
+import { VideoCardHoverPreview, pauseActiveHoverPreview } from "./video-card-hover-preview"
 import { getPrimaryPreviewStreamUrl, getWatchStreamDirectUrl } from "@/lib/feed-preview/resolve-preview-url"
 import { warmVideoWithMoov, warmWatchHandoff } from "@/lib/feed-preview/preview-warmer"
+import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +43,8 @@ let _activeHoverSetter: ((v: boolean) => void) | null = null
 
 function claimHover(setter: (v: boolean) => void): void {
   if (_activeHoverSetter && _activeHoverSetter !== setter) {
-    _activeHoverSetter(false)
+    pauseActiveHoverPreview()
+    flushSync(() => _activeHoverSetter!(false))
   }
   _activeHoverSetter = setter
 }
@@ -161,8 +163,6 @@ export function VideoCard({
     })
   }
 
-  const previewActive =
-    hoverPreviewEnabled && !!feedPreview?.enabled && feedPreview.isPreviewActive(videoId)
   const [previewVideoVisible, setPreviewVideoVisible] = useState(false)
   const [isHovering, setIsHovering] = useState(false)
   const cardRootRef = useRef<HTMLDivElement>(null)
@@ -179,13 +179,13 @@ export function VideoCard({
   )
   const lastWatchWarmAtRef = useRef(0)
 
-  const shouldLoadPreview = isHovering || previewActive
+  const shouldLoadPreview = isHovering
 
   useEffect(() => {
-    if (!previewActive && !isHovering) {
+    if (!isHovering) {
       setPreviewVideoVisible(false)
     }
-  }, [previewActive, isHovering])
+  }, [isHovering])
 
   // Release the module-level hover mutex on unmount so a removed card never
   // blocks a future card from claiming hover.
@@ -222,28 +222,14 @@ export function VideoCard({
     const el = thumbnailLinkRef.current
     if (!el) return
 
-    // How long the cursor must dwell before preview activates.
-    // Warm starts immediately; visual state waits for intent.
-    const HOVER_INTENT_MS = 220
-    let intentTimer: ReturnType<typeof setTimeout> | null = null
-
     const onEnter = () => {
-      // Start HTTP warm immediately so buffering is ahead of intent threshold.
       warmVideoWithMoov(previewStreamUrl)
-
-      intentTimer = setTimeout(() => {
-        intentTimer = null
-        // Evict previous card and activate this one.
-        claimHover(setIsHovering)
-        flushSync(() => setIsHovering(true))
-        feedPreview.requestPreview(videoId)
-      }, HOVER_INTENT_MS)
+      claimHover(setIsHovering)
+      flushSync(() => setIsHovering(true))
+      feedPreview.requestPreview(videoId)
     }
     const onLeave = () => {
-      if (intentTimer !== null) {
-        clearTimeout(intentTimer)
-        intentTimer = null
-      }
+      pauseActiveHoverPreview()
       releaseHover(setIsHovering)
       flushSync(() => setIsHovering(false))
       feedPreview.releasePreview(videoId)
@@ -263,7 +249,6 @@ export function VideoCard({
     el.addEventListener("blur", onLeave)
 
     return () => {
-      if (intentTimer !== null) clearTimeout(intentTimer)
       el.removeEventListener("mouseenter", onEnter)
       el.removeEventListener("mouseleave", onLeave)
       el.removeEventListener("mousedown", onMouseDown)
@@ -343,6 +328,7 @@ export function VideoCard({
           }
           setAddToPlaylistOpen(true)
         }}
+        onPointerEnter={prefetchMyPlaylists}
         aria-label="Add to playlist"
         title="Add to playlist"
       >
@@ -395,15 +381,15 @@ export function VideoCard({
               />
             )}
 
-            {hoverPreviewEnabled && feedPreview?.enabled ? (
+            {hoverPreviewEnabled ? (
               <VideoCardHoverPreview
                 videoId={videoId}
                 title={title}
                 posterUrl={thumbnailUrl}
-                audioForcedMute={feedPreview.audioForcedMute}
+                audioForcedMute={feedPreview?.audioForcedMute ?? true}
                 primaryStreamUrl={previewStreamUrl}
                 video={video}
-                shouldLoad={shouldLoadPreview}
+                shouldLoad={shouldLoadPreview && !!feedPreview?.enabled}
                 onVisibleChange={setPreviewVideoVisible}
               />
             ) : null}

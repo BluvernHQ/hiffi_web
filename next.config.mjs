@@ -36,8 +36,13 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: "/upload",
-        destination: "/studio",
+        source: "/artistindex",
+        destination: "/artist-index",
+        permanent: true,
+      },
+      {
+        source: "/artistindex/:path*",
+        destination: "/artist-index/:path*",
         permanent: true,
       },
       {

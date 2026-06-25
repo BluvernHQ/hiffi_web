@@ -84,7 +84,7 @@ export default function WhatIsHiffiPage() {
                 <Link href="/" className="font-medium text-primary hover:underline">
                   hiffi.com
                 </Link>{" "}
-                is operated by Kinimi Corporation and is dedicated to independent hip-hop culture. We are not
+                is dedicated to independent hip-hop culture. We are not
                 affiliated with those other organizations.
               </p>
             ),
@@ -109,9 +109,9 @@ export default function WhatIsHiffiPage() {
                 <li>
                   Creators can{" "}
                   <Link href="/creator/apply" className="font-medium text-primary hover:underline">
-                    apply to publish
+                    become a creator
                   </Link>{" "}
-                  after signing up.
+                  to publish — hip-hop and rap artists get instant access.
                 </li>
               </ol>
             ),

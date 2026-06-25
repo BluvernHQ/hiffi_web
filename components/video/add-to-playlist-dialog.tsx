@@ -20,7 +20,7 @@ import {
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import {
   Drawer,
   DrawerContent,
@@ -38,6 +38,12 @@ import { SuccessView } from "@/components/video/add-to-playlist/success-view"
 import { atpPanelClass } from "@/components/video/add-to-playlist/styles"
 import { countPlaylistPendingChanges } from "@/components/video/add-to-playlist/utils"
 import { trackUmami } from "@/lib/umami"
+import {
+  fetchMyPlaylists,
+  getCachedMyPlaylists,
+  invalidateMyPlaylistsCache,
+  prefetchMyPlaylists,
+} from "@/lib/playlist-picker-cache"
 
 function parseApiError(err: unknown): ApiError | null {
   if (err && typeof err === "object" && "status" in err && "message" in err) {
@@ -110,6 +116,10 @@ export function AddToPlaylistDialog({
   const [createDescError, setCreateDescError] = useState("")
 
   useEffect(() => {
+    prefetchMyPlaylists()
+  }, [])
+
+  useEffect(() => {
     if (!open) return
     const t = window.setTimeout(() => {
       setPlaylistQuery(playlistSearchInput.trim())
@@ -118,25 +128,29 @@ export function AddToPlaylistDialog({
   }, [open, playlistSearchInput])
 
   const loadPlaylists = useCallback(async (): Promise<PlaylistSummary[]> => {
-    setListLoading(true)
+    const cached = getCachedMyPlaylists()
+    if (cached) {
+      setPlaylists(cached)
+      setListLoading(false)
+    } else {
+      setListLoading(true)
+    }
+
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setPlaylists([])
+      setPlaylists(cached ?? [])
       setListLoading(false)
       toast({
         title: "No internet connection",
         description: userFacingNetworkMessage(),
         variant: "destructive",
       })
-      return []
+      return cached ?? []
     }
+
     try {
-      const res = await apiClient.listMyPlaylists()
-      if (!res.success) {
-        setPlaylists([])
-        return []
-      }
-      setPlaylists(res.playlists)
-      return res.playlists
+      const list = await fetchMyPlaylists()
+      setPlaylists(list)
+      return list
     } catch (e) {
       const err = parseApiError(e)
       if (err?.status === 401) {
@@ -149,7 +163,7 @@ export function AddToPlaylistDialog({
         description: isConnectivityError(e) ? userFacingNetworkMessage() : err?.message,
         variant: "destructive",
       })
-      return []
+      return cached ?? []
     } finally {
       setListLoading(false)
     }
@@ -358,6 +372,7 @@ export function AddToPlaylistDialog({
         return next
       })
       setSaveSuccess(true)
+      invalidateMyPlaylistsCache()
       window.setTimeout(() => {
         setSaveSuccess(false)
         onOpenChange(false)
@@ -438,6 +453,7 @@ export function AddToPlaylistDialog({
       setCreateTitle("")
       setCreateDescription("")
       setStep("pick")
+      invalidateMyPlaylistsCache()
       await loadPlaylists()
     } catch (e) {
       const err = parseApiError(e)
@@ -551,18 +567,20 @@ export function AddToPlaylistDialog({
     <PopoverContent
       side={popoverSide}
       align={popoverAlign}
-      sideOffset={4}
-      collisionPadding={8}
+      sideOffset={8}
+      collisionPadding={16}
       avoidCollisions
       className={cn(
-        "z-[200] flex max-h-[min(85dvh,720px)] w-auto max-w-[calc(100vw-1rem)] flex-col border-0 bg-transparent p-0 shadow-none",
+        "z-[200] flex w-auto max-w-[calc(100vw-1rem)] min-h-0 flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none",
+        "max-h-(--radix-popover-content-available-height)",
         "data-[side=right]:slide-in-from-left-1 data-[side=left]:slide-in-from-right-1",
       )}
       onOpenAutoFocus={(e) => e.preventDefault()}
     >
       {renderPanelContent({
         compact: true,
-        panelWidthClass: "w-[min(calc(100vw-2rem),360px)]",
+        panelWidthClass:
+          "h-full min-h-0 w-[min(calc(100vw-2rem),360px)] max-h-full",
       })}
     </PopoverContent>
   )
@@ -606,11 +624,14 @@ export function AddToPlaylistDialog({
           "opacity-100 hover:bg-muted",
         )}
         className={cn(
-          "flex max-h-[min(calc(100dvh-7.5rem),720px)] w-full max-w-[min(100vw-1.5rem),440px)] flex-col gap-0 overflow-hidden p-0",
-          "left-1/2 top-20 -translate-x-1/2 translate-y-0 border-0 bg-transparent shadow-none sm:top-24",
+          "flex max-h-[min(calc(100dvh-4rem),520px)] w-full max-w-[min(100vw-1.5rem),440px)] min-h-0 flex-col gap-0 overflow-hidden p-0",
+          "border-0 bg-transparent shadow-none",
         )}
       >
-        {renderPanelContent({})}
+        <DialogTitle className="sr-only">Save to playlist</DialogTitle>
+        {renderPanelContent({
+          panelWidthClass: "h-full min-h-0 max-h-full w-full",
+        })}
       </DialogContent>
     </Dialog>
   )

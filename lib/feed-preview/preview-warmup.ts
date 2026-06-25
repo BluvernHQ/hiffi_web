@@ -6,4 +6,5 @@ export {
   warmVideoWithMoov,
   prefetchViewportVideo,
   releaseViewportPrefetch,
+  prefetchInitialVideos,
 } from "./preview-warmer"

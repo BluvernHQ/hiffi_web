@@ -37,7 +37,9 @@ export const CONTENT_PAGE_PATHS = [
 
 export function isContentPage(pathname: string | null): boolean {
   if (!pathname) return false
-  return CONTENT_PAGE_PATHS.includes(pathname)
+  if (CONTENT_PAGE_PATHS.includes(pathname)) return true
+  if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
+  return false
 }
 
 /** Static marketing + legal routes for sitemap.xml */

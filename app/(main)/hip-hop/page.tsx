@@ -6,7 +6,7 @@ import { MOODS } from "@/lib/mood-tabs"
 
 const pageTitle = "Hip-Hop Music Videos & Streaming — Discover Independent Rap Artists"
 const pageDescription =
-  "Hiffi is the hip-hop-first platform for independent rap artists and fans. Watch official music videos, discover drill, trap, conscious rap, boom bap, and more — no algorithms, no gatekeeping."
+  "Hiffi is the hip-hop-first platform for independent rap artists and fans. Watch official music videos, discover drill, trap, conscious rap, boom bap, and more."
 const pageUrl = absoluteUrl("/hip-hop")
 
 export const metadata: Metadata = {
@@ -54,7 +54,7 @@ const faqItems = [
   {
     question: "What is the best platform for independent hip-hop artists?",
     answer:
-      "Hiffi is a hip-hop-first music and video streaming platform built specifically for independent rap artists. Unlike general platforms, Hiffi's audience came for hip-hop — so your music videos reach fans already looking for the genre. Artists keep creative control, publish official music videos, and grow a fanbase without label backing or algorithmic suppression.",
+      "Hiffi is a hip-hop-first music and video streaming platform built specifically for independent rap artists. Unlike general platforms, Hiffi's audience came for hip-hop — so your music videos reach fans already looking for the genre. Artists keep creative control, publish official music videos, and grow a fanbase without label backing.",
   },
   {
     question: "Where can I watch independent rap music videos online?",
@@ -150,7 +150,7 @@ export default function HipHopPage() {
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
           Hiffi is built for hip-hop — the only platform where independent rap artists and
           their fans come first. Discover official music videos, follow creators, and stream
-          drill, trap, conscious rap, boom bap, and more — no algorithmic interference.
+          drill, trap, conscious rap, boom bap, and more.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -216,10 +216,6 @@ export default function HipHopPage() {
             {
               title: "Hip-Hop First Audience",
               body: "Every fan on Hiffi came for hip-hop and rap. Your music videos reach people who are already looking for the genre — not a general audience that scrolls past.",
-            },
-            {
-              title: "No Algorithmic Gatekeeping",
-              body: "You don't pay for placement or wait for an algorithm to decide if you get discovered. Every artist gets a fair shot on the discover feed.",
             },
             {
               title: "Official Music Videos",

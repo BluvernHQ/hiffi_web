@@ -13,6 +13,7 @@ import {
   buildLoginUrl,
   isValidEmailFormat,
   passwordContainsWhitespace,
+  resolveSkipDestination,
 } from "@/lib/auth-utils"
 import { clearReferralRedirectProfile } from "@/lib/referral-cookie"
 import { Button } from "@/components/ui/button"
@@ -337,9 +338,7 @@ function SignupForm() {
   const handleSkip = () => {
     // User explicitly skipped signup, so do not auto-redirect to a referral profile later.
     clearReferralRedirectProfile()
-    // If there's a valid redirect, go there; otherwise go home
-    const destination = redirectPath || "/"
-    router.replace(destination)
+    router.replace(resolveSkipDestination(redirectPath))
   }
 
   // Show OTP verification form if registration was successful
