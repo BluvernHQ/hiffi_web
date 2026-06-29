@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
 
@@ -16,11 +17,13 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
     .slice(0, 2)
     .toUpperCase()
 
-  if (artist.image) {
+  const imageSrc = getArtistImageUrl(artist.image)
+
+  if (imageSrc) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={artist.image}
+        src={imageSrc}
         alt=""
         className={cn(
           "h-11 w-11 shrink-0 rounded-full object-cover",

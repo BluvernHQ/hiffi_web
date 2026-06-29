@@ -62,6 +62,13 @@ import {
   adminListAdmins as apiAdminListAdmins,
   type AdminRow,
 } from "./api/admin-admins"
+import {
+  adminListInventory as apiAdminListInventory,
+  adminListInventoryClaims as apiAdminListInventoryClaims,
+  adminUploadInventory as apiAdminUploadInventory,
+  adminDownloadInventoryTemplate as apiAdminDownloadInventoryTemplate,
+  adminExportInventory as apiAdminExportInventory,
+} from "./api/admin-inventory"
 import type {
   AdminListContentFlagsParams,
   ContentFlag,
@@ -281,6 +288,39 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListAdmins(params?: { limit?: number; offset?: number }) {
     return apiAdminListAdmins(this, params)
+  }
+
+  // ─── Artist inventory ───────────────────────────────────────────────────────
+
+  async adminListInventory(params?: { limit?: number; offset?: number; search?: string }) {
+    return apiAdminListInventory(this, params)
+  }
+
+  async adminUploadInventory(
+    file: File,
+    options?: {
+      onProgress?: (progress: number) => void
+      onUploadComplete?: () => void
+      signal?: AbortSignal
+    },
+  ) {
+    return apiAdminUploadInventory(this, file, options)
+  }
+
+  async adminListInventoryClaims(
+    params?: Parameters<typeof apiAdminListInventoryClaims>[1],
+  ) {
+    return apiAdminListInventoryClaims(this, params)
+  }
+
+  async adminDownloadInventoryTemplate() {
+    return apiAdminDownloadInventoryTemplate(this)
+  }
+
+  async adminExportInventory(
+    params?: { created_after?: string; created_before?: string; search?: string },
+  ) {
+    return apiAdminExportInventory(this, params)
   }
 
   // ─── Curated playlists ──────────────────────────────────────────────────────

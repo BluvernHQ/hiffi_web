@@ -1,10 +1,8 @@
 /**
- * @deprecated Use `@/lib/feed-preview/preview-warmer` — fetch() range warmup raced <video src>.
+ * @deprecated Use `@/lib/feed-preview/preview-warmer`.
  */
 export {
   warmVideo as warmupPreviewStream,
   warmVideoWithMoov,
-  prefetchViewportVideo,
-  releaseViewportPrefetch,
-  prefetchInitialVideos,
+  warmWatchHandoff,
 } from "./preview-warmer"

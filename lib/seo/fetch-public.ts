@@ -3,6 +3,11 @@ import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
 import { resolvePrimaryPlaybackUrl, resolveVideoBaseUrl } from "@/lib/video-profiles"
 import { extractCreatorSameAs } from "@/lib/seo/social"
+import {
+  buildSeoImageProxyUrl,
+  buildSeoVideoStreamProxyUrl,
+  isProgressiveMp4Url,
+} from "@/lib/seo/video-public-urls"
 
 const REVALIDATE_SECONDS = 300
 
@@ -82,7 +87,9 @@ export type SeoVideo = {
   videoId: string
   title: string
   description: string
+  /** Google-crawlable thumbnail on hiffi.com (/proxy/image/…). */
   thumbnailUrl: string
+  /** Google-crawlable progressive MP4 on hiffi.com (/proxy/video/stream?url=…). */
   contentUrl: string
   creatorUsername: string
   /** Display name for SEO titles and MusicVideoObject (falls back to username). */
@@ -106,13 +113,14 @@ export type SeoProfile = {
   sameAs?: string[]
 }
 
-const VIDEO_FILE_RE = /\.(mp4|webm|mov|m4v|m3u8)(\?.*)?$/i
+const PROGRESSIVE_VIDEO_RE = /\.(mp4|webm|mov|m4v)(\?.*)?$/i
+const HLS_RE = /\.m3u8(\?.*)?$/i
 
 /**
- * Google Video indexing requires contentUrl to be a direct, crawlable media file.
- * API `data.video_url` is often a gateway path (404); `video.video_url` has `…/original.mp4`.
+ * Resolve Workers URL for the primary progressive MP4 (original.mp4 or profile variant).
+ * HLS master URLs are ignored — Google video indexing requires a direct MP4 contentUrl.
  */
-function resolveSeoVideoContentUrl(
+function resolveSeoVideoWorkersMp4Url(
   gatewayUrl: string | undefined,
   storagePath: string | undefined,
   originalProfile?: string | null,
@@ -120,21 +128,24 @@ function resolveSeoVideoContentUrl(
   const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
 
-  if (gateway && VIDEO_FILE_RE.test(gateway)) return gateway
+  if (gateway && !HLS_RE.test(gateway) && PROGRESSIVE_VIDEO_RE.test(gateway)) {
+    return gateway.startsWith("http") ? gateway : getVideoUrl(gateway)
+  }
 
-  const baseUrl = gateway
+  const baseUrl = gateway && !HLS_RE.test(gateway)
     ? gateway.replace(/\/$/, "")
     : nested
       ? resolveVideoBaseUrl(nested)
       : ""
 
   if (baseUrl) {
-    return resolvePrimaryPlaybackUrl(baseUrl, originalProfile)
+    const mp4 = resolvePrimaryPlaybackUrl(baseUrl, originalProfile)
+    if (isProgressiveMp4Url(mp4)) return mp4
   }
 
   if (nested) {
     const nestedUrl = nested.startsWith("http") ? nested : getVideoUrl(nested)
-    if (VIDEO_FILE_RE.test(nestedUrl)) return nestedUrl
+    if (isProgressiveMp4Url(nestedUrl)) return nestedUrl
   }
 
   return ""
@@ -168,13 +179,15 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     const id = v.video_id || videoId
     const title = (v.video_title || "Video").trim() || "Video"
     const description = (v.video_description || "").trim()
-    const thumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
+    const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
     const raw = v as Record<string, unknown>
-    const contentUrl = resolveSeoVideoContentUrl(
+    const workersMp4 = resolveSeoVideoWorkersMp4Url(
       norm.video_url,
       v.video_url,
       (raw.original_profile ?? raw.originalProfile) as string | undefined,
     )
+    const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
+    const contentUrl = workersMp4 ? buildSeoVideoStreamProxyUrl(workersMp4) : ""
     const creator = (v.user_username || "").trim()
     const dataVideo =
       json && typeof json === "object"

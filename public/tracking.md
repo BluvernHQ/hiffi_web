@@ -284,7 +284,7 @@ These are the primary `data-analytics-name` values currently used in the app.
 - `share-video-platform-reddit-button`
 
 ### Navigation and discovery
-- `navbar-home-logo-link`
+- `appbar-logo`
 - `navbar-open-search-button`
 - `navbar-profile-link`
 - `navbar-login-button`

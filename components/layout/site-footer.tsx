@@ -22,6 +22,7 @@ const columns: FooterColumn[] = [
       { label: "What is Hiffi?", href: "/what-is-hiffi" },
       { label: "How it works", href: "/how-it-works" },
       { label: "Press kit", href: "/press" },
+      { label: "Creators for Change", href: "/creators-for-change" },
       { label: "Blog", href: "https://www.blog.hiffi.com/", external: true },
     ],
   },
@@ -44,12 +45,12 @@ const columns: FooterColumn[] = [
     title: "DISCOVER",
     links: [
       { label: "Hip-Hop", href: "/hip-hop" },
+      { label: "Artist Index", href: "/artist-index" },
+      { label: "Atlanta artists", href: "/artist-index/city/atlanta" },
+      { label: "Claim your profile", href: "/artist-index/claim" },
       { label: "Search", href: "/search" },
+      { label: "Download app", href: "/app" },
     ],
-  },
-  {
-    title: "COMMITMENTS",
-    links: [{ label: "Creators for Change", href: "/creators-for-change" }],
   },
 ]
 

@@ -4,12 +4,28 @@ import {
   profileToPlaybackUrl,
   resolvePrimaryPlaybackUrl,
   resolveVideoBaseUrl,
+  normalizeProfileKey,
 } from "@/lib/video-profiles"
 
 const previewSourcesCache = new Map<string, string[]>()
+const failedPreviewUrls = new Set<string>()
 
-/** Preview profiles only — avoid cascading fallbacks that flood the network. */
-const DEFAULT_PREVIEW_PROFILES = ["360p", "480p"] as const
+/** Max ladder fallbacks tried sequentially on playback error — never prefetched in parallel. */
+const MAX_PLAYBACK_FALLBACKS = 3
+
+/**
+ * Feed hover plays Workers MP4 directly (same as the watch player).
+ * `public/sw.js` injects `x-api-key` on `/videos/*` fetches — no Next proxy hop.
+ * Keep `/proxy/video/stream` for SEO/crawler surfaces only (`lib/seo/video-public-urls.ts`).
+ */
+export function buildFeedPreviewPlaybackUrl(workersUrl: string): string {
+  return workersUrl
+}
+
+/** @deprecated Feed hover uses direct Workers URLs. Proxy remains for SEO/crawl. */
+export function buildPreviewStreamUrl(workersUrl: string): string {
+  return `/proxy/video/stream?url=${encodeURIComponent(workersUrl)}`
+}
 
 export type PreviewVideo = {
   videoId?: string
@@ -27,10 +43,6 @@ export function previewVideoKey(video: PreviewVideo): string {
   return `${directPath || (video.videoId || video.video_id || "").trim()}|${originalProfile ?? ""}`
 }
 
-export function buildPreviewStreamUrl(workersUrl: string): string {
-  return `/proxy/video/stream?url=${encodeURIComponent(workersUrl)}`
-}
-
 function sortProfilesLowestFirst(profiles: string[]): string[] {
   return [...new Set(profiles.map((p) => p.trim()).filter(Boolean))].sort(
     (a, b) => profileHeight(a) - profileHeight(b),
@@ -39,9 +51,33 @@ function sortProfilesLowestFirst(profiles: string[]): string[] {
 
 function collectProfiles(video: PreviewVideo): string[] {
   const fromFeed = Array.isArray(video.profiles) ? video.profiles : []
-  const sorted = sortProfilesLowestFirst(fromFeed.length > 0 ? fromFeed : [...DEFAULT_PREVIEW_PROFILES])
-  // At most two lowest profiles — prevents fallback storms in Network tab.
-  return sorted.slice(0, 2)
+  const originalProfile = video.original_profile ?? video.originalProfile
+
+  if (fromFeed.length > 0) {
+    const sorted = sortProfilesLowestFirst(fromFeed)
+    const encoded = sorted.filter((p) => normalizeProfileKey(p) !== "original")
+    if (encoded.length > 0) return encoded.slice(0, MAX_PLAYBACK_FALLBACKS)
+    return sorted.slice(0, 1)
+  }
+
+  const primaryKey = normalizeProfileKey(originalProfile)
+  if (primaryKey && primaryKey !== "original") {
+    return [primaryKey]
+  }
+
+  // No guessed ladder rungs — avoids 404 storms when metadata is missing.
+  return []
+}
+
+/** Drop a URL that 404'd so playback skips it on the next hover. */
+export function reportPreviewUrlFailed(url: string): void {
+  if (!url) return
+  failedPreviewUrls.add(url)
+  for (const [key, urls] of previewSourcesCache.entries()) {
+    const filtered = urls.filter((candidate) => !failedPreviewUrls.has(candidate))
+    if (filtered.length === 0) previewSourcesCache.delete(key)
+    else previewSourcesCache.set(key, filtered)
+  }
 }
 
 function resolvePreviewBaseUrl(video: PreviewVideo): string | null {
@@ -54,13 +90,12 @@ function resolvePreviewBaseUrl(video: PreviewVideo): string | null {
 
 function buildCandidateStreamUrls(baseUrl: string, profiles: string[]): string[] {
   return sortProfilesLowestFirst(profiles).map((profile) =>
-    buildPreviewStreamUrl(profileToPlaybackUrl(baseUrl, profile)),
+    buildFeedPreviewPlaybackUrl(profileToPlaybackUrl(baseUrl, profile)),
   )
 }
 
 /**
- * Synchronous candidate list (lowest profile first). No network probes — playback
- * falls back on error. This keeps hover activation instant (YouTube-style).
+ * Candidate URLs (lowest profile first). Loaded one at a time on hover — no prefetch.
  */
 export function getFeedPreviewSources(video: PreviewVideo): string[] {
   const key = previewVideoKey(video)
@@ -72,7 +107,9 @@ export function getFeedPreviewSources(video: PreviewVideo): string[] {
   const baseUrl = resolvePreviewBaseUrl(video)
   if (!baseUrl) return []
 
-  const streamUrls = buildCandidateStreamUrls(baseUrl, collectProfiles(video))
+  const streamUrls = buildCandidateStreamUrls(baseUrl, collectProfiles(video)).filter(
+    (url) => !failedPreviewUrls.has(url),
+  )
   previewSourcesCache.set(key, streamUrls)
   return streamUrls
 }

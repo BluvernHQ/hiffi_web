@@ -11,13 +11,6 @@ import {
   type ReactNode,
 } from "react"
 import { useGlobalVideo } from "@/lib/video-context"
-import { getFeedPreviewSources, previewVideoKey, type PreviewVideo } from "@/lib/feed-preview/resolve-preview-url"
-import {
-  warmVideoWithMoov,
-  prefetchViewportVideo,
-  releaseViewportPrefetch,
-  prefetchInitialVideos,
-} from "@/lib/feed-preview/preview-warmer"
 
 /** Activate immediately on hover — YouTube does not debounce intent. */
 const HOVER_DEBOUNCE_MS = 0
@@ -41,13 +34,6 @@ type FeedVideoPreviewContextValue = {
   releasePreview: (videoId: string) => void
   stopAllPreviews: () => void
   isPreviewActive: (videoId: string) => boolean
-  /** Warm bytes on hover (high priority). */
-  prefetchPreview: (video: PreviewVideo) => void
-  /** Warm bytes when card enters viewport (low priority, capped). */
-  prefetchViewportPreview: (video: PreviewVideo) => void
-  releaseViewportPreview: (video: PreviewVideo) => void
-  /** Eager head prefetch for first visible rows on load / pagination. */
-  prefetchBatch: (videos: PreviewVideo[], limit?: number) => void
 }
 
 const FeedVideoPreviewContext = createContext<FeedVideoPreviewContextValue | null>(null)
@@ -64,15 +50,12 @@ export function FeedVideoPreviewProvider({
   const [hoverCapable, setHoverCapable] = useState(false)
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const releaseRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const viewportPrefetchKeysRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     setHoverCapable(canUseFeedHoverPreview())
   }, [])
 
   const previewsAllowed = enabled && hoverCapable && mode !== "expanded"
-  // Only force-mute when the full watch player is expanded (two audio streams simultaneously).
-  // Mini player at the bottom doesn't block preview audio — user can choose.
   const audioForcedMute = mode === "expanded"
 
   const clearTimers = useCallback(() => {
@@ -92,7 +75,6 @@ export function FeedVideoPreviewProvider({
   }, [clearTimers])
 
   useEffect(() => {
-    // Only tear down hover previews on the watch page — mini player on home should not block them.
     if (mode === "expanded") {
       stopAllPreviews()
     }
@@ -121,68 +103,20 @@ export function FeedVideoPreviewProvider({
     [previewsAllowed],
   )
 
-  const releasePreview = useCallback(
-    (videoId: string) => {
-      if (pendingRef.current) {
-        clearTimeout(pendingRef.current)
-        pendingRef.current = null
-      }
-      releaseRef.current = setTimeout(() => {
-        releaseRef.current = null
-        setActiveVideoId((current) => (current === videoId ? null : current))
-      }, RELEASE_GRACE_MS)
-    },
-    [],
-  )
+  const releasePreview = useCallback((videoId: string) => {
+    if (pendingRef.current) {
+      clearTimeout(pendingRef.current)
+      pendingRef.current = null
+    }
+    releaseRef.current = setTimeout(() => {
+      releaseRef.current = null
+      setActiveVideoId((current) => (current === videoId ? null : current))
+    }, RELEASE_GRACE_MS)
+  }, [])
 
   const isPreviewActive = useCallback(
     (videoId: string) => previewsAllowed && activeVideoId === videoId,
     [activeVideoId, previewsAllowed],
-  )
-
-  const prefetchPreview = useCallback(
-    (video: PreviewVideo) => {
-      if (!previewsAllowed) return
-      const sources = getFeedPreviewSources(video)
-      if (sources[0]) warmVideoWithMoov(sources[0])
-    },
-    [previewsAllowed],
-  )
-
-  const prefetchViewportPreview = useCallback(
-    (video: PreviewVideo) => {
-      if (!previewsAllowed) return
-      const key = previewVideoKey(video)
-      const videoId = (video.videoId || video.video_id || "").trim()
-      if (!key || viewportPrefetchKeysRef.current.has(key)) return
-
-      const sources = getFeedPreviewSources(video)
-      if (!sources[0] || !videoId) return
-      if (!prefetchViewportVideo(videoId, sources[0])) return
-
-      viewportPrefetchKeysRef.current.add(key)
-    },
-    [previewsAllowed],
-  )
-
-  const releaseViewportPreview = useCallback((video: PreviewVideo) => {
-    const key = previewVideoKey(video)
-    const videoId = (video.videoId || video.video_id || "").trim()
-    if (key) viewportPrefetchKeysRef.current.delete(key)
-    if (videoId) releaseViewportPrefetch(videoId)
-  }, [])
-
-  const prefetchBatch = useCallback(
-    (videos: PreviewVideo[], limit = 8) => {
-      if (!previewsAllowed) return
-      const urls: string[] = []
-      for (const video of videos.slice(0, limit)) {
-        const sources = getFeedPreviewSources(video)
-        if (sources[0]) urls.push(sources[0])
-      }
-      if (urls.length > 0) prefetchInitialVideos(urls)
-    },
-    [previewsAllowed],
   )
 
   const value = useMemo(
@@ -194,20 +128,23 @@ export function FeedVideoPreviewProvider({
       releasePreview,
       stopAllPreviews,
       isPreviewActive,
-      prefetchPreview,
-      prefetchViewportPreview,
-      releaseViewportPreview,
-      prefetchBatch,
     }),
-    [activeVideoId, previewsAllowed, audioForcedMute, requestPreview, releasePreview, stopAllPreviews, isPreviewActive, prefetchPreview, prefetchViewportPreview, releaseViewportPreview, prefetchBatch],
+    [
+      activeVideoId,
+      previewsAllowed,
+      audioForcedMute,
+      requestPreview,
+      releasePreview,
+      stopAllPreviews,
+      isPreviewActive,
+    ],
   )
 
   return <FeedVideoPreviewContext.Provider value={value}>{children}</FeedVideoPreviewContext.Provider>
 }
 
 export function useFeedVideoPreview() {
-  const context = useContext(FeedVideoPreviewContext)
-  return context
+  return useContext(FeedVideoPreviewContext)
 }
 
 export function trackFeedPreviewStarted(videoId: string, title: string | undefined, audioEnabled: boolean) {

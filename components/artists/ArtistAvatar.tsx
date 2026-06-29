@@ -1,4 +1,5 @@
 import type { Artist } from "@/lib/artists"
+import { getArtistImageUrl } from "@/lib/artist-directory"
 import { cn } from "@/lib/utils"
 
 type ArtistAvatarProps = {
@@ -21,11 +22,13 @@ export function ArtistAvatar({ artist, size = "md", className }: ArtistAvatarPro
     .slice(0, 2)
     .toUpperCase()
 
-  if (artist.image) {
+  const imageSrc = getArtistImageUrl(artist.image)
+
+  if (imageSrc) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={artist.image}
+        src={imageSrc}
         alt=""
         className={cn(
           "shrink-0 rounded-full object-cover",

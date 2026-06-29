@@ -1,11 +1,12 @@
 export type ArtistEditSuggestionStatus = "pending" | "approved" | "rejected"
 
 export type ArtistEditProposedFields = {
+  profile_image: string
+  banner_image: string
   bio: string
   city: string
   state: string
   genre: string[]
-  aliases: string[]
   ig_url: string
   yt_url: string
   tt_url: string
@@ -34,8 +35,7 @@ export const ARTIST_EDIT_FIELD_LIMITS = {
   state: 80,
   genre_item: 60,
   genre_max_items: 6,
-  alias_item: 80,
-  alias_max_items: 8,
+  image_value: 3_000_000,
   url: 500,
   submitter_email: 255,
   edit_summary: 500,

@@ -31,7 +31,7 @@ async function writeSuggestions(suggestions: ArtistEditSuggestion[]): Promise<vo
 export async function appendArtistEditSuggestion(
   form: ArtistEditSuggestionForm,
 ): Promise<ArtistEditSuggestion> {
-  const artist = getArtistBySlug(form.artist_slug)
+  const artist = await getArtistBySlug(form.artist_slug)
   if (!artist) {
     throw new Error("Artist not found.")
   }
@@ -60,7 +60,8 @@ export async function appendArtistEditSuggestion(
       city: form.proposed.city.trim(),
       state: form.proposed.state.trim(),
       genre: form.proposed.genre.map((item) => item.trim()).filter(Boolean),
-      aliases: form.proposed.aliases.map((item) => item.trim()).filter(Boolean),
+      profile_image: form.proposed.profile_image.trim(),
+      banner_image: form.proposed.banner_image.trim(),
       ig_url: form.proposed.ig_url.trim(),
       yt_url: form.proposed.yt_url.trim(),
       tt_url: form.proposed.tt_url.trim(),

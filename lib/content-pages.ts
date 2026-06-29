@@ -9,8 +9,28 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
   { href: "/privacy-policy", label: "Privacy Policy" },
   { href: "/payment-terms", label: "Payment Terms" },
   { href: "/copyright", label: "Copyright" },
+  { href: "/community-guidelines", label: "Community Guidelines" },
   { href: "/faq", label: "FAQ" },
   { href: "/support", label: "Support" },
+]
+
+/** Compact discover links for the app sidebar footer (YouTube-style, not the full site footer). */
+export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
+  { href: "/hip-hop", label: "Hip-Hop" },
+  { href: "/artist-index", label: "Artist Index" },
+  { href: "/artist-index/claim", label: "Claim your profile" },
+]
+
+/** Legal + help links shown at the bottom of the left sidebar. */
+export const SIDEBAR_FOOTER_LINKS: ContentPageLink[] = [
+  { href: "/terms-of-use", label: "Terms of Use" },
+  { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/payment-terms", label: "Payment Terms" },
+  { href: "/copyright", label: "Copyright" },
+  { href: "/community-guidelines", label: "Community Guidelines" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/support", label: "Support" },
+  { href: "/app", label: "Download Hiffi App" },
 ]
 
 /** Marketing / informational pages with the same minimal chrome. */
@@ -24,6 +44,7 @@ export const MARKETING_PAGE_PATHS = [
   "/creator-playbook",
   "/creators-for-change",
   "/press",
+  "/community-guidelines",
 ] as const
 
 /** Lead / marketing forms that use the same minimal chrome as content pages. */
@@ -57,5 +78,6 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   { path: "/advertising", changeFrequency: "monthly", priority: 0.72 },
   { path: "/creators-for-change", changeFrequency: "monthly", priority: 0.72 },
   { path: "/collaborate", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/community-guidelines", changeFrequency: "yearly", priority: 0.55 },
   { path: "/copyright", changeFrequency: "yearly", priority: 0.5 },
 ]

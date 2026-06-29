@@ -3,7 +3,7 @@
 import { useRef } from "react"
 import { ChevronLeft, Play } from "lucide-react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
-import { MOOD_MIX_FULL_FEED } from "@/lib/analytics/mood-mix-analytics"
+import { MOOD_MIX_FULL_FEED, moodMixRunAnalyticsName } from "@/lib/analytics/mood-mix-analytics"
 import type { MoodDef } from "@/lib/mood-tabs"
 import { MoodOrb } from "@/components/home/mood-orb"
 import { MOOD_EASE, prefersReducedMotion } from "@/lib/gsap/mood-animations"
@@ -51,6 +51,7 @@ export function ActiveMoodBar({ mood, onPlay, onClose }: ActiveMoodBarProps) {
         <button
           type="button"
           onClick={onClose}
+          data-analytics-name={MOOD_MIX_FULL_FEED}
           className="flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Back to full feed"
         >
@@ -71,6 +72,7 @@ export function ActiveMoodBar({ mood, onPlay, onClose }: ActiveMoodBarProps) {
         <button
           type="button"
           onClick={onPlay}
+          data-analytics-name={moodMixRunAnalyticsName(mood.query)}
           className="flex h-9 items-center gap-2 bg-primary px-4 font-[family-name:var(--font-bebas)] text-sm tracking-widest text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Play className="h-3.5 w-3.5 fill-current" />

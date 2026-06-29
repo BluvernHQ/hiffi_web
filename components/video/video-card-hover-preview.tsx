@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react"
 import { Volume2, VolumeX } from "lucide-react"
-import { getFeedPreviewSources } from "@/lib/feed-preview/resolve-preview-url"
+import { getFeedPreviewSources, reportPreviewUrlFailed } from "@/lib/feed-preview/resolve-preview-url"
 import {
   isPreviewAudioPreferred,
   setPreviewAudioPreferred,
 } from "@/lib/feed-preview/preview-audio-preference"
 import { trackFeedPreviewEnded, trackFeedPreviewStarted } from "./feed-video-preview-provider"
 
-const MAX_PREVIEW_SECONDS = 30
 const PREVIEW_VOLUME = 0.8
 
 // Global single-active-preview lock.
@@ -154,6 +153,9 @@ export function VideoCardHoverPreview({
   }, [])
 
   const tryNextSource = useCallback(() => {
+    const failedUrl = streamUrlsRef.current[sourceIndexRef.current]
+    if (failedUrl) reportPreviewUrlFailed(failedUrl)
+
     const nextIndex = sourceIndexRef.current + 1
     if (nextIndex >= streamUrlsRef.current.length) return false
     const el = videoRef.current
@@ -173,7 +175,10 @@ export function VideoCardHoverPreview({
   }, [onVisibleChange])
 
   const streamUrl =
-    primaryStreamUrl ?? streamUrls[sourceIndex] ?? streamUrlsRef.current[sourceIndex] ?? null
+    streamUrls[sourceIndex] ??
+    streamUrlsRef.current[sourceIndex] ??
+    primaryStreamUrl ??
+    null
 
   const toggleAudio = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -306,7 +311,7 @@ export function VideoCardHoverPreview({
         poster={posterUrl || undefined}
         playsInline
         muted
-        preload={shouldLoad ? "auto" : "metadata"}
+        preload={shouldLoad ? "auto" : "none"}
         src={shouldLoad && streamUrl ? streamUrl : undefined}
         disablePictureInPicture
         onLoadedMetadata={(event) => {
@@ -346,10 +351,6 @@ export function VideoCardHoverPreview({
           setTotalDuration(duration)
           setRemainingSeconds(Math.max(0, duration - el.currentTime))
           setProgress(Math.min(1, el.currentTime / duration))
-          if (el.currentTime >= MAX_PREVIEW_SECONDS) {
-            el.muted = true
-            el.pause()
-          }
         }}
         onError={() => {
           if (!shouldLoad) return

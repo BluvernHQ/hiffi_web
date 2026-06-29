@@ -1,48 +1,33 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { NextResponse } from "next/server"
-import { getApiBaseUrl } from "@/lib/config"
 
-const ADMIN_CAPTURE_GUARD = `
-  function isAdminAnalyticsSurface() {
-    try {
-      return typeof window !== 'undefined' && window.location.pathname.indexOf('/admin') === 0;
-    } catch (e) {
-      return false;
-    }
+const TRACKER_PATH = join(process.cwd(), "lib/analytics/vendor/tracker.js")
+
+let cachedBody: string | null = null
+
+function getTrackerBody(): string {
+  if (cachedBody === null) {
+    cachedBody = readFileSync(TRACKER_PATH, "utf8")
   }
-`
+  return cachedBody
+}
 
 export async function GET() {
   try {
-    const upstream = `${getApiBaseUrl().replace(/\/$/, "")}/tracker.js`
-    const res = await fetch(upstream, { cache: "no-store" })
-    let body = await res.text()
-    // Drop admin-panel events before they enter the batch queue (autocapture + internal capture).
-    body = body.replace(
-      "(function (global) {",
-      `(function (global) {${ADMIN_CAPTURE_GUARD}`,
-    )
-    body = body.replace(
-      "function capture(eventName, props) {\n    if (!eventName) return;",
-      "function capture(eventName, props) {\n    if (!eventName) return;\n    if (isAdminAnalyticsSurface()) return;",
-    )
-    // Route autocapture through HifiAnalytics.capture so app-side dedupe wraps click events.
-    body = body.replace(
-      "capture('$click', clickPayload);",
-      "global.HifiAnalytics.capture('$click', clickPayload);",
-    )
+    const body = getTrackerBody()
     return new NextResponse(body, {
-      status: res.status,
+      status: 200,
       headers: {
-        "content-type": res.headers.get("content-type") || "application/javascript; charset=utf-8",
-        // Reduce repeated fetches in-page; safe because content changes rarely.
+        "content-type": "application/javascript; charset=utf-8",
+        // Immutable in prod; bump sdkVersion in tracker.js when syncing upstream.
         "cache-control": "public, max-age=300",
       },
     })
   } catch {
-    return new NextResponse("/* tracker proxy failed */", {
-      status: 502,
+    return new NextResponse("/* tracker load failed */", {
+      status: 500,
       headers: { "content-type": "application/javascript; charset=utf-8" },
     })
   }
 }
-

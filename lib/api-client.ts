@@ -997,6 +997,7 @@ class ApiClient {
     limit?: number
     offset?: number
     seed?: string
+    username?: string
   }): Promise<{
     success: boolean
     users: any[]
@@ -1012,6 +1013,9 @@ class ApiClient {
     }
     if (params.offset !== undefined) {
       queryParams.append("offset", params.offset.toString())
+    }
+    if (params.username !== undefined) {
+      queryParams.append("username", params.username)
     }
     if (params.seed) {
       queryParams.append("seed", params.seed)

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { WatchCrawlerVideo } from "@/components/watch/watch-crawler-video"
 import { WatchNoscriptSeo } from "@/components/watch/watch-noscript-seo"
 import { WatchStaticBody } from "@/components/watch/watch-static-body"
 import { fetchVideoForSeo } from "@/lib/seo/fetch-public"
@@ -22,6 +23,7 @@ export default async function WatchPage({ params }: PageProps) {
   return (
     <>
       <WatchStaticBody video={seoVideo} />
+      <WatchCrawlerVideo video={seoVideo} />
       <WatchNoscriptSeo video={seoVideo} />
       <WatchClient initialSeoVideo={seoVideo} />
     </>

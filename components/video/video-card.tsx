@@ -27,7 +27,7 @@ import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-i
 import { useFeedVideoPreview } from "./feed-video-preview-provider"
 import { VideoCardHoverPreview, pauseActiveHoverPreview } from "./video-card-hover-preview"
 import { getPrimaryPreviewStreamUrl, getWatchStreamDirectUrl } from "@/lib/feed-preview/resolve-preview-url"
-import { warmVideoWithMoov, warmWatchHandoff } from "@/lib/feed-preview/preview-warmer"
+import { warmWatchHandoff } from "@/lib/feed-preview/preview-warmer"
 import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import {
   DropdownMenu,
@@ -193,28 +193,7 @@ export function VideoCard({
     return () => releaseHover(setIsHovering)
   }, [])
 
-  // Viewport prefetch (low priority, capped in preview-warmer).
-  useEffect(() => {
-    if (!hoverPreviewEnabled || !feedPreview?.enabled || isEncoding || !videoId) return
-    const node = cardRootRef.current
-    if (!node) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          feedPreview.prefetchViewportPreview(video)
-        } else {
-          feedPreview.releaseViewportPreview(video)
-        }
-      },
-      { root: null, rootMargin: "600px 0px", threshold: 0 },
-    )
-
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [feedPreview, hoverPreviewEnabled, isEncoding, video, videoId])
-
-  // DOM-level mouseenter — warmVideo runs before React paint (bypasses provider setState).
+  // DOM-level mouseenter — set hover before React paint so <video> loads on intent only.
   useEffect(() => {
     if (!hoverPreviewEnabled || !feedPreview?.enabled || isEncoding || !videoId || !previewStreamUrl) {
       return
@@ -223,7 +202,6 @@ export function VideoCard({
     if (!el) return
 
     const onEnter = () => {
-      warmVideoWithMoov(previewStreamUrl)
       claimHover(setIsHovering)
       flushSync(() => setIsHovering(true))
       feedPreview.requestPreview(videoId)

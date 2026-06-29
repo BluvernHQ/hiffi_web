@@ -154,7 +154,7 @@ export default function HipHopPage() {
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href="/"
+            href="/artist-index/city/atlanta"
             className="inline-flex items-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Discover Artists
@@ -200,6 +200,29 @@ export default function HipHopPage() {
               </Link>
             )
           })}
+        </div>
+      </section>
+
+      {/* Artist Index */}
+      <section className="mb-14">
+        <h2 className="text-2xl font-bold mb-2">Discover Atlanta Hip-Hop Artists</h2>
+        <p className="text-muted-foreground mb-6 max-w-2xl leading-relaxed">
+          Browse 800+ emerging Atlanta rap and hip-hop profiles on the Hiffi Artist Index — claimable
+          listings with official links, genre tags, and paths to music videos on Hiffi.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/artist-index/city/atlanta"
+            className="inline-flex items-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Browse 800+ Atlanta artists
+          </Link>
+          <Link
+            href="/artist-index"
+            className="inline-flex items-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold hover:bg-accent transition-colors"
+          >
+            Full Artist Index
+          </Link>
         </div>
       </section>
 

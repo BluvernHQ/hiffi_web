@@ -94,7 +94,7 @@
 <body>
     <div class="wrap">
         <h1>HifiAnalytics test</h1>
-        <p class="sub">Open this page from your running API (e.g. <code>http://localhost:5002/webStatic/tracker-test.html</code>) so <code>/webStatic/tracker.js</code> and <code>POST /analytics/events/batch</code> share the same origin.</p>
+        <p class="sub">Open from your Next dev server (e.g. <code>http://localhost:3000/tracking.html</code>). Events batch via <code>POST /proxy/analytics/events/batch</code> on the same origin.</p>
 
         <div class="warn">If <code>ANALYTICS_INGEST_KEY</code> is set on the server, paste the same value below before capturing.</div>
 
@@ -141,7 +141,7 @@
         </div>
     </div>
 
-    <script src="/tracker.js"></script>
+    <script src="/proxy/tracker.js"></script>
     <script>
         (function () {
             var logEl = document.getElementById('log');
@@ -166,6 +166,7 @@
                 }
                 HifiAnalytics.init({
                     baseUrl: getBaseUrl(),
+                    batchPath: '/proxy/analytics/events/batch',
                     ingestKey: getIngestKey(),
                     appVersion: 'tracker-test-page',
                     autocapture: true,
@@ -223,7 +224,7 @@
                 e.preventDefault();
             });
 
-            log('Click "Init tracker", then use actions. Watch DevTools → Network for POST /analytics/events/batch');
+            log('Click "Init tracker", then use actions. Watch DevTools → Network for POST /proxy/analytics/events/batch');
         })();
     </script>
 </body>

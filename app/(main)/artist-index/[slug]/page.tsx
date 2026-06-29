@@ -1,85 +1,77 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { ArtistClaimCta } from "@/components/artists/ArtistClaimCta"
-import { ArtistDetailAbout } from "@/components/artists/ArtistDetailAbout"
-import { ArtistDetailHero } from "@/components/artists/ArtistDetailHero"
-import { ArtistIndexHeader } from "@/components/artists/ArtistIndexHeader"
-import { ArtistSocialLinks } from "@/components/artists/ArtistSocialLinks"
-import { ArtistSimilarProfiles } from "@/components/artists/ArtistSimilarProfiles"
-import { ArtistSuggestEditBar } from "@/components/artists/ArtistSuggestEditBar"
-import { getArtistBySlug, getNearbyRankedArtists } from "@/lib/artists"
-import { routeMetadata } from "@/lib/seo/route-metadata"
+import { JsonLd } from "@/components/seo/json-ld"
+import { ArtistDetailInteractive } from "@/components/artists/ArtistDetailInteractive"
+import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
+import {
+  buildArtistProfileBreadcrumbs,
+  buildArtistProfileMetadata,
+} from "@/lib/artist-directory-seo"
+import { getArtistBySlug, getRelatedArtists } from "@/lib/artists"
+import {
+  buildArtistProfileBreadcrumbJsonLd,
+  buildArtistProfileJsonLd,
+} from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
-import { SiteFooter } from "@/components/layout/site-footer"
 
 type ArtistBriefPageProps = {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ edit?: string | string[] }>
 }
 
-export async function generateMetadata({ params }: ArtistBriefPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: ArtistBriefPageProps): Promise<Metadata> {
   const { slug } = await params
-  const artist = getArtistBySlug(slug)
+  const query = await searchParams
+  const isEditMode = query.edit === "1" || query.edit === "true"
+  const artist = await getArtistBySlug(slug)
 
   if (!artist) {
-    return routeMetadata({
+    return {
       title: "Artist Not Found",
       description: "This artist profile could not be found on Hiffi.",
-      path: `/artist-index/${slug}`,
-      index: false,
-    })
+      robots: { index: false, follow: true },
+    }
   }
 
-  return routeMetadata({
-    title: artist.name,
-    description:
-      artist.bio ||
-      `${artist.name} on the Hiffi Artist Index — ${artist.city}. ${artist.genre.join(", ")}.`,
-    path: `/artist-index/${artist.slug}`,
-    keywords: [artist.name, ...artist.genre, artist.city, "Hiffi artist"],
-  })
+  const metadata = buildArtistProfileMetadata(artist)
+  if (isEditMode) {
+    return { ...metadata, robots: { index: false, follow: true } }
+  }
+  return metadata
 }
 
-export default async function ArtistBriefPage({ params }: ArtistBriefPageProps) {
+export default async function ArtistBriefPage({ params, searchParams }: ArtistBriefPageProps) {
   const { slug } = await params
-  const artist = getArtistBySlug(slug)
+  const artist = await getArtistBySlug(slug)
 
   if (!artist) {
     notFound()
   }
 
+  const query = await searchParams
+  const initialEditMode = query.edit === "1" || query.edit === "true"
+
   const profileUrl = absoluteUrl(`/artist-index/${artist.slug}`)
-  const similarArtists = getNearbyRankedArtists(artist, 6)
+  const otherArtists = await getRelatedArtists(artist, 6)
+  const breadcrumbs = buildArtistProfileBreadcrumbs(artist)
 
   return (
-    <div className="min-h-screen bg-white">
-      <ArtistIndexHeader
-        claimHref={`/artist-index/${artist.slug}/claim`}
-        breadcrumbs={[
-          { label: "Explore Artist", href: "/artist-index" },
-          { label: "Artist Brief" },
-        ]}
+    <ArtistDirectoryShell
+      claimHref={`/artist-index/${artist.slug}/claim`}
+      breadcrumbs={breadcrumbs}
+    >
+      <JsonLd data={buildArtistProfileJsonLd(artist)} />
+      <JsonLd data={buildArtistProfileBreadcrumbJsonLd(artist)} />
+
+      <ArtistDetailInteractive
+        artist={artist}
+        profileUrl={profileUrl}
+        otherArtists={otherArtists}
+        initialEditMode={initialEditMode}
       />
-
-      <ArtistDetailHero artist={artist} profileUrl={profileUrl} />
-
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-        <div className="space-y-8">
-          <ArtistSuggestEditBar artist={artist} />
-
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-10">
-            <ArtistDetailAbout artist={artist} />
-            <ArtistSocialLinks artist={artist} />
-          </div>
-
-          <ArtistSimilarProfiles artist={artist} similarArtists={similarArtists} />
-        </div>
-
-        <div className="mt-12">
-          <ArtistClaimCta artist={artist} variant="banner" />
-        </div>
-      </main>
-
-      <SiteFooter />
-    </div>
+    </ArtistDirectoryShell>
   )
 }

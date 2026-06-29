@@ -3,12 +3,9 @@
 import { VideoCard } from "./video-card"
 import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
-import { useFeedVideoPreview } from "./feed-video-preview-provider"
 import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react"
 import type { PlaylistNavigation } from "@/lib/playlist-session"
 
-/** Rows to head-prefetch on load and after each pagination batch. */
-const PREFETCH_ROWS_ON_LOAD = 2
 const DEFAULT_ROW_HEIGHT_PX = 300
 const LOAD_THROTTLE_MS = 500
 
@@ -97,8 +94,6 @@ export function VideoGrid({
   const lastLoadTime = useRef<number>(0)
   const scrollRootRef = useRef<HTMLElement | null>(null)
   const columnsPerRow = useGridColumnCount()
-  const feedPreview = useFeedVideoPreview()
-  const prevVideoCountRef = useRef(0)
 
   const safeVideos = videos || []
 
@@ -123,35 +118,6 @@ export function VideoGrid({
   useLayoutEffect(() => {
     scrollRootRef.current = document.getElementById("main-content")
   }, [])
-
-  // Head-prefetch first rows on load; warm newly paginated items on scroll.
-  useEffect(() => {
-    if (!enableHoverPreview || !feedPreview?.enabled) return
-
-    if (safeVideos.length === 0) {
-      prevVideoCountRef.current = 0
-      return
-    }
-
-    const prevCount = prevVideoCountRef.current
-    prevVideoCountRef.current = safeVideos.length
-    const batchSize = columnsPerRow * PREFETCH_ROWS_ON_LOAD
-
-    const run = () => {
-      if (prevCount === 0 || safeVideos.length < prevCount) {
-        feedPreview.prefetchBatch(safeVideos, batchSize)
-      } else if (safeVideos.length > prevCount) {
-        feedPreview.prefetchBatch(safeVideos.slice(prevCount), batchSize)
-      }
-    }
-
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(run, { timeout: 2000 })
-      return () => window.cancelIdleCallback(id)
-    }
-    const timer = setTimeout(run, 150)
-    return () => clearTimeout(timer)
-  }, [safeVideos, enableHoverPreview, feedPreview, columnsPerRow])
 
   const onLoadMoreRef = useRef(onLoadMore)
   const loadingRef = useRef(loading)

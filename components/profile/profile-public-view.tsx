@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { VideoGrid } from "@/components/video/video-grid"
+import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
@@ -75,14 +76,14 @@ export function ProfilePublicView(props: {
   return (
     <>
       <div className="bg-background w-full">
-        {/* Cover Image / Banner */}
-        <div className="h-32 sm:h-40 md:h-48 lg:h-64 w-full relative overflow-hidden">
-          {profileUser.coverUrl ? (
-            <img src={profileUser.coverUrl} alt="Cover" className="w-full h-full object-cover" />
-          ) : (
-            <img src="/abstract-orange-pattern.png" alt="Profile header" className="w-full h-full object-cover" />
-          )}
-        </div>
+        <ProfileCoverBanner
+          coverUrl={profileUser.coverUrl}
+          coverAlt="Cover"
+          displayName={
+            (profileUser.name && profileUser.name.trim()) || profileUser.username || username || "Artist"
+          }
+          username={profileUser.username || username}
+        />
 
         <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto pb-4 sm:pb-6 md:pb-8">

@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
+import { buildSeoImageProxyUrl } from "@/lib/seo/video-public-urls"
 import { getThumbnailUrl } from "@/lib/storage"
 import { HomeFeedClient } from "./home-feed-client"
 
@@ -80,7 +81,9 @@ export default async function RootPage() {
                 position: i + 1,
                 url: absoluteUrl(`/watch/${encodeURIComponent(v.video_id ?? "")}`),
                 name: v.video_title ?? "Video",
-                image: v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : undefined,
+                image: v.video_thumbnail
+                  ? buildSeoImageProxyUrl(getThumbnailUrl(v.video_thumbnail)) || undefined
+                  : undefined,
               })),
             },
           ],

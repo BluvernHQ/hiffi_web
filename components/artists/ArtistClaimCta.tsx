@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { Artist } from "@/lib/artists"
-import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
+import { artistButtonOutline, artistButtonSolid, artistPanelShell } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
 
 type ArtistClaimCtaProps = {
@@ -17,20 +17,21 @@ export function ArtistClaimCta({ artist, variant = "sidebar", className }: Artis
     return (
       <section
         className={cn(
-          "rounded-2xl bg-[#E8192C] px-6 py-10 text-center text-white sm:px-10 sm:py-12",
+          artistPanelShell,
+          "bg-[#E8192C] px-6 py-10 text-center text-white sm:px-10 sm:py-12",
           className,
         )}
       >
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Are You an Artist?</h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-white/90 sm:text-base">
-          Join our elite community and showcase your talent to the world. Get discovered by fans and
-          industry leaders.
+          Claim your Hiffi Artist Profile. Verify your links, upload videos, and help fans discover
+          your work.
         </p>
         <Link
-          href={isUnclaimed ? claimHref : "/artist-index"}
+          href={isUnclaimed ? claimHref : "/artist-index/claim"}
           className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#E8192C] transition-colors hover:bg-white/90"
         >
-          Claim Your Profile Now
+          Claim your profile
         </Link>
       </section>
     )
@@ -39,7 +40,8 @@ export function ArtistClaimCta({ artist, variant = "sidebar", className }: Artis
   return (
     <aside
       className={cn(
-        "rounded-2xl border border-[#E8192C]/15 bg-rose-50/60 p-6",
+        "border border-[#E8192C]/15 bg-rose-50/60 p-6",
+        artistPanelShell,
         isUnclaimed && "ring-1 ring-[#E8192C]/10",
         className,
       )}

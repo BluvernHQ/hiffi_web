@@ -34,7 +34,7 @@ function MinimalNavbarHeader() {
   return (
     <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-2 sm:px-3 md:px-4">
-        <Link href="/" className="flex items-center gap-3" data-analytics-name="navbar-home-logo-link">
+        <Link href="/" className="flex items-center gap-3" data-analytics-name="appbar-logo">
           <Image
             src="/appbarlogo.png"
             alt="Hiffi Logo"
@@ -163,7 +163,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/" className="flex items-center gap-3" data-analytics-name="navbar-home-logo-link">
+            <Link href="/" className="flex items-center gap-3" data-analytics-name="appbar-logo">
               <Image
                 src="/appbarlogo.png"
                 alt="Hiffi Logo"

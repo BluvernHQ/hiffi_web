@@ -13,7 +13,7 @@ type ArtistClaimPageProps = {
 
 export async function generateMetadata({ params }: ArtistClaimPageProps): Promise<Metadata> {
   const { slug } = await params
-  const artist = getArtistBySlug(slug)
+  const artist = await getArtistBySlug(slug)
 
   if (!artist) {
     return routeMetadata({
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: ArtistClaimPageProps): Promis
 
 export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) {
   const { slug } = await params
-  const artist = getArtistBySlug(slug)
+  const artist = await getArtistBySlug(slug)
 
   if (!artist) {
     notFound()
@@ -53,8 +53,8 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
             Claim {artist.name}
           </h1>
           <p className="text-base text-muted-foreground">
-            Secure your profile and gain access to the Hiffi Artist Dashboard. This takes about two
-            minutes — no document upload required for now.
+            Submit your name and email to claim this profile. Our team will review your request
+            within 24–48 hours — no login required.
           </p>
         </div>
 

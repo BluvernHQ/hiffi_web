@@ -23,6 +23,7 @@ import {
   Search as SearchIcon,
   ArrowDownToLine,
   ListMusic,
+  Mic2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -55,6 +56,12 @@ const navSections: NavSection[] = [
     title: "Overview",
     items: [
       { icon: BarChart3, label: "Dashboard", value: "overview", permission: "admin:overview" },
+    ],
+  },
+  {
+    title: "Artist Index",
+    items: [
+      { icon: Mic2, label: "Artist Inventory", value: "artist_inventory", permission: "admin:inventory" },
     ],
   },
   {

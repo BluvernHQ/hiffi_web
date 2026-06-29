@@ -3,6 +3,7 @@ import { Calendar, Flag, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
 
@@ -56,13 +57,11 @@ export function ProfileMemberView(props: {
   return (
     <>
       <div className="bg-background w-full">
-        <div className="h-32 sm:h-40 md:h-48 lg:h-64 w-full relative overflow-hidden">
-          {profileUser.coverUrl ? (
-            <img src={profileUser.coverUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <img src="/abstract-orange-pattern.png" alt="" className="w-full h-full object-cover" />
-          )}
-        </div>
+        <ProfileCoverBanner
+          coverUrl={profileUser.coverUrl}
+          displayName={displayName}
+          username={profileUser.username || username}
+        />
 
         <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto pb-4 sm:pb-6 md:pb-8">

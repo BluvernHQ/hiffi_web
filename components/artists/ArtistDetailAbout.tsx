@@ -1,5 +1,6 @@
 import type { Artist } from "@/lib/artists"
-import { formatCityState, formatTotalReach } from "@/lib/artists"
+import { formatCityState, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
+import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import { cn } from "@/lib/utils"
 
 type ArtistDetailAboutProps = {
@@ -32,7 +33,10 @@ export function ArtistDetailAbout({ artist }: ArtistDetailAboutProps) {
       : "Unclaimed Profile"
 
   const sound = artist.genre.join(" / ")
-  const aliases = artist.aliases?.length ? artist.aliases.join(", ") : "—"
+  const displayBio = getArtistDisplayBio(artist)
+  const hasCustomBio = Boolean(artist.bio?.trim())
+  const reach = getPrimaryFollowerCount(artist)
+  const hiffiVideoCount = 0
 
   return (
     <section className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
@@ -42,19 +46,29 @@ export function ArtistDetailAbout({ artist }: ArtistDetailAboutProps) {
       <div className="mt-4 border-t border-border" aria-hidden />
 
       <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-        <DetailField label="Index rank" value={`#${artist.rank}`} />
-        <DetailField label="Total reach" value={formatTotalReach(artist.total_reach, false)} />
+        {reach != null && reach > 0 ? (
+          <DetailField label="Total reach" value={formatTotalReach(reach, false)} />
+        ) : null}
         <DetailField label="Artist name" value={artist.name} />
         <DetailField label="Sound" value={sound} />
-        <DetailField label="Also known as" value={aliases} />
-        <DetailField label="Hiffi videos" value="0 available" />
+        {hiffiVideoCount > 0 ? (
+          <DetailField
+            label="Hiffi videos"
+            value={`${hiffiVideoCount} available`}
+          />
+        ) : null}
         <DetailField label="City" value={formatCityState(artist)} />
         <DetailField label="Profile status" value={profileStatus} highlight={artist.verified} />
       </dl>
 
-      {artist.bio ? (
-        <p className="mt-8 text-sm leading-relaxed text-muted-foreground">{artist.bio}</p>
-      ) : null}
+      <p
+        className={cn(
+          "mt-8 text-sm leading-relaxed text-muted-foreground",
+          !hasCustomBio && "italic",
+        )}
+      >
+        {displayBio}
+      </p>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
         Watch their videos on Hiffi and follow their official links to stay connected with new
         releases, visuals, and updates.

@@ -11,11 +11,13 @@ type Breadcrumb = {
 
 type ArtistIndexHeaderProps = {
   claimHref?: string
+  claimLabel?: string
   breadcrumbs?: Breadcrumb[]
 }
 
 export function ArtistIndexHeader({
-  claimHref = "/artist-index",
+  claimHref = "/artist-index/claim",
+  claimLabel = "Claim your profile",
   breadcrumbs,
 }: ArtistIndexHeaderProps) {
   return (
@@ -24,7 +26,7 @@ export function ArtistIndexHeader({
         <div
           className={cn(
             "flex items-center justify-between",
-            breadcrumbs?.length ? "py-3" : "h-16",
+            breadcrumbs?.length ? "py-2.5" : "h-14",
           )}
         >
           <div className="min-w-0">
@@ -67,7 +69,7 @@ export function ArtistIndexHeader({
             ) : null}
           </div>
           <Link href={claimHref} className={artistButtonSolid}>
-            Claim Now
+            {claimLabel}
           </Link>
         </div>
       </div>

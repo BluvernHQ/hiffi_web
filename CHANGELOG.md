@@ -13,25 +13,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 - Curated playlists admin UI (`/admin/dashboard?section=curated_playlists`) — create, edit, reorder, delete
 - Admin account management (`/admin/dashboard?section=admins`) — invite + list admins
 - Admin password reset (`/admin/forgot-password`) and invite verification (`/admin/verify-invite`)
-- **Artist Index** at `/artist-index` — searchable artist rankings, profile pages, claim flow, and community edit suggestions
+- **Artist Index** at `/artist-index` — searchable directory hub, profile pages, claim flow, and community edit suggestions (`?edit=1`)
+- Artist Index fed by gateway `GET /inventory` (live `artist_inventory` rows) instead of a static JSON seed
+- Artist Index landing pages: `/artist-index/claim`, `/artist-index/city/[citySlug]`, `/artist-index/genre/[genreSlug]`
+- Atlanta scene editorial guide at `/artist-index/city/atlanta/scene` (long-form SEO page separate from the city directory)
+- Profile claim submission via `POST /inventory/claims` (BFF at `/api/inventory/claims`)
+- Admin **Artist Inventory** (`/admin/dashboard?section=artist_inventory`) — browse, CSV/Excel upload with progress, template download, CSV export, and claims review queue
+- Home feed hover video preview — muted card previews with user audio preference and preview URL warming
+- HiFFi-branded default profile cover banner (`ProfileCoverBanner`) — unique gradient art per creator (username + display name)
+- Watch page crawler-visible video + poster in initial HTML (`WatchCrawlerVideo`) for richer indexing signals
+- Artist Index JSON-LD, expanded sitemap coverage, and `content/llms/artist-index` discovery docs
+- Optional first-party API analytics (`/proxy/tracker.js`, gated by `NEXT_PUBLIC_API_ANALYTICS`)
+- `HIFFI_SERVER_READ_BEARER` for server-side profile OG/schema enrichment
 - Admin sidebar **View site** link (opens the public site using the current deployment host)
 - Playlist picker prefetch cache — warms the signed-in user’s playlist list before opening Save to playlist
 - Video profile resolution (`original_profile` + `profiles`) for quality menus and playback fallbacks
+- Internal docs: analytics journey tracking spec and on-page SEO marketing runbook
 
 ### Changed
 
 - **Breaking:** Admin dashboard no longer uses consumer `POST /auth/login` or `user.role === "admin"`
 - Admin API calls use `adminApiClient` with admin JWT only; consumer `apiClient` unchanged
+- Artist Index route renamed from `/artistindex` to `/artist-index` (redirects in `next.config.mjs`)
+- Artist Index hub uses filter pills, intro copy, FAQ, and a curved card grid directory (no hero carousel or rankings table)
+- Artist directory cards no longer show link count or `0 Videos` stats bar
+- Artist detail pages hide empty total reach, `0 Hiffi Videos`, and the public “Suggest an edit” CTA (edit mode remains via `?edit=1`)
+- Default profile cover shows personalized banner art when the creator has not uploaded a custom image
 - Public curated playlists no longer expose `owner_uid` in API mappers
 - User playlists page copy clarified as personal playlists (not curated editorial)
 - Watch page actions: **Save to playlist** is a top-level button; **Share** moved into the more (⋯) menu
 - Save to playlist on watch uses a popover anchored to the save button (not a full-screen dialog)
 - Creator Playbook expanded with YouTube-style guidance; removed monetization/sample-work steps
+- Studio YouTube migration no longer requires Google channel verification (simplified migrate form)
 - Marketing copy: instant creator access for hip-hop/rap artists (no application wait) on Artists, FAQ, How it Works, and What is Hiffi
 - Hip-hop hub and Artists pages: removed algorithm gatekeeping and monetization claims
 - Advertising page section title: “Brand safety & transparency” (fixed `&amp;` entity)
 - What is Hiffi: removed outdated Kinimi Corporation reference
-- Artist index route renamed from `/artistindex` to `/artist-index` (redirects in `next.config.mjs`)
 
 ### Fixed
 
@@ -39,11 +56,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 - Login and signup **Skip** no longer loops back to login when the redirect target requires auth (e.g. My reports → Support)
 - Video player infinite React update loop when resolving playback profiles
 - Video playback and SEO fetch aligned with gateway `video_url`, stable paths, and `original_profile` transcodes
+- Admin inventory search field stays mounted while results load (spinner in field + table overlay)
+- Admin inventory upload: staged file review before import, upload progress, and leave/cancel warnings during active imports
 
 ### Removed
 
 - `forceAdminDashboardRedirect` from consumer auth flow
 - Admin role from creator upload/studio permissions (admins are a separate principal)
+- Static `lib/data/artists.json` artist seed (replaced by inventory API)
+- Artist Index hero carousel, rankings table, similar-profiles spotlight, and suggest-edit sidebar bar
+- YouTube Google OAuth channel verification utilities from Studio migration
 - Hip-hop hub “No Algorithmic Gatekeeping” card and related copy
 - Monetization promises from Artists page and creator onboarding copy
 

@@ -22,6 +22,11 @@ import { setPlaylistSession } from "@/lib/playlist-session"
 import { requestHomeFullFeed } from "@/lib/mood-session"
 import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
 import { CuratedMixSection, type CuratedPlaylistSummary } from "@/components/layout/sidebar/curated-mix-section"
+import {
+  SIDEBAR_FOOTER_DISCOVER_LINKS,
+  SIDEBAR_FOOTER_LINKS,
+  type ContentPageLink,
+} from "@/lib/content-pages"
 
 interface SidebarProps {
   className?: string
@@ -326,6 +331,30 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     [closeSidebar, curatedFirstVideoById, router],
   )
 
+  const SidebarFooterLink = ({ item }: { item: ContentPageLink }) => (
+    <Link
+      href={item.href}
+      className={cn(
+        "text-xs transition-colors",
+        isAppDownloadPage ? "text-black/65 hover:text-black" : "text-muted-foreground hover:text-foreground",
+      )}
+      onClick={(e) => {
+        const { shouldBlock, message } = checkUploadNavigationGuard()
+        if (shouldBlock) {
+          e.preventDefault()
+          if (typeof window !== "undefined" && window.confirm(message)) {
+            closeSidebar()
+            router.push(item.href)
+          }
+        } else {
+          closeSidebar()
+        }
+      }}
+    >
+      {item.label}
+    </Link>
+  )
+
   return (
     <>
       {/* Mobile Sidebar Overlay */}
@@ -525,150 +554,20 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
             </nav>
           </div>
 
-          {/* Sidebar Footer */}
+          {/* Sidebar Footer — compact trust + discover links (YouTube-style) */}
           <div className="border-t px-4 py-4 mt-auto shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] mb-[env(safe-area-inset-bottom)]">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <Link
-                  href="/terms-of-use"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/terms-of-use")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Terms of Use
-                </Link>
-                <Link
-                  href="/payment-terms"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/payment-terms")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Payment Terms
-                </Link>
-                <Link
-                  href="/privacy-policy"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/privacy-policy")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Privacy Policy
-                </Link>
-                <Link
-                  href="/faq"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/faq")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  FAQ
-                </Link>
-                <Link
-                  href="/app"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/app")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Download Hiffi App
-                </Link>
-                <Link
-                  href="/support"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/support")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Support
-                </Link>
+                {SIDEBAR_FOOTER_DISCOVER_LINKS.map((item) => (
+                  <SidebarFooterLink key={item.href} item={item} />
+                ))}
               </div>
-                <div className={cn("text-xs mt-1", isAppDownloadPage ? "text-black/55" : "text-muted-foreground")}>
+              <div className="border-t border-border/50 pt-3 flex flex-col gap-1.5">
+                {SIDEBAR_FOOTER_LINKS.map((item) => (
+                  <SidebarFooterLink key={item.href} item={item} />
+                ))}
+              </div>
+              <div className={cn("text-xs", isAppDownloadPage ? "text-black/55" : "text-muted-foreground")}>
                 © 2026 Kinimi Corporation
               </div>
             </div>

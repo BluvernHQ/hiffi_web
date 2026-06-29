@@ -38,6 +38,7 @@ import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-
 import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
 import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
 import { AdminsPanel } from "@/components/admin/admins-panel"
+import { InventoryPanel } from "@/components/admin/inventory-panel"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -431,6 +432,20 @@ function AdminDashboardContent() {
                     ) : (
                       <TableSkeleton />
                     )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "artist_inventory" && can("admin:inventory") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Artist Inventory</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Browse imported artist profiles, bulk upload CSV/Excel, and review ownership claims
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <InventoryPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

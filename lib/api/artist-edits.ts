@@ -5,6 +5,8 @@ import type {
 } from "@/lib/types/artist-edit-suggestion"
 import { ARTIST_EDIT_FIELD_LIMITS } from "@/lib/types/artist-edit-suggestion"
 
+import { validateArtistEditImageValue } from "@/lib/artist-edit-images"
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const URL_RE = /^https:\/\/.+/i
 
@@ -15,7 +17,6 @@ export type ArtistEditFormFieldErrors = Partial<
     | "edit_summary"
     | "sources"
     | "genre"
-    | "aliases"
     | "form",
     string
   >
@@ -23,11 +24,12 @@ export type ArtistEditFormFieldErrors = Partial<
 
 export function artistToEditableSnapshot(artist: Artist): ArtistEditProposedFields {
   return {
+    profile_image: artist.image ?? "",
+    banner_image: artist.banner_image ?? "",
     bio: artist.bio ?? "",
     city: artist.city,
     state: artist.state,
     genre: [...artist.genre],
-    aliases: [...(artist.aliases ?? [])],
     ig_url: artist.ig_url ?? "",
     yt_url: artist.yt_url ?? "",
     tt_url: artist.tt_url ?? "",
@@ -49,14 +51,6 @@ export function parseGenreInput(value: string): string[] {
     value,
     ARTIST_EDIT_FIELD_LIMITS.genre_max_items,
     ARTIST_EDIT_FIELD_LIMITS.genre_item,
-  )
-}
-
-export function parseAliasesInput(value: string): string[] {
-  return parseCommaList(
-    value,
-    ARTIST_EDIT_FIELD_LIMITS.alias_max_items,
-    ARTIST_EDIT_FIELD_LIMITS.alias_item,
   )
 }
 
@@ -115,6 +109,12 @@ export function validateArtistEditSuggestionForm(
   else if (proposed.genre.length > ARTIST_EDIT_FIELD_LIMITS.genre_max_items) {
     errors.genre = `At most ${ARTIST_EDIT_FIELD_LIMITS.genre_max_items} genres.`
   }
+
+  const profileImageError = validateArtistEditImageValue(proposed.profile_image, "Profile photo")
+  if (profileImageError) errors.profile_image = profileImageError
+
+  const bannerImageError = validateArtistEditImageValue(proposed.banner_image, "Banner image")
+  if (bannerImageError) errors.banner_image = bannerImageError
 
   validateOptionalUrl(proposed.ig_url, "ig_url", errors)
   validateOptionalUrl(proposed.yt_url, "yt_url", errors)

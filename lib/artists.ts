@@ -1,4 +1,27 @@
-import artistsData from "@/lib/data/artists.json"
+import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+
+export {
+  ARTIST_DIRECTORY_PAGE_SIZE,
+  ARTIST_INDEX_PATH,
+  ARTIST_INDEX_CLAIM_PATH,
+  artistIndexCityHref,
+  artistIndexGenreHref,
+  buildArtistDirectoryHref,
+  parseArtistDirectorySearchParams,
+} from "@/lib/artist-directory"
+
+export {
+  getArtistBySlugAsync as getArtistBySlug,
+  getArtistsAsync as getArtists,
+  getArtistCountAsync as getArtistCount,
+  getArtistDirectoryFilterByIdAsync as getArtistDirectoryFilterById,
+  getArtistDirectoryFiltersAsync as getArtistDirectoryFilters,
+  getAvailableArtistDirectoryFiltersAsync as getAvailableArtistDirectoryFilters,
+  getOtherArtistsAsync as getOtherArtists,
+  getRelatedArtistsAsync as getRelatedArtists,
+  resolveArtistDirectoryPageAsync as resolveArtistDirectoryPage,
+  sanitizeActiveFilterIdsAsync as sanitizeActiveFilterIds,
+} from "@/lib/artist-index/directory-data"
 
 export type ClaimStatus = "unclaimed" | "claimed" | "pending"
 
@@ -7,12 +30,12 @@ export type Artist = {
   name: string
   rank: number
   index_order?: number
-  aliases?: string[]
   city: string
   state: string
   genre: string[]
   bio: string
   image: string | null
+  banner_image?: string | null
   contact_phone?: string | null
   contact_email?: string | null
   spotify_url?: string | null
@@ -33,8 +56,6 @@ export type Artist = {
   added_date: string
 }
 
-export const ARTIST_INDEX_PATH = "/artist-index" as const
-
 export function artistIndexHref(slug?: string): string {
   return slug ? `${ARTIST_INDEX_PATH}/${slug}` : ARTIST_INDEX_PATH
 }
@@ -44,44 +65,47 @@ export function artistIndexClaimHref(slug: string): string {
 }
 
 export function artistIndexEditHref(slug: string): string {
-  return `${ARTIST_INDEX_PATH}/${slug}/edit`
+  return `${ARTIST_INDEX_PATH}/${slug}?edit=1`
 }
 
-const artists = artistsData as Artist[]
+const NEW_ARTIST_DAYS = 60
 
-function compareArtistsByRank(a: Artist, b: Artist): number {
-  if (a.rank !== b.rank) return a.rank - b.rank
-  if (a.total_reach !== b.total_reach) return b.total_reach - a.total_reach
-  return a.name.localeCompare(b.name)
+export function isArtistNew(artist: Artist): boolean {
+  const added = new Date(artist.added_date)
+  if (Number.isNaN(added.getTime())) return false
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - NEW_ARTIST_DAYS)
+  return added >= cutoff
 }
 
-export function getArtists(): Artist[] {
-  return [...artists].sort(compareArtistsByRank)
+export function countArtistSocialLinks(artist: Artist): number {
+  return [artist.spotify_url, artist.ig_url, artist.yt_url, artist.tt_url, artist.fb_url].filter(
+    Boolean,
+  ).length
 }
 
-export function getArtistCount(): number {
-  return artists.length
+export function getShortCityLabel(artist: Artist): string {
+  return artist.city.split(",")[0]?.trim() || artist.city
 }
 
-export function getArtistBySlug(slug: string): Artist | undefined {
-  return artists.find((artist) => artist.slug === slug)
+export type ArtistDirectoryFilter = {
+  id: string
+  label: string
+  count: number
+  kind: "city" | "genre" | "status"
+  slug: string
+  test: (artist: Artist) => boolean
 }
 
-export function filterArtists(query: string): Artist[] {
-  const normalizedQuery = query.trim().toLowerCase()
-
-  return getArtists().filter((artist) => {
-    if (!normalizedQuery) return true
-
-    return (
-      artist.name.toLowerCase().includes(normalizedQuery) ||
-      artist.slug.includes(normalizedQuery) ||
-      artist.city.toLowerCase().includes(normalizedQuery) ||
-      artist.genre.some((genre) => genre.toLowerCase().includes(normalizedQuery)) ||
-      (artist.aliases?.some((alias) => alias.toLowerCase().includes(normalizedQuery)) ?? false) ||
-      (artist.contact_email?.toLowerCase().includes(normalizedQuery) ?? false)
-    )
-  })
+export function getArtistProfileSubtitle(artist: Artist): string {
+  const genres = artist.genre.join(" / ")
+  if (artist.verified) {
+    return `${genres} • Official profile`
+  }
+  if (artist.claim_status === "pending") {
+    return `${genres} • Claim pending`
+  }
+  return `${genres} • Unclaimed profile`
 }
 
 export function formatFollowerCount(count: number | null | undefined): string {
@@ -153,38 +177,8 @@ export function getManagementLabel(artist: Artist): string | null {
   return null
 }
 
-function getArtistListIndex(artist: Artist, sortedArtists: Artist[]): number {
-  if (artist.index_order != null) {
-    return artist.index_order - 1
-  }
-  return sortedArtists.findIndex((item) => item.slug === artist.slug)
-}
-
-/**
- * Artists nearest to `artist` in the index sort order (rank, then total reach, then name).
- * Useful for "people also viewed" style discovery without a separate similarity model.
- */
-export function getNearbyRankedArtists(artist: Artist, limit = 6): Artist[] {
-  const sortedArtists = getArtists()
-  const currentIndex = getArtistListIndex(artist, sortedArtists)
-
-  if (currentIndex < 0) {
-    return []
-  }
-
-  const neighbors: Artist[] = []
-  let offset = 1
-
-  while (neighbors.length < limit && offset < sortedArtists.length) {
-    const above = sortedArtists[currentIndex - offset]
-    const below = sortedArtists[currentIndex + offset]
-
-    if (below) neighbors.push(below)
-    if (neighbors.length >= limit) break
-    if (above) neighbors.push(above)
-
-    offset += 1
-  }
-
-  return neighbors.slice(0, limit)
+/** @deprecated Use getOtherArtists — rankings are no longer shown in the index. */
+export async function getNearbyRankedArtists(artist: Artist, limit = 6): Promise<Artist[]> {
+  const { getOtherArtistsAsync } = await import("@/lib/artist-index/directory-data")
+  return getOtherArtistsAsync(artist, limit)
 }
