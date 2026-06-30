@@ -84,6 +84,28 @@ export function artistIndexGenreHref(genreSlug: string, page?: number): string {
   return `${base}?page=${page}`
 }
 
+/** Curated hub pills shown inline beside search on `/artist-index`. */
+export const HUB_INLINE_FILTER_SPECS = [
+  { kind: "city" as const, slug: "atlanta" },
+  { kind: "genre" as const, slug: "hip-hop" },
+  { kind: "genre" as const, slug: "rap" },
+  { kind: "genre" as const, slug: "trap" },
+  { kind: "status" as const, slug: "verified" },
+  { kind: "status" as const, slug: "new" },
+]
+
+export function pickHubInlineFilters(
+  options: ArtistDirectoryFilterOption[],
+): ArtistDirectoryFilterOption[] {
+  return HUB_INLINE_FILTER_SPECS.map((spec) =>
+    options.find((filter) => filter.kind === spec.kind && filter.slug === spec.slug),
+  ).filter((filter): filter is ArtistDirectoryFilterOption => filter != null)
+}
+
+export const HUB_FILTER_LABEL_OVERRIDES: Partial<Record<string, string>> = {
+  new: "New Uploads",
+}
+
 /** Resolve API profile picture paths (e.g. ProfileProto/users/…) for browser img src. */
 export function getArtistImageUrl(image: string | null | undefined): string | null {
   const trimmed = image?.trim()

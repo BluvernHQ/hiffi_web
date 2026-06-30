@@ -86,7 +86,9 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         data={buildArtistIndexHubJsonLd({
           artists: directory.pageArtists,
           pageUrl,
-          pageName: `${city.label} hip-hop & rap artists on Hiffi`,
+          pageName: isAtlanta
+            ? "Atlanta hip-hop & rap artists on Hiffi"
+            : `${city.label} hip-hop & rap artists on Hiffi`,
           pageDescription: city.description,
           totalItemCount: directory.totalMatches,
           pageType: "CollectionPage",
@@ -108,11 +110,7 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         activeFilterIds={[city.filterId]}
         claimArtist={directory.claimArtist}
         introTitle={isAtlanta ? "Atlanta hip-hop & rap artists" : `${city.label} hip-hop & rap artists`}
-        introDescription={
-          isAtlanta
-            ? `${directory.totalMatches.toLocaleString()}+ claimable profiles — search, browse subgenres, and claim your listing.`
-            : city.description
-        }
+        introDescription={city.description}
         sectionTitle={`Browse ${city.label} artists`}
         sectionSubtitle={`${directory.totalMatches.toLocaleString()} profiles in ${city.label}`}
         paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}

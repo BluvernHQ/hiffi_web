@@ -18,6 +18,7 @@ type ArtistDirectoryGridProps = {
   sectionSubtitle?: string
   paginationHref?: (page: number) => string
   compactHeader?: boolean
+  cardVariant?: "default" | "hub"
 }
 
 function buildPageNumbers(current: number, total: number): (number | "ellipsis")[] {
@@ -51,6 +52,7 @@ export function ArtistDirectoryGrid({
   sectionSubtitle,
   paginationHref,
   compactHeader = false,
+  cardVariant = "default",
 }: ArtistDirectoryGridProps) {
   const pageNumbers = buildPageNumbers(currentPage, totalPages)
   const pageHref =
@@ -106,7 +108,7 @@ export function ArtistDirectoryGrid({
         <div className={compactHeader ? "space-y-6" : "space-y-8"}>
           <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
             {artists.map((artist) => (
-              <ArtistCard key={artist.slug} artist={artist} />
+              <ArtistCard key={artist.slug} artist={artist} variant={cardVariant} />
             ))}
           </div>
 

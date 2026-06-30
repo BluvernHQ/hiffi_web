@@ -4,6 +4,25 @@ import { CircleHelp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CONTENT_PAGE_LINKS } from "@/lib/content-pages"
+import { HIFFI_SOCIAL_PROFILES } from "@/lib/seo/social"
+
+const socialLinks = [
+  {
+    label: "Instagram",
+    href: HIFFI_SOCIAL_PROFILES.instagram,
+    iconSrc: "/artist-claim/icons/instagram.svg",
+  },
+  {
+    label: "X",
+    href: HIFFI_SOCIAL_PROFILES.x,
+    iconSrc: "/artist-claim/icons/twitter.svg",
+  },
+  {
+    label: "YouTube",
+    href: HIFFI_SOCIAL_PROFILES.youtube,
+    iconSrc: "/artist-claim/icons/youtube.svg",
+  },
+] as const
 
 type FooterColumn = {
   title: string
@@ -75,6 +94,39 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
       )}
     >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-center gap-4">
+          <p
+            className={
+              isApp
+                ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
+                : "text-sm font-semibold text-foreground"
+            }
+          >
+            Connect
+          </p>
+          <div className="flex items-center gap-4">
+            {socialLinks.map((social) => (
+              <a
+                key={social.label}
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center transition-opacity hover:opacity-70"
+                aria-label={social.label}
+              >
+                <Image
+                  src={social.iconSrc}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 object-contain"
+                  aria-hidden
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {columns.map((col) => (
             <div key={col.title} className="space-y-3">

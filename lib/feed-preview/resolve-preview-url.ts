@@ -1,10 +1,7 @@
 import { getVideoUrl } from "@/lib/storage"
 import {
-  profileHeight,
-  profileToPlaybackUrl,
-  resolvePrimaryPlaybackUrl,
+  buildPlaybackCandidates,
   resolveVideoBaseUrl,
-  normalizeProfileKey,
 } from "@/lib/video-profiles"
 
 const previewSourcesCache = new Map<string, string[]>()
@@ -43,32 +40,6 @@ export function previewVideoKey(video: PreviewVideo): string {
   return `${directPath || (video.videoId || video.video_id || "").trim()}|${originalProfile ?? ""}`
 }
 
-function sortProfilesLowestFirst(profiles: string[]): string[] {
-  return [...new Set(profiles.map((p) => p.trim()).filter(Boolean))].sort(
-    (a, b) => profileHeight(a) - profileHeight(b),
-  )
-}
-
-function collectProfiles(video: PreviewVideo): string[] {
-  const fromFeed = Array.isArray(video.profiles) ? video.profiles : []
-  const originalProfile = video.original_profile ?? video.originalProfile
-
-  if (fromFeed.length > 0) {
-    const sorted = sortProfilesLowestFirst(fromFeed)
-    const encoded = sorted.filter((p) => normalizeProfileKey(p) !== "original")
-    if (encoded.length > 0) return encoded.slice(0, MAX_PLAYBACK_FALLBACKS)
-    return sorted.slice(0, 1)
-  }
-
-  const primaryKey = normalizeProfileKey(originalProfile)
-  if (primaryKey && primaryKey !== "original") {
-    return [primaryKey]
-  }
-
-  // No guessed ladder rungs — avoids 404 storms when metadata is missing.
-  return []
-}
-
 /** Drop a URL that 404'd so playback skips it on the next hover. */
 export function reportPreviewUrlFailed(url: string): void {
   if (!url) return
@@ -88,10 +59,12 @@ function resolvePreviewBaseUrl(video: PreviewVideo): string | null {
   return baseUrl || null
 }
 
-function buildCandidateStreamUrls(baseUrl: string, profiles: string[]): string[] {
-  return sortProfilesLowestFirst(profiles).map((profile) =>
-    buildFeedPreviewPlaybackUrl(profileToPlaybackUrl(baseUrl, profile)),
-  )
+function buildCandidateStreamUrls(baseUrl: string, video: PreviewVideo): string[] {
+  const originalProfile = video.original_profile ?? video.originalProfile
+  const profiles = Array.isArray(video.profiles) ? video.profiles : null
+  return buildPlaybackCandidates(baseUrl, originalProfile, profiles)
+    .slice(0, MAX_PLAYBACK_FALLBACKS)
+    .map((url) => buildFeedPreviewPlaybackUrl(url))
 }
 
 /**
@@ -107,7 +80,7 @@ export function getFeedPreviewSources(video: PreviewVideo): string[] {
   const baseUrl = resolvePreviewBaseUrl(video)
   if (!baseUrl) return []
 
-  const streamUrls = buildCandidateStreamUrls(baseUrl, collectProfiles(video)).filter(
+  const streamUrls = buildCandidateStreamUrls(baseUrl, video).filter(
     (url) => !failedPreviewUrls.has(url),
   )
   previewSourcesCache.set(key, streamUrls)
@@ -125,7 +98,8 @@ export function getWatchStreamDirectUrl(video: PreviewVideo): string | null {
   if (!baseUrl) return null
 
   const originalProfile = video.original_profile ?? video.originalProfile
-  return resolvePrimaryPlaybackUrl(baseUrl, originalProfile)
+  const profiles = Array.isArray(video.profiles) ? video.profiles : null
+  return buildPlaybackCandidates(baseUrl, originalProfile, profiles)[0] ?? null
 }
 
 /** Proxied URL the full watch player loads. */

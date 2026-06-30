@@ -1,7 +1,7 @@
 import { cache } from "react"
 import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
-import { resolvePrimaryPlaybackUrl, resolveVideoBaseUrl } from "@/lib/video-profiles"
+import { buildPlaybackCandidates, resolveVideoBaseUrl } from "@/lib/video-profiles"
 import { extractCreatorSameAs } from "@/lib/seo/social"
 import {
   buildSeoImageProxyUrl,
@@ -124,6 +124,7 @@ function resolveSeoVideoWorkersMp4Url(
   gatewayUrl: string | undefined,
   storagePath: string | undefined,
   originalProfile?: string | null,
+  availableProfiles?: string[] | null,
 ): string {
   const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
@@ -139,8 +140,9 @@ function resolveSeoVideoWorkersMp4Url(
       : ""
 
   if (baseUrl) {
-    const mp4 = resolvePrimaryPlaybackUrl(baseUrl, originalProfile)
-    if (isProgressiveMp4Url(mp4)) return mp4
+    const candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles)
+    const mp4 = candidates.find((url) => isProgressiveMp4Url(url)) ?? candidates[0]
+    if (mp4) return mp4
   }
 
   if (nested) {
@@ -185,6 +187,7 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       norm.video_url,
       v.video_url,
       (raw.original_profile ?? raw.originalProfile) as string | undefined,
+      Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null,
     )
     const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
     const contentUrl = workersMp4 ? buildSeoVideoStreamProxyUrl(workersMp4) : ""

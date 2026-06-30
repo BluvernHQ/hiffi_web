@@ -29,6 +29,7 @@ type ArtistIndexListingProps = {
   showSearchControls?: boolean
   compact?: boolean
   showIntro?: boolean
+  layout?: "default" | "hub"
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
 }
@@ -55,32 +56,57 @@ export function ArtistIndexListing({
   showSearchControls = true,
   compact = true,
   showIntro = true,
+  layout = "default",
   childrenBeforeGrid,
   childrenAfterGrid,
 }: ArtistIndexListingProps) {
+  const isHub = layout === "hub"
+
   return (
-    <div className="space-y-4 sm:space-y-5">
-      {showIntro ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className={isHub ? "space-y-8 sm:space-y-10" : "space-y-4 sm:space-y-5"}>
+      {isHub ? (
+        <div className="space-y-4 sm:space-y-5">
           <ArtistIndexIntro
             artistCount={artistCount}
             title={introTitle}
             description={introDescription}
-            compact={compact}
+            variant="hub"
           />
-          <p className="shrink-0 text-sm font-medium text-muted-foreground sm:text-right">
-            {totalMatches.toLocaleString()} profiles
-          </p>
+          {showSearchControls ? (
+            <ArtistIndexControls
+              initialQuery={query}
+              initialActiveFilterIds={activeFilterIds}
+              filterOptions={filterOptions}
+              variant="hub"
+            />
+          ) : null}
         </div>
-      ) : null}
+      ) : (
+        <>
+          {showIntro ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <ArtistIndexIntro
+                artistCount={artistCount}
+                title={introTitle}
+                description={introDescription}
+                compact={compact}
+              />
+              <p className="shrink-0 text-sm font-medium text-muted-foreground sm:text-right">
+                {totalMatches.toLocaleString()} profiles
+              </p>
+            </div>
+          ) : null}
 
-      {showSearchControls ? (
-        <ArtistIndexControls
-          initialQuery={query}
-          initialActiveFilterIds={activeFilterIds}
-          filterOptions={filterOptions}
-        />
-      ) : null}
+          {showSearchControls ? (
+            <ArtistIndexControls
+              initialQuery={query}
+              initialActiveFilterIds={activeFilterIds}
+              filterOptions={filterOptions}
+              variant="default"
+            />
+          ) : null}
+        </>
+      )}
 
       {childrenBeforeGrid}
 
@@ -95,14 +121,15 @@ export function ArtistIndexListing({
         sectionTitle={sectionTitle}
         sectionSubtitle={sectionSubtitle}
         paginationHref={paginationHref}
-        compactHeader={compact}
+        compactHeader={compact && !isHub}
+        cardVariant={isHub ? "hub" : "default"}
       />
 
-      {claimArtist ? <ArtistClaimCta artist={claimArtist} variant="banner" /> : null}
+      {claimArtist && !isHub ? <ArtistClaimCta artist={claimArtist} variant="banner" /> : null}
 
       {childrenAfterGrid}
 
-      {showFaq ? (
+      {showFaq && !isHub ? (
         <ArtistIndexFaq items={faqItems} title={faqTitle} description={faqDescription} />
       ) : null}
     </div>

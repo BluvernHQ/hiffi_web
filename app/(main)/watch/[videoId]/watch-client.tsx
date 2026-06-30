@@ -1031,6 +1031,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
             ...videoData,
             video_url: streamingBase,
             streaming_url: streamingBase,
+            storage_video_url: storagePath,
             userUsername: videoData.user_username, // Alias for compatibility
             user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
@@ -1726,6 +1727,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                 originalProfile={
                   currentPlayerVideo?.original_profile || currentPlayerVideo?.originalProfile
                 }
+                storageVideoPath={currentPlayerVideo?.storage_video_url}
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
                 previousVideoDisabled={!canNavigateToPreviousVideo}

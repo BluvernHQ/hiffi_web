@@ -11,40 +11,40 @@ export const ARTIST_CLAIM_STEPS = [
     step: "01",
     title: "Find your profile",
     description:
-      "Search the Hiffi Artist Index by stage name or paste your profile URL. 800+ Atlanta hip-hop and rap artists are indexed today — more cities coming.",
-    icon: "search" as const,
+      "Search our extensive HIFFI database using your stage name or existing profile URL to locate your public artist page.",
+    icon: "step-find" as const,
   },
   {
     step: "02",
     title: "Verify identity",
     description:
-      "Submit your claim with official social links or documentation. The Hiffi team reviews applications within 24–48 hours — no login required to start.",
-    icon: "shield" as const,
+      "Provide your official social media links or valid documentation. Our team reviews applications within 24–48 hours.",
+    icon: "step-verify" as const,
   },
   {
     step: "03",
     title: "Take control",
     description:
-      "Update your bio, imagery, and official links. Upload music videos on Hiffi and help fans discover you through the Artist Index and hip-hop hub.",
-    icon: "sliders" as const,
+      "Access your dashboard to update your bio, link your latest music videos, and view detailed streaming analytics.",
+    icon: "step-control" as const,
   },
 ] as const
 
 export const ARTIST_CLAIM_FEATURES = [
   {
-    title: "Verified artist badge",
+    title: "Analytics Dashboard",
     description:
-      "Stand out with a verified listing fans can trust. Your profile becomes the canonical Hiffi URL for your name in search and AI answers.",
+      "Deep dive into listener demographics, geographic data, and engagement patterns to understand your core fan base.",
   },
   {
-    title: "Profile & link control",
+    title: "Content Control",
     description:
-      "Fix outdated bios, add Spotify, YouTube, and Instagram links, and keep your directory listing accurate as your career grows.",
+      "Manage your discography, official links, and bio in real-time. Keep your fans connected to your latest releases.",
   },
   {
-    title: "Discovery on Hiffi",
+    title: "Industry Network",
     description:
-      "Indexed artists appear in city and genre directories, hip-hop mood hubs, and fan search — built for independent rap culture.",
+      "Connect with other verified artists, labels, and industry pros within the Hiffi ecosystem.",
   },
 ] as const
 

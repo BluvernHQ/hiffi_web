@@ -5,7 +5,7 @@ import {
   buildArtistClaimLandingJsonLd,
   buildArtistClaimLandingMetadata,
 } from "@/lib/artist-index/claim-landing-seo"
-import { artistIndexCityHref } from "@/lib/artist-directory"
+import { ARTIST_INDEX_CLAIM_PATH } from "@/lib/artist-directory"
 import { getArtistCount } from "@/lib/artists"
 
 export const metadata = buildArtistClaimLandingMetadata()
@@ -15,12 +15,8 @@ export default async function ArtistClaimLandingPage() {
 
   return (
     <ArtistDirectoryShell
-      breadcrumbs={[
-        { label: "Artist Index", href: "/artist-index" },
-        { label: "Claim profile" },
-      ]}
-      claimHref={artistIndexCityHref("atlanta")}
-      claimLabel="Browse artists"
+      claimHref={`${ARTIST_INDEX_CLAIM_PATH}#find-profile`}
+      claimLabel="Claim Now"
     >
       <JsonLd data={buildArtistClaimLandingJsonLd(artistCount)} />
       <ArtistClaimLanding artistCount={artistCount} />

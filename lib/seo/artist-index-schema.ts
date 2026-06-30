@@ -31,7 +31,7 @@ export function buildArtistIndexHubJsonLd(options?: {
   const pageName = options?.pageName ?? "Hiffi Artist Index"
   const pageDescription =
     options?.pageDescription ??
-    "A growing directory of 800+ emerging hip-hop and rap artists on Hiffi, starting in Atlanta."
+    "Browse Atlanta hip-hop and rap artists on the Hiffi Artist Index. Search by artist name or filter by genre."
   const pageType = options?.pageType ?? "WebPage"
   const includeFaq = options?.includeFaq ?? true
 

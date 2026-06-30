@@ -1,10 +1,11 @@
 import Link from "next/link"
-import { BadgeCheck } from "lucide-react"
+import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import {
   artistIndexClaimHref,
   artistIndexEditHref,
   artistIndexHref,
+  formatCityState,
   getArtistProfileSubtitle,
   getShortCityLabel,
   isArtistNew,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils"
 
 type ArtistCardProps = {
   artist: Artist
+  variant?: "default" | "hub"
 }
 
 function ArtistCardAvatar({ artist }: { artist: Artist }) {
@@ -88,7 +90,8 @@ function HeaderBadge({ artist }: { artist: Artist }) {
   )
 }
 
-export function ArtistCard({ artist }: ArtistCardProps) {
+export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
+  const isHub = variant === "hub"
   const profileHref = artistIndexHref(artist.slug)
   const claimHref = artistIndexClaimHref(artist.slug)
   const editHref = artistIndexEditHref(artist.slug)
@@ -136,7 +139,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
         </div>
 
         <div className="flex flex-1 flex-col px-1 pb-1 pt-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className={cn("flex items-start justify-between gap-3", isHub && "flex-col gap-2")}>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="truncate text-xl font-bold text-foreground transition-colors group-hover:text-[#E8192C] group-focus-within:text-[#E8192C]">
@@ -146,11 +149,20 @@ export function ArtistCard({ artist }: ArtistCardProps) {
                   <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
                 ) : null}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">{getArtistProfileSubtitle(artist)}</p>
+              {isHub ? (
+                <p className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#E8192C]/70" aria-hidden />
+                  {formatCityState(artist)}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">{getArtistProfileSubtitle(artist)}</p>
+              )}
             </div>
-            <span className="shrink-0 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-              {getShortCityLabel(artist)}
-            </span>
+            {!isHub ? (
+              <span className="shrink-0 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                {getShortCityLabel(artist)}
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -175,17 +187,24 @@ export function ArtistCard({ artist }: ArtistCardProps) {
         </div>
       </div>
 
-      <div className="relative z-[2] mt-5 grid grid-cols-2 gap-3 px-1 pb-1">
-        <Link href={profileHref} prefetch className={cn(artistCardButtonPrimary, "w-full")}>
-          View profile
-        </Link>
+      <div className={cn("relative z-[2] mt-5 px-1 pb-1", isHub ? "" : "grid grid-cols-2 gap-3")}>
         <Link
-          href={secondaryHref}
-          prefetch={false}
-          className={cn(artistCardButtonSecondary, "w-full")}
+          href={profileHref}
+          prefetch
+          className={cn(artistCardButtonPrimary, "w-full", isHub && "inline-flex gap-2")}
         >
-          {secondaryLabel}
+          View profile
+          {isHub ? <ArrowRight className="h-4 w-4" aria-hidden /> : null}
         </Link>
+        {!isHub ? (
+          <Link
+            href={secondaryHref}
+            prefetch={false}
+            className={cn(artistCardButtonSecondary, "w-full")}
+          >
+            {secondaryLabel}
+          </Link>
+        ) : null}
       </div>
     </article>
   )

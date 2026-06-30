@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
+import { ArrowLeft } from "lucide-react"
 import { ArtistIndexHeader } from "@/components/artists/ArtistIndexHeader"
 import { ClaimForm } from "@/components/artists/ClaimForm"
 import { getArtistBySlug } from "@/lib/artists"
@@ -45,6 +46,14 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
       <ArtistIndexHeader claimHref={`/artist-index/${artist.slug}/claim`} />
 
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
+        <Link
+          href={`/artist-index/${artist.slug}`}
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Back to {artist.name}
+        </Link>
+
         <div className="mb-8 space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#E8192C]">
             Artist verification

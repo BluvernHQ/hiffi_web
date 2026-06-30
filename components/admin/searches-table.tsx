@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search, X } from "lucide-react"
 import { adminApiClient } from "@/lib/admin-api-client"
@@ -40,15 +40,68 @@ function sourceLabel(source: string): string {
   return match ?? (source || "—")
 }
 
-function formatActor(distinctId: string): { primary: string; secondary?: string; full: string } {
+function isSignedInActorId(distinctId: string): boolean {
+  const id = distinctId.trim()
+  return Boolean(id) && !id.startsWith("anon:")
+}
+
+type ActorUserMeta = {
+  username?: string
+  name?: string
+}
+
+function formatActor(
+  distinctId: string,
+  userMeta?: ActorUserMeta | null,
+): { primary: string; secondary?: string; full: string } {
   const id = distinctId.trim()
   if (!id) return { primary: "—", full: "" }
   if (id.startsWith("anon:")) {
     const ip = id.slice(5)
     return { primary: "Anonymous", secondary: ip, full: id }
   }
+
+  const username = userMeta?.username?.trim()
+  const name = userMeta?.name?.trim()
+
+  if (name) {
+    return {
+      primary: name,
+      secondary: username ? `@${username}` : undefined,
+      full: id,
+    }
+  }
+  if (username) {
+    return { primary: `@${username}`, full: id }
+  }
+
   const short = id.length > 16 ? `${id.slice(0, 12)}…` : id
-  return { primary: "Signed in", secondary: short, full: id }
+  return { primary: short, full: id }
+}
+
+async function resolveActorUsers(distinctIds: string[]): Promise<Record<string, ActorUserMeta>> {
+  const uniqueIds = [...new Set(distinctIds.map((id) => id.trim()).filter(isSignedInActorId))]
+  if (uniqueIds.length === 0) return {}
+
+  const entries = await Promise.all(
+    uniqueIds.map(async (uid) => {
+      try {
+        const response = await adminApiClient.adminListUsers({ uid, limit: 1 })
+        const user = response.users?.[0]
+        if (!user) return [uid, null] as const
+        const username = String(user.username ?? user.user_username ?? "").trim()
+        const name = String(user.name ?? "").trim()
+        if (!username && !name) return [uid, null] as const
+        return [uid, { username: username || undefined, name: name || undefined }] as const
+      } catch {
+        return [uid, null] as const
+      }
+    }),
+  )
+
+  return Object.fromEntries(
+    entries.filter((entry): entry is [string, ActorUserMeta] => entry[1] != null),
+  )
 }
 
 export function AdminSearchesTable() {
@@ -72,6 +125,8 @@ export function AdminSearchesTable() {
   })
   /** Set by clicking an actor cell — not shown in sidebar, cleared via chip */
   const [actorFilter, setActorFilter] = useState("")
+  const [actorUsersByDistinctId, setActorUsersByDistinctId] = useState<Record<string, ActorUserMeta>>({})
+  const attemptedActorIdsRef = useRef(new Set<string>())
 
   const sidebarFilterCount = useMemo(() => {
     return Object.values(filters).filter((v) => v.trim()).length
@@ -138,6 +193,30 @@ export function AdminSearchesTable() {
   useEffect(() => {
     void fetchSearches()
   }, [fetchSearches])
+
+  useEffect(() => {
+    const missing = [
+      ...new Set(rows.map((row) => row.distinct_id.trim()).filter(isSignedInActorId)),
+      ...(actorFilter.trim() && isSignedInActorId(actorFilter) ? [actorFilter.trim()] : []),
+    ].filter((id) => !attemptedActorIdsRef.current.has(id))
+
+    if (missing.length === 0) return
+
+    for (const id of missing) attemptedActorIdsRef.current.add(id)
+
+    let cancelled = false
+    void (async () => {
+      const resolved = await resolveActorUsers(missing)
+      if (cancelled) return
+      if (Object.keys(resolved).length > 0) {
+        setActorUsersByDistinctId((prev) => ({ ...prev, ...resolved }))
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rows, actorFilter])
 
   const clearFilters = () => {
     setFilters({
@@ -311,7 +390,7 @@ export function AdminSearchesTable() {
         </div>
 
         {actorFilter && (() => {
-          const actor = formatActor(actorFilter)
+          const actor = formatActor(actorFilter, actorUsersByDistinctId[actorFilter])
           return (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted-foreground">Actor filter:</span>
@@ -356,7 +435,7 @@ export function AdminSearchesTable() {
                 </tr>
               ) : (
                 rows.map((row, i) => {
-                  const actor = formatActor(row.distinct_id)
+                  const actor = formatActor(row.distinct_id, actorUsersByDistinctId[row.distinct_id])
                   return (
                     <tr key={`${row.timestamp}-${row.query}-${i}`} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="p-3 max-w-[220px]">

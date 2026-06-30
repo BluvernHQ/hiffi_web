@@ -24,6 +24,8 @@ import {
   buildFallbackUrls,
   buildProfileMenu,
   getPrimaryProfileKey,
+  isLogicalOriginalStoragePath,
+  profileKeyFromPlaybackUrl,
   profileToPlaybackUrl,
 } from "@/lib/video-profiles"
 import { captureConversionEvent, capturePlaybackStarted } from "@/lib/conversion-tracking"
@@ -62,6 +64,8 @@ interface VideoPlayerProps {
   availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
   /** Primary encoded profile from API (e.g. "720p", "original"). */
   originalProfile?: string
+  /** Storage path from API (e.g. videos/{id}/original.mp4) when videoUrl is the gateway base. */
+  storageVideoPath?: string
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
   /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
   onNext?: (nextId: string) => void
@@ -121,6 +125,7 @@ export function VideoPlayer({
   onMediaReady,
   availableProfiles,
   originalProfile,
+  storageVideoPath,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
@@ -727,19 +732,56 @@ export function VideoPlayer({
         console.log("[hiffi] Resolving source for video:", videoUrl)
         
         let targetPath = videoUrl
-        
-        // If it's a video ID and lookup is enabled, resolve to a streaming path.
-        if (!skipVideoLookup && /^[a-f0-9]{64}$/i.test(videoUrl)) {
-          const response = await apiClient.getVideo(videoUrl)
+        let profileForResolve = originalProfile
+        let profilesForFallback = resolvedProfiles
+        let storagePathForResolve = storageVideoPath?.trim() || ""
+
+        const lookupId =
+          (videoId || "").trim() || (/^[a-f0-9]{64}$/i.test(videoUrl) ? videoUrl : "")
+        const shouldLookupVideoMeta =
+          !skipVideoLookup &&
+          Boolean(lookupId) &&
+          (/^[a-f0-9]{64}$/i.test(videoUrl) ||
+            !profileForResolve ||
+            isLogicalOriginalStoragePath(videoUrl))
+
+        if (shouldLookupVideoMeta) {
+          const response = await apiClient.getVideo(lookupId)
           if (requestId !== resolveRequestIdRef.current) return
-          if (response.success && response.video_url) {
+          if (!response.success) {
+            throw new Error("Failed to get video metadata from API")
+          }
+          if (response.video_url) {
             targetPath = response.video_url
-          } else {
+          } else if (/^[a-f0-9]{64}$/i.test(videoUrl)) {
             throw new Error("Failed to get video path from API")
+          }
+
+          const videoMeta = response.video
+          if (videoMeta) {
+            if (!profileForResolve) {
+              profileForResolve =
+                (videoMeta.original_profile as string | undefined) ||
+                (videoMeta.originalProfile as string | undefined)
+            }
+            if (profilesForFallback.length === 0 && Array.isArray(videoMeta.profiles)) {
+              profilesForFallback = videoMeta.profiles
+            }
+            const metaStoragePath = String(videoMeta.video_url || "").trim()
+            if (metaStoragePath) {
+              storagePathForResolve = metaStoragePath
+            }
           }
         }
 
-        const source = await resolveVideoSource(targetPath, { originalProfile })
+        originalProfileRef.current = profileForResolve
+        availableProfilesRef.current = profilesForFallback
+
+        const source = await resolveVideoSource(targetPath, {
+          originalProfile: profileForResolve,
+          availableProfiles: profilesForFallback,
+          storagePath: storagePathForResolve || undefined,
+        })
         if (requestId !== resolveRequestIdRef.current) return
         console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
         
@@ -750,7 +792,7 @@ export function VideoPlayer({
         signedVideoUrlRef.current = source.url
         signedUrlVideoIdRef.current = videoId || ""
         baseUrlRef.current = source.baseUrl || ""
-        setCurrentProfile(source.profileKey || getPrimaryProfileKey(originalProfile))
+        setCurrentProfile(source.profileKey || getPrimaryProfileKey(profileForResolve))
         setUrlError("")
         setHasResolvedOnce(true)
       } catch (error) {
@@ -764,7 +806,7 @@ export function VideoPlayer({
     }
 
     fetchUrl()
-  }, [videoUrl, videoId, skipVideoLookup, originalProfile])
+  }, [videoUrl, videoId, skipVideoLookup, originalProfile, storageVideoPath, availableProfilesKey])
 
   // Build profiles map from availableProfiles prop when signedVideoUrl is available
   useEffect(() => {
@@ -1191,32 +1233,20 @@ export function VideoPlayer({
       const activeVideoId = videoIdRef.current
       const currentSrc = (player.currentSrc() || signedVideoUrlRef.current || "").trim()
 
-      // Ignore errors from intentional src clears while switching playlist tracks.
-      if (!currentSrc) return
-      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
-
-      // MEDIA_ERR_NETWORK (2)
-      if (code === 2) {
-        setIsBuffering(false)
-        showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
-        return
-      }
-
-      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
-      if (code === 4 || code === 3) {
+      const tryMp4Fallback = (errorCode: number): boolean => {
         let baseUrl = baseUrlRef.current
         if (!baseUrl) {
           baseUrl = currentSrc.replace(/\/[^/]+$/, "")
         }
         if (!baseUrl) {
-          console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+          console.error(`[hiffi] VideoJS Error (Code ${errorCode}):`, message)
           setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-          return
+          return false
         }
 
         const attemptKey = `${activeVideoId}:${currentSrc}`
         if (mp4FallbackAttemptsRef.current.has(attemptKey)) {
-          return
+          return false
         }
         mp4FallbackAttemptsRef.current.add(attemptKey)
 
@@ -1233,17 +1263,15 @@ export function VideoPlayer({
         })
 
         if (!nextUrl) {
-          console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
-          setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-          return
+          return false
         }
 
         mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
-        console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, nextUrl)
+        console.warn(`[hiffi] VideoJS Error (Code ${errorCode}), trying MP4 fallback:`, nextUrl)
 
-        const fallbackMatch = nextUrl.match(/\/(original|\d+p)\.mp4$/i)
-        if (fallbackMatch?.[1]) {
-          setCurrentProfile(fallbackMatch[1].toLowerCase())
+        const fallbackKey = profileKeyFromPlaybackUrl(nextUrl)
+        if (fallbackKey) {
+          setCurrentProfile(fallbackKey)
         }
 
         setVideoSourceType("mp4")
@@ -1253,6 +1281,30 @@ export function VideoPlayer({
         setSignedVideoUrl(nextUrl)
         signedVideoUrlRef.current = nextUrl
         setUrlError("")
+        return true
+      }
+
+      // Ignore errors from intentional src clears while switching playlist tracks.
+      if (!currentSrc) return
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
+
+      // MEDIA_ERR_NETWORK (2) — often a 404 on a missing profile file
+      if (code === 2) {
+        setIsBuffering(false)
+        if (typeof navigator !== "undefined" && navigator.onLine && tryMp4Fallback(code)) {
+          return
+        }
+        showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        return
+      }
+
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
+      if (code === 4 || code === 3) {
+        if (tryMp4Fallback(code)) {
+          return
+        }
+        console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+        setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
         return
       }
 

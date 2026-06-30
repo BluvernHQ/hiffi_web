@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useId, useRef, useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { ArrowRight, Loader2, Search } from "lucide-react"
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
@@ -15,6 +16,8 @@ type ArtistSearchSuggestion = {
 type ArtistClaimSearchProps = {
   className?: string
   size?: "default" | "large"
+  id?: string
+  variant?: "default" | "claim"
 }
 
 const MIN_SUGGEST_LENGTH = 2
@@ -34,7 +37,12 @@ function extractProfileSlug(input: string): string | null {
   return null
 }
 
-export function ArtistClaimSearch({ className, size = "large" }: ArtistClaimSearchProps) {
+export function ArtistClaimSearch({
+  className,
+  size = "large",
+  id,
+  variant = "default",
+}: ArtistClaimSearchProps) {
   const router = useRouter()
   const listboxId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -180,27 +188,43 @@ export function ArtistClaimSearch({ className, size = "large" }: ArtistClaimSear
   }
 
   const isLarge = size === "large"
+  const isClaim = variant === "claim"
   const trimmedQuery = query.trim()
   const showDropdown = open && trimmedQuery.length >= MIN_SUGGEST_LENGTH
 
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)}>
+    <div ref={rootRef} id={id} className={cn("relative w-full", className)}>
       <form onSubmit={handleSubmit}>
         <div
           className={cn(
-            "flex flex-col gap-2 sm:flex-row sm:items-stretch",
+            "flex items-stretch",
+            isClaim
+              ? "flex-row gap-1.5 overflow-hidden rounded-2xl border border-border bg-[#F5F5F5] p-1.5 shadow-sm sm:gap-2 sm:rounded-full"
+              : "flex-col gap-2 sm:flex-row sm:items-stretch",
             isLarge &&
+              !isClaim &&
               "sm:gap-0 sm:overflow-hidden sm:rounded-full sm:border sm:border-border sm:bg-white sm:shadow-sm sm:focus-within:ring-2 sm:focus-within:ring-[#E8192C]/15",
           )}
         >
-          <div className={cn("relative min-w-0 flex-1", isLarge ? "sm:pl-1" : "")}>
-            <Search
-              className={cn(
-                "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
-                isLarge ? "left-4 h-5 w-5" : "left-3 h-4 w-4",
-              )}
-              aria-hidden
-            />
+          <div className={cn("relative min-w-0 flex-1", isLarge && !isClaim ? "sm:pl-1" : "")}>
+            {isClaim ? (
+              <Image
+                src="/artist-claim/icons/search.svg"
+                alt=""
+                width={18}
+                height={18}
+                className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2"
+                aria-hidden
+              />
+            ) : (
+              <Search
+                className={cn(
+                  "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+                  isLarge ? "left-4 h-5 w-5" : "left-3 h-4 w-4",
+                )}
+                aria-hidden
+              />
+            )}
             <input
               ref={inputRef}
               type="search"
@@ -212,12 +236,18 @@ export function ArtistClaimSearch({ className, size = "large" }: ArtistClaimSear
                 }
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Stage name or hiffi.com/artist-index/your-name"
+              placeholder={
+                isClaim
+                  ? "Enter your stage name..."
+                  : "Stage name or hiffi.com/artist-index/your-name"
+              }
               className={cn(
                 "w-full border border-border bg-white text-foreground outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus:border-[#E8192C]/40 focus:ring-2 focus:ring-[#E8192C]/15",
-                isLarge
-                  ? "h-12 rounded-full pl-12 pr-10 text-sm sm:h-14 sm:rounded-none sm:border-0 sm:text-base sm:focus:ring-0"
-                  : "h-10 rounded-full pl-10 pr-9 text-sm",
+                isClaim
+                  ? "h-11 rounded-xl border-0 bg-transparent pl-11 pr-3 text-sm focus:ring-0 sm:h-14 sm:rounded-full sm:pr-4 sm:text-base"
+                  : isLarge
+                    ? "h-12 rounded-full pl-12 pr-10 text-sm sm:h-14 sm:rounded-none sm:border-0 sm:text-base sm:focus:ring-0"
+                    : "h-10 rounded-full pl-10 pr-9 text-sm",
               )}
               role="combobox"
               aria-expanded={showDropdown}
@@ -240,14 +270,30 @@ export function ArtistClaimSearch({ className, size = "large" }: ArtistClaimSear
           </div>
           <button
             type="submit"
+            aria-label="Find profile"
             className={cn(
               artistButtonSolid,
               "shrink-0",
-              isLarge ? "h-12 px-6 sm:h-auto sm:rounded-none sm:rounded-r-full sm:px-8" : "h-10 px-5",
+              isClaim
+                ? "h-11 w-11 justify-center gap-0 rounded-xl p-0 sm:h-14 sm:w-auto sm:gap-2 sm:rounded-full sm:px-8"
+                : isLarge
+                  ? "h-12 px-6 sm:h-auto sm:rounded-none sm:rounded-r-full sm:px-8"
+                  : "h-10 px-5",
             )}
           >
-            Find profile
-            <ArrowRight className="h-4 w-4" aria-hidden />
+            <span className={cn(isClaim && "hidden sm:inline")}>Find Profile</span>
+            {isClaim ? (
+              <Image
+                src="/artist-claim/icons/arrow-right.svg"
+                alt=""
+                width={16}
+                height={16}
+                className="h-4 w-4"
+                aria-hidden
+              />
+            ) : (
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            )}
           </button>
         </div>
       </form>
@@ -260,7 +306,12 @@ export function ArtistClaimSearch({ className, size = "large" }: ArtistClaimSear
           )}
         >
           {suggestions.length > 0 ? (
-            <ul id={listboxId} role="listbox" aria-label="Artist suggestions" className="py-1">
+            <ul
+              id={listboxId}
+              role="listbox"
+              aria-label="Artist suggestions"
+              className="max-h-[min(18rem,50vh)] overflow-y-auto overscroll-contain py-1"
+            >
               {suggestions.map((item, index) => (
                 <li key={item.slug} role="presentation">
                   <button

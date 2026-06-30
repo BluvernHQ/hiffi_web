@@ -1,8 +1,8 @@
 /** Official Hiffi social profiles — used in Organization JSON-LD sameAs and site footer. */
 export const HIFFI_SOCIAL_PROFILES = {
-  instagram: "https://www.instagram.com/hiffi",
-  x: "https://x.com/hiffi",
-  tiktok: "https://www.tiktok.com/@hiffi",
+  instagram: "https://www.instagram.com/officialhiffi/",
+  x: "https://x.com/officialhiffi",
+  youtube: "https://www.youtube.com/@officialhiffi",
 } as const
 
 export const ORGANIZATION_SAME_AS = Object.values(HIFFI_SOCIAL_PROFILES)

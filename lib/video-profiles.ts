@@ -80,11 +80,10 @@ export function buildProfileMenu(
   return menu
 }
 
-export function buildFallbackUrls(
+export function buildPlaybackCandidates(
   baseUrl: string,
   originalProfile?: string | null,
   availableProfiles?: string[] | null,
-  currentUrl?: string,
 ): string[] {
   const primaryKey = getPrimaryProfileKey(originalProfile)
   const candidates: string[] = []
@@ -101,7 +100,21 @@ export function buildFallbackUrls(
     candidates.push(profileToPlaybackUrl(baseUrl, key))
   }
 
-  const deduped = [...new Set(candidates)]
+  return [...new Set(candidates)]
+}
+
+export function profileKeyFromPlaybackUrl(url: string): string | undefined {
+  const match = url.match(/\/(original|\d+p)\.mp4(?:\?.*)?$/i)
+  return match?.[1]?.toLowerCase()
+}
+
+export function buildFallbackUrls(
+  baseUrl: string,
+  originalProfile?: string | null,
+  availableProfiles?: string[] | null,
+  currentUrl?: string,
+): string[] {
+  const deduped = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles)
   if (!currentUrl) return deduped
   return deduped.filter((url) => url !== currentUrl)
 }

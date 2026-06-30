@@ -487,12 +487,32 @@ export function AdminActivityLogsTable() {
   const [hasMore, setHasMore] = useState(false)
   const [query, setQuery] = useState("")
   const [activityFilter, setActivityFilter] = useState<ActivityLogFilter>("all")
+  const [draftTimestampAfter, setDraftTimestampAfter] = useState("")
+  const [draftTimestampBefore, setDraftTimestampBefore] = useState("")
   const [timestampAfter, setTimestampAfter] = useState("")
   const [timestampBefore, setTimestampBefore] = useState("")
   const [videoMetaById, setVideoMetaById] = useState<Record<string, VideoMeta>>({})
 
   const usesCustomRange = Boolean(timestampAfter || timestampBefore)
+  const draftRangeInvalid = isInvalidTimestampRange(draftTimestampAfter, draftTimestampBefore)
   const timestampRangeInvalid = isInvalidTimestampRange(timestampAfter, timestampBefore)
+  const hasPendingDateRange =
+    draftTimestampAfter !== timestampAfter || draftTimestampBefore !== timestampBefore
+
+  const applyDateRange = () => {
+    if (draftRangeInvalid) return
+    setTimestampAfter(draftTimestampAfter)
+    setTimestampBefore(draftTimestampBefore)
+    setOffset(0)
+  }
+
+  const clearDateRange = () => {
+    setDraftTimestampAfter("")
+    setDraftTimestampBefore("")
+    setTimestampAfter("")
+    setTimestampBefore("")
+    setOffset(0)
+  }
 
   const fetchEvents = async (isRefresh = false) => {
     let refreshSucceeded = false
@@ -777,13 +797,19 @@ export function AdminActivityLogsTable() {
             <Input
               id="activity_timestamp_after"
               type="datetime-local"
-              value={isoToLocalDateTime(timestampAfter)}
+              value={isoToLocalDateTime(draftTimestampAfter)}
               onChange={(e) => {
-                setTimestampAfter(e.target.value ? new Date(e.target.value).toISOString() : "")
+                setDraftTimestampAfter(e.target.value ? new Date(e.target.value).toISOString() : "")
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && hasPendingDateRange && !draftRangeInvalid) {
+                  e.preventDefault()
+                  applyDateRange()
+                }
               }}
               className={cn(
                 "h-9 w-full min-w-[12rem] font-mono text-sm sm:w-auto",
-                timestampRangeInvalid && "border-destructive",
+                draftRangeInvalid && "border-destructive",
               )}
               aria-label="Events from date and time"
             />
@@ -795,27 +821,39 @@ export function AdminActivityLogsTable() {
             <Input
               id="activity_timestamp_before"
               type="datetime-local"
-              value={isoToLocalDateTime(timestampBefore)}
+              value={isoToLocalDateTime(draftTimestampBefore)}
               onChange={(e) => {
-                setTimestampBefore(e.target.value ? new Date(e.target.value).toISOString() : "")
+                setDraftTimestampBefore(e.target.value ? new Date(e.target.value).toISOString() : "")
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && hasPendingDateRange && !draftRangeInvalid) {
+                  e.preventDefault()
+                  applyDateRange()
+                }
               }}
               className={cn(
                 "h-9 w-full min-w-[12rem] font-mono text-sm sm:w-auto",
-                timestampRangeInvalid && "border-destructive",
+                draftRangeInvalid && "border-destructive",
               )}
               aria-label="Events to date and time"
             />
           </div>
-          {usesCustomRange ? (
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 shrink-0"
+            onClick={applyDateRange}
+            disabled={!hasPendingDateRange || draftRangeInvalid}
+          >
+            Apply
+          </Button>
+          {usesCustomRange || draftTimestampAfter || draftTimestampBefore ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="h-9 shrink-0"
-              onClick={() => {
-                setTimestampAfter("")
-                setTimestampBefore("")
-              }}
+              onClick={clearDateRange}
             >
               Clear dates
             </Button>
@@ -842,11 +880,17 @@ export function AdminActivityLogsTable() {
               .
             </>
           ) : (
-            <>Use From/To to limit by date and time.</>
+            <>Set From/To, then click Apply to limit by date and time.</>
           )}{" "}
           Search applies to the current page only.
-          {timestampRangeInvalid ? (
+          {hasPendingDateRange && !draftRangeInvalid ? (
+            <span className="block text-amber-700 dark:text-amber-400">Date range changed — click Apply to refresh.</span>
+          ) : null}
+          {draftRangeInvalid ? (
             <span className="block text-destructive">From must be before or equal to To.</span>
+          ) : null}
+          {timestampRangeInvalid ? (
+            <span className="block text-destructive">Applied range is invalid. Clear dates and try again.</span>
           ) : null}
         </div>
       </div>

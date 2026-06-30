@@ -76,7 +76,7 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
         data={buildArtistIndexHubJsonLd({
           artists: directory.pageArtists,
           pageUrl,
-          pageName: `${genre.label} artists on Hiffi`,
+          pageName: `${genre.headline} on Hiffi`,
           pageDescription: genre.description,
           totalItemCount: directory.totalMatches,
           pageType: "CollectionPage",
