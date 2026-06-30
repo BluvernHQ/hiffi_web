@@ -7,6 +7,11 @@ import { useGlobalVideo } from "@/lib/video-context"
 import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
+import {
+  mapOpenUiNameToSource,
+  setPendingPlaybackContext,
+} from "@/lib/analytics/video-playback-context"
+import { UP_NEXT_SIDEBAR_CLICK } from "@/lib/analytics/video-analytics-names"
 import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 
 interface CompactVideoCardProps {
@@ -60,6 +65,13 @@ export function CompactVideoCard({
   const trackVideoOpen = () => {
     if (typeof window === "undefined") return
     const destinationUrl = `${window.location.origin}${watchPath}`
+    setPendingPlaybackContext({
+      videoId,
+      openSource: mapOpenUiNameToSource(openVideoUiName),
+      openUiName: openVideoUiName,
+      navigateTrigger: openVideoUiName === UP_NEXT_SIDEBAR_CLICK ? "up_next_sidebar" : "card_click",
+      isAutoplay: false,
+    })
     ;(window as any).HifiAnalytics?.capture("opened-video", {
       element_ui_name: openVideoUiName,
       video_id: videoId,
@@ -67,6 +79,10 @@ export function CompactVideoCard({
       url: destinationUrl,
       path: watchPath,
       source_path: window.location.pathname,
+      open_source: mapOpenUiNameToSource(openVideoUiName),
+      navigate_trigger: openVideoUiName === UP_NEXT_SIDEBAR_CLICK ? "up_next_sidebar" : "card_click",
+      is_click: true,
+      is_autoplay: false,
     })
   }
 

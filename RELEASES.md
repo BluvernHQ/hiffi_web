@@ -6,14 +6,14 @@ This runbook implements the versioning model in the Hiffi Web Versioning spec.
 
 | Identifier | Source | Example | When it changes |
 |------------|--------|---------|-----------------|
-| **Release version** (semver) | `package.json` → `NEXT_PUBLIC_APP_VERSION` | `2.0.1` | Intentionally at cut/release time |
+| **Release version** (semver) | `package.json` → `NEXT_PUBLIC_APP_VERSION` | `2.2.0` | Intentionally at cut/release time |
 | **Build ID** | `NEXT_PUBLIC_APP_BUILD_ID` at build time | `19d0b1f` | Every deploy/build |
 
 Verify what is live:
 
 ```bash
 curl -s https://dev.hiffi.com/api/version
-# { "version": "2.0.1", "buildId": "19d0b1f" }
+# { "version": "2.2.0", "buildId": "19d0b1f" }
 ```
 
 ## Promotion pipeline
@@ -63,7 +63,9 @@ Tags are prefixed with `web-` to namespace from backend/mobile:
 | MINOR | `web-v1.1.0` | Backward-compatible features on a frozen line (rare) |
 | PATCH | `web-v1.0.1` | Bugfixes on an already-released line — no new scope |
 
-Existing tags: `web-v1.0.0`, `web-v1.0.1`.
+Existing tags: `web-v1.0.0`, `web-v1.0.1`, `web-v2.1.0`, `web-v2.2.0`.
+
+Release notes for tagged versions live under `docs/releases/` (e.g. [web-v2.2.0.md](docs/releases/web-v2.2.0.md)).
 
 ## Consolidation pipeline
 

@@ -26,7 +26,14 @@ import {
   getPrimaryProfileKey,
   profileToPlaybackUrl,
 } from "@/lib/video-profiles"
-import { captureConversionEvent } from "@/lib/conversion-tracking"
+import { captureConversionEvent, capturePlaybackStarted } from "@/lib/conversion-tracking"
+import {
+  PAUSED_VIDEO,
+  PLAYED_VIDEO_CLICK,
+  PLAYER_NEXT_RECOMMENDED,
+  PLAYER_PREVIOUS,
+} from "@/lib/analytics/video-analytics-names"
+import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
 import { recordGuestVideoPlay } from "@/lib/guest-conversion/session"
 import { NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
@@ -271,6 +278,8 @@ export function VideoPlayer({
   const watchDeviceIdRef = useRef("")
   const lastWatchPositionRef = useRef<number | null>(null)
   const trackedPlayVideoIdsRef = useRef<Set<string>>(new Set())
+  const userInitiatedPlayRef = useRef(false)
+  const replayAfterEndRef = useRef(false)
   const accumulatedWatchSecondsRef = useRef(0)
   const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
@@ -913,14 +922,23 @@ export function VideoPlayer({
       const currentTrackedVideoId = String(signedUrlVideoIdRef.current || videoId || "").trim()
       if (currentTrackedVideoId && !trackedPlayVideoIdsRef.current.has(currentTrackedVideoId)) {
         trackedPlayVideoIdsRef.current.add(currentTrackedVideoId)
-        const source =
-          typeof window !== "undefined" && new URLSearchParams(window.location.search).get("playlist")
-            ? "playlist"
-            : "recommended"
-        captureConversionEvent("conversion_play_started", {
-          video_id: currentTrackedVideoId,
-          source,
-          is_autoplay: Boolean(autoPlay),
+        const playlistId =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("playlist") || undefined
+            : undefined
+        const isUserClick = userInitiatedPlayRef.current
+        const isReplay = replayAfterEndRef.current
+        userInitiatedPlayRef.current = false
+        replayAfterEndRef.current = false
+        capturePlaybackStarted(currentTrackedVideoId, {
+          isAutoplay: !isUserClick && Boolean(autoPlay),
+          playbackStartTrigger: isUserClick
+            ? isReplay
+              ? "replay_after_end_click"
+              : "player_play_click"
+            : "autoplay_page_load",
+          fallbackSource: playlistId ? "playlist" : "recommended",
+          playlistId: playlistId ?? undefined,
         })
         recordGuestVideoPlay(currentTrackedVideoId)
       }
@@ -1376,6 +1394,7 @@ export function VideoPlayer({
     if (hasEnded) {
       setHasEnded(false)
       player.currentTime(0)
+      replayAfterEndRef.current = true
     }
 
     // Check actual player state instead of relying on React state
@@ -1385,6 +1404,7 @@ export function VideoPlayer({
     if (isActuallyPlaying) {
       player.pause()
     } else {
+      userInitiatedPlayRef.current = true
       safePlay(player)
     }
   }
@@ -1824,7 +1844,7 @@ export function VideoPlayer({
         >
           <button
             type="button"
-            data-analytics-name="backward"
+            data-analytics-name={PLAYER_PREVIOUS}
             onClick={(e) => {
               e.stopPropagation()
               handlePrevious()
@@ -1845,7 +1865,7 @@ export function VideoPlayer({
             <SkipBack className="h-5 w-5" />
           </button>
           <button
-            data-analytics-name={isPlaying ? "paused_video" : "played_video"}
+            data-analytics-name={isPlaying ? PAUSED_VIDEO : PLAYED_VIDEO_CLICK}
             onClick={(e) => {
               e.stopPropagation()
               togglePlay()
@@ -1859,7 +1879,7 @@ export function VideoPlayer({
             )}
           </button>
           <button
-            data-analytics-name="fast-forward"
+            data-analytics-name={PLAYER_NEXT_RECOMMENDED}
             onClick={(e) => {
               e.stopPropagation()
               handleNext()
@@ -1879,7 +1899,7 @@ export function VideoPlayer({
       {hasEnded && !showNextUpOverlay && (
         <div 
           className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
-          data-analytics-name="played-video"
+          data-analytics-name={PLAYED_VIDEO_CLICK}
           onClick={togglePlay}
         >
           <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -1892,7 +1912,7 @@ export function VideoPlayer({
       {!isPlaying && !isBuffering && !hasEnded && !isAutoplayInProgress && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
-          data-analytics-name="played-video"
+          data-analytics-name={PLAYED_VIDEO_CLICK}
           onClick={togglePlay}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -2038,7 +2058,7 @@ export function VideoPlayer({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
-              data-analytics-name="backward"
+              data-analytics-name={PLAYER_PREVIOUS}
               onClick={(e) => {
                 e.stopPropagation()
                 handlePrevious()
@@ -2060,7 +2080,7 @@ export function VideoPlayer({
             </button>
 
             <button
-              data-analytics-name={isPlaying ? "paused_video" : "played_video"}
+              data-analytics-name={isPlaying ? PAUSED_VIDEO : PLAYED_VIDEO_CLICK}
               onClick={(e) => {
                 e.stopPropagation()
                 togglePlay()
@@ -2075,7 +2095,7 @@ export function VideoPlayer({
             </button>
 
             <button
-              data-analytics-name="fast-forward"
+              data-analytics-name={PLAYER_NEXT_RECOMMENDED}
               onClick={(e) => {
                 e.stopPropagation()
                 handleNext()
@@ -2181,13 +2201,25 @@ export function VideoPlayer({
         <NextUpOverlay
           nextVideo={suggestedVideos[0]}
           countdownDuration={5}
-          onPlay={() => {
+          onPlay={(trigger) => {
             if (typeof navigator !== "undefined" && navigator.onLine === false) {
               showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
               return
             }
             setShowNextUpOverlay(false)
             autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
+            const next = suggestedVideos[0]
+            const nextId = next?.videoId || next?.video_id
+            if (nextId) {
+              setPendingPlaybackContext({
+                videoId: String(nextId),
+                openSource: "recommended",
+                openUiName: trigger === "click" ? "up-next-overlay-play" : "up-next-overlay-autoplay",
+                navigateTrigger:
+                  trigger === "click" ? "up_next_overlay_click" : "up_next_overlay_autoplay",
+                isAutoplay: trigger === "autoplay",
+              })
+            }
             if (onVideoEnd) {
               onVideoEnd()
             }

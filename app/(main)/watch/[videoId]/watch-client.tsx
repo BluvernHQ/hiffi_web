@@ -37,6 +37,15 @@ import { useToast } from "@/hooks/use-toast"
 import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
+import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
+import {
+  PLAYLIST_QUEUE_CLICK,
+  UP_NEXT_SIDEBAR_CLICK,
+  WATCH_LIKE_VIDEO,
+  WATCH_MORE_ACTIONS,
+  WATCH_SAVE_TO_PLAYLIST,
+  WATCH_UNLIKE_VIDEO,
+} from "@/lib/analytics/video-analytics-names"
 import { GuestWatchNudge } from "@/components/conversion/guest-watch-nudge"
 import { GuestUpNextNudge } from "@/components/conversion/guest-up-next-nudge"
 import {
@@ -288,6 +297,15 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const nextIndex = playlistContext.currentIndex + 1
       const playlistNextId = playlistContext.videoIds[nextIndex]
       if (playlistNextId) {
+        setPendingPlaybackContext({
+          videoId: playlistNextId,
+          openSource: "playlist",
+          openUiName: "player-next-playlist",
+          navigateTrigger: "player_next",
+          isAutoplay: true,
+          playlistId: playlistContext.playlistId,
+          playlistTrackIndex: nextIndex,
+        })
         captureConversionEvent("conversion_next_clicked", {
           video_id: currentVideoId,
           next_video_id: playlistNextId,
@@ -302,6 +320,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         return
       }
     }
+    setPendingPlaybackContext({
+      videoId: nextId,
+      openSource: "recommended",
+      openUiName: "player-next-recommended",
+      navigateTrigger: "player_next",
+      isAutoplay: true,
+    })
     captureConversionEvent("conversion_next_clicked", {
       video_id: currentVideoId,
       next_video_id: nextId,
@@ -1605,6 +1630,15 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const nextId = playlistContext.videoIds[nextIndex]
       if (nextId) {
         resetSeed()
+        setPendingPlaybackContext({
+          videoId: nextId,
+          openSource: "playlist",
+          openUiName: "playlist-autoplay",
+          navigateTrigger: "playlist_autoplay",
+          isAutoplay: true,
+          playlistId: playlistContext.playlistId,
+          playlistTrackIndex: nextIndex,
+        })
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
@@ -1619,6 +1653,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
         resetSeed()
+        setPendingPlaybackContext({
+          videoId: nextVideoId,
+          openSource: "recommended",
+          openUiName: "video-end-autoplay",
+          navigateTrigger: "video_end_autoplay",
+          isAutoplay: true,
+        })
         debugLog("[hiffi] Autoplaying next video:", nextVideoId)
         router.push(`/watch/${nextVideoId}`)
       }
@@ -1710,6 +1751,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        data-analytics-name={isLiked ? WATCH_UNLIKE_VIDEO : WATCH_LIKE_VIDEO}
                         className={cn(
                           "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                           isLiked && "text-primary hover:text-primary",
@@ -1739,7 +1781,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          data-analytics-name="added-to-playlist"
+                          data-analytics-name={WATCH_SAVE_TO_PLAYLIST}
                           className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                           onClick={openAddToPlaylist}
                           onPointerEnter={prefetchMyPlaylists}
@@ -1755,6 +1797,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                             type="button"
                             variant="ghost"
                             size="icon"
+                            data-analytics-name={WATCH_MORE_ACTIONS}
                             className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                             aria-label="More actions"
                             title="More"
@@ -2181,6 +2224,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                            <button
                              key={id}
                              type="button"
+                             data-analytics-name={PLAYLIST_QUEUE_CLICK}
                              className={cn(
                                "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors md:px-2 md:py-1.5",
                                isActive
@@ -2191,6 +2235,15 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                              )}
                              onClick={() => {
                                if (isActive) return
+                               setPendingPlaybackContext({
+                                 videoId: id,
+                                 openSource: "playlist",
+                                 openUiName: PLAYLIST_QUEUE_CLICK,
+                                 navigateTrigger: "playlist_queue",
+                                 isAutoplay: true,
+                                 playlistId: playlistContext.playlistId,
+                                 playlistTrackIndex: absoluteIndex,
+                               })
                                const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
                                setPlaylistContext(nextSession)
                                setPlaylistSession(nextSession)
@@ -2227,7 +2280,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       key={v.videoId || v.video_id}
                       video={v}
                       hideTimestamp
-                      openVideoUiName="opened-video-from-recommended"
+                      openVideoUiName={UP_NEXT_SIDEBAR_CLICK}
                     />
                    ))
                  ) : (

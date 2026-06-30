@@ -180,9 +180,20 @@ function normalizeUiAction(
   const moodMixLabel = moodMixActivityLabel(raw)
   if (moodMixLabel) return moodMixLabel
 
-  if (raw === "liked" || raw === "like" || text === "like") return "Liked video"
+  if (raw === "liked" || raw === "like" || text === "like" || raw === "watch-like-video") return "Liked video"
   if (raw === "disliked" || raw === "dislike" || text === "dislike") return "Disliked video"
+  if (raw === "watch-unlike-video") return "Unliked video"
   if (raw === "shared-video" || raw === "share" || text === "share") return "Shared video"
+  if (raw === "watch-save-to-playlist") return "Opened save to playlist"
+  if (raw === "added-to-playlist") return "Added to playlist"
+  if (raw === "up-next-sidebar-click" || raw === "opened-video-from-recommended") return "Opened Up Next video"
+  if (raw === "playlist-queue-click") return "Selected playlist track"
+  if (raw === "player-next-recommended" || raw === "player-next-playlist") return "Player next button"
+  if (raw === "up-next-overlay-play") return "Played Up Next overlay"
+  if (raw === "up-next-overlay-cancel") return "Canceled Up Next autoplay"
+  if (raw === "played-video" || raw === "played_video") return "Played video (click)"
+  if (raw === "paused-video" || raw === "paused_video") return "Paused video"
+  if (raw === "watch-more-actions") return "Watch more actions menu"
   if (raw.includes("copy") || text === "copy") return "Copied share link"
   if (raw.startsWith("report-")) return toTitleCase(raw)
   if (raw.includes("comment")) return "Comment interaction"
@@ -212,6 +223,65 @@ function normalizeUiAction(
   return tagLabel
 }
 
+function playbackStartedTitle(item: AnalyticsEvent): string {
+  const props = item.properties || {}
+  const isAutoplay = props.is_autoplay === true
+  const openSource = String(props.open_source || props.source || "").trim()
+  const navigateTrigger = String(props.navigate_trigger || "").trim()
+  const playbackStart = String(props.playback_start_trigger || "").trim()
+
+  const mode = isAutoplay ? "Autoplayed" : "Played (click)"
+  const sourceLabel = openSource ? `from ${openSource.replace(/_/g, " ")}` : ""
+  const navLabel =
+    navigateTrigger === "up_next_sidebar"
+      ? "via Up Next sidebar"
+      : navigateTrigger === "up_next_overlay_autoplay"
+        ? "via Up Next countdown"
+        : navigateTrigger === "up_next_overlay_click"
+          ? "via Up Next overlay"
+          : navigateTrigger === "player_next"
+            ? "via player next"
+            : navigateTrigger === "playlist_queue"
+              ? "via playlist queue"
+              : navigateTrigger === "playlist_autoplay"
+                ? "via playlist autoplay"
+                : navigateTrigger === "video_end_autoplay"
+                  ? "via end-of-video autoplay"
+                  : ""
+
+  const parts = [mode, sourceLabel, navLabel].filter(Boolean)
+  if (playbackStart === "replay_after_end_click") {
+    return "Replayed video after end"
+  }
+  return parts.length > 0 ? `Started playback — ${parts.join(" ")}` : "Started playback"
+}
+
+function getEventContextTags(item: AnalyticsEvent): string[] {
+  const props = item.properties || {}
+  const tags: string[] = []
+
+  const openSource = String(props.open_source || "").trim()
+  const navigateTrigger = String(props.navigate_trigger || "").trim()
+  const playbackStart = String(props.playback_start_trigger || "").trim()
+
+  if (props.is_autoplay === true) tags.push("autoplay")
+  if (props.is_autoplay === false && item.event === "conversion_play_started") tags.push("click-play")
+  if (props.is_click === true) tags.push("click")
+  if (openSource) tags.push(`source:${openSource}`)
+  if (navigateTrigger) tags.push(`nav:${navigateTrigger}`)
+  if (playbackStart) tags.push(`start:${playbackStart}`)
+
+  const playlistId = String(props.playlist_id || "").trim()
+  if (playlistId) tags.push(`playlist:${playlistId.slice(0, 8)}`)
+
+  const trackIndex = props.playlist_track_index
+  if (typeof trackIndex === "number" && Number.isFinite(trackIndex)) {
+    tags.push(`track:${trackIndex + 1}`)
+  }
+
+  return tags
+}
+
 function describeEvent(item: AnalyticsEvent): { title: string; detail: string } {
   const eventName = item.event || "unknown_event"
   const titleFromPage = String(item.properties?.title || "").trim()
@@ -223,22 +293,34 @@ function describeEvent(item: AnalyticsEvent): { title: string; detail: string } 
 
   if (eventName === "conversion_play_started") {
     return {
-      title: "Started playback",
+      title: playbackStartedTitle(item),
       detail: targetPath || "Playback started",
     }
   }
 
   if (eventName === "opened-video") {
     const moodMixVideoLabel = moodMixActivityLabel(uiName)
+    const openLabels: Record<string, string> = {
+      "opened-video-from-home": "Opened video from home",
+      "opened-video-from-search": "Opened video from search",
+      "opened-video-from-mood": "Opened video from mood mix",
+      "opened-video-from-playlist": "Opened video from playlist",
+      "opened-video-from-recommended": "Opened video from recommendations",
+      "opened-video-from-liked": "Opened video from liked",
+      "opened-video-from-profile": "Opened video from profile",
+      "opened-video-from-history": "Opened video from history",
+      "up-next-sidebar-click": "Opened Up Next sidebar video",
+    }
     return {
-      title: moodMixVideoLabel || "Opened video (play intent)",
+      title: moodMixVideoLabel || openLabels[uiName.toLowerCase()] || "Opened video (play intent)",
       detail: targetPath || "Video opened from feed",
     }
   }
 
   if (eventName === "conversion_next_clicked") {
+    const source = String(item.properties?.source || "").trim()
     return {
-      title: "Played next video",
+      title: source === "playlist" ? "Played next playlist track" : "Played next recommended video",
       detail: targetPath || "Next video clicked",
     }
   }
@@ -809,6 +891,7 @@ export function AdminActivityLogsTable() {
                   const ipAddress = String(item.properties?._ingest_ip || "N/A")
                   const pathText = item.path || safePathFromUrl(item.url) || "N/A"
                   const uiName = String((item as any).element_ui_name || item.properties?.element_ui_name || "").trim()
+                  const contextTags = getEventContextTags(item)
                   const videoId = getVideoIdFromEvent(item)
                   const videoMeta = videoId ? videoMetaById[videoId] : null
                   const hideWatchPath = Boolean(videoId && pathText.startsWith("/watch/"))
@@ -879,6 +962,15 @@ export function AdminActivityLogsTable() {
                               {uiName}
                             </span>
                           )}
+                          {contextTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="max-w-full rounded bg-primary/10 px-2 py-0.5 text-xs break-all text-primary"
+                              title={tag}
+                            >
+                              {tag}
+                            </span>
+                          ))}
                           <span
                             className="max-w-full rounded bg-muted px-2 py-0.5 text-xs break-all"
                             title={item.device_type || "unknown-device"}
@@ -924,6 +1016,7 @@ export function AdminActivityLogsTable() {
               const ipAddress = String(item.properties?._ingest_ip || "N/A")
               const pathText = item.path || safePathFromUrl(item.url) || "N/A"
               const uiName = String((item as any).element_ui_name || item.properties?.element_ui_name || "").trim()
+              const contextTags = getEventContextTags(item)
               const videoId = getVideoIdFromEvent(item)
               const videoMeta = videoId ? videoMetaById[videoId] : null
               const hideWatchPath = Boolean(videoId && pathText.startsWith("/watch/"))
@@ -964,6 +1057,11 @@ export function AdminActivityLogsTable() {
                     <div className="flex flex-wrap gap-1">
                       <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.event}</span>
                       {uiName && <span className="rounded bg-muted px-2 py-0.5 text-xs">{uiName}</span>}
+                      {contextTags.map((tag) => (
+                        <span key={tag} className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                          {tag}
+                        </span>
+                      ))}
                       <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.device_type || "unknown-device"}</span>
                       <span className="rounded bg-muted px-2 py-0.5 text-xs">{item.platform || "web"}</span>
                     </div>

@@ -28,6 +28,10 @@ import { useFeedVideoPreview } from "./feed-video-preview-provider"
 import { VideoCardHoverPreview, pauseActiveHoverPreview } from "./video-card-hover-preview"
 import { getPrimaryPreviewStreamUrl, getWatchStreamDirectUrl } from "@/lib/feed-preview/resolve-preview-url"
 import { warmWatchHandoff } from "@/lib/feed-preview/preview-warmer"
+import {
+  mapOpenUiNameToSource,
+  setPendingPlaybackContext,
+} from "@/lib/analytics/video-playback-context"
 import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import {
   DropdownMenu,
@@ -152,6 +156,14 @@ export function VideoCard({
   const trackVideoOpen = () => {
     if (typeof window === "undefined") return
     const destinationUrl = `${window.location.origin}${watchPath}`
+    setPendingPlaybackContext({
+      videoId,
+      openSource: mapOpenUiNameToSource(openVideoUiName),
+      openUiName: openVideoUiName,
+      navigateTrigger: "card_click",
+      isAutoplay: false,
+      ...(playlistNavigation ? { playlistId: playlistNavigation.playlistId } : {}),
+    })
     ;(window as any).HifiAnalytics?.capture("opened-video", {
       element_ui_name: openVideoUiName,
       video_id: videoId,
@@ -159,6 +171,10 @@ export function VideoCard({
       url: destinationUrl,
       path: watchPath,
       source_path: window.location.pathname,
+      open_source: mapOpenUiNameToSource(openVideoUiName),
+      navigate_trigger: "card_click",
+      is_click: true,
+      is_autoplay: false,
       ...(playlistNavigation ? { playlist_id: playlistNavigation.playlistId } : {}),
     })
   }
