@@ -99,10 +99,7 @@ export function buildVideoJsonLd(video: SeoVideo) {
     },
     {
       "@type": "SeekToAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${pageUrl}?t={seek_to_second_number}`,
-      },
+      target: `${pageUrl}?t={seek_to_second_number}`,
       "startOffset-input": "required name=seek_to_second_number",
     },
   ]
@@ -190,10 +187,7 @@ export function buildMusicVideoJsonLd(video: SeoVideo) {
     },
     {
       "@type": "SeekToAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${pageUrl}?t={seek_to_second_number}`,
-      },
+      target: `${pageUrl}?t={seek_to_second_number}`,
       "startOffset-input": "required name=seek_to_second_number",
     },
   ]

@@ -111,8 +111,6 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         claimArtist={directory.claimArtist}
         introTitle={isAtlanta ? "Atlanta hip-hop & rap artists" : `${city.label} hip-hop & rap artists`}
         introDescription={city.description}
-        sectionTitle={`Browse ${city.label} artists`}
-        sectionSubtitle={`${directory.totalMatches.toLocaleString()} profiles in ${city.label}`}
         paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
         showSearchControls={false}
         filterOptions={[]}

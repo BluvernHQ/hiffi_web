@@ -1,4 +1,5 @@
 import type { Artist } from "@/lib/artists"
+import { formatCityName, formatStateCode } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import type { PublicInventoryProfile } from "@/lib/types/inventory"
 import { getInventorySocialUrl } from "@/lib/types/inventory"
@@ -19,9 +20,12 @@ function parseCityState(location: string | undefined): { city: string; state: st
   if (trimmed) {
     const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean)
     if (parts.length >= 2) {
-      return { city: parts.slice(0, -1).join(", "), state: parts[parts.length - 1] }
+      return {
+        city: formatCityName(parts.slice(0, -1).join(", ")),
+        state: formatStateCode(parts[parts.length - 1]),
+      }
     }
-    return { city: trimmed, state: "GA" }
+    return { city: formatCityName(trimmed), state: "GA" }
   }
 
   return { city: "Atlanta", state: "GA" }

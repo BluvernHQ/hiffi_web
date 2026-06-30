@@ -1,9 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
-import { buildArtistDirectoryHref, pickHubInlineFilters } from "@/lib/artist-directory"
+import {
+  ARTIST_INDEX_PATH,
+  buildArtistDirectoryHref,
+  pickHubInlineFilters,
+} from "@/lib/artist-directory"
 import { ArtistFilterBar } from "@/components/artists/ArtistFilterBar"
 import { ArtistSearch } from "@/components/artists/ArtistSearch"
 
@@ -21,6 +25,7 @@ export function ArtistIndexControls({
   variant = "default",
 }: ArtistIndexControlsProps) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState(initialQuery)
   const [activeFilterIds, setActiveFilterIds] = useState(initialActiveFilterIds)
 
@@ -31,24 +36,33 @@ export function ArtistIndexControls({
 
   const pushDirectoryState = useCallback(
     (nextQuery: string, nextFilterIds: string[]) => {
-      router.push(
-        buildArtistDirectoryHref({
-          query: nextQuery,
-          activeFilterIds: nextFilterIds,
-          page: 1,
-        }),
-      )
+      startTransition(() => {
+        router.push(
+          buildArtistDirectoryHref({
+            query: nextQuery,
+            activeFilterIds: nextFilterIds,
+            page: 1,
+          }),
+        )
+      })
     },
     [router],
   )
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (query === initialQuery) return
-      pushDirectoryState(query, activeFilterIds)
-    }, 280)
-    return () => window.clearTimeout(timer)
-  }, [query, initialQuery, activeFilterIds, pushDirectoryState])
+  const handleSubmit = useCallback(
+    (searchQuery: string) => {
+      setQuery(searchQuery)
+      pushDirectoryState(searchQuery, activeFilterIds)
+    },
+    [activeFilterIds, pushDirectoryState],
+  )
+
+  const handleProfileSelect = useCallback(
+    (slug: string) => {
+      router.push(`${ARTIST_INDEX_PATH}/${encodeURIComponent(slug)}`)
+    },
+    [router],
+  )
 
   const toggleFilter = useCallback(
     (filterId: string) => {
@@ -64,18 +78,29 @@ export function ArtistIndexControls({
   const isHub = variant === "hub"
   const hubFilters = pickHubInlineFilters(filterOptions)
   const emphasizeAtlanta =
-    isHub && !activeFilterIds.some((id) => id.startsWith("city:")) && !query.trim()
+    isHub &&
+    !activeFilterIds.some((id) => id.startsWith("city:")) &&
+    !initialQuery.trim()
+  const isSearching = isPending
 
   if (isHub) {
     return (
-      <div className="rounded-2xl border border-[#E8192C]/15 bg-white p-2 shadow-sm sm:p-2.5">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <ArtistSearch
-            query={query}
-            onQueryChange={setQuery}
-            variant="hub"
-            embedded
-          />
+      <section
+        aria-label="Search and filter artists"
+        className="rounded-2xl border border-[#E8192C]/15 bg-[#FAFAFA] p-3 shadow-sm sm:p-4"
+      >
+        <ArtistSearch
+          query={query}
+          onQueryChange={setQuery}
+          onSubmit={handleSubmit}
+          onProfileSelect={handleProfileSelect}
+          variant="hub"
+          loading={isSearching}
+        />
+        <div className="mt-3 border-t border-[#E8192C]/10 pt-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Filter by
+          </p>
           <ArtistFilterBar
             filters={hubFilters}
             activeFilterIds={activeFilterIds}
@@ -84,13 +109,20 @@ export function ArtistIndexControls({
             emphasizeAtlanta={emphasizeAtlanta}
           />
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
     <div className="space-y-2">
-      <ArtistSearch query={query} onQueryChange={setQuery} variant={variant} />
+      <ArtistSearch
+        query={query}
+        onQueryChange={setQuery}
+        onSubmit={handleSubmit}
+        onProfileSelect={handleProfileSelect}
+        variant={variant}
+        loading={isSearching}
+      />
       <ArtistFilterBar
         filters={filterOptions}
         activeFilterIds={activeFilterIds}

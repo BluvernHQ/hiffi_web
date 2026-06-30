@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { formatCityState } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
@@ -104,14 +105,14 @@ export function ArtistRow({ artist }: ArtistRowProps) {
           </div>
           <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground sm:hidden">
             <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {artist.city}
+            {formatCityState(artist)}
           </p>
         </div>
       </div>
 
       <p className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex">
         <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {artist.city}
+        {formatCityState(artist)}
       </p>
 
       <div className="flex flex-wrap gap-2">

@@ -98,8 +98,6 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
         claimArtist={directory.claimArtist}
         introTitle={genre.headline}
         introDescription={genre.description}
-        sectionTitle={`Browse ${genre.label} artists`}
-        sectionSubtitle={`${directory.totalMatches.toLocaleString()} ${genre.label.toLowerCase()} profiles`}
         paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined)}
         showSearchControls={false}
         filterOptions={[]}

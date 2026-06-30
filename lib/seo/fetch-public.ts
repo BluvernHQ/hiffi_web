@@ -113,7 +113,7 @@ export type SeoProfile = {
   sameAs?: string[]
 }
 
-const PROGRESSIVE_VIDEO_RE = /\.(mp4|webm|mov|m4v)(\?.*)?$/i
+const PROGRESSIVE_MP4_RE = /\.(mp4|m4v)(\?.*)?$/i
 const HLS_RE = /\.m3u8(\?.*)?$/i
 
 /**
@@ -129,8 +129,9 @@ function resolveSeoVideoWorkersMp4Url(
   const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
 
-  if (gateway && !HLS_RE.test(gateway) && PROGRESSIVE_VIDEO_RE.test(gateway)) {
-    return gateway.startsWith("http") ? gateway : getVideoUrl(gateway)
+  if (gateway && !HLS_RE.test(gateway) && PROGRESSIVE_MP4_RE.test(gateway)) {
+    const direct = gateway.startsWith("http") ? gateway : getVideoUrl(gateway)
+    if (isProgressiveMp4Url(direct)) return direct
   }
 
   const baseUrl = gateway && !HLS_RE.test(gateway)
@@ -141,7 +142,7 @@ function resolveSeoVideoWorkersMp4Url(
 
   if (baseUrl) {
     const candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles)
-    const mp4 = candidates.find((url) => isProgressiveMp4Url(url)) ?? candidates[0]
+    const mp4 = candidates.find((url) => isProgressiveMp4Url(url))
     if (mp4) return mp4
   }
 

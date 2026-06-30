@@ -155,7 +155,7 @@
 - [x] Category: "hip-hop-first music and video streaming platform" — used in layout, llms.txt, FAQ
 - [x] Audience: "independent rap/hip-hop artists and fans" — consistent
 - [x] URL: `https://www.hiffi.com` — canonical in all schemas
-- [x] Social: `@hiffi` on Instagram, X, TikTok — in Organization `sameAs`
+- [x] Social: `@officialhiffi` on Instagram, X, and YouTube — in Organization `sameAs` ([`lib/seo/social.ts`](lib/seo/social.ts))
 
 ---
 

@@ -84,8 +84,22 @@ export function countArtistSocialLinks(artist: Artist): number {
   ).length
 }
 
+export function formatCityName(city: string): string {
+  const primary = city.split(",")[0]?.trim() || city.trim()
+  if (!primary) return primary
+  return primary
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+}
+
+export function formatStateCode(state: string): string {
+  return state.trim().toUpperCase()
+}
+
 export function getShortCityLabel(artist: Artist): string {
-  return artist.city.split(",")[0]?.trim() || artist.city
+  return formatCityName(artist.city.split(",")[0]?.trim() || artist.city)
 }
 
 export type ArtistDirectoryFilter = {
@@ -142,10 +156,10 @@ export function getPrimaryFollowerCount(artist: Artist): number | null {
 }
 
 export function formatCityState(artist: Artist): string {
-  if (artist.city.toLowerCase().includes(artist.state.toLowerCase())) {
-    return artist.city
-  }
-  return `${artist.city.replace(/,?\s*[A-Z]{2}$/, "")}, ${artist.state}`
+  const city = formatCityName(artist.city)
+  const state = formatStateCode(artist.state)
+  if (!state) return city
+  return `${city}, ${state}`
 }
 
 export function formatGenreLabel(artist: Artist): string {
