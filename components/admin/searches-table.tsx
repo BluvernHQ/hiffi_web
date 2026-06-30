@@ -99,9 +99,13 @@ async function resolveActorUsers(distinctIds: string[]): Promise<Record<string, 
     }),
   )
 
-  return Object.fromEntries(
-    entries.filter((entry): entry is [string, ActorUserMeta] => entry[1] != null),
-  )
+  const result: Record<string, ActorUserMeta> = {}
+  for (const [uid, meta] of entries) {
+    if (meta != null) {
+      result[uid] = { username: meta.username, name: meta.name }
+    }
+  }
+  return result
 }
 
 export function AdminSearchesTable() {
