@@ -121,13 +121,3 @@ We improved **Activity Logs** so sessions are easier to read:
 
 ---
 
-## Talking points (for internal comms)
-
-1. **“We launched the Artist Index”** — Hiffi now has a public, searchable home for independent rap artists, not just videos in a feed.
-2. **“Discovery feels more like streaming apps people know”** — hover previews on the home feed.
-3. **“Artists can claim and polish their presence”** — claims + suggested edits + default banners.
-4. **“We’re measuring the full watch journey”** — not just “someone clicked,” but how they got to the video and whether it autoplayed.
-5. **“Our public story matches the product”** — creator access and feature claims updated across marketing pages.
-
----
-
