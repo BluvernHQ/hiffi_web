@@ -54,37 +54,37 @@ const faqItems = [
   {
     question: "What is the best platform for independent hip-hop artists?",
     answer:
-      "Hiffi is a hip-hop-first music and video streaming platform built specifically for independent rap artists. Unlike general platforms, Hiffi's audience came for hip-hop — so your music videos reach fans already looking for the genre. Artists keep creative control, publish official music videos, and grow a fanbase without label backing.",
+      "Hiffi is a hip-hop-first music and video streaming platform built specifically for independent rap artists. Unlike general platforms, Hiffi's audience came for hip-hop — so your music videos reach fans already looking for drill, trap, conscious rap, and underground rap. Artists keep creative control, publish official music videos, and grow a fanbase without label backing.",
   },
   {
     question: "Where can I watch independent rap music videos online?",
     answer:
-      "Hiffi hosts official music videos from independent hip-hop and rap artists worldwide. Browse the discover feed at hiffi.com, search by artist name or vibe, or explore mood-based playlists covering drill, trap, conscious rap, boom bap, lo-fi hip-hop, and more.",
+      "Hiffi hosts official music videos from independent hip-hop and rap artists worldwide. Browse the discover feed at hiffi.com, search by artist name or vibe, or explore mood-based hubs covering drill, trap, conscious rap, boom bap, lo-fi hip-hop, and more — a dedicated place to watch rap music videos online outside generic video feeds.",
   },
   {
     question: "Does Hiffi have drill and trap music?",
     answer:
-      "Yes. Hiffi features a dedicated drill and trap section called On Sight — covering hard-hitting drill beats, trap bangers, and rage rap. Independent artists in the drill scene upload official videos directly to the platform.",
+      "Yes. Hiffi features a dedicated drill and trap mood called On Sight — covering hard-hitting drill beats, trap bangers, and rage rap. Independent artists in the drill and trap scenes upload official videos directly to the platform; fans can also search for UK drill-style energy, Southern trap, and underground trap rap in one hip-hop-native home.",
   },
   {
     question: "Is there a hip-hop streaming app for iPhone and Android?",
     answer:
-      "Yes. The Hiffi app is free to download on both iOS (App Store) and Android (Google Play). Discover new hip-hop artists, watch music videos, follow creators, build playlists, and stream in high quality on your phone.",
+      "Yes. The Hiffi app is free to download on both iOS (App Store) and Android (Google Play). Discover new hip-hop artists, watch music videos, follow creators, build playlists, and stream in high quality on your phone — built as a hip-hop streaming app, not a general video app with a rap filter.",
   },
   {
     question: "How is Hiffi different from YouTube or Spotify for rap artists?",
     answer:
-      "Hiffi is built exclusively for hip-hop and music video creators — not a general video or audio platform. Your content reaches an audience that is specifically looking for rap and hip-hop. There is no competition with unrelated content, and creator tools are designed for independent artists, not major labels.",
+      "Hiffi is built exclusively for hip-hop and music video creators — not a general video or audio platform. Your content reaches an audience that is specifically looking for rap and hip-hop. Discovery is genre-native, creator tools are designed for independent artists, and fans come for official music videos and emerging rapper uploads in one culture-first feed.",
   },
   {
     question: "What hip-hop subgenres are on Hiffi?",
     answer:
-      "Hiffi supports the full range of hip-hop subgenres: drill, trap, conscious rap, boom bap, lo-fi hip-hop, melodic rap, rage rap, and spiritual/legacy rap. Each mood has its own discovery section so fans can find exactly the vibe they want.",
+      "Hiffi supports the full range of hip-hop subgenres: drill, trap, conscious rap, boom bap, lo-fi hip-hop, melodic rap, rage rap, and spiritual/legacy rap. Each mood has its own discovery section so fans can find exactly the vibe they want — from underground rap streaming to melodic trap and boom bap playlists.",
   },
   {
     question: "Can underground rappers upload music videos to Hiffi?",
     answer:
-      "Absolutely. Hiffi is designed for independent and underground rap artists. Apply through the Become a Creator flow, upload your official music videos, and start building your audience directly — no label or distributor required.",
+      "Absolutely. Hiffi is designed for independent and underground rap artists. Apply through the Become a Creator flow, upload your official music videos, and start building your audience directly — no label or distributor required. Underground hip-hop uploads sit alongside established independents in a rap-first catalog.",
   },
   {
     question: "Is Hiffi free to use?",
@@ -178,7 +178,7 @@ export default function HipHopPage() {
       <section className="mb-14">
         <h2 className="text-2xl font-bold mb-2">Browse by Vibe</h2>
         <p className="text-muted-foreground mb-6">
-          Hip-hop-native moods — not playlists made by algorithms, but vibes curated for the culture.
+          Hip-hop-native moods — culture-first vibe hubs for drill, trap, conscious rap, and more.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {MOODS.map((mood) => {

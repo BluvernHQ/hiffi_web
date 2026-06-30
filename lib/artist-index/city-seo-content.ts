@@ -9,22 +9,22 @@ export const ATLANTA_CITY_FAQ: CityFaqItem[] = [
   {
     question: "Who are the best emerging Atlanta rappers on Hiffi?",
     answer:
-      "The Hiffi Artist Index lists 800+ emerging Atlanta hip-hop and rap artists — searchable by name, genre, and claim status. Browse verified and unclaimed profiles at hiffi.com/artist-index/city/atlanta, then follow official links or watch music videos on Hiffi.",
+      "The Hiffi Artist Index lists 800+ emerging Atlanta hip-hop and rap artists — searchable by name, genre, and claim status. Whether you are looking for an Atlanta rap directory, new ATL drill artists, or underground Atlanta rappers building a following, browse verified and unclaimed profiles at hiffi.com/artist-index/city/atlanta, then follow official links or watch music videos on Hiffi.",
   },
   {
     question: "How is the Hiffi Artist Index different from Spotify or Genius?",
     answer:
-      "Spotify and Genius focus on released music and credits. The Hiffi Artist Index is a claimable directory built for the Atlanta scene — artists verify their profile, update links, and connect fans to official music videos on Hiffi.",
+      "Spotify and Genius focus on released music and credits. The Hiffi Artist Index is a claimable Atlanta rapper directory built for the ATL scene — artists verify their profile, update links, and connect fans to official music videos on Hiffi. It is designed for discovery of emerging Atlanta hip-hop talent, not just catalog metadata.",
   },
   {
     question: "How do I claim my Atlanta rapper profile on Hiffi?",
     answer:
-      "Search your stage name on the Artist Index, open your profile, and select Claim your profile. After verification, you can update your bio, links, and upload music videos on Hiffi.",
+      "Search your stage name on the Artist Index, open your profile, and select Claim your profile. After verification, you can update your bio, links, and upload music videos on Hiffi. Independent Atlanta rappers use the same flow whether you are already listed or find your name in the emerging ATL artists index.",
   },
   {
     question: "What Atlanta hip-hop subgenres are in the index?",
     answer:
-      "The Atlanta index includes trap, drill, melodic rap, underground rap, conscious rap, and related Southern hip-hop styles. Filter by genre on the Artist Index or browse trap and rap artist pages directly.",
+      "The Atlanta index includes trap, drill, melodic rap, underground rap, conscious rap, and related Southern hip-hop styles. Fans searching for Atlanta trap artists, ATL drill rappers, or melodic Atlanta hip-hop can filter by genre on the Artist Index or browse trap, rap, and drill artist pages directly.",
   },
 ]
 
@@ -36,7 +36,7 @@ export function getAtlantaSceneSections(profileCount: number): Array<{ heading: 
       heading: "Atlanta hip-hop & rap scene",
       paragraphs: [
         `Atlanta is one of the most influential hip-hop markets in the world — the city behind trap's global rise, a constant pipeline of underground talent, and a scene where independent artists build audiences before major label attention.`,
-        `From Zone 6 to the broader ATL metro, Atlanta rap spans trap, drill, melodic rap, conscious hip-hop, and street-ready underground sounds. Fans search for emerging artists by name, neighborhood energy, and subgenre — not only chart placements.`,
+        `From Zone 6 to the broader ATL metro, Atlanta rap spans trap, drill, melodic rap, conscious hip-hop, and street-ready underground sounds. Fans search for emerging artists by name, neighborhood energy, and subgenre — whether they type "Atlanta rap scene," "underground ATL rappers," or "new Atlanta hip-hop artists" — not only chart placements.`,
       ],
     },
     {

@@ -523,7 +523,9 @@ Mood pages → cross-link + back to /hip-hop
 
 | Item | Status | Impact |
 |---|---|---|
-| `/community-guidelines` dedicated meta title/description | Missing layout metadata | Low–medium |
+| robots.txt named-bot Disallow parity | **Fixed** (`lib/seo/robots-txt-core.ts`) — verify prod after deploy | Critical (crawl) |
+| `/community-guidelines` dedicated meta title/description | **Done** (`app/(main)/community-guidelines/layout.tsx`) | Low–medium |
+| GA4 AI assistant referral channel group | **Ops** — see [`docs/ai-search-visibility-ops.md`](ai-search-visibility-ops.md) | Medium (measurement) |
 | Default OG image 1200×630 for non-watch pages | Logo used in most `routeMetadata` calls | Medium (social CTR) |
 | Genre pages in `llms.txt` + `.md` | Not added | Low (AI discovery) |
 | `llms.txt` / FAQ copy still says "800+" in places | Static marketing copy; live counts are dynamic in app meta | Low (align copy when count changes) |
@@ -531,19 +533,21 @@ Mood pages → cross-link + back to /hip-hop
 
 ---
 
-## Realistic expectations (Artist Index)
+## Realistic expectations (Artist Index & AI visibility)
 
-On-page SEO is strong; **rankings still need time and off-site signals**.
+On-page SEO is strong; **rankings and AI citation still need time, Google visibility, and off-site signals**. LLM answers are primarily **downstream of traditional search ranking and query fan-out** — not a parallel track driven by FAQ schema or `llms.txt` alone.
 
 | Milestone | Timeline | Notes |
 |---|---|---|
-| Hub + Atlanta city page indexed | 1–4 weeks | Submit sitemap; confirm `NEXT_PUBLIC_ENV=prod` |
+| Hub + Atlanta city page indexed | 1–4 weeks | Submit sitemap; confirm `NEXT_PUBLIC_ENV=prod`; verify robots.txt on prod |
 | Profile pages appearing in Google | 4–12 weeks | Large URL set crawls gradually |
 | Long-tail artist name impressions | 2–6 months | `{artist name} Atlanta rapper` |
 | Scene-level terms ("Atlanta rap artists") | 6–12 months | Competitive; needs backlinks + PR |
-| AI citation for directory queries | 3–12 months | FAQ + `llms.txt` + authority building |
+| AI citation for directory queries | 3–12 months | **Contingent on ranking for fan-out query variants + topical authority**; FAQ + `llms.txt` support clarity only |
 
-**Highest-confidence wins:** artist-name long-tail, claim campaigns, Atlanta scene links to `/artist-index/city/atlanta`.
+**Highest-confidence wins:** artist-name long-tail, claim campaigns, Atlanta scene links to `/artist-index/city/atlanta`, GSC-driven fan-out copy updates ([ops playbook](ai-search-visibility-ops.md)).
+
+**Do not expect:** fast AI citation immediately after a single reindex — validate with the reindex log in the ops playbook before scaling GEO process.
 
 ---
 
@@ -567,9 +571,10 @@ On-page SEO is strong; **rankings still need time and off-site signals**.
 
 ### Measurement (monthly)
 
-- [ ] Search Console impressions: `Atlanta rap artists`, `artist directory`, `hip hop`, `drill music`
+- [ ] Search Console impressions: `Atlanta rap artists`, `artist directory`, `hip hop`, `drill music` — export long-tail variants per [`docs/ai-search-visibility-ops.md`](ai-search-visibility-ops.md)
+- [ ] GA4: AI assistant referral exploration (ChatGPT, Perplexity, Claude, Gemini) — configure per ops playbook
 - [ ] `site:hiffi.com/artist-index` — indexed profile count climbing
-- [ ] AI check: *"Atlanta hip-hop artist directory"* in Perplexity / ChatGPT
+- [ ] AI spot-check (secondary): same query in Perplexity / ChatGPT — **compare to GSC rank/impressions**, not in isolation
 - [ ] PageSpeed Insights on `/hip-hop` and `/artist-index` — LCP < 2.5s, INP < 200ms, CLS < 0.1
 
 ---
