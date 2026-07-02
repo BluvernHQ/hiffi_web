@@ -10,6 +10,10 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import {
+  onFeedPreviewEnded,
+  onFeedPreviewStarted,
+} from "@/lib/analytics/journey-tracking"
 import { useGlobalVideo } from "@/lib/video-context"
 
 /** Activate immediately on hover — YouTube does not debounce intent. */
@@ -147,7 +151,12 @@ export function useFeedVideoPreview() {
   return useContext(FeedVideoPreviewContext)
 }
 
-export function trackFeedPreviewStarted(videoId: string, title: string | undefined, audioEnabled: boolean) {
+export function trackFeedPreviewStarted(
+  videoId: string,
+  title: string | undefined,
+  audioEnabled: boolean,
+  cardPosition?: number,
+) {
   if (typeof window === "undefined") return
   ;(window as any).HifiAnalytics?.capture("feed-preview-started", {
     element_ui_name: "feed-hover-preview",
@@ -156,6 +165,7 @@ export function trackFeedPreviewStarted(videoId: string, title: string | undefin
     audio_enabled: audioEnabled,
     path: window.location.pathname,
   })
+  onFeedPreviewStarted(videoId, audioEnabled, cardPosition)
 }
 
 export function trackFeedPreviewEnded(
@@ -163,6 +173,7 @@ export function trackFeedPreviewEnded(
   watchedSeconds: number,
   title: string | undefined,
   audioEnabled: boolean,
+  cardPosition?: number,
 ) {
   if (typeof window === "undefined") return
   ;(window as any).HifiAnalytics?.capture("feed-preview-ended", {
@@ -173,4 +184,5 @@ export function trackFeedPreviewEnded(
     audio_enabled: audioEnabled,
     path: window.location.pathname,
   })
+  onFeedPreviewEnded(videoId, watchedSeconds, audioEnabled, cardPosition)
 }

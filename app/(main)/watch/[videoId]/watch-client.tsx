@@ -37,6 +37,13 @@ import { useToast } from "@/hooks/use-toast"
 import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
+import {
+  captureArtistFollowed,
+  captureVideoLiked,
+  onPlaylistSessionEnded,
+  onPlaylistSessionStarted,
+  onPlaylistTrackAdvanced,
+} from "@/lib/analytics/journey-tracking"
 import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
 import {
   PLAYLIST_QUEUE_CLICK,
@@ -263,6 +270,42 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     autoplay: boolean
   } | null>(null)
   const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, PlaylistVideoMeta>>({})
+  const playlistJourneyIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!playlistContext) {
+      if (playlistJourneyIdRef.current) {
+        onPlaylistSessionEnded("left_watch")
+        playlistJourneyIdRef.current = null
+      }
+      return
+    }
+
+    if (playlistJourneyIdRef.current === playlistContext.playlistId) return
+
+    if (playlistJourneyIdRef.current) {
+      onPlaylistSessionEnded("left_watch")
+    }
+
+    const entryVideoId =
+      playlistContext.videoIds[playlistContext.currentIndex] || currentVideoId
+    onPlaylistSessionStarted({
+      playlistId: playlistContext.playlistId,
+      queueLength: playlistContext.videoIds.length,
+      entryTrackIndex: playlistContext.currentIndex,
+      entryVideoId,
+    })
+    playlistJourneyIdRef.current = playlistContext.playlistId
+  }, [playlistContext, currentVideoId])
+
+  useEffect(() => {
+    return () => {
+      if (playlistJourneyIdRef.current) {
+        onPlaylistSessionEnded("left_watch")
+        playlistJourneyIdRef.current = null
+      }
+    }
+  }, [])
 
   const hydratePlaylistVideoMeta = useCallback((meta?: Record<string, PlaylistVideoMeta>) => {
     if (!meta || Object.keys(meta).length === 0) return
@@ -313,6 +356,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           playlist_id: playlistContext.playlistId,
           is_autoplay: false,
         })
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: nextIndex,
+          reason: "next_button",
+          videoId: playlistNextId,
+        })
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
@@ -343,6 +392,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const prevIndex = playlistContext.currentIndex - 1
       const prevId = playlistContext.videoIds[prevIndex]
       if (prevId) {
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: prevIndex,
+          reason: "prev_button",
+          videoId: prevId,
+        })
         const nextSession = { ...playlistContext, currentIndex: prevIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
@@ -1347,6 +1402,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         source: playlistContext ? "playlist" : "recommended",
         playlist_id: playlistContext?.playlistId,
       })
+      captureVideoLiked(videoId, nextLiked ? "like" : "unlike")
     } catch (error) {
       console.error("[hiffi] Failed to toggle like for video:", error)
       toast({
@@ -1528,6 +1584,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           title: "Success",
           description: "Unfollowed user",
         })
+        captureArtistFollowed(
+          video.video_id || video.videoId,
+          username,
+          "unfollow",
+        )
       } else {
         // Following
         const response = await apiClient.followUser(username)
@@ -1565,6 +1626,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           title: "Success",
           description: "Following user",
         })
+        captureArtistFollowed(
+          video.video_id || video.videoId,
+          username,
+          "follow",
+        )
       }
       
       // State is already optimistically updated above
@@ -1643,6 +1709,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: nextIndex,
+          reason: "autoplay",
+          videoId: nextId,
+        })
         navigateToVideo(nextId, nextIndex)
         return
       }
@@ -2024,6 +2096,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                             )}
                             onClick={() => {
                               if (isActive) return
+                              onPlaylistTrackAdvanced({
+                                fromIndex: playlistContext.currentIndex,
+                                toIndex: absoluteIndex,
+                                reason: "manual_pick",
+                                videoId: id,
+                              })
                               const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
                               setPlaylistContext(nextSession)
                               setPlaylistSession(nextSession)
@@ -2245,6 +2323,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                                  isAutoplay: true,
                                  playlistId: playlistContext.playlistId,
                                  playlistTrackIndex: absoluteIndex,
+                               })
+                               onPlaylistTrackAdvanced({
+                                 fromIndex: playlistContext.currentIndex,
+                                 toIndex: absoluteIndex,
+                                 reason: "manual_pick",
+                                 videoId: id,
                                })
                                const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
                                setPlaylistContext(nextSession)

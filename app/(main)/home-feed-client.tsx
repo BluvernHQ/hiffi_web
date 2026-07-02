@@ -24,6 +24,11 @@ import {
 } from "@/lib/mood-session"
 import { OPENED_VIDEO_FROM_MOOD } from "@/lib/analytics/mood-mix-analytics"
 import {
+  onMoodMixStarted,
+  onPlaylistSessionEnded,
+  setMoodWatchAttribution,
+} from "@/lib/analytics/journey-tracking"
+import {
   activatePlaylistNavigation,
   buildPlaylistWatchPath,
   playlistVideoMetaFromFeedVideos,
@@ -381,6 +386,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     setPendingMoodQuery(query)
 
     const moodCache = readCache(query)
+    onMoodMixStarted({ moodQuery: query, videoCount: moodCache?.videos.length })
     if (moodCache && moodCache.videos.length > 0) {
       applyCacheToUi(moodCache)
       tabRevertRef.current = null
@@ -405,6 +411,9 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   }, [])
 
   const switchToFullFeed = useCallback(() => {
+    if (activeMoodRef.current !== null) {
+      onPlaylistSessionEnded("mood_dismissed")
+    }
     setPersistedActiveMood(null)
     setMoodEmpty(false)
     setFeedError(null)
@@ -511,9 +520,18 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const handlePlayMood = useCallback(() => {
     if (!moodPlaylistNavigation || moodPlaylistNavigation.videoIds.length === 0) return
     const firstVideoId = moodPlaylistNavigation.videoIds[0]
+    if (activeMood) {
+      setMoodWatchAttribution({
+        moodQuery: activeMood,
+        playlistId: moodPlaylistNavigation.playlistId,
+        videoId: firstVideoId,
+        trackIndex: 0,
+        queueLength: moodPlaylistNavigation.videoIds.length,
+      })
+    }
     activatePlaylistNavigation(moodPlaylistNavigation, firstVideoId)
     router.push(buildPlaylistWatchPath(moodPlaylistNavigation, firstVideoId))
-  }, [moodPlaylistNavigation, router])
+  }, [activeMood, moodPlaylistNavigation, router])
 
   return (
     <div className="w-full">

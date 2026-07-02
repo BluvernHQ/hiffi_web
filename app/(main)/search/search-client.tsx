@@ -17,6 +17,7 @@ import {
   isUserHandleSearch,
   normalizeSearchQueryForRequest,
 } from '@/lib/search-query';
+import { onSearchQuerySubmitted } from '@/lib/analytics/journey-tracking';
 import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors';
 
 const VIDEOS_PER_PAGE = 10;
@@ -171,6 +172,7 @@ function SearchPageContent() {
       setCurrentQuery(searchQuery);
 
       if (searchQuery.trim()) {
+        onSearchQuerySubmitted(searchQuery.trim(), 'enter', 'search_page');
         fetchSearchResults(searchQuery);
       } else {
         setVideoResults([]);
