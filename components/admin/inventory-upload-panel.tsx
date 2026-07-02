@@ -141,6 +141,7 @@ export function InventoryUploadPanel({ onBusyChange }: InventoryUploadPanelProps
     setUploadProgress(0)
     setDisplayProgress(0)
     setErrorMessage(null)
+    setResult(null)
     if (inputRef.current) inputRef.current.value = ""
   }, [])
 

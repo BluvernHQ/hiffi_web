@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { ChevronLeft, ChevronRight, Download, ExternalLink, Loader2, RefreshCw, Search } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Loader2, RefreshCw, Search, X } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
 import { getInventorySocialUrl } from "@/lib/types/inventory"
@@ -106,6 +106,12 @@ export function InventoryTable() {
   const canGoNext = hasMore
   const isInitialLoad = !hasLoaded && fetching
   const isSearchPending = searchInput.trim() !== debouncedSearch
+  const showSearchSpinner = fetching || isSearchPending
+
+  const handleClearSearch = () => {
+    setOffset(0)
+    setSearchInput("")
+  }
 
   const toRfc3339Start = (date: string) => new Date(`${date}T00:00:00`).toISOString()
   const toRfc3339End = (date: string) => new Date(`${date}T23:59:59.999`).toISOString()
@@ -172,11 +178,20 @@ export function InventoryTable() {
                 setSearchInput(e.target.value)
               }}
               placeholder="Search artist name, username, or email…"
-              className={cn("pl-9", (fetching || isSearchPending) && "pr-9")}
-              aria-busy={fetching || isSearchPending}
+              className={cn("pl-9", (showSearchSpinner || searchInput) && "pr-9")}
+              aria-busy={showSearchSpinner}
             />
-            {fetching || isSearchPending ? (
+            {showSearchSpinner ? (
               <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : searchInput ? (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">

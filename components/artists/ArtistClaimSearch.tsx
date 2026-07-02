@@ -77,6 +77,12 @@ export function ArtistClaimSearch({
     [router],
   )
 
+  const navigateToIndex = useCallback(() => {
+    setOpen(false)
+    setActiveIndex(-1)
+    router.push(ARTIST_INDEX_PATH)
+  }, [router])
+
   const handleClear = useCallback(() => {
     setQuery("")
     setSuggestions([])
@@ -409,7 +415,7 @@ export function ArtistClaimSearch({
                     type="button"
                     className="font-medium text-[#E8192C] hover:underline"
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => navigateToSearch(trimmedQuery)}
+                    onClick={() => navigateToIndex()}
                   >
                     Search the full index
                   </button>
