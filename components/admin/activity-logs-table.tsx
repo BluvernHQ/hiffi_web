@@ -631,6 +631,8 @@ export function AdminActivityLogsTable() {
     })
   }, [events, query])
 
+  const hasSearchQuery = Boolean(query.trim())
+
   const {
     currentPage,
     totalPages,
@@ -664,6 +666,9 @@ export function AdminActivityLogsTable() {
       },
     }
   }, [offset, limit, apiPageLength, hasMore])
+
+  const showPagination =
+    filteredEvents.length > 0 && (hasMore || offset > 0 || apiPageLength > 0)
 
   useEffect(() => {
     const ids = Array.from(
@@ -1128,6 +1133,22 @@ export function AdminActivityLogsTable() {
           <div className="text-sm text-muted-foreground">
             {apiPageLength === 0 ? (
               <span>No rows returned for this request.</span>
+            ) : hasSearchQuery && filteredEvents.length === 0 ? (
+              <span>
+                No events match your search on this page (offset{" "}
+                <span className="font-medium text-foreground">{offset.toLocaleString()}</span>,{" "}
+                <span className="font-medium text-foreground">{apiPageLength.toLocaleString()}</span> rows
+                loaded).
+              </span>
+            ) : hasSearchQuery ? (
+              <>
+                <span className="font-medium text-foreground">{filteredEvents.length.toLocaleString()}</span>{" "}
+                {filteredEvents.length === 1 ? "match" : "matches"} on this page
+                <span className="ml-2">
+                  · offset <span className="font-medium text-foreground">{offset.toLocaleString()}</span>, limit{" "}
+                  <span className="font-medium text-foreground">{Math.min(Math.max(1, limit), 100).toLocaleString()}</span>
+                </span>
+              </>
             ) : (
               <>
                 Showing <span className="font-medium text-foreground">{showingFrom.toLocaleString()}</span> to{" "}
@@ -1144,7 +1165,7 @@ export function AdminActivityLogsTable() {
           </div>
         </div>
 
-        {hasMore || offset > 0 || apiPageLength > 0 ? (
+        {showPagination ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Button

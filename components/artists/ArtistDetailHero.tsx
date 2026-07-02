@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils"
 
 type ArtistDetailHeroProps = {
   artist: Artist
-  profileUrl: string
+  profilePath: string
 }
 
-export function ArtistDetailHero({ artist, profileUrl }: ArtistDetailHeroProps) {
+export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps) {
   const claimHref = `/artist-index/${artist.slug}/claim`
   const followerCount = getPrimaryFollowerCount(artist)
   const hiffiVideoCount = 0
@@ -68,7 +68,7 @@ export function ArtistDetailHero({ artist, profileUrl }: ArtistDetailHeroProps) 
               )}
               <span className="normal-case text-white/85">{formatCityName(artist.city)}</span>
             </div>
-            <ArtistShareButton title={artist.name} url={profileUrl} />
+            <ArtistShareButton title={artist.name} path={profilePath} />
           </div>
         </div>
 

@@ -13,6 +13,7 @@ import {
   buildLoginUrl,
   isValidEmailFormat,
   passwordContainsWhitespace,
+  resolvePostAuthDestination,
   resolveSkipDestination,
 } from "@/lib/auth-utils"
 import { clearReferralRedirectProfile } from "@/lib/referral-cookie"
@@ -42,7 +43,7 @@ function SignupForm() {
   const [resendCountdown, setResendCountdown] = useState(0)
   const [isResending, setIsResending] = useState(false)
   const [registrationData, setRegistrationData] = useState<{ username: string; password: string; name: string; email: string } | null>(null)
-  const { signup, verifyOtp, user, loading: authLoading } = useAuth()
+  const { signup, verifyOtp, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -57,11 +58,10 @@ function SignupForm() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      // Use redirect path if valid, otherwise go to home
-      const destination = redirectPath || "/"
+      const destination = resolvePostAuthDestination(redirectPath, userData)
       router.replace(destination)
     }
-  }, [user, authLoading, router, redirectPath])
+  }, [user, userData, authLoading, router, redirectPath])
 
   // Validate full name
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {

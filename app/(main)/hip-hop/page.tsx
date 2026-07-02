@@ -3,6 +3,8 @@ import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { MOODS } from "@/lib/mood-tabs"
+import { MainContentScrollRestore } from "@/components/layout/main-content-scroll-restore"
+import { CreatorDestinationLink } from "@/components/creator/creator-destination-link"
 
 const pageTitle = "Hip-Hop Music Videos & Streaming — Discover Independent Rap Artists"
 const pageDescription =
@@ -140,6 +142,7 @@ const hubJsonLd = {
 export default function HipHopPage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <MainContentScrollRestore storageKey="/hip-hop" eagerSaveOnNavigate />
       <JsonLd data={hubJsonLd} />
 
       {/* Hero */}
@@ -159,12 +162,11 @@ export default function HipHopPage() {
           >
             Discover Artists
           </Link>
-          <Link
-            href="/creator/apply"
+          <CreatorDestinationLink
             className="inline-flex items-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold hover:bg-accent transition-colors"
           >
             Upload Your Music
-          </Link>
+          </CreatorDestinationLink>
           <Link
             href="/app"
             className="inline-flex items-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold hover:bg-accent transition-colors"
@@ -258,7 +260,7 @@ export default function HipHopPage() {
       </section>
 
       {/* Subgenre quick links */}
-      <section className="mb-14">
+      <section id="hip-hop-subgenres" className="mb-14 scroll-mt-20">
         <h2 className="text-2xl font-bold mb-4">Hip-Hop Subgenres on Hiffi</h2>
         <div className="flex flex-wrap gap-2">
           {[
@@ -291,19 +293,18 @@ export default function HipHopPage() {
       </section>
 
       {/* CTA */}
-      <section className="rounded-2xl border border-border bg-card p-8 text-center">
+      <section id="hip-hop-cta" className="mb-14 scroll-mt-20 rounded-2xl border border-border bg-card p-8 text-center">
         <h2 className="text-2xl font-bold mb-3">Ready to drop your next video?</h2>
         <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
           Join independent hip-hop artists already publishing on Hiffi. Upload your official music
           videos and start building your audience today.
         </p>
         <div className="flex flex-wrap gap-3 justify-center">
-          <Link
-            href="/creator/apply"
+          <CreatorDestinationLink
             className="inline-flex items-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Become a Creator
-          </Link>
+          </CreatorDestinationLink>
           <Link
             href="/app"
             className="inline-flex items-center rounded-full border border-border px-6 py-3 text-sm font-semibold hover:bg-accent transition-colors"

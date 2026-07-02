@@ -85,6 +85,7 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
         introDescription={hubDescription}
         compact={false}
         layout="hub"
+        clientDirectory
         showIntro={false}
         sectionTitle={isCleanHub ? "Featured artists" : "Browse artists"}
         sectionSubtitle={

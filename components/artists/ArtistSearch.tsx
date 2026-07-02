@@ -14,6 +14,8 @@ type ArtistSearchProps = {
   onQueryChange: (query: string) => void
   onSubmit?: (query: string) => void
   onProfileSelect?: (slug: string) => void
+  /** Hub: no typeahead match — clear name search and browse active filters. */
+  onSearchAllProfiles?: () => void
   variant?: "default" | "hub"
   className?: string
   loading?: boolean
@@ -22,16 +24,13 @@ type ArtistSearchProps = {
 const MIN_SUGGEST_LENGTH = 2
 const SUGGEST_DEBOUNCE_MS = 220
 
-function extractProfileSlug(input: string): string | null {
+/** Profile slug from a pasted artist-index URL only — not bare typed text. */
+function extractProfileSlugFromUrl(input: string): string | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
-  const urlMatch = trimmed.match(/artist-index\/([a-z0-9-]+)(?:\/|$|\?)/i)
+  const urlMatch = trimmed.match(/artist-index\/([a-z0-9_-]+)(?:\/|$|\?)/i)
   if (urlMatch?.[1]) return urlMatch[1].toLowerCase()
-
-  if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(trimmed) && trimmed.length >= 2) {
-    return trimmed.toLowerCase()
-  }
 
   return null
 }
@@ -41,6 +40,7 @@ export function ArtistSearch({
   onQueryChange,
   onSubmit,
   onProfileSelect,
+  onSearchAllProfiles,
   variant = "default",
   className,
   loading = false,
@@ -49,12 +49,18 @@ export function ArtistSearch({
   const listboxId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<ArtistSearchSuggestion[]>([])
+  const activeIndexRef = useRef(-1)
+  const suppressSuggestionsOpenRef = useRef(false)
 
   const [suggestions, setSuggestions] = useState<ArtistSearchSuggestion[]>([])
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [fetchError, setFetchError] = useState(false)
+
+  suggestionsRef.current = suggestions
+  activeIndexRef.current = activeIndex
 
   const trimmedQuery = query.trim()
   const showDropdown = isHub && open && trimmedQuery.length >= MIN_SUGGEST_LENGTH
@@ -65,42 +71,71 @@ export function ArtistSearch({
     setActiveIndex(-1)
   }, [])
 
-  const submitQuery = useCallback(
+  const dismissSuggestions = useCallback(() => {
+    suppressSuggestionsOpenRef.current = true
+    closeDropdown()
+  }, [closeDropdown])
+
+  const selectProfile = useCallback(
+    (slug: string) => {
+      dismissSuggestions()
+      onProfileSelect?.(slug)
+    },
+    [dismissSuggestions, onProfileSelect],
+  )
+
+  const submitDirectorySearch = useCallback(
+    (raw: string, options?: { updateQuery?: boolean }) => {
+      const trimmed = raw.trim()
+      if (!trimmed) return
+      dismissSuggestions()
+      if (options?.updateQuery !== false) {
+        onQueryChange(trimmed)
+      }
+      onSubmit?.(trimmed)
+    },
+    [dismissSuggestions, onQueryChange, onSubmit],
+  )
+
+  const submitHubSearch = useCallback(
     (raw: string) => {
       const trimmed = raw.trim()
       if (!trimmed) return
 
-      closeDropdown()
-
-      const slug = extractProfileSlug(trimmed)
-      if (slug) {
-        onProfileSelect?.(slug)
+      const pastedSlug = extractProfileSlugFromUrl(trimmed)
+      if (pastedSlug) {
+        selectProfile(pastedSlug)
         return
       }
 
-      if (activeIndex >= 0 && suggestions[activeIndex]) {
-        onProfileSelect?.(suggestions[activeIndex].slug)
-        return
-      }
-
-      onSubmit?.(trimmed)
+      submitDirectorySearch(trimmed)
     },
-    [activeIndex, closeDropdown, onProfileSelect, onSubmit, suggestions],
+    [selectProfile, submitDirectorySearch],
   )
 
+  const handleSearchAllProfiles = useCallback(() => {
+    if (!trimmedQuery) return
+    dismissSuggestions()
+    if (onSearchAllProfiles) {
+      onSearchAllProfiles()
+      return
+    }
+    submitDirectorySearch(trimmedQuery)
+  }, [dismissSuggestions, onSearchAllProfiles, submitDirectorySearch, trimmedQuery])
+
   const handleClear = useCallback(() => {
-    onQueryChange("")
-    closeDropdown()
+    dismissSuggestions()
     setSuggestions([])
     setFetchError(false)
     inputRef.current?.focus()
     onSubmit?.("")
-  }, [closeDropdown, onQueryChange, onSubmit])
+  }, [dismissSuggestions, onSubmit])
 
   useEffect(() => {
     if (!isHub) return
 
     if (trimmedQuery.length < MIN_SUGGEST_LENGTH) {
+      suppressSuggestionsOpenRef.current = false
       setSuggestions([])
       setSuggestLoading(false)
       setFetchError(false)
@@ -108,6 +143,7 @@ export function ArtistSearch({
       return
     }
 
+    suppressSuggestionsOpenRef.current = false
     setSuggestLoading(true)
     setFetchError(false)
     const controller = new AbortController()
@@ -122,8 +158,12 @@ export function ArtistSearch({
         const data = (await res.json()) as { items: ArtistSearchSuggestion[] }
         const items = data.items ?? []
         setSuggestions(items)
-        setOpen(true)
-        setActiveIndex(items.length ? 0 : -1)
+        if (!suppressSuggestionsOpenRef.current) {
+          setOpen(true)
+          setActiveIndex(items.length ? 0 : -1)
+        } else {
+          setActiveIndex(-1)
+        }
         setFetchError(false)
       } catch (error) {
         if (controller.signal.aborted) return
@@ -156,7 +196,28 @@ export function ArtistSearch({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    submitQuery(query)
+    if (isHub) {
+      dismissSuggestions()
+      submitHubSearch(query)
+      return
+    }
+    submitLegacySearch(query)
+  }
+
+  const submitLegacySearch = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return
+    closeDropdown()
+    const pastedSlug = extractProfileSlugFromUrl(trimmed)
+    if (pastedSlug) {
+      selectProfile(pastedSlug)
+      return
+    }
+    if (activeIndexRef.current >= 0 && suggestionsRef.current[activeIndexRef.current]) {
+      selectProfile(suggestionsRef.current[activeIndexRef.current].slug)
+      return
+    }
+    submitDirectorySearch(trimmed, { updateQuery: false })
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -167,6 +228,13 @@ export function ArtistSearch({
       } else {
         closeDropdown()
       }
+      return
+    }
+
+    if (event.key === "Enter" && isHub) {
+      event.preventDefault()
+      dismissSuggestions()
+      if (trimmedQuery) submitHubSearch(trimmedQuery)
       return
     }
 
@@ -219,6 +287,7 @@ export function ArtistSearch({
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         onFocus={() => {
+          if (suppressSuggestionsOpenRef.current) return
           if (isHub && trimmedQuery.length >= MIN_SUGGEST_LENGTH && suggestions.length > 0) {
             setOpen(true)
           }
@@ -291,10 +360,7 @@ export function ArtistSearch({
                     )}
                     onMouseEnter={() => setActiveIndex(index)}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      closeDropdown()
-                      onProfileSelect?.(item.slug)
-                    }}
+                    onClick={() => selectProfile(item.slug)}
                   >
                     <span>
                       <span className="font-semibold text-foreground">{item.name}</span>
@@ -318,7 +384,7 @@ export function ArtistSearch({
                     type="button"
                     className="font-medium text-[#E8192C] hover:underline"
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => submitQuery(trimmedQuery)}
+                    onClick={handleSearchAllProfiles}
                   >
                     Search all profiles
                   </button>

@@ -5,16 +5,22 @@ import { useToast } from "@/hooks/use-toast"
 
 type ArtistShareButtonProps = {
   title: string
-  url: string
+  /** Internal path, e.g. /artist-index/bankroll_fresh */
+  path: string
 }
 
-export function ArtistShareButton({ title, url }: ArtistShareButtonProps) {
+export function ArtistShareButton({ title, path }: ArtistShareButtonProps) {
   const { toast } = useToast()
 
   const handleShare = async () => {
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`
+        : path
+
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title, url })
+        await navigator.share({ title, url: shareUrl })
         return
       } catch {
         // User cancelled or share failed — fall through to copy.
@@ -22,7 +28,7 @@ export function ArtistShareButton({ title, url }: ArtistShareButtonProps) {
     }
 
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(shareUrl)
       toast({ title: "Link copied", description: "Artist profile link copied to clipboard." })
     } catch {
       toast({

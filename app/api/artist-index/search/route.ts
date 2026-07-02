@@ -13,12 +13,8 @@ function extractProfileSlug(input: string): string | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
-  const urlMatch = trimmed.match(/artist-index\/([a-z0-9-]+)(?:\/|$|\?)/i)
+  const urlMatch = trimmed.match(/artist-index\/([a-z0-9_-]+)(?:\/|$|\?)/i)
   if (urlMatch?.[1]) return urlMatch[1].toLowerCase()
-
-  if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(trimmed) && trimmed.length >= 2) {
-    return trimmed.toLowerCase()
-  }
 
   return null
 }

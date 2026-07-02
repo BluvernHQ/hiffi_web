@@ -12,7 +12,7 @@ import {
   getArtistCityPage,
   getArtistCityPages,
 } from "@/lib/artist-directory-seo"
-import { resolveArtistDirectoryPage } from "@/lib/artists"
+import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
@@ -70,6 +70,7 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
       })
     : null
   const spotlightArtists = spotlightDirectory?.pageArtists.slice(0, 6) ?? []
+  const filterOptions = await getAvailableArtistDirectoryFilters()
 
   const pageUrl = absoluteUrl(
     artistIndexCityHref(city.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
@@ -112,8 +113,9 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         introTitle={isAtlanta ? "Atlanta hip-hop & rap artists" : `${city.label} hip-hop & rap artists`}
         introDescription={city.description}
         paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
-        showSearchControls={false}
-        filterOptions={[]}
+        showSearchControls
+        filterOptions={filterOptions}
+        layout="hub"
         showFaq={isAtlanta}
         faqItems={isAtlanta ? ATLANTA_CITY_FAQ : undefined}
         faqTitle="Atlanta Artist Index FAQ"

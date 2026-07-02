@@ -10,7 +10,7 @@ import { trackUmami, setUmamiUser } from "@/lib/umami"
 import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents"
 import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
 import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
-import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
+import { isValidEmailFormat, passwordContainsWhitespace, resolvePostAuthDestination, sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import { normalizeUserProfilePictureFields } from "@/lib/utils"
 import {
@@ -456,7 +456,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearGuestHistory()
 
       // Use redirect path if provided (from query param), otherwise go to home
-      const destination = sanitizeInternalPath(redirectPath || "/", "/")
+      const destination = resolvePostAuthDestination(redirectPath, finalUserData)
       debugLog("[hiffi] Redirecting after login to:", destination)
       router.replace(destination)
     } catch (error: any) {
@@ -530,9 +530,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 150))
 
       // Refresh user data to get full user details
+      let finalUserData: any = response.data.user
       try {
         const refreshedUserData = await refreshUserData(true)
         if (refreshedUserData) {
+          finalUserData = refreshedUserData
           debugLog("[hiffi] User data refreshed after OTP verification")
         }
       } catch (refreshError) {
@@ -549,7 +551,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const destination = referralRedirectProfile
         ? `/profile/${encodeURIComponent(referralRedirectProfile)}`
         : redirectPath || "/"
-      const safeDestination = sanitizeInternalPath(destination, "/")
+      const safeDestination = referralRedirectProfile
+        ? sanitizeInternalPath(destination, "/")
+        : resolvePostAuthDestination(redirectPath, finalUserData)
       const signupSource = normalizeConversionSource(
         referralRedirectProfile ? "profile" : redirectPath || "/signup",
       )
@@ -594,9 +598,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear stored credentials
       apiClient.clearCredentials()
 
-      setUser(null)
-      setUserData(null)
-
       // Clear cached data
       if (typeof window !== "undefined") {
         localStorage.removeItem(USER_DATA_KEY)
@@ -604,6 +605,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       debugLog("[hiffi] Logout successful")
+
+      const currentPath =
+        typeof window !== "undefined" ? window.location.pathname : ""
+
+      // Hard-navigate away from Studio before clearing React auth state so StudioShell
+      // does not race to /login?redirect=/studio.
+      if (currentPath.startsWith("/studio")) {
+        window.location.assign("/")
+        return
+      }
+
+      setUser(null)
+      setUserData(null)
 
       // Comprehensive cleanup function
       const cleanupOverlays = () => {

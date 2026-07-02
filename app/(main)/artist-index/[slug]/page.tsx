@@ -12,7 +12,6 @@ import {
   buildArtistProfileBreadcrumbJsonLd,
   buildArtistProfileJsonLd,
 } from "@/lib/seo/artist-index-schema"
-import { absoluteUrl } from "@/lib/seo/site"
 
 type ArtistBriefPageProps = {
   params: Promise<{ slug: string }>
@@ -54,7 +53,7 @@ export default async function ArtistBriefPage({ params, searchParams }: ArtistBr
   const query = await searchParams
   const initialEditMode = query.edit === "1" || query.edit === "true"
 
-  const profileUrl = absoluteUrl(`/artist-index/${artist.slug}`)
+  const profilePath = `/artist-index/${artist.slug}`
   const otherArtists = await getRelatedArtists(artist, 6)
   const breadcrumbs = buildArtistProfileBreadcrumbs(artist)
 
@@ -68,7 +67,7 @@ export default async function ArtistBriefPage({ params, searchParams }: ArtistBr
 
       <ArtistDetailInteractive
         artist={artist}
-        profileUrl={profileUrl}
+        profilePath={profilePath}
         otherArtists={otherArtists}
         initialEditMode={initialEditMode}
       />

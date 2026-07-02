@@ -9,7 +9,7 @@ import {
   getArtistGenrePage,
   getArtistGenrePages,
 } from "@/lib/artist-directory-seo"
-import { resolveArtistDirectoryPage } from "@/lib/artists"
+import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
 
@@ -60,6 +60,7 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
     activeFilterIds: [genre.filterId],
     page,
   })
+  const filterOptions = await getAvailableArtistDirectoryFilters()
 
   const pageUrl = absoluteUrl(
     artistIndexGenreHref(genre.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
@@ -99,8 +100,9 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
         introTitle={genre.headline}
         introDescription={genre.description}
         paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined)}
-        showSearchControls={false}
-        filterOptions={[]}
+        showSearchControls
+        filterOptions={filterOptions}
+        layout="hub"
         showFaq={false}
         compact
       />

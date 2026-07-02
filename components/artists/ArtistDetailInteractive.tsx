@@ -15,14 +15,14 @@ import { cn } from "@/lib/utils"
 
 type ArtistDetailInteractiveProps = {
   artist: Artist
-  profileUrl: string
+  profilePath: string
   otherArtists: Artist[]
   initialEditMode?: boolean
 }
 
 export function ArtistDetailInteractive({
   artist,
-  profileUrl,
+  profilePath,
   otherArtists,
   initialEditMode = false,
 }: ArtistDetailInteractiveProps) {
@@ -90,7 +90,7 @@ export function ArtistDetailInteractive({
           </div>
         </header>
       ) : (
-        <ArtistDetailHero artist={artist} profileUrl={profileUrl} />
+        <ArtistDetailHero artist={artist} profilePath={profilePath} />
       )}
 
       {editMode ? (

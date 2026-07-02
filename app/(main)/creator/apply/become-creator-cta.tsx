@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -11,12 +10,14 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { BecomeCreatorTermsNote } from "@/components/creator/become-creator-terms"
 import { trackUmami } from "@/lib/umami"
+import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 
-const LOGIN_REDIRECT = "/login?redirect=/creator/apply"
+const CREATOR_APPLY_PATH = "/creator/apply"
+const LOGIN_REDIRECT = buildLoginUrl(CREATOR_APPLY_PATH)
+const SIGNUP_REDIRECT = buildSignupUrl(CREATOR_APPLY_PATH)
 
 export function BecomeCreatorCta() {
   const { user, userData, loading: authLoading, refreshUserData } = useAuth()
-  const router = useRouter()
   const { toast } = useToast()
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [isCreator, setIsCreator] = useState(false)
@@ -42,12 +43,6 @@ export function BecomeCreatorCta() {
 
     void checkCreatorStatus()
   }, [userData, authLoading, user, refreshUserData])
-
-  useEffect(() => {
-    if (!authLoading && !isChecking && isCreator) {
-      router.replace("/studio")
-    }
-  }, [authLoading, isChecking, isCreator, router])
 
   const handleBecomeCreator = async () => {
     if (!userData?.username) {
@@ -100,7 +95,6 @@ export function BecomeCreatorCta() {
     }
   }
 
-  const showRedirecting = !authLoading && !isChecking && isCreator
   const showAuthSpinner = authLoading || (user && isChecking)
   const isLoggedOut = !authLoading && !isChecking && !user
 
@@ -131,19 +125,17 @@ export function BecomeCreatorCta() {
         </div>
       </div>
 
-      {showRedirecting ? (
-        <div className="flex flex-col items-center gap-3 py-2" aria-live="polite">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
-          <p className="text-sm text-muted-foreground">Opening Hiffi Studio...</p>
-        </div>
-      ) : showAuthSpinner ? (
+      {showAuthSpinner ? (
         <div className="flex flex-col items-center gap-3 py-2" aria-live="polite">
           <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
           <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       ) : isLoggedOut ? (
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" className="h-11 flex-1 rounded-xl text-sm font-semibold lg:h-12">
+        <div className="flex flex-row gap-2.5 sm:gap-3">
+          <Button
+            asChild
+            className="h-9 min-h-9 flex-1 rounded-full px-3 text-[13px] font-semibold sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm lg:h-11"
+          >
             <Link href={LOGIN_REDIRECT} data-analytics-name="creator-apply-sign-in">
               Sign in
             </Link>
@@ -151,10 +143,9 @@ export function BecomeCreatorCta() {
           <Button
             asChild
             variant="outline"
-            size="lg"
-            className="h-11 flex-1 rounded-xl text-sm font-semibold lg:h-12"
+            className="h-9 min-h-9 flex-1 rounded-full px-3 text-[13px] font-semibold sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm lg:h-11"
           >
-            <Link href="/signup" data-analytics-name="creator-apply-sign-up">
+            <Link href={SIGNUP_REDIRECT} data-analytics-name="creator-apply-sign-up">
               Create account
             </Link>
           </Button>
@@ -162,9 +153,8 @@ export function BecomeCreatorCta() {
       ) : (
         <Button
           type="button"
-          size="lg"
           data-analytics-name="creator-become-creator-button"
-          className="h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99] lg:h-12"
+          className="h-9 w-full rounded-full text-[13px] font-semibold shadow-none motion-safe:active:scale-[0.99] sm:h-10 sm:rounded-xl sm:text-sm lg:h-11"
           onClick={handleBecomeCreator}
           disabled={isUnlocking}
         >

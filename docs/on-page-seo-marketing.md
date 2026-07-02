@@ -6,6 +6,8 @@
 
 This document summarizes every on-page SEO optimization currently live in the Hiffi web app. Use it when planning campaigns, writing social copy, briefing agencies, or aligning off-site content with what search engines and AI assistants see on each URL.
 
+**Meta tag ground truth (titles + descriptions per URL):** [`docs/on-page-seo-meta-inventory.md`](on-page-seo-meta-inventory.md)
+
 For engineering details, see `SEO_GEO_IMPLEMENTATION.md` and `SEO_GEO_CHECKLIST.md` in the repo root.
 
 ---
@@ -524,7 +526,7 @@ Mood pages → cross-link + back to /hip-hop
 | Item | Status | Impact |
 |---|---|---|
 | robots.txt named-bot Disallow parity | **Fixed** (`lib/seo/robots-txt-core.ts`) — verify prod after deploy | Critical (crawl) |
-| `/community-guidelines` dedicated meta title/description | **Done** (`app/(main)/community-guidelines/layout.tsx`) | Low–medium |
+| `/community-guidelines` dedicated meta title/description | **Done** — see [meta inventory](on-page-seo-meta-inventory.md) | — |
 | GA4 AI assistant referral channel group | **Ops** — see [`docs/ai-search-visibility-ops.md`](ai-search-visibility-ops.md) | Medium (measurement) |
 | Default OG image 1200×630 for non-watch pages | Logo used in most `routeMetadata` calls | Medium (social CTR) |
 | Genre pages in `llms.txt` + `.md` | Not added | Low (AI discovery) |

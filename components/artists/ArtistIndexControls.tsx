@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, useTransition } from "react"
+import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
 import {
@@ -16,6 +16,9 @@ type ArtistIndexControlsProps = {
   initialActiveFilterIds: string[]
   filterOptions: ArtistDirectoryFilterOption[]
   variant?: "default" | "hub"
+  /** When set, directory search/filter/clear updates in place without router navigation. */
+  onSyncDirectory?: (query: string, activeFilterIds: string[]) => void
+  isDirectoryPending?: boolean
 }
 
 export function ArtistIndexControls({
@@ -23,11 +26,14 @@ export function ArtistIndexControls({
   initialActiveFilterIds,
   filterOptions,
   variant = "default",
+  onSyncDirectory,
+  isDirectoryPending = false,
 }: ArtistIndexControlsProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState(initialQuery)
   const [activeFilterIds, setActiveFilterIds] = useState(initialActiveFilterIds)
+  const suppressEmptyDirectorySyncRef = useRef(false)
 
   useEffect(() => {
     setQuery(initialQuery)
@@ -36,6 +42,11 @@ export function ArtistIndexControls({
 
   const pushDirectoryState = useCallback(
     (nextQuery: string, nextFilterIds: string[]) => {
+      if (onSyncDirectory) {
+        onSyncDirectory(nextQuery, nextFilterIds)
+        return
+      }
+
       startTransition(() => {
         router.push(
           buildArtistDirectoryHref({
@@ -46,16 +57,37 @@ export function ArtistIndexControls({
         )
       })
     },
-    [router],
+    [onSyncDirectory, router],
   )
 
   const handleSubmit = useCallback(
     (searchQuery: string) => {
-      setQuery(searchQuery)
-      pushDirectoryState(searchQuery, activeFilterIds)
+      const trimmed = searchQuery.trim()
+      setQuery(trimmed)
+      pushDirectoryState(trimmed, activeFilterIds)
     },
     [activeFilterIds, pushDirectoryState],
   )
+
+  const handleQueryChange = useCallback(
+    (nextQuery: string) => {
+      setQuery(nextQuery)
+      if (!nextQuery.trim() && query.trim()) {
+        if (suppressEmptyDirectorySyncRef.current) {
+          suppressEmptyDirectorySyncRef.current = false
+          return
+        }
+        pushDirectoryState("", activeFilterIds)
+      }
+    },
+    [activeFilterIds, pushDirectoryState, query],
+  )
+
+  const handleSearchAllProfiles = useCallback(() => {
+    suppressEmptyDirectorySyncRef.current = true
+    pushDirectoryState("", activeFilterIds)
+    setQuery("")
+  }, [activeFilterIds, pushDirectoryState])
 
   const handleProfileSelect = useCallback(
     (slug: string) => {
@@ -81,7 +113,7 @@ export function ArtistIndexControls({
     isHub &&
     !activeFilterIds.some((id) => id.startsWith("city:")) &&
     !initialQuery.trim()
-  const isSearching = isPending
+  const isSearching = onSyncDirectory ? isDirectoryPending : isPending
 
   if (isHub) {
     return (
@@ -91,8 +123,9 @@ export function ArtistIndexControls({
       >
         <ArtistSearch
           query={query}
-          onQueryChange={setQuery}
+          onQueryChange={handleQueryChange}
           onSubmit={handleSubmit}
+          onSearchAllProfiles={handleSearchAllProfiles}
           onProfileSelect={handleProfileSelect}
           variant="hub"
           loading={isSearching}

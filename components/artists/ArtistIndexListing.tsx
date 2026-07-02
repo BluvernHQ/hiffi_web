@@ -5,6 +5,7 @@ import { ArtistDirectoryGrid } from "@/components/artists/ArtistDirectoryGrid"
 import { ArtistIndexControls } from "@/components/artists/ArtistIndexControls"
 import { ArtistIndexFaq } from "@/components/artists/ArtistIndexFaq"
 import { ArtistIndexIntro } from "@/components/artists/ArtistIndexIntro"
+import { ArtistIndexHubClient } from "@/components/artists/artist-index-hub-client"
 import type { ReactNode } from "react"
 
 type ArtistIndexListingProps = {
@@ -30,6 +31,8 @@ type ArtistIndexListingProps = {
   compact?: boolean
   showIntro?: boolean
   layout?: "default" | "hub"
+  /** Hub layout: update search/filter/clear in place without full page navigation. */
+  clientDirectory?: boolean
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
 }
@@ -57,10 +60,38 @@ export function ArtistIndexListing({
   compact = true,
   showIntro = true,
   layout = "default",
+  clientDirectory = false,
   childrenBeforeGrid,
   childrenAfterGrid,
 }: ArtistIndexListingProps) {
   const isHub = layout === "hub"
+
+  if (isHub && clientDirectory) {
+    const isCleanHub = !query.trim() && activeFilterIds.length === 0 && currentPage === 1
+
+    return (
+      <ArtistIndexHubClient
+        initialDirectory={{
+          query,
+          activeFilterIds,
+          artistCount,
+          totalMatches,
+          totalPages,
+          currentPage,
+          pageArtists: artists,
+          isCleanHub,
+        }}
+        filterOptions={filterOptions}
+        introTitle={introTitle}
+        introDescription={introDescription}
+        sectionTitle={sectionTitle}
+        sectionSubtitle={sectionSubtitle}
+        paginationHref={paginationHref}
+        childrenBeforeGrid={childrenBeforeGrid}
+        childrenAfterGrid={childrenAfterGrid}
+      />
+    )
+  }
 
   return (
     <div className={isHub ? "space-y-8 sm:space-y-10" : "space-y-4 sm:space-y-5"}>
