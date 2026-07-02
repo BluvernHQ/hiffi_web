@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ArrowRight, Loader2, Search } from "lucide-react"
+import { ArrowRight, Loader2, Search, X } from "lucide-react"
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import { artistButtonSolid } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
@@ -54,6 +54,9 @@ export function ArtistClaimSearch({
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [fetchError, setFetchError] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const errorId = `${listboxId}-error`
+  const isClaim = variant === "claim"
 
   const navigateToProfile = useCallback(
     (slug: string) => {
@@ -74,10 +77,29 @@ export function ArtistClaimSearch({
     [router],
   )
 
+  const handleClear = useCallback(() => {
+    setQuery("")
+    setSuggestions([])
+    setLoading(false)
+    setFetchError(false)
+    setOpen(false)
+    setActiveIndex(-1)
+    setValidationError(null)
+    inputRef.current?.focus()
+  }, [])
+
   const submitQuery = useCallback(
     (raw: string) => {
       const trimmed = raw.trim()
-      if (!trimmed) return
+      if (!trimmed) {
+        setValidationError(
+          isClaim ? "Please enter your stage name." : "Please enter a stage name or profile URL.",
+        )
+        inputRef.current?.focus()
+        return
+      }
+
+      setValidationError(null)
 
       const slug = extractProfileSlug(trimmed)
       if (slug) {
@@ -92,7 +114,7 @@ export function ArtistClaimSearch({
 
       navigateToSearch(trimmed)
     },
-    [activeIndex, navigateToProfile, navigateToSearch, suggestions],
+    [activeIndex, isClaim, navigateToProfile, navigateToSearch, suggestions],
   )
 
   useEffect(() => {
@@ -188,7 +210,6 @@ export function ArtistClaimSearch({
   }
 
   const isLarge = size === "large"
-  const isClaim = variant === "claim"
   const trimmedQuery = query.trim()
   const showDropdown = open && trimmedQuery.length >= MIN_SUGGEST_LENGTH
 
@@ -199,73 +220,106 @@ export function ArtistClaimSearch({
           className={cn(
             "flex items-stretch",
             isClaim
-              ? "flex-row gap-1.5 overflow-hidden rounded-2xl border border-border bg-[#F5F5F5] p-1.5 shadow-sm sm:gap-2 sm:rounded-full"
+              ? "flex-row gap-1.5 overflow-hidden rounded-2xl border bg-[#F5F5F5] p-1.5 shadow-sm sm:gap-2 sm:rounded-full"
               : "flex-col gap-2 sm:flex-row sm:items-stretch",
+            isClaim &&
+              (validationError
+                ? "border-destructive/50 ring-2 ring-destructive/15"
+                : "border-border"),
             isLarge &&
               !isClaim &&
               "sm:gap-0 sm:overflow-hidden sm:rounded-full sm:border sm:border-border sm:bg-white sm:shadow-sm sm:focus-within:ring-2 sm:focus-within:ring-[#E8192C]/15",
           )}
         >
-          <div className={cn("relative min-w-0 flex-1", isLarge && !isClaim ? "sm:pl-1" : "")}>
-            {isClaim ? (
-              <Image
-                src="/artist-claim/icons/search.svg"
-                alt=""
-                width={18}
-                height={18}
-                className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2"
-                aria-hidden
-              />
-            ) : (
-              <Search
-                className={cn(
-                  "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
-                  isLarge ? "left-4 h-5 w-5" : "left-3 h-4 w-4",
-                )}
-                aria-hidden
-              />
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 items-center",
+              isClaim ? "gap-1 sm:gap-1.5" : "gap-1.5",
+              isLarge && !isClaim ? "sm:pl-1" : "",
             )}
-            <input
-              ref={inputRef}
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onFocus={() => {
-                if (trimmedQuery.length >= MIN_SUGGEST_LENGTH && suggestions.length > 0) {
-                  setOpen(true)
-                }
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                isClaim
-                  ? "Enter your stage name..."
-                  : "Stage name or hiffi.com/artist-index/your-name"
-              }
-              className={cn(
-                "w-full border border-border bg-white text-foreground outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus:border-[#E8192C]/40 focus:ring-2 focus:ring-[#E8192C]/15",
-                isClaim
-                  ? "h-11 rounded-xl border-0 bg-transparent pl-11 pr-3 text-sm focus:ring-0 sm:h-14 sm:rounded-full sm:pr-4 sm:text-base"
-                  : isLarge
-                    ? "h-12 rounded-full pl-12 pr-10 text-sm sm:h-14 sm:rounded-none sm:border-0 sm:text-base sm:focus:ring-0"
-                    : "h-10 rounded-full pl-10 pr-9 text-sm",
+          >
+            <div className="relative min-w-0 flex-1">
+              {isClaim ? (
+                <Image
+                  src="/artist-claim/icons/search.svg"
+                  alt=""
+                  width={18}
+                  height={18}
+                  className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2"
+                  aria-hidden
+                />
+              ) : (
+                <Search
+                  className={cn(
+                    "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+                    isLarge ? "left-4 h-5 w-5" : "left-3 h-4 w-4",
+                  )}
+                  aria-hidden
+                />
               )}
-              role="combobox"
-              aria-expanded={showDropdown}
-              aria-controls={listboxId}
-              aria-autocomplete="list"
-              aria-activedescendant={
-                activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
-              }
-              aria-label="Search for your artist profile"
-            />
+              <input
+                ref={inputRef}
+                type="text"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  if (validationError) setValidationError(null)
+                }}
+                onFocus={() => {
+                  if (trimmedQuery.length >= MIN_SUGGEST_LENGTH && suggestions.length > 0) {
+                    setOpen(true)
+                  }
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  isClaim
+                    ? "Enter your stage name or HIFFI URL..."
+                    : "Stage name or hiffi.com/artist-index/your-name"
+                }
+                className={cn(
+                  "w-full border border-border bg-white text-foreground outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus:border-[#E8192C]/40 focus:ring-2 focus:ring-[#E8192C]/15",
+                  isClaim
+                    ? "h-11 rounded-xl border-0 bg-transparent pl-11 pr-2 text-sm focus:ring-0 sm:h-14 sm:rounded-full sm:pr-2 sm:text-base"
+                    : isLarge
+                      ? "h-12 rounded-full pl-12 pr-3 text-sm sm:h-14 sm:rounded-none sm:border-0 sm:pr-3 sm:text-base sm:focus:ring-0"
+                      : "h-10 rounded-full pl-10 pr-2 text-sm",
+                )}
+                role="combobox"
+                aria-expanded={showDropdown}
+                aria-controls={listboxId}
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
+                }
+                aria-label="Search for your artist profile"
+                aria-invalid={Boolean(validationError)}
+                aria-describedby={validationError ? errorId : undefined}
+                required
+              />
+            </div>
             {loading ? (
               <Loader2
                 className={cn(
-                  "pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground",
-                  isLarge ? "right-4 sm:right-3" : "right-3",
+                  "h-4 w-4 shrink-0 animate-spin text-muted-foreground",
+                  isClaim ? "mr-0.5 sm:mr-1" : "mr-1",
                 )}
                 aria-hidden
               />
+            ) : trimmedQuery ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className={cn(
+                  "flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  isClaim ? "mr-0.5 h-7 w-7 sm:mr-1" : "mr-1 h-7 w-7",
+                )}
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
             ) : null}
           </div>
           <button
@@ -297,6 +351,12 @@ export function ArtistClaimSearch({
           </button>
         </div>
       </form>
+
+      {validationError ? (
+        <p id={errorId} role="alert" className="mt-2 text-sm text-destructive">
+          {validationError}
+        </p>
+      ) : null}
 
       {showDropdown ? (
         <div

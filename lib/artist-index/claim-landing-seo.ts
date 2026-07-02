@@ -34,17 +34,17 @@ export const ARTIST_CLAIM_FEATURES = [
   {
     title: "Analytics Dashboard",
     description:
-      "Deep dive into listener demographics, geographic data, and engagement patterns to understand your core fan base.",
+      "Deep dive into listener demographics and track performance.",
   },
   {
     title: "Content Control",
     description:
-      "Manage your discography, official links, and bio in real-time. Keep your fans connected to your latest releases.",
+      "Pin your latest releases and curate your video catalog.",
   },
   {
     title: "Industry Network",
     description:
-      "Connect with other verified artists, labels, and industry pros within the Hiffi ecosystem.",
+      "Get discovered by top-tier producers and major label scouts.",
   },
 ] as const
 

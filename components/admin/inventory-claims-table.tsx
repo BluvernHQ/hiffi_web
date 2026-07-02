@@ -44,7 +44,8 @@ export function InventoryClaimsTable() {
   const { toast } = useToast()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])
-  const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [usernameQuery, setUsernameQuery] = useState("")
   const [emailQuery, setEmailQuery] = useState("")
@@ -70,14 +71,14 @@ export function InventoryClaimsTable() {
     if (guardOfflineBeforeFetch()) {
       setRows([])
       setCount(0)
-      setLoading(false)
+      setFetching(false)
       setRefreshing(false)
       return
     }
 
     try {
       if (isRefresh) setRefreshing(true)
-      else setLoading(true)
+      else setFetching(true)
       clearNetworkError()
 
       const response = await adminApiClient.adminListInventoryClaims({
@@ -90,6 +91,7 @@ export function InventoryClaimsTable() {
       setRows(response.items)
       setCount(response.count)
       setHasMore(response.has_more)
+      setHasLoaded(true)
     } catch (error) {
       setRows([])
       setCount(0)
@@ -99,7 +101,7 @@ export function InventoryClaimsTable() {
         onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
-      setLoading(false)
+      setFetching(false)
       setRefreshing(false)
     }
   }
@@ -110,8 +112,13 @@ export function InventoryClaimsTable() {
 
   const canGoPrev = offset > 0
   const canGoNext = hasMore
+  const isInitialLoad = !hasLoaded && fetching
+  const isFilterPending =
+    usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
+  const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
+  const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
 
-  if (loading) {
+  if (isInitialLoad) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -119,7 +126,7 @@ export function InventoryClaimsTable() {
     )
   }
 
-  if (networkError) {
+  if (networkError && !hasLoaded) {
     return (
       <AdminOfflineState
         message={networkError}
@@ -149,8 +156,12 @@ export function InventoryClaimsTable() {
                 setUsernameQuery(e.target.value)
               }}
               placeholder="Filter by username…"
-              className="pl-9"
+              className={cn("pl-9", showUsernameSpinner && "pr-9")}
+              aria-busy={showUsernameSpinner}
             />
+            {showUsernameSpinner ? (
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : null}
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -161,8 +172,12 @@ export function InventoryClaimsTable() {
                 setEmailQuery(e.target.value)
               }}
               placeholder="Filter by email…"
-              className="pl-9"
+              className={cn("pl-9", showEmailSpinner && "pr-9")}
+              aria-busy={showEmailSpinner}
             />
+            {showEmailSpinner ? (
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : null}
           </div>
           <select
             value={statusFilter}
@@ -195,74 +210,86 @@ export function InventoryClaimsTable() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            {count.toLocaleString()} claim{count === 1 ? "" : "s"} match filters
+            {fetching || isFilterPending
+              ? "Updating claims…"
+              : `${count.toLocaleString()} claim${count === 1 ? "" : "s"} match filters`}
           </p>
-          <Button variant="outline" size="sm" onClick={() => void fetchRows(true)} disabled={refreshing}>
+          <Button variant="outline" size="sm" onClick={() => void fetchRows(true)} disabled={refreshing || fetching}>
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             <span className="ml-1">Refresh</span>
           </Button>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-background shadow-sm overflow-auto">
-        <table className="w-full min-w-[880px]">
-          <thead className="sticky top-0 z-10 bg-muted/50">
-            <tr className="border-b">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Profile
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Claimant
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Email
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Submitted
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  No claims in this queue.
-                </td>
+      {networkError ? (
+        <AdminOfflineState
+          message={networkError}
+          onRetry={() => {
+            clearNetworkError()
+            void fetchRows()
+          }}
+        />
+      ) : (
+        <div className="rounded-lg border bg-background shadow-sm overflow-auto">
+          <table className={cn("w-full min-w-[880px] transition-opacity", fetching && "opacity-60")}>
+            <thead className="sticky top-0 z-10 bg-muted/50">
+              <tr className="border-b">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Profile
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Claimant
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Email
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Submitted
+                </th>
               </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-3 text-sm">
-                    <div className="font-medium">{row.artist_name || row.username}</div>
-                    <Link
-                      href={`/artist-index/${encodeURIComponent(row.username)}`}
-                      className="text-primary hover:underline text-xs"
-                      target="_blank"
-                    >
-                      @{row.username}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-sm">{row.name}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
-                    {row.email}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <Badge variant="outline" className={cn("capitalize", statusBadgeClass(row.status))}>
-                      {row.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                    {formatTimestamp(row.created_at)}
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    No claims in this queue.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                rows.map((row) => (
+                  <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-3 text-sm">
+                      <div className="font-medium">{row.artist_name || row.username}</div>
+                      <Link
+                        href={`/artist-index/${encodeURIComponent(row.username)}`}
+                        className="text-primary hover:underline text-xs"
+                        target="_blank"
+                      >
+                        @{row.username}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-sm">{row.name}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
+                      {row.email}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <Badge variant="outline" className={cn("capitalize", statusBadgeClass(row.status))}>
+                        {row.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                      {formatTimestamp(row.created_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Offset {offset.toLocaleString()}</p>
@@ -270,13 +297,18 @@ export function InventoryClaimsTable() {
           <Button
             variant="outline"
             size="sm"
-            disabled={!canGoPrev}
+            disabled={!canGoPrev || fetching}
             onClick={() => setOffset(Math.max(0, offset - limit))}
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
-          <Button variant="outline" size="sm" disabled={!canGoNext} onClick={() => setOffset(offset + limit)}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!canGoNext || fetching}
+            onClick={() => setOffset(offset + limit)}
+          >
             Next
             <ChevronRight className="h-4 w-4" />
           </Button>

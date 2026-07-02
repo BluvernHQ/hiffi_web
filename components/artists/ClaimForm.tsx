@@ -19,7 +19,7 @@ type ClaimFormState = {
 
 export function ClaimForm({ artist }: ClaimFormProps) {
   const [form, setForm] = useState<ClaimFormState>({
-    name: artist.name,
+    name: "",
     email: "",
   })
   const [submitted, setSubmitted] = useState(false)
@@ -86,6 +86,7 @@ export function ClaimForm({ artist }: ClaimFormProps) {
             <Label htmlFor="name">Your name</Label>
             <Input
               id="name"
+              placeholder="Your legal or stage name"
               value={form.name}
               onChange={(event) => updateField("name", event.target.value)}
               required

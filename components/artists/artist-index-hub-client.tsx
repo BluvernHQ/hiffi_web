@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState, useTransition } from "react"
+import { useCallback, useRef, useState, useTransition } from "react"
 import type { Artist } from "@/lib/artists"
 import { buildArtistDirectoryHref } from "@/lib/artist-directory"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
@@ -63,6 +63,7 @@ export function ArtistIndexHubClient({
 }: ArtistIndexHubClientProps) {
   const [directory, setDirectory] = useState(initialDirectory)
   const [isPending, startTransition] = useTransition()
+  const gridSectionRef = useRef<HTMLDivElement>(null)
 
   const syncDirectory = useCallback((nextQuery: string, nextFilterIds: string[], page = 1) => {
     const href = buildArtistDirectoryHref({
@@ -80,6 +81,14 @@ export function ArtistIndexHubClient({
         })
     })
   }, [])
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      syncDirectory(directory.query, directory.activeFilterIds, page)
+      gridSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    },
+    [directory.activeFilterIds, directory.query, syncDirectory],
+  )
 
   const sectionTitle = directory.query.trim()
     ? "Browse artists"
@@ -112,20 +121,23 @@ export function ArtistIndexHubClient({
 
       {childrenBeforeGrid}
 
-      <ArtistDirectoryGrid
-        artists={directory.pageArtists}
-        currentPage={directory.currentPage}
-        totalPages={directory.totalPages}
-        totalMatches={directory.totalMatches}
-        artistCount={directory.artistCount}
-        query={directory.query}
-        activeFilterIds={directory.activeFilterIds}
-        sectionTitle={sectionTitle}
-        sectionSubtitle={sectionSubtitle}
-        paginationHref={paginationHref}
-        compactHeader={false}
-        cardVariant="hub"
-      />
+      <div ref={gridSectionRef} className="scroll-mt-20">
+        <ArtistDirectoryGrid
+          artists={directory.pageArtists}
+          currentPage={directory.currentPage}
+          totalPages={directory.totalPages}
+          totalMatches={directory.totalMatches}
+          artistCount={directory.artistCount}
+          query={directory.query}
+          activeFilterIds={directory.activeFilterIds}
+          sectionTitle={sectionTitle}
+          sectionSubtitle={sectionSubtitle}
+          paginationHref={paginationHref}
+          onPageChange={handlePageChange}
+          compactHeader={false}
+          cardVariant="hub"
+        />
+      </div>
 
       {childrenAfterGrid}
     </div>

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { ReactNode } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { buildArtistDirectoryHref } from "@/lib/artist-directory"
@@ -17,6 +18,8 @@ type ArtistDirectoryGridProps = {
   sectionTitle?: string
   sectionSubtitle?: string
   paginationHref?: (page: number) => string
+  /** When set, pagination updates in place instead of navigating via links. */
+  onPageChange?: (page: number) => void
   compactHeader?: boolean
   cardVariant?: "default" | "hub"
 }
@@ -51,6 +54,7 @@ export function ArtistDirectoryGrid({
   sectionTitle,
   sectionSubtitle,
   paginationHref,
+  onPageChange,
   compactHeader = false,
   cardVariant = "default",
 }: ArtistDirectoryGridProps) {
@@ -58,6 +62,89 @@ export function ArtistDirectoryGrid({
   const pageHref =
     paginationHref ??
     ((page: number) => buildArtistDirectoryHref({ query, activeFilterIds, page }))
+
+  const paginationClassName =
+    "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors"
+  const paginationInactiveClassName = "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+  const paginationActiveClassName = "bg-[#E8192C] text-white pointer-events-none"
+  const paginationNavClassName =
+    "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted/40"
+
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages || page === currentPage) return
+    onPageChange?.(page)
+  }
+
+  const renderPageControl = (page: number) => {
+    const isCurrent = currentPage === page
+    const className = cn(
+      paginationClassName,
+      isCurrent ? paginationActiveClassName : paginationInactiveClassName,
+    )
+
+    if (onPageChange) {
+      return (
+        <button
+          key={page}
+          type="button"
+          onClick={() => goToPage(page)}
+          aria-label={`Page ${page}`}
+          aria-current={isCurrent ? "page" : undefined}
+          className={className}
+        >
+          {page}
+        </button>
+      )
+    }
+
+    return (
+      <Link
+        key={page}
+        href={pageHref(page)}
+        aria-current={isCurrent ? "page" : undefined}
+        className={className}
+      >
+        {page}
+      </Link>
+    )
+  }
+
+  const renderNavControl = (
+    targetPage: number,
+    label: string,
+    icon: ReactNode,
+    disabled: boolean,
+  ) => {
+    if (disabled) {
+      return (
+        <span
+          className={cn(paginationNavClassName, "opacity-40")}
+          aria-hidden
+        >
+          {icon}
+        </span>
+      )
+    }
+
+    if (onPageChange) {
+      return (
+        <button
+          type="button"
+          onClick={() => goToPage(targetPage)}
+          className={paginationNavClassName}
+          aria-label={label}
+        >
+          {icon}
+        </button>
+      )
+    }
+
+    return (
+      <Link href={pageHref(targetPage)} className={paginationNavClassName} aria-label={label}>
+        {icon}
+      </Link>
+    )
+  }
 
   const defaultSubtitle = `${totalMatches.toLocaleString()} of ${artistCount.toLocaleString()} profiles match your filters`
 
@@ -117,21 +204,11 @@ export function ArtistDirectoryGrid({
               aria-label="Artist directory pagination"
               className="flex items-center justify-center gap-1 sm:gap-2"
             >
-              {currentPage > 1 ? (
-                <Link
-                  href={pageHref(currentPage - 1)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted/40"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Link>
-              ) : (
-                <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground opacity-40"
-                  aria-hidden
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </span>
+              {renderNavControl(
+                currentPage - 1,
+                "Previous page",
+                <ChevronLeft className="h-4 w-4" />,
+                currentPage <= 1,
               )}
 
               {pageNumbers.map((entry, index) =>
@@ -140,37 +217,15 @@ export function ArtistDirectoryGrid({
                     …
                   </span>
                 ) : (
-                  <Link
-                    key={entry}
-                    href={pageHref(entry)}
-                    aria-current={currentPage === entry ? "page" : undefined}
-                    className={cn(
-                      "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors",
-                      currentPage === entry
-                        ? "bg-[#E8192C] text-white"
-                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                    )}
-                  >
-                    {entry}
-                  </Link>
+                  renderPageControl(entry)
                 ),
               )}
 
-              {currentPage < totalPages ? (
-                <Link
-                  href={pageHref(currentPage + 1)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted/40"
-                  aria-label="Next page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              ) : (
-                <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground opacity-40"
-                  aria-hidden
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </span>
+              {renderNavControl(
+                currentPage + 1,
+                "Next page",
+                <ChevronRight className="h-4 w-4" />,
+                currentPage >= totalPages,
               )}
             </nav>
           ) : null}

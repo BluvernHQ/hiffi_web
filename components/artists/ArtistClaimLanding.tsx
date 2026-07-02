@@ -1,13 +1,11 @@
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, BadgeCheck } from "lucide-react"
 import { ArtistClaimSearch } from "@/components/artists/ArtistClaimSearch"
 import {
   ARTIST_CLAIM_FEATURES,
   ARTIST_CLAIM_STEPS,
 } from "@/lib/artist-index/claim-landing-seo"
-import { artistButtonSolid } from "@/components/artists/artist-styles"
-import { cn } from "@/lib/utils"
 
 const stepIconPaths = {
   "step-find": "/artist-claim/icons/step-find.svg",
@@ -33,19 +31,20 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Back to Artist Index
         </Link>
-        <div className="mt-6 grid items-start gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
+        <div className="mt-6 grid items-center gap-10 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-14">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-2 rounded-full border border-[#E8192C]/20 bg-[#E8192C]/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#E8192C]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#E8192C]" aria-hidden />
+            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-[#E8192C] pl-2 pr-3 text-[10px] font-bold uppercase leading-none tracking-[0.18em] text-white">
+              <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-white" strokeWidth={2.25} aria-hidden />
               Artist Central
-            </p>
+            </span>
             <h1 className="mt-5 text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
               Is this your profile?{" "}
               <span className="text-[#E8192C]">Claim it now.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Take ownership of your listing today. Verify your identity to update your discography,
-              track fan analytics, and connect with the Hiffi community.
+              Take ownership of your digital stage. Verified HIFFI artists can manage their
+              discography, track real-time analytics, and build direct connections with their
+              fanbase.
             </p>
             <div id="find-profile" className="mt-8 max-w-xl scroll-mt-24">
               <ArtistClaimSearch variant="claim" />
@@ -55,20 +54,20 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
             </p>
           </div>
 
-          <div className="mx-auto w-full max-w-[460px] lg:mx-0 lg:max-w-none">
-            <div className="flex items-start gap-4 sm:gap-5">
-              <div className="flex min-w-0 flex-[0.9] flex-col gap-3">
-                <div className="w-full min-w-[248px] rounded-2xl border border-border bg-white px-3.5 py-3 shadow-sm sm:min-w-[272px]">
-                  <div className="flex items-start gap-3">
+          <div className="w-full lg:max-w-[34rem] lg:justify-self-end">
+            <div className="grid min-h-[18.75rem] grid-cols-1 gap-3 sm:min-h-[20rem] sm:grid-cols-[minmax(0,12.75rem)_minmax(0,1fr)] sm:items-stretch sm:gap-5 lg:min-h-[21.5rem] lg:grid-cols-[minmax(0,13.75rem)_minmax(0,1fr)] lg:gap-6">
+              <div className="flex min-w-0 flex-col gap-3 self-start sm:gap-3.5">
+                <div className="shrink-0 rounded-2xl border border-black/[0.06] bg-white p-3.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] sm:p-4">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
                     <Image
                       src="/artist-claim/hero-profile.png"
                       alt="Jaxson Kaine profile"
-                      width={48}
-                      height={48}
-                      className="h-12 w-12 shrink-0 rounded-full object-cover"
+                      width={52}
+                      height={52}
+                      className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-[52px] sm:w-[52px]"
                     />
-                    <div className="min-w-0 pt-0.5">
-                      <p className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#E8192C]">
+                    <div className="min-w-0 flex-1">
+                      <p className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#E8192C] sm:text-[10px]">
                         Verified
                         <Image
                           src="/artist-claim/icons/verified-badge.svg"
@@ -79,14 +78,14 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
                           aria-hidden
                         />
                       </p>
-                      <p className="mt-0.5 text-lg font-bold leading-tight text-foreground sm:text-xl">
+                      <p className="mt-0.5 text-sm font-bold leading-snug text-foreground sm:mt-1 sm:text-base">
                         Jaxson Kaine
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="w-full rounded-2xl bg-[#1B1C1C] px-3.5 py-3 text-white shadow-sm">
+                <div className="shrink-0 rounded-2xl bg-[#1B1C1C] px-3.5 py-3 text-white shadow-sm">
                   <Image
                     src="/artist-claim/icons/stats-chart.svg"
                     alt=""
@@ -95,23 +94,25 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
                     className="h-6 w-auto"
                     aria-hidden
                   />
-                  <p className="mt-2 text-2xl font-bold leading-none sm:text-3xl">2.4M</p>
+                  <p className="mt-2 text-2xl font-bold leading-none tracking-tight sm:text-[1.75rem]">
+                    2.4M
+                  </p>
                   <p className="mt-1 text-sm text-white/70">Monthly Listeners</p>
                 </div>
               </div>
 
-              <div className="relative aspect-[4/5] min-h-[240px] flex-[1.1] shrink-0 self-start overflow-hidden rounded-2xl shadow-lg sm:min-h-[272px]">
+              <div className="relative min-h-[15rem] overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] sm:min-h-0 sm:h-full">
                 <Image
                   src="/artist-claim/hero-live-stats.png"
                   alt="Artist performing on stage with live engagement stats"
-                  width={560}
-                  height={640}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 42vw, 320px"
+                  className="object-cover object-center"
                   priority
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent px-4 pb-4 pt-20">
-                  <p className="text-lg font-bold text-white">Live Stats</p>
-                  <p className="text-sm text-white/75">Real-time engagement</p>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-4 pb-4 pt-16">
+                  <p className="text-lg font-bold leading-tight text-white">Live Stats</p>
+                  <p className="mt-0.5 text-sm text-white/75">Real-time engagement</p>
                 </div>
               </div>
             </div>
@@ -168,15 +169,15 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
       {/* Features */}
       <section aria-labelledby="claim-features-heading" className="bg-[#1B1C1C] text-white">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div>
+          <div className="grid items-center gap-10 sm:gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-10 xl:gap-14">
+            <div className="min-w-0">
               <h2
                 id="claim-features-heading"
-                className="max-w-lg text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight"
+                className="max-w-md text-3xl font-bold tracking-tight sm:text-4xl lg:max-w-lg lg:text-[2.75rem] lg:leading-tight"
               >
                 Everything you need to thrive in the industry.
               </h2>
-              <ul className="mt-12 space-y-8">
+              <ul className="mt-10 space-y-7 sm:mt-12 sm:space-y-8">
                 {ARTIST_CLAIM_FEATURES.map((feature) => (
                   <li key={feature.title} className="flex items-start gap-4">
                     <Image
@@ -189,7 +190,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
                     />
                     <div className="min-w-0">
                       <p className="text-base font-bold sm:text-lg">{feature.title}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-white/60">
+                      <p className="mt-1 text-sm leading-relaxed text-white/55 sm:text-[0.9375rem]">
                         {feature.description}
                       </p>
                     </div>
@@ -198,22 +199,23 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
               </ul>
             </div>
 
-            <div className="relative mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
+            <div className="relative w-full lg:justify-self-end">
               <Image
                 src="/artist-claim/dashboard.png"
                 alt="Hiffi artist analytics dashboard on a desktop monitor"
-                width={720}
-                height={540}
+                width={578}
+                height={310}
                 className="h-auto w-full"
+                sizes="(max-width: 1024px) 100vw, 540px"
               />
               <div
-                className={cn(
-                  artistButtonSolid,
-                  "absolute -bottom-3 left-0 flex min-w-[148px] flex-col items-center justify-center gap-0 rounded-2xl px-6 py-4 text-center normal-case shadow-xl sm:-bottom-4 sm:left-2",
-                )}
+                className="absolute bottom-[20%] left-0 flex min-w-[9.25rem] flex-col items-center justify-center rounded-2xl bg-[#E8192C] px-5 py-3.5 text-center shadow-[0_12px_40px_rgba(0,0,0,0.35)] sm:bottom-[18%] sm:left-1 sm:min-w-[10.5rem] sm:px-6 sm:py-4 lg:bottom-[19%] lg:left-2"
+                aria-hidden
               >
-                <span className="text-3xl font-black leading-none tracking-tight">FREE</span>
-                <span className="mt-1.5 text-[10px] font-semibold uppercase leading-tight tracking-[0.16em]">
+                <span className="text-[1.75rem] font-black leading-none tracking-tight text-white sm:text-3xl">
+                  FREE
+                </span>
+                <span className="mt-1.5 text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-white sm:text-[10px] sm:tracking-[0.16em]">
                   Verified Artist Badge
                 </span>
               </div>
