@@ -44,6 +44,8 @@ export type AuthDialogCopyKey = keyof typeof AUTH_DIALOG_COPY
 interface AuthDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Called when the dialog is closed without choosing sign up / log in. */
+  onDismiss?: () => void
   title?: string
   description?: string
   subdescription?: string
@@ -54,13 +56,12 @@ interface AuthDialogProps {
   artistDisplayName?: string
   artistUser?: Record<string, unknown> | null
   conversionTrigger?: "like_attempt" | "follow_attempt" | "playlist"
-  /** Called when user taps Log in / Sign up — pending intents should be kept for post-auth replay. */
-  onAuthNavigation?: () => void
 }
 
 export function AuthDialog({
   open,
   onOpenChange,
+  onDismiss,
   title,
   description,
   subdescription,
@@ -70,7 +71,6 @@ export function AuthDialog({
   artistDisplayName,
   artistUser,
   conversionTrigger,
-  onAuthNavigation,
 }: AuthDialogProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -94,6 +94,8 @@ export function AuthDialog({
   const resolvedSignupLabel = signupLabel || "Sign up free"
   const resolvedSigninLabel = signinLabel || "Log in"
 
+  // Dialog chrome (X / escape / overlay) goes through here. Sign up / Log in call
+  // onOpenChange(false) directly so pending guest intents are kept for post-auth replay.
   const handleOpenChange = (next: boolean) => {
     if (next && conversionTrigger) {
       captureConversionEvent("conversion_auth_prompt_shown", {
@@ -102,11 +104,14 @@ export function AuthDialog({
         source_path: pathname,
       })
     }
-    if (!next && open && conversionTrigger) {
-      captureConversionEvent("conversion_auth_prompt_dismissed", {
-        trigger: conversionTrigger,
-        source_path: pathname,
-      })
+    if (!next && open) {
+      if (conversionTrigger) {
+        captureConversionEvent("conversion_auth_prompt_dismissed", {
+          trigger: conversionTrigger,
+          source_path: pathname,
+        })
+      }
+      onDismiss?.()
     }
     onOpenChange(next)
   }
@@ -138,24 +143,12 @@ export function AuthDialog({
         </DialogHeader>
         <DialogFooter className={cn("flex-col gap-2 sm:flex-row")}>
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link
-              href={loginUrl}
-              onClick={() => {
-                onAuthNavigation?.()
-                onOpenChange(false)
-              }}
-            >
+            <Link href={loginUrl} onClick={() => onOpenChange(false)}>
               {resolvedSigninLabel}
             </Link>
           </Button>
           <Button asChild className="w-full sm:w-auto">
-            <Link
-              href={signupUrl}
-              onClick={() => {
-                onAuthNavigation?.()
-                onOpenChange(false)
-              }}
-            >
+            <Link href={signupUrl} onClick={() => onOpenChange(false)}>
               {resolvedSignupLabel}
             </Link>
           </Button>
