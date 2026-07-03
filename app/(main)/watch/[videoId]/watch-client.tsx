@@ -63,7 +63,7 @@ import {
   setGuestRecPicksReady,
 } from "@/lib/guest-conversion/session"
 import { appendGuestHistoryEntry } from "@/lib/guest-conversion/guest-history"
-import { addPendingFollowIntent, addPendingLikeIntent } from "@/lib/guest-conversion/pending-intents"
+import { addPendingFollowIntent, addPendingLikeIntent, removePendingFollowIntent, removePendingLikeIntent } from "@/lib/guest-conversion/pending-intents"
 import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { ContentReportDialog } from "@/components/report/content-report-dialog"
@@ -579,6 +579,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     () => (shouldUsePersistedUiState ? persistedWatchUiState?.upvoteState : undefined) ?? activeVideoInitialVoteState,
   )
   const isLikeActionInFlightRef = useRef(false)
+  const guestAuthProceedRef = useRef(false)
   const isDislikeActionInFlightRef = useRef(false)
   const hasFetchedVideoRef = useRef<string | null>(null)
   const isFetchingRef = useRef<boolean>(false)
@@ -1312,12 +1313,33 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   // which includes the 'following' boolean field. This eliminates the need for 
   // a separate API call to check following status on page load.
 
+  const handleAuthDialogOpenChange = (open: boolean) => {
+    if (!open && authDialogOpen && !user && !guestAuthProceedRef.current) {
+      const videoId = video?.video_id || video?.videoId || currentVideoId
+      const creatorUsername = video?.userUsername || video?.user_username
+
+      if (authDialogCopyKey === "like" && videoId) {
+        removePendingLikeIntent(videoId)
+        setIsLiked(false)
+        setUpvoteState({ upvoted: false, downvoted: false })
+      }
+
+      if (authDialogCopyKey === "follow" && creatorUsername) {
+        removePendingFollowIntent(creatorUsername)
+      }
+    }
+
+    if (!open) {
+      guestAuthProceedRef.current = false
+    }
+
+    setAuthDialogOpen(open)
+  }
+
   const handleLike = async () => {
     if (!user) {
       const videoId = video?.video_id || video?.videoId || currentVideoId
       if (videoId) {
-        setIsLiked(true)
-        setUpvoteState({ upvoted: true, downvoted: false })
         addPendingLikeIntent(
           videoId,
           video?.videoTitle || video?.video_title,
@@ -2395,7 +2417,10 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       
       <AuthDialog
         open={authDialogOpen}
-        onOpenChange={setAuthDialogOpen}
+        onOpenChange={handleAuthDialogOpenChange}
+        onAuthNavigation={() => {
+          guestAuthProceedRef.current = true
+        }}
         title={AUTH_DIALOG_COPY[authDialogCopyKey].title}
         description={AUTH_DIALOG_COPY[authDialogCopyKey].description}
         subdescription={

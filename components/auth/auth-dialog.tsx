@@ -54,6 +54,8 @@ interface AuthDialogProps {
   artistDisplayName?: string
   artistUser?: Record<string, unknown> | null
   conversionTrigger?: "like_attempt" | "follow_attempt" | "playlist"
+  /** Called when user taps Log in / Sign up — pending intents should be kept for post-auth replay. */
+  onAuthNavigation?: () => void
 }
 
 export function AuthDialog({
@@ -68,6 +70,7 @@ export function AuthDialog({
   artistDisplayName,
   artistUser,
   conversionTrigger,
+  onAuthNavigation,
 }: AuthDialogProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -135,12 +138,24 @@ export function AuthDialog({
         </DialogHeader>
         <DialogFooter className={cn("flex-col gap-2 sm:flex-row")}>
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href={loginUrl} onClick={() => onOpenChange(false)}>
+            <Link
+              href={loginUrl}
+              onClick={() => {
+                onAuthNavigation?.()
+                onOpenChange(false)
+              }}
+            >
               {resolvedSigninLabel}
             </Link>
           </Button>
           <Button asChild className="w-full sm:w-auto">
-            <Link href={signupUrl} onClick={() => onOpenChange(false)}>
+            <Link
+              href={signupUrl}
+              onClick={() => {
+                onAuthNavigation?.()
+                onOpenChange(false)
+              }}
+            >
               {resolvedSignupLabel}
             </Link>
           </Button>
