@@ -110,8 +110,8 @@ export function ArtistIndexHubClient({
           variant="hub"
         />
         <ArtistIndexControls
-          initialQuery={initialDirectory.query}
-          initialActiveFilterIds={initialDirectory.activeFilterIds}
+          initialQuery={directory.query}
+          initialActiveFilterIds={directory.activeFilterIds}
           filterOptions={filterOptions}
           variant="hub"
           onSyncDirectory={syncDirectory}

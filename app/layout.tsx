@@ -6,6 +6,7 @@ import { GuestConversionProvider } from '@/components/conversion/guest-conversio
 import { SidebarProvider } from '@/lib/sidebar-context'
 import { VideoUploadQueueProvider } from '@/lib/video-upload-queue-context'
 import { VideoProvider } from '@/lib/video-context'
+import { MainContentScrollCoordinator } from '@/components/layout/main-content-scroll-restore'
 import { Toaster } from '@/components/ui/toaster'
 import { ApiAnalyticsShell } from '@/components/analytics/api-analytics-shell'
 import { ThirdPartyAnalyticsShell } from '@/components/analytics/third-party-analytics-shell'
@@ -218,7 +219,10 @@ export default function RootLayout({
           <GuestConversionProvider>
             <VideoProvider>
               <SidebarProvider>
-                <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
+                <VideoUploadQueueProvider>
+                  <MainContentScrollCoordinator />
+                  {children}
+                </VideoUploadQueueProvider>
               </SidebarProvider>
             </VideoProvider>
           </GuestConversionProvider>

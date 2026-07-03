@@ -3,7 +3,6 @@ import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { MOODS } from "@/lib/mood-tabs"
-import { MainContentScrollRestore } from "@/components/layout/main-content-scroll-restore"
 import { CreatorDestinationLink } from "@/components/creator/creator-destination-link"
 
 const pageTitle = "Hip-Hop Music Videos & Streaming — Discover Independent Rap Artists"
@@ -142,7 +141,6 @@ const hubJsonLd = {
 export default function HipHopPage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-      <MainContentScrollRestore storageKey="/hip-hop" eagerSaveOnNavigate />
       <JsonLd data={hubJsonLd} />
 
       {/* Hero */}

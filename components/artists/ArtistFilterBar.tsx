@@ -64,13 +64,14 @@ export function ArtistFilterBar({
           const showAtlantaEmphasis =
             emphasizeAtlanta && filter.kind === "city" && filter.slug === "atlanta"
           const pillActive = active || showAtlantaEmphasis
+          // Hub pills always toggle; SEO landing links are for inactive default-variant pills only.
+          const useToggle = isInline || active
 
-          if (seoHref) {
+          if (seoHref && !useToggle) {
             return (
               <Link
                 key={filter.id}
                 href={seoHref}
-                aria-current={active ? "page" : undefined}
                 className={pillClass(pillActive, isInline)}
               >
                 {label}
@@ -84,7 +85,7 @@ export function ArtistFilterBar({
               type="button"
               onClick={() => onToggleFilter(filter.id)}
               aria-pressed={active}
-              className={pillClass(active, isInline)}
+              className={pillClass(pillActive, isInline)}
             >
               {label}
             </button>
