@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from "./config"
 import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
-import { login as authLogin, verifyOtp as authVerifyOtp } from "@/lib/api/auth"
+import { login as authLogin, register as authRegister } from "@/lib/api/auth"
 import {
   uploadVideo as uploadUploadVideo,
   acknowledgeUpload as uploadAcknowledgeUpload,
@@ -549,33 +549,14 @@ class ApiClient {
   }
 
   // Auth endpoints
-  async register(data: { username: string; name: string; password: string; email: string }): Promise<{
-    success: boolean
-    data?: {
-      id: string
-    }
-    error?: string
-  }> {
-    const response = await this.request<{
-      success: boolean
-      data?: {
-        id: string
-      }
-      error?: string
-    }>(
-      "/auth/register",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-      false,
-    )
-    
-    return response
-  }
-
-  async verifyOtp(data: { id: string; otp: string }) {
-    return authVerifyOtp(this, data)
+  async register(data: {
+    username: string
+    name: string
+    password: string
+    email: string
+    referral_code?: string
+  }) {
+    return authRegister(this, data)
   }
 
   async requestPasswordReset(email: string): Promise<{
@@ -876,8 +857,8 @@ class ApiClient {
     return this.updateSelfUser(data)
   }
 
-  // Update current user via PUT /users/self
-  // This endpoint allows users to update their own profile including role
+  // Update current user via PUT /users/self (profile fields, role downgrade to "user").
+  // Upgrade to creator: use requestCreatorUpgrade + verifyCreatorUpgrade (PUT with role: "creator" is blocked).
   // When email is changed, response includes: { success: true, data: { id: "...", message: "..." } }
   async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; email?: string; [key: string]: any }): Promise<{ success: boolean; user?: any; data?: { id?: string; message?: string; [key: string]: any } }> {
     const response = await this.request<{
@@ -941,6 +922,58 @@ class ApiClient {
     const isSuccess = response.status === "success" || response.success !== false
     const userData = response.user || response.data?.user || response.data || response
     
+    return {
+      success: isSuccess,
+      user: userData,
+      data: response.data,
+      error: response.error,
+    }
+  }
+
+  async requestCreatorUpgrade(): Promise<{
+    success: boolean
+    data?: { id: string; message?: string }
+    error?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: { id: string; message?: string }
+      error?: string
+    }>("/users/self/request-creator-upgrade", { method: "POST" }, true)
+
+    const isSuccess = response.status === "success" || response.success !== false
+    return {
+      success: isSuccess,
+      data: response.data,
+      error: response.error,
+    }
+  }
+
+  async verifyCreatorUpgrade(data: { id: string; otp: string }): Promise<{
+    success: boolean
+    user?: any
+    data?: any
+    error?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      user?: any
+      data?: { user?: any; message?: string }
+      error?: string
+    }>(
+      "/users/self/verify-creator-upgrade",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true,
+    )
+
+    const isSuccess = response.status === "success" || response.success !== false
+    const userData = response.user || response.data?.user || response.data
+
     return {
       success: isSuccess,
       user: userData,

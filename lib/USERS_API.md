@@ -11,6 +11,8 @@ This document provides comprehensive API documentation for the Users endpoints i
   - [Get User by Username](#1-get-user-by-username)
   - [Get Self](#2-get-self)
   - [Update User](#3-update-user)
+  - [Request Creator Upgrade](#3a-request-creator-upgrade)
+  - [Verify Creator Upgrade](#3b-verify-creator-upgrade)
   - [Delete User](#4-delete-user)
   - [Check Username Availability](#5-check-username-availability)
   - [List Users](#6-list-users)
@@ -231,9 +233,77 @@ Content-Type: application/json
 **Notes:**
 - The user is identified from the JWT token (same as `GetSelf` endpoint)
 - **Username cannot be updated** through this endpoint
-- Only `name` and `profile_picture` can be updated
+- Profile fields (`name`, `bio`, `profile_picture`, `email`, etc.) can be updated
+- **Upgrade to `creator`:** use `POST /users/self/request-creator-upgrade` + `POST /users/self/verify-creator-upgrade` (OTP). `PUT` with `{ "role": "creator" }` returns `400`.
+- **Downgrade to `user`:** `PUT /users/self` with `{ "role": "user" }` (no OTP)
+- Email changes may return `{ data: { id, message } }` — complete via `POST /users/self/verify-update`
 - If no fields are provided in the request body, the current user data is returned unchanged
 - The `updated_at` timestamp is automatically updated
+
+---
+
+### 3a. Request Creator Upgrade
+
+Sends an OTP to the account's registered email to begin upgrading from `user` to `creator`.
+
+**Endpoint:** `POST /users/self/request-creator-upgrade`
+
+**Authentication:** Required
+
+**Request body:** None
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "otp-id-from-email-service",
+    "message": "OTP sent to your registered email. Please verify to complete the creator upgrade."
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Already `creator`, or account has no email
+- `401 Unauthorized`: Missing or invalid token
+
+---
+
+### 3b. Verify Creator Upgrade
+
+Completes the creator upgrade after OTP verification.
+
+**Endpoint:** `POST /users/self/verify-creator-upgrade`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "id": "otp-id-from-step-1",
+  "otp": "123456"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "username": "johndoe",
+      "role": "creator",
+      "email": "john@example.com"
+    },
+    "message": "Successfully upgraded to creator"
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Invalid or expired OTP
+- `401 Unauthorized`: Missing or invalid token
+- `404 Not Found`: Upgrade request not found
 
 ---
 
