@@ -70,6 +70,8 @@ interface VideoGridProps {
   playlistNavigation?: PlaylistNavigation
   /** Muted hover preview on desktop (home feed). */
   enableHoverPreview?: boolean
+  /** Keep the ⋮ menu visible on cards without hover (home / profile feeds). */
+  alwaysShowMoreMenu?: boolean
 }
 
 export function VideoGrid({
@@ -87,6 +89,7 @@ export function VideoGrid({
   skipCardEntrance = false,
   playlistNavigation,
   enableHoverPreview = false,
+  alwaysShowMoreMenu = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -216,6 +219,7 @@ export function VideoGrid({
                   openVideoUiName={openVideoUiName}
                   playlistNavigation={playlistNavigation}
                   hoverPreviewEnabled={enableHoverPreview}
+                  alwaysShowMoreMenu={alwaysShowMoreMenu}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id
                     if (deletedVideoId) {

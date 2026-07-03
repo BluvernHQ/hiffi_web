@@ -67,7 +67,6 @@ const columns: FooterColumn[] = [
       { label: "Artist Index", href: "/artist-index" },
       { label: "Atlanta artists", href: "/artist-index/city/atlanta" },
       { label: "Claim your profile", href: "/artist-index/claim" },
-      { label: "Search", href: "/search" },
       { label: "Download app", href: "/app" },
     ],
   },

@@ -293,6 +293,7 @@ export default function HomeClient({ initialVideos = [] }: HomeClientProps) {
           videos={videos}
           loading={loading || loadingMore}
           hasMore={hasMore}
+          alwaysShowMoreMenu
           onLoadMore={loadMoreVideos}
           onVideoDeleted={(videoId) => {
             setVideos((prev) => prev.filter((v) => ((v as any).videoId || (v as any).video_id) !== videoId))

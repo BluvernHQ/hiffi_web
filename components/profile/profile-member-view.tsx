@@ -6,6 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import {
+  getProfileFollowerCount,
+  getProfileFollowingCount,
+  shouldShowPublicFollowerCount,
+  shouldShowPublicFollowingCount,
+} from "@/lib/video-utils"
 
 /** Public profile for members (role user) — no creator videos grid or video stats. */
 export function ProfileMemberView(props: {
@@ -40,19 +46,10 @@ export function ProfileMemberView(props: {
       ? String(profileUser.name).trim()
       : profileUser.username || username
 
-  const followers =
-    profileUser?.followers ??
-    profileUser?.followers_count ??
-    profileUser?.followersCount ??
-    profileUser?.user?.followers ??
-    0
-
-  const following =
-    profileUser?.following ??
-    profileUser?.following_count ??
-    profileUser?.followingCount ??
-    profileUser?.user?.following ??
-    0
+  const followerCount = getProfileFollowerCount(profileUser)
+  const followingCount = getProfileFollowingCount(profileUser)
+  const showFollowerCount = shouldShowPublicFollowerCount(followerCount)
+  const showFollowingCount = shouldShowPublicFollowingCount(followingCount)
 
   return (
     <>
@@ -154,23 +151,31 @@ export function ProfileMemberView(props: {
                   </div>
                 )}
 
-                <div className="pt-4 border-t">
-                  <h3 className="font-semibold mb-3 text-sm">Stats</h3>
-                  <div className="grid grid-cols-2 gap-3 max-w-xs">
-                    <div className="p-3 bg-muted rounded-lg text-center">
-                      <div className="text-lg font-bold">
-                        {(typeof followers === "number" ? followers : 0).toLocaleString()}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground uppercase">Followers</div>
-                    </div>
-                    <div className="p-3 bg-muted rounded-lg text-center">
-                      <div className="text-lg font-bold">
-                        {(typeof following === "number" ? following : 0).toLocaleString()}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground uppercase">Following</div>
+                {(showFollowerCount || showFollowingCount) && (
+                  <div className="pt-4 border-t">
+                    <h3 className="font-semibold mb-3 text-sm">Stats</h3>
+                    <div
+                      className={
+                        showFollowerCount && showFollowingCount
+                          ? "grid grid-cols-2 gap-3 max-w-xs"
+                          : "grid grid-cols-1 gap-3 max-w-[10rem]"
+                      }
+                    >
+                      {showFollowerCount ? (
+                        <div className="p-3 bg-muted rounded-lg text-center">
+                          <div className="text-lg font-bold">{followerCount.toLocaleString()}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">Followers</div>
+                        </div>
+                      ) : null}
+                      {showFollowingCount ? (
+                        <div className="p-3 bg-muted rounded-lg text-center">
+                          <div className="text-lg font-bold">{followingCount.toLocaleString()}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">Following</div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>

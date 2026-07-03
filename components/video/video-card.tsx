@@ -116,6 +116,8 @@ interface VideoCardProps {
   metadataFontDmSans?: boolean
   /** Desktop hover preview (home feed). */
   hoverPreviewEnabled?: boolean
+  /** Keep the ⋮ menu visible without requiring card hover (home / profile feeds). */
+  alwaysShowMoreMenu?: boolean
 }
 
 export function VideoCard({
@@ -130,6 +132,7 @@ export function VideoCard({
   playlistNavigation,
   metadataFontDmSans = false,
   hoverPreviewEnabled = false,
+  alwaysShowMoreMenu = false,
 }: VideoCardProps) {
   const metadataFontClass = metadataFontDmSans ? "font-[family-name:var(--font-dm-sans)]" : ""
   const { user, userData } = useAuth()
@@ -499,7 +502,11 @@ export function VideoCard({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
+                      className={
+                        alwaysShowMoreMenu
+                          ? "h-7 w-7 sm:h-8 sm:w-8 rounded-full hover:bg-muted"
+                          : "h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
+                      }
                     >
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">Video options</span>

@@ -10,7 +10,13 @@ import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
-import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import { cn, getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import {
+  getProfileFollowerCount,
+  getProfileFollowingCount,
+  shouldShowPublicFollowerCount,
+  shouldShowPublicFollowingCount,
+} from "@/lib/video-utils"
 
 export function ProfilePublicView(props: {
   profileUser: any
@@ -72,6 +78,12 @@ export function ProfilePublicView(props: {
     onProfilePictureUpdated,
     onReport,
   } = props
+
+  const followerCount = getProfileFollowerCount(profileUser)
+  const followingCount = getProfileFollowingCount(profileUser)
+  const showFollowerCount = shouldShowPublicFollowerCount(followerCount)
+  const showFollowingCount = shouldShowPublicFollowingCount(followingCount)
+  const statsColumnCount = 1 + (showFollowerCount ? 1 : 0) + (showFollowingCount ? 1 : 0)
 
   return (
     <>
@@ -268,7 +280,14 @@ export function ProfilePublicView(props: {
 
                     <div className="pt-3 sm:pt-4 border-t">
                       <h3 className="font-semibold mb-2 sm:mb-3 text-xs sm:text-sm">Stats</h3>
-                      <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
+                      <div
+                        className={cn(
+                          "grid gap-1 sm:gap-1.5",
+                          statsColumnCount === 3 && "grid-cols-3",
+                          statsColumnCount === 2 && "grid-cols-2",
+                          statsColumnCount === 1 && "grid-cols-1",
+                        )}
+                      >
                         <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
                           <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
                             {(
@@ -285,38 +304,26 @@ export function ProfilePublicView(props: {
                             Videos
                           </div>
                         </div>
-                        <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
-                          <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
-                            {(
-                              (profileUser?.followers ??
-                                profileUser?.followers_count ??
-                                profileUser?.followersCount ??
-                                profileUser?.user?.followers ??
-                                profileUser?.user?.followers_count ??
-                                0) as number
-                            ).toLocaleString()}
+                        {showFollowerCount ? (
+                          <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
+                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
+                              {followerCount.toLocaleString()}
+                            </div>
+                            <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">
+                              Followers
+                            </div>
                           </div>
-                          <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">
-                            Followers
+                        ) : null}
+                        {showFollowingCount ? (
+                          <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
+                            <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
+                              {followingCount.toLocaleString()}
+                            </div>
+                            <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">
+                              Following
+                            </div>
                           </div>
-                        </div>
-                        <div className="p-1.5 sm:p-2 bg-muted rounded-lg text-center min-w-0 overflow-hidden">
-                          <div className="text-sm sm:text-base md:text-lg font-bold mb-0.5">
-                            {(() => {
-                              const following =
-                                profileUser?.following ??
-                                profileUser?.following_count ??
-                                profileUser?.followingCount ??
-                                profileUser?.user?.following ??
-                                profileUser?.user?.following_count ??
-                                0
-                              return (typeof following === "number" ? following : 0).toLocaleString()
-                            })()}
-                          </div>
-                          <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground uppercase tracking-normal leading-[1.2] break-all hyphens-auto">
-                            Following
-                          </div>
-                        </div>
+                        ) : null}
                       </div>
                     </div>
                   </CardContent>
@@ -332,6 +339,7 @@ export function ProfilePublicView(props: {
                       videos={userVideos}
                       loading={isLoading || loadingMore}
                       hasMore={hasMore}
+                      alwaysShowMoreMenu
                       showDeleteOption={isOwnProfile}
                       onLoadMore={loadMoreVideos}
                       onVideoDeleted={onVideoDeleted}

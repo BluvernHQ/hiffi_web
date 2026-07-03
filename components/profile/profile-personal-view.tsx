@@ -232,6 +232,7 @@ export function ProfilePersonalView(props: {
                       videos={userVideos}
                       loading={isLoading || loadingMore}
                       hasMore={hasMore}
+                      alwaysShowMoreMenu
                       showDeleteOption={isOwnProfile}
                       onLoadMore={loadMoreVideos}
                       onVideoDeleted={onVideoDeleted}

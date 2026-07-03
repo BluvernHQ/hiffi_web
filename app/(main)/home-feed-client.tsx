@@ -589,6 +589,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
               metadataFontDmSans={isMoodFeed}
               skipCardEntrance={isMoodFeed}
               enableHoverPreview
+              alwaysShowMoreMenu
               openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
               playlistNavigation={moodPlaylistNavigation}
               onLoadMore={loadMore}

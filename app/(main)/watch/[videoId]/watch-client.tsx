@@ -34,7 +34,7 @@ import {
 } from "@/lib/playlist-session"
 import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
 import { useToast } from "@/hooks/use-toast"
-import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount } from "@/lib/video-utils"
+import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import {
@@ -1664,6 +1664,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
   const videoViewCount = getVideoViewCount(currentVideo)
   const showVideoViewCount = shouldShowVideoViewCount(videoViewCount)
+  const creatorFollowerCount = getProfileFollowerCount(videoCreator)
+  const showCreatorFollowerCount = shouldShowPublicFollowerCount(creatorFollowerCount)
   const shouldShowMetadataSkeleton = !currentVideo && (isMetadataLoading || isLoading)
 
   useEffect(() => {
@@ -1931,9 +1933,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                               >
                                 {currentVideo?.userUsername || currentVideo?.user_username}
                               </Link>
-                              <span className="text-xs text-muted-foreground">
-                                {((videoCreator?.followers ?? videoCreator?.followers_count ?? videoCreator?.followersCount ?? videoCreator?.user?.followers ?? videoCreator?.user?.followers_count ?? 0)).toLocaleString()} followers
-                              </span>
+                              {showCreatorFollowerCount ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {creatorFollowerCount.toLocaleString()} followers
+                                </span>
+                              ) : null}
                             </>
                           )}
                         </div>
@@ -1989,9 +1993,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                             >
                               {currentVideo?.userUsername || currentVideo?.user_username}
                             </Link>
-                            <span className="text-xs text-muted-foreground">
-                              {((videoCreator?.followers ?? videoCreator?.followers_count ?? videoCreator?.followersCount ?? videoCreator?.user?.followers ?? videoCreator?.user?.followers_count ?? 0)).toLocaleString()} followers
-                            </span>
+                            {showCreatorFollowerCount ? (
+                              <span className="text-xs text-muted-foreground">
+                                {creatorFollowerCount.toLocaleString()} followers
+                              </span>
+                            ) : null}
                           </>
                         )}
                       </div>
