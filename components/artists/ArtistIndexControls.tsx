@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
 import {
   ARTIST_INDEX_PATH,
+  artistDirectoryFilterSeoHref,
   buildArtistDirectoryHref,
   pickHubInlineFilters,
 } from "@/lib/artist-directory"
@@ -34,14 +35,32 @@ export function ArtistIndexControls({
   const [query, setQuery] = useState(initialQuery)
   const [activeFilterIds, setActiveFilterIds] = useState(initialActiveFilterIds)
   const suppressEmptyDirectorySyncRef = useRef(false)
+  const isClientSync = Boolean(onSyncDirectory)
+
+  const displayedFilterIds = isClientSync ? initialActiveFilterIds : activeFilterIds
 
   useEffect(() => {
     setQuery(initialQuery)
-    setActiveFilterIds(initialActiveFilterIds)
-  }, [initialQuery, initialActiveFilterIds])
+    if (!isClientSync) {
+      setActiveFilterIds(initialActiveFilterIds)
+    }
+  }, [initialQuery, initialActiveFilterIds, isClientSync])
 
   const pushDirectoryState = useCallback(
     (nextQuery: string, nextFilterIds: string[]) => {
+      // Single city/genre filter → SEO landing page (e.g. /artist-index/genre/rap).
+      // Must use router navigation so Next.js loads the route; replaceState alone breaks soft nav.
+      if (!nextQuery.trim() && nextFilterIds.length === 1 && variant === "hub") {
+        const filter = filterOptions.find((entry) => entry.id === nextFilterIds[0])
+        const seoHref = filter ? artistDirectoryFilterSeoHref(filter) : null
+        if (seoHref) {
+          startTransition(() => {
+            router.push(seoHref)
+          })
+          return
+        }
+      }
+
       if (onSyncDirectory) {
         onSyncDirectory(nextQuery, nextFilterIds)
         return
@@ -57,16 +76,16 @@ export function ArtistIndexControls({
         )
       })
     },
-    [onSyncDirectory, router],
+    [filterOptions, onSyncDirectory, router, variant],
   )
 
   const handleSubmit = useCallback(
     (searchQuery: string) => {
       const trimmed = searchQuery.trim()
       setQuery(trimmed)
-      pushDirectoryState(trimmed, activeFilterIds)
+      pushDirectoryState(trimmed, displayedFilterIds)
     },
-    [activeFilterIds, pushDirectoryState],
+    [displayedFilterIds, pushDirectoryState],
   )
 
   const handleQueryChange = useCallback(
@@ -77,17 +96,17 @@ export function ArtistIndexControls({
           suppressEmptyDirectorySyncRef.current = false
           return
         }
-        pushDirectoryState("", activeFilterIds)
+        pushDirectoryState("", displayedFilterIds)
       }
     },
-    [activeFilterIds, pushDirectoryState, query],
+    [displayedFilterIds, pushDirectoryState, query],
   )
 
   const handleSearchAllProfiles = useCallback(() => {
     suppressEmptyDirectorySyncRef.current = true
-    pushDirectoryState("", activeFilterIds)
+    pushDirectoryState("", displayedFilterIds)
     setQuery("")
-  }, [activeFilterIds, pushDirectoryState])
+  }, [displayedFilterIds, pushDirectoryState])
 
   const handleProfileSelect = useCallback(
     (slug: string) => {
@@ -98,20 +117,32 @@ export function ArtistIndexControls({
 
   const toggleFilter = useCallback(
     (filterId: string) => {
-      const nextFilterIds = activeFilterIds.includes(filterId)
-        ? activeFilterIds.filter((id) => id !== filterId)
-        : [...activeFilterIds, filterId]
-      setActiveFilterIds(nextFilterIds)
-      pushDirectoryState(query, nextFilterIds)
+      const currentFilterIds = isClientSync ? initialActiveFilterIds : activeFilterIds
+      const currentQuery = isClientSync ? initialQuery : query
+      const nextFilterIds = currentFilterIds.includes(filterId)
+        ? currentFilterIds.filter((id) => id !== filterId)
+        : [...currentFilterIds, filterId]
+
+      if (!isClientSync) {
+        setActiveFilterIds(nextFilterIds)
+      }
+      pushDirectoryState(currentQuery, nextFilterIds)
     },
-    [activeFilterIds, query, pushDirectoryState],
+    [
+      activeFilterIds,
+      initialActiveFilterIds,
+      initialQuery,
+      isClientSync,
+      pushDirectoryState,
+      query,
+    ],
   )
 
   const isHub = variant === "hub"
   const hubFilters = pickHubInlineFilters(filterOptions)
   const emphasizeAtlanta =
     isHub &&
-    !activeFilterIds.some((id) => id.startsWith("city:")) &&
+    !displayedFilterIds.some((id) => id.startsWith("city:")) &&
     !initialQuery.trim()
   const isSearching = onSyncDirectory ? isDirectoryPending : isPending
 
@@ -136,7 +167,7 @@ export function ArtistIndexControls({
           </p>
           <ArtistFilterBar
             filters={hubFilters}
-            activeFilterIds={activeFilterIds}
+            activeFilterIds={displayedFilterIds}
             onToggleFilter={toggleFilter}
             variant="inline"
             emphasizeAtlanta={emphasizeAtlanta}
@@ -158,7 +189,7 @@ export function ArtistIndexControls({
       />
       <ArtistFilterBar
         filters={filterOptions}
-        activeFilterIds={activeFilterIds}
+        activeFilterIds={displayedFilterIds}
         onToggleFilter={toggleFilter}
       />
     </div>

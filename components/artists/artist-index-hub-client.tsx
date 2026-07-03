@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState, useTransition } from "react"
+import { useCallback, useRef, useState } from "react"
 import type { Artist } from "@/lib/artists"
 import { buildArtistDirectoryHref } from "@/lib/artist-directory"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
@@ -62,24 +62,33 @@ export function ArtistIndexHubClient({
   childrenAfterGrid,
 }: ArtistIndexHubClientProps) {
   const [directory, setDirectory] = useState(initialDirectory)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const gridSectionRef = useRef<HTMLDivElement>(null)
+  const fetchGenerationRef = useRef(0)
 
   const syncDirectory = useCallback((nextQuery: string, nextFilterIds: string[], page = 1) => {
+    const generation = ++fetchGenerationRef.current
     const href = buildArtistDirectoryHref({
       query: nextQuery,
       activeFilterIds: nextFilterIds,
       page,
     })
     window.history.replaceState(null, "", href)
+    setIsPending(true)
 
-    startTransition(() => {
-      void fetchDirectorySnapshot(nextQuery, nextFilterIds, page)
-        .then(setDirectory)
-        .catch(() => {
-          // Keep current grid on fetch failure.
-        })
-    })
+    void fetchDirectorySnapshot(nextQuery, nextFilterIds, page)
+      .then((snapshot) => {
+        if (generation !== fetchGenerationRef.current) return
+        setDirectory(snapshot)
+      })
+      .catch(() => {
+        // Keep current grid on fetch failure.
+      })
+      .finally(() => {
+        if (generation === fetchGenerationRef.current) {
+          setIsPending(false)
+        }
+      })
   }, [])
 
   const handlePageChange = useCallback(
@@ -92,13 +101,16 @@ export function ArtistIndexHubClient({
 
   const sectionTitle = directory.query.trim()
     ? "Browse artists"
-    : sectionTitleProp ?? (directory.isCleanHub ? "Featured artists" : undefined)
+    : directory.isCleanHub
+      ? sectionTitleProp ?? "Featured artists"
+      : "Browse artists"
+
   const sectionSubtitle = directory.query.trim()
     ? `${directory.totalMatches.toLocaleString()} profiles match your search`
-    : sectionSubtitleProp ??
-      (directory.isCleanHub
-        ? "Verified and emerging Atlanta hip-hop and rap artists — filter by genre and explore official links."
-        : undefined)
+    : directory.isCleanHub
+      ? sectionSubtitleProp ??
+        "Verified and emerging Atlanta hip-hop and rap artists — filter by genre and explore official links."
+      : `${directory.totalMatches.toLocaleString()} profiles match your filters`
 
   return (
     <div className="space-y-8 sm:space-y-10">
