@@ -57,7 +57,10 @@ export async function register(
     "/auth/register",
     {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        signup_flow: "instant",
+      }),
     },
     false,
   )
