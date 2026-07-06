@@ -95,9 +95,7 @@ export default function JoyJamBenefits() {
                       muted
                       preload="auto"
                       className="benefits-screen-video"
-                      poster={joyjamAsset(
-                        "6821a59ae3bfe300713424d4_a8205c64f42f4b831c38526cf87d0a93_hero-slider-cover-1.webp"
-                      )}
+                      poster={joyjamAsset("values-stock-live-performance.jpg")}
                     >
                       <source src={joyjamAsset("benefits-screen-video.mp4")} type="video/mp4" />
                     </video>
@@ -160,10 +158,8 @@ export default function JoyJamBenefits() {
                               <div className="values-video">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={joyjamAsset(
-                                    "6821a59ae3bfe300713424d4_a8205c64f42f4b831c38526cf87d0a93_hero-slider-cover-1.webp"
-                                  )}
-                                  alt=""
+                                  src={joyjamAsset("values-stock-live-performance.jpg")}
+                                  alt="Live music performance"
                                   className="image-cover"
                                 />
                               </div>
@@ -193,10 +189,8 @@ export default function JoyJamBenefits() {
                           <div className="values-artist">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={joyjamAsset(
-                                "6821a59ae3bfe300713424df_899186bf04465bbe587d2898e0a7b18b_hero-slider-cover-2.webp"
-                              )}
-                              alt=""
+                              src={joyjamAsset("values-stock-artist-connection.jpg")}
+                              alt="Artists connecting with fans"
                               className="image-cover"
                             />
                             <div className="values-artist-info">

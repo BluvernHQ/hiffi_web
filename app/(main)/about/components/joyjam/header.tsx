@@ -85,10 +85,6 @@ export default function HiffiHeader() {
     if (!menuWrapper) return;
 
     const resetDesktopMenu = () => {
-      menuWrapper.style.transition = "";
-      menuWrapper.style.height = "";
-      menuWrapper.style.overflow = "";
-      menuWrapper.style.display = "";
       setMenuOpen(false);
     };
 
@@ -107,63 +103,14 @@ export default function HiffiHeader() {
   }, []);
 
   useEffect(() => {
-    const menuWrapper = menuWrapperRef.current;
-    if (!menuWrapper || !isMobileNav()) return;
-
-    if (menuOpen) {
-      menuWrapper.style.display = "block";
-      menuWrapper.style.overflow = "hidden";
-      menuWrapper.style.height = "0px";
-      requestAnimationFrame(() => {
-        menuWrapper.style.transition = "height 0.45s ease";
-        menuWrapper.style.height = `${menuWrapper.scrollHeight}px`;
-      });
-      return;
-    }
-
-    if (menuWrapper.style.height === "auto" || menuWrapper.scrollHeight === 0) {
-      menuWrapper.style.display = "none";
-      menuWrapper.style.height = "0px";
-      return;
-    }
-
-    menuWrapper.style.transition = "height 0.45s ease";
-    menuWrapper.style.height = `${menuWrapper.scrollHeight}px`;
-    void menuWrapper.offsetHeight;
-    menuWrapper.style.height = "0px";
-  }, [menuOpen]);
-
-  useEffect(() => {
-    const menuWrapper = menuWrapperRef.current;
-    if (!menuWrapper) return;
-
-    const onTransitionEnd = (event: TransitionEvent) => {
-      if (event.propertyName !== "height" || !isMobileNav()) return;
-
-      if (menuOpen) {
-        menuWrapper.style.height = "auto";
-        menuWrapper.style.overflow = "visible";
-        return;
-      }
-
-      menuWrapper.style.display = "none";
-      menuWrapper.style.overflow = "hidden";
-    };
-
-    menuWrapper.addEventListener("transitionend", onTransitionEnd);
-    return () => menuWrapper.removeEventListener("transitionend", onTransitionEnd);
-  }, [menuOpen]);
-
-  useEffect(() => {
     if (!menuOpen || !isMobileNav()) return;
 
     const onDocumentClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      const menuWrapper = menuWrapperRef.current;
-      const toggle = toggleRef.current;
-      if (!menuWrapper || !toggle) return;
+      const navContainer = navContainerRef.current;
+      if (!navContainer) return;
 
-      if (!menuWrapper.contains(target) && !toggle.contains(target)) {
+      if (!navContainer.contains(target)) {
         setMenuOpen(false);
       }
     };
@@ -174,9 +121,8 @@ export default function HiffiHeader() {
 
   const closeMenu = () => setMenuOpen(false);
 
-  const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const toggleMenu = () => {
     if (!isMobileNav()) return;
-    event.stopPropagation();
     setMenuOpen((open) => !open);
   };
 
@@ -280,11 +226,14 @@ export default function HiffiHeader() {
             data-nav-open=""
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            onClick={toggleMenu}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleMenu();
+            }}
           >
             {menuOpen ? (
               <svg
-                className="hiffi-nav-toggle-svg"
+                className="hiffi-nav-toggle-svg hiffi-nav-toggle-svg--close"
                 width="22"
                 height="22"
                 viewBox="0 0 22 22"
@@ -301,7 +250,7 @@ export default function HiffiHeader() {
               </svg>
             ) : (
               <svg
-                className="hiffi-nav-toggle-svg"
+                className="hiffi-nav-toggle-svg hiffi-nav-toggle-svg--menu"
                 width="22"
                 height="16"
                 viewBox="0 0 22 16"
@@ -309,9 +258,9 @@ export default function HiffiHeader() {
                 xmlns="http://www.w3.org/2000/svg"
                 aria-hidden="true"
               >
-                <path d="M1 1.5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M1 8H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M1 14.5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M5 1.75H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M1.5 8H20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M5 14.25H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             )}
           </button>

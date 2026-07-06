@@ -13,7 +13,7 @@ export type LenisScrollHandle = {
 
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Lenis + GSAP ScrollTrigger — matches JoyJam's native-scroll Lenis setup */
+/** Lenis + GSAP ScrollTrigger — matches original template's native-scroll Lenis setup */
 export function initLenisScroll(): LenisScrollHandle {
   const scroller = document.documentElement;
 

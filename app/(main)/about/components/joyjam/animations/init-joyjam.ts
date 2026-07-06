@@ -317,22 +317,33 @@ export function initSpanText(root: ParentNode) {
     const spans = el.querySelectorAll<HTMLElement>(`.${spanClass}`);
     const margin = parseFloat(el.getAttribute("view-headline-margin") ?? "20") / 1000;
 
-    gsap.set(spans, { opacity: 0, y: "1.5rem" });
+    let revealed = false;
+    const reveal = () => {
+      if (revealed) return;
+      revealed = true;
+      gsap.to(spans, {
+        opacity: 1,
+        y: 0,
+        filter: "blur(0px)",
+        stagger: 0.03,
+        delay: margin,
+        duration: 0.9,
+        ease: "power2.out",
+        onComplete: () => {
+          spans.forEach((span) => span.classList.add("view"));
+        },
+      });
+    };
+
+    gsap.set(spans, { opacity: 0, y: "1.5rem", filter: "blur(0.2rem)" });
     const trigger = ScrollTrigger.create({
       trigger: el,
       start: "top 85%",
       once: true,
-      onEnter: () => {
-        gsap.to(spans, {
-          opacity: 1,
-          y: 0,
-          stagger: 0.03,
-          delay: margin,
-          duration: 0.9,
-          ease: "power2.out",
-        });
-      },
+      onEnter: reveal,
     });
+    ScrollTrigger.refresh();
+    if (trigger.progress > 0) reveal();
     triggers.push(trigger);
   });
 

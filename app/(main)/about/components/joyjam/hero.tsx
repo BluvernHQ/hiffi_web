@@ -11,15 +11,22 @@ export default function JoyJamHero() {
         <CircleSlider />
         <div className="text-elements hero-s">
           <div className="headline-wrapper hero-s">
-            <h1 data-split="lines-blur" className="headline-h1 hero-headline">
-              Artist-First
-              <br />
-              Platform
+            <h1 className="headline-h1 hero-headline">
+              <span {...{ "data-split": "lines-blur" }} className="hero-headline-line">
+                Music&apos;s
+              </span>
+              <span
+                {...{ "data-split": "lines-blur" }}
+                {...{ "split-settings": "start-delay: 0.2;" }}
+                className="hero-headline-line"
+              >
+                Creator Media
+              </span>
             </h1>
           </div>
           <div className="description-wrapper hero-s">
             <p className="subheadline-m hero-subline">
-              Hiffi puts creators, culture, and community at the center.
+              Built for Creators. Powered by Fans.
             </p>
           </div>
           <div className="app-buttons">
