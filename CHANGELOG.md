@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-07-06
+
+### Fixed
+
+- Send `signup_flow: "instant"` on `POST /auth/register` for instant creator signup
+
 ## [2.2.0] — 2026-06-29
 
 Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (business-friendly summary)
