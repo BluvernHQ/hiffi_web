@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
+import { captureVideoCommented } from "@/lib/analytics/journey-tracking"
 import { useToast } from "@/hooks/use-toast"
 import { usePathname, useSearchParams } from "next/navigation"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
@@ -164,6 +165,8 @@ export function CommentSection({
     try {
       setIsSubmitting(true)
       await apiClient.postComment(videoId, newComment.trim())
+
+      captureVideoCommented(videoId)
 
       toast({
         title: "Success",

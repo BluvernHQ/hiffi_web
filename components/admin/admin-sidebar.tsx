@@ -23,11 +23,13 @@ import {
   Search as SearchIcon,
   ArrowDownToLine,
   ListMusic,
+  Mic2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import type { AdminPermission } from "@/lib/auth/admin-permissions"
+import { AdminViewSiteLink } from "@/components/admin/admin-view-site-link"
 
 interface AdminSidebarProps {
   className?: string
@@ -54,6 +56,12 @@ const navSections: NavSection[] = [
     title: "Overview",
     items: [
       { icon: BarChart3, label: "Dashboard", value: "overview", permission: "admin:overview" },
+    ],
+  },
+  {
+    title: "Artist Index",
+    items: [
+      { icon: Mic2, label: "Artist Inventory", value: "artist_inventory", permission: "admin:inventory" },
     ],
   },
   {
@@ -192,6 +200,10 @@ export function AdminSidebar({
             style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0, 0, 0, 0.2) transparent" }}
             aria-label="Admin navigation"
           >
+            <div className="mb-4 border-b border-border/60 pb-4">
+              <AdminViewSiteLink isCollapsed={isCollapsed} />
+            </div>
+
             <div className="space-y-5 min-h-0">
               {visibleSections.map((navSection, sectionIndex) => (
                 <div key={navSection.title}>

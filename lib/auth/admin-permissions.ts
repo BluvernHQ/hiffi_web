@@ -22,6 +22,9 @@ export const ADMIN_PERMISSIONS = {
   "admin:curated": ["super_admin", "curator"],
   "admin:curated_write": ["super_admin", "curator"],
   "admin:admins": ["super_admin"],
+  "admin:inventory": ["super_admin", "read_only"],
+  "admin:inventory_upload": ["super_admin"],
+  "admin:inventory_claims": ["super_admin", "read_only"],
 } as const satisfies Record<string, readonly AdminRole[]>
 
 export type AdminPermission = keyof typeof ADMIN_PERMISSIONS
@@ -60,6 +63,7 @@ export const ADMIN_SECTION_PERMISSION: Record<string, AdminPermission> = {
   migrations: "admin:migrations",
   curated_playlists: "admin:curated",
   admins: "admin:admins",
+  artist_inventory: "admin:inventory",
 }
 
 export function canAccessAdminSection(admin: AdminSession | null | undefined, section: string): boolean {

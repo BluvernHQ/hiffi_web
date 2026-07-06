@@ -27,6 +27,8 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
   const isContentPageRoute = isContentPage(pathname)
+  const isArtistIndexRoute = pathname?.startsWith("/artist-index") ?? false
+  const showAppChrome = !isArtistIndexRoute
 
   const {
     isSidebarOpen,
@@ -37,27 +39,34 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   } = useSidebar()
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden relative">
-      {/* Navbar - Fixed at top, always visible */}
-      <Navbar
-        variant={isContentPageRoute ? "minimal" : "full"}
-        onMenuClick={
-          isContentPageRoute
-            ? undefined
-            : () => {
-                if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-                  toggleDesktopSidebar()
-                } else {
-                  toggleMobileSidebar()
+    <div
+      className={
+        isArtistIndexRoute
+          ? "relative flex min-h-[100dvh] flex-col bg-background"
+          : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
+      }
+    >
+      {showAppChrome ? (
+        <Navbar
+          variant={isContentPageRoute ? "minimal" : "full"}
+          onMenuClick={
+            isContentPageRoute
+              ? undefined
+              : () => {
+                  if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+                    toggleDesktopSidebar()
+                  } else {
+                    toggleMobileSidebar()
+                  }
                 }
-              }
-        }
-        currentFilter={currentFilter}
-      />
+          }
+          currentFilter={currentFilter}
+        />
+      ) : null}
 
       {/* Main Layout Container */}
-      <div className="flex flex-1 overflow-hidden">
-        {!isContentPageRoute && (
+      <div className={isArtistIndexRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
+        {showAppChrome && !isContentPageRoute && (
           <Sidebar
             isMobileOpen={isSidebarOpen}
             onMobileClose={() => setIsSidebarOpen(false)}
@@ -69,7 +78,14 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         )}
 
         {/* Main Content Area - Adapts to sidebar, never affects it */}
-        <main id="main-content" className="flex-1 overflow-y-auto w-full min-w-0 h-[calc(100dvh-4rem)]">
+        <main
+          id="main-content"
+          className={
+            isArtistIndexRoute
+              ? "w-full min-w-0 flex-1"
+              : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
+          }
+        >
           {children}
         </main>
       </div>

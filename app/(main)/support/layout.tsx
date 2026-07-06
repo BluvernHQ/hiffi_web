@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/layout/site-footer"
 export const metadata = routeMetadata({
   title: "Support",
   description:
-    "Get help with your Hiffi account, payments, streaming, and creator tools. Contact care@hiffi.com for assistance.",
+    "Get help with your Hiffi hip-hop streaming account, payments, creator tools, and playback. Contact care@hiffi.com for assistance.",
   path: "/support",
 })
 

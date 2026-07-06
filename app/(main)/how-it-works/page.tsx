@@ -51,9 +51,9 @@ export default function HowItWorksPage() {
               <li>
                 <strong>Create an account</strong> — Sign up, then{" "}
                 <Link href="/creator/apply" className="font-medium text-primary hover:underline">
-                  apply as a creator
+                  become a creator
                 </Link>
-                . We review applications to keep the platform focused on authentic music culture.
+                . Hip-hop and rap artists get instant access — no application wait.
               </li>
               <li>
                 <strong>Upload</strong> — Publish music videos, freestyles, and official releases from Hiffi Studio or
@@ -82,7 +82,7 @@ export default function HowItWorksPage() {
                 supported.
               </li>
               <li>
-                <strong>Studio</strong> — Creators with approved accounts can manage uploads from{" "}
+                <strong>Studio</strong> — Creators can manage uploads from{" "}
                 <Link href="/studio" className="font-medium text-primary hover:underline">
                   Hiffi Studio
                 </Link>
@@ -113,7 +113,7 @@ export default function HowItWorksPage() {
         },
       ]}
       cta={{ label: "Join Hiffi", href: "/signup" }}
-      secondaryCta={{ label: "Apply as a creator", href: "/creator/apply" }}
+      secondaryCta={{ label: "Become a creator", href: "/creator/apply" }}
       relatedLinks={[
         { label: "What is Hiffi?", href: "/what-is-hiffi" },
         { label: "Creator Playbook", href: "/creator-playbook" },

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import { AuthenticatedImage } from "./authenticated-image"
 import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 
+import { UP_NEXT_OVERLAY_CANCEL, UP_NEXT_OVERLAY_PLAY } from "@/lib/analytics/video-analytics-names"
+
 interface NextUpOverlayProps {
   nextVideo: {
     videoId?: string
@@ -17,7 +19,7 @@ interface NextUpOverlayProps {
     video_thumbnail?: string
   }
   countdownDuration?: number // in seconds, default 5
-  onPlay: () => void
+  onPlay: (trigger: "click" | "autoplay") => void
   onCancel?: () => void
   visible: boolean
   isVideoPlaying?: boolean // Pause countdown when video is paused
@@ -139,7 +141,7 @@ export function NextUpOverlay({
         animationFrameRef.current = requestAnimationFrame(animate)
       } else {
         // Countdown complete - auto-play
-        onPlay()
+        onPlay("autoplay")
       }
     }
 
@@ -159,7 +161,7 @@ export function NextUpOverlay({
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
     }
-    onPlay()
+    onPlay("click")
   }, [onPlay])
 
   const handleCancel = useCallback(() => {
@@ -198,6 +200,7 @@ export function NextUpOverlay({
   const playButton = (
     <button
       onClick={handlePlayClick}
+      data-analytics-name={UP_NEXT_OVERLAY_PLAY}
       className={cn(
         "relative flex-shrink-0 rounded-full",
         "h-9 w-9 max-md:h-8 max-md:w-8",
@@ -293,6 +296,7 @@ export function NextUpOverlay({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
+                data-analytics-name={UP_NEXT_OVERLAY_CANCEL}
                 onClick={handleCancel}
                 aria-label="Cancel autoplay"
               >
@@ -334,6 +338,7 @@ export function NextUpOverlay({
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0"
+              data-analytics-name={UP_NEXT_OVERLAY_CANCEL}
               onClick={handleCancel}
               aria-label="Cancel autoplay"
             >

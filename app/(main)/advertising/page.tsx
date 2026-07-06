@@ -62,7 +62,7 @@ export default function AdvertisingPage() {
           ),
         },
         {
-          title: "Brand safety &amp; transparency",
+          title: "Brand safety & transparency",
           children: (
             <>
               <p>

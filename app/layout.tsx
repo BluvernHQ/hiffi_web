@@ -6,6 +6,7 @@ import { GuestConversionProvider } from '@/components/conversion/guest-conversio
 import { SidebarProvider } from '@/lib/sidebar-context'
 import { VideoUploadQueueProvider } from '@/lib/video-upload-queue-context'
 import { VideoProvider } from '@/lib/video-context'
+import { MainContentScrollCoordinator } from '@/components/layout/main-content-scroll-restore'
 import { Toaster } from '@/components/ui/toaster'
 import { ApiAnalyticsShell } from '@/components/analytics/api-analytics-shell'
 import { ThirdPartyAnalyticsShell } from '@/components/analytics/third-party-analytics-shell'
@@ -15,6 +16,7 @@ import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
 import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
+import { analyticsUmamiDomains, isApiAnalyticsEnabled } from '@/lib/analytics/is-api-analytics-enabled'
 import { getAnalyticsAppVersion } from '@/lib/app-version'
 import { getApiBaseUrl } from '@/lib/config'
 import './globals.css'
@@ -170,11 +172,11 @@ export default function RootLayout({
   const umamiReplayEnabled =
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
     process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
-  const umamiDomains =
+  const umamiDomains = analyticsUmamiDomains(
     process.env.NEXT_PUBLIC_UMAMI_DOMAINS ||
-    (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com")
-  const apiAnalyticsEnabled =
-    process.env.NEXT_PUBLIC_API_ANALYTICS === "true" || process.env.NEXT_PUBLIC_API_ANALYTICS === "1"
+      (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com"),
+  )
+  const apiAnalyticsEnabled = isApiAnalyticsEnabled()
   const apiAnalyticsBaseUrl = getApiBaseUrl().replace(/\/$/, "")
   // Serve tracker via same-origin proxy so autocapture can route through wrapped capture().
   const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
@@ -217,7 +219,10 @@ export default function RootLayout({
           <GuestConversionProvider>
             <VideoProvider>
               <SidebarProvider>
-                <VideoUploadQueueProvider>{children}</VideoUploadQueueProvider>
+                <VideoUploadQueueProvider>
+                  <MainContentScrollCoordinator />
+                  {children}
+                </VideoUploadQueueProvider>
               </SidebarProvider>
             </VideoProvider>
           </GuestConversionProvider>

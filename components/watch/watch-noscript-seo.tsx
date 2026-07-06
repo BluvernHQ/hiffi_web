@@ -18,6 +18,13 @@ export function WatchNoscriptSeo({ video }: Props) {
       <h1>{title}</h1>
       {artist ? <p>By {artist}</p> : null}
       <p>{description}</p>
+      {video.thumbnailUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={video.thumbnailUrl} alt={`${title} thumbnail`} />
+      ) : null}
+      {video.contentUrl ? (
+        <video poster={video.thumbnailUrl || undefined} src={video.contentUrl} controls preload="metadata" />
+      ) : null}
     </noscript>
   )
 }

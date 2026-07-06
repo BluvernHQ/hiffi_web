@@ -6,8 +6,6 @@ import { EmptyVideoState } from "./empty-video-state"
 import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react"
 import type { PlaylistNavigation } from "@/lib/playlist-session"
 
-/** Extra rows to prefetch before the sentinel enters the scroll container. */
-const PREFETCH_ROWS = 1
 const DEFAULT_ROW_HEIGHT_PX = 300
 const LOAD_THROTTLE_MS = 500
 
@@ -70,6 +68,10 @@ interface VideoGridProps {
   skipCardEntrance?: boolean
   /** Open videos in playlist watch mode (queue + next/prev). */
   playlistNavigation?: PlaylistNavigation
+  /** Muted hover preview on desktop (home feed). */
+  enableHoverPreview?: boolean
+  /** Keep the ⋮ menu visible on cards without hover (home / profile feeds). */
+  alwaysShowMoreMenu?: boolean
 }
 
 export function VideoGrid({
@@ -86,6 +88,8 @@ export function VideoGrid({
   metadataFontDmSans = false,
   skipCardEntrance = false,
   playlistNavigation,
+  enableHoverPreview = false,
+  alwaysShowMoreMenu = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -160,7 +164,7 @@ export function VideoGrid({
         root: scrollRoot,
         threshold: 0,
         // Calculate margin based on current row height
-        rootMargin: `0px 0px ${Math.ceil(rowHeightRef.current * (PREFETCH_ROWS + 1))}px 0px`,
+        rootMargin: `0px 0px ${Math.ceil(rowHeightRef.current * 2)}px 0px`,
       },
     )
 
@@ -214,6 +218,8 @@ export function VideoGrid({
                   metadataFontDmSans={metadataFontDmSans}
                   openVideoUiName={openVideoUiName}
                   playlistNavigation={playlistNavigation}
+                  hoverPreviewEnabled={enableHoverPreview}
+                  alwaysShowMoreMenu={alwaysShowMoreMenu}
                   onDeleted={() => {
                     const deletedVideoId = video.videoId || video.video_id
                     if (deletedVideoId) {

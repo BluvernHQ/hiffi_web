@@ -1,6 +1,6 @@
 {
   "name": "my-hiffi-project",
-  "version": "2.1.0",
+  "version": "2.2.1",
   "private": true,
   "engines": {
     "node": ">=20.9.0"
@@ -11,6 +11,7 @@
     "dev": "next dev -p 3002 -H 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:robots": "node --experimental-strip-types --test lib/seo/robots-txt.test.ts && node --experimental-strip-types scripts/verify-robots-txt.mjs",
     "start": "next start -p 3001",
     "start:standalone": "bash ./scripts/start-standalone.sh"
   },
@@ -80,6 +81,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "baseline-browser-mapping": "^2.10.40",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",

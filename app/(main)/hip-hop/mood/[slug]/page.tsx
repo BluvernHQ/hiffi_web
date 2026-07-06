@@ -28,11 +28,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!mood) return { title: "Not found", robots: { index: false, follow: false } }
 
   const pageUrl = absoluteUrl(`/hip-hop/mood/${encodeURIComponent(slug)}`)
-  const title = `${mood.label} — ${mood.vibe} | Hiffi Hip-Hop`
-  const description = `Discover ${mood.vibe} music videos from independent hip-hop artists on Hiffi. ${mood.tagline} Stream the best ${mood.cluster.toLowerCase()} rap — no algorithms.`
+  const absoluteTitle = `${mood.label} — ${mood.vibe} | Hiffi`
+  const description = `Discover ${mood.vibe} music videos from independent hip-hop artists on Hiffi. ${mood.tagline} Stream ${mood.cluster.toLowerCase()} rap — official videos, underground drops, and creator-first discovery.`
 
   return {
-    title,
+    title: { absolute: absoluteTitle },
     description,
     keywords: [
       mood.vibe,
@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ],
     alternates: { canonical: pageUrl },
     openGraph: {
-      title,
+      title: absoluteTitle,
       description,
       url: pageUrl,
       type: "website",
@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: absoluteTitle,
       description,
       images: [absoluteUrl("/hiffi_logo.png")],
     },
@@ -75,22 +75,22 @@ export default async function MoodPage({ params }: Props) {
 
   const pageUrl = absoluteUrl(`/hip-hop/mood/${encodeURIComponent(slug)}`)
   const title = `${mood.label} — ${mood.vibe}`
-  const description = `Discover ${mood.vibe} music videos from independent hip-hop artists on Hiffi. ${mood.tagline} Stream the best ${mood.cluster.toLowerCase()} rap — no algorithms.`
+  const description = `Discover ${mood.vibe} music videos from independent hip-hop artists on Hiffi. ${mood.tagline} Stream ${mood.cluster.toLowerCase()} rap — official videos, underground drops, and creator-first discovery.`
 
   const otherMoods = MOODS.filter((m) => m.query !== mood.query)
 
   const faqItems = [
     {
       question: `What is ${mood.label} on Hiffi?`,
-      answer: `${mood.label} is Hiffi's ${mood.cluster.toLowerCase()} hip-hop mood — featuring ${mood.vibe}. ${mood.tagline} Find independent artists releasing music videos in this style on Hiffi.`,
+      answer: `${mood.label} is Hiffi's ${mood.cluster.toLowerCase()} hip-hop mood — featuring ${mood.vibe}. ${mood.tagline} Find independent artists releasing music videos in this style on Hiffi, whether you search for ${mood.cluster.toLowerCase()} rap playlists, ${mood.vibe.toLowerCase()}, or ${mood.label.toLowerCase()} hip-hop videos.`,
     },
     {
       question: `Where can I stream ${mood.vibe} online?`,
-      answer: `Hiffi hosts independent hip-hop music videos in the ${mood.vibe} style under the ${mood.label} mood. Browse the ${mood.label} section on Hiffi to discover new artists and official videos in this subgenre.`,
+      answer: `Hiffi hosts independent hip-hop music videos in the ${mood.vibe} style under the ${mood.label} mood. Browse the ${mood.label} section on Hiffi to discover new artists and official videos — a dedicated ${mood.cluster.toLowerCase()} rap hub, not a generic streaming search.`,
     },
     {
       question: `Can independent rap artists upload ${mood.cluster.toLowerCase()} music to Hiffi?`,
-      answer: `Yes. Independent hip-hop artists making ${mood.vibe} can apply to become a Hiffi creator and upload official music videos. Hiffi is built for independent artists — no label required.`,
+      answer: `Yes. Independent hip-hop artists making ${mood.vibe} can apply to become a Hiffi creator and upload official music videos. Hiffi is built for independent artists — no label required — and ${mood.label} is where ${mood.cluster.toLowerCase()} rap fans discover new uploads.`,
     },
   ]
 
@@ -161,7 +161,7 @@ export default async function MoodPage({ params }: Props) {
         <p className="text-lg italic text-muted-foreground/70 mb-6">{mood.tagline}</p>
         <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
           Discover independent hip-hop artists making {mood.vibe} music videos on Hiffi.
-          The only platform built hip-hop first — no algorithmic gatekeeping, just the culture.
+          A hip-hop-first platform for {mood.cluster.toLowerCase()} rap — official uploads, emerging talent, and culture-first discovery.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -186,7 +186,8 @@ export default async function MoodPage({ params }: Props) {
           {mood.label} covers the {mood.cluster.toLowerCase()} side of hip-hop — {mood.vibe}.
           On Hiffi, independent artists in this lane upload official music videos and connect
           directly with fans who live for this sound. From first-time uploads to established
-          independent acts, {mood.label} is where you find the realest {mood.cluster.toLowerCase()} rap.
+          independent acts, {mood.label} is where you find the realest {mood.cluster.toLowerCase()} rap —
+          whether you call it {mood.vibe.toLowerCase()}, {mood.cluster.toLowerCase()} hip-hop, or {mood.label.toLowerCase()} music videos.
         </p>
       </section>
 

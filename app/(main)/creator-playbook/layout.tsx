@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/layout/site-footer"
 export const metadata = routeMetadata({
   title: "Creator Playbook",
   description:
-    "Hiffi Creator Playbook — how to apply, upload music videos, grow your audience, and succeed as an independent hip-hop artist on Hiffi.",
+    "Hiffi Creator Playbook — plan your content, optimize uploads, get discovered, and grow as an independent hip-hop artist on Hiffi.",
   path: "/creator-playbook",
   keywords: [
     "Hiffi creator playbook",

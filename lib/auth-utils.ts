@@ -3,6 +3,11 @@
  * Handles redirect query parameter preservation for seamless UX
  */
 
+import { isCreator, type UserLike } from "@/lib/auth/roles"
+import { STUDIO_HOME } from "@/lib/studio-routes"
+
+const CREATOR_APPLY_PATH = "/creator/apply"
+
 /**
  * Builds a login URL with redirect query parameter
  * Preserves the current page context so users return after authentication
@@ -30,6 +35,50 @@ export function buildSignupUrl(currentPath: string, searchParams?: string): stri
   const fullPath = searchParams ? `${currentPath}${searchParams}` : currentPath
   const encodedRedirect = encodeURIComponent(fullPath)
   return `/signup?redirect=${encodedRedirect}`
+}
+
+/**
+ * Routes that require a signed-in session. Skip on login/signup must not return here
+ * or the user gets stuck in a redirect loop.
+ */
+const AUTH_REQUIRED_PATH_PREFIXES = ["/support/reports", "/studio", "/playlists"] as const
+
+export function isAuthRequiredPath(path: string | null | undefined): boolean {
+  if (!path) return false
+  const pathname = path.split("?")[0]?.split("#")[0] ?? ""
+  return AUTH_REQUIRED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+/**
+ * Where to send users who skip login/signup. Protected redirect targets fall back to
+ * a public page (e.g. /support/reports → /support) instead of looping back to login.
+ */
+export function resolveSkipDestination(redirectPath: string | null): string {
+  if (!redirectPath) return "/"
+  if (!isAuthRequiredPath(redirectPath)) return redirectPath
+
+  const pathname = redirectPath.split("?")[0]?.split("#")[0] ?? ""
+  if (pathname.startsWith("/support/")) return "/support"
+  if (pathname === "/studio" || pathname.startsWith("/studio/")) return CREATOR_APPLY_PATH
+
+  return "/"
+}
+
+/**
+ * Resolve where to send a user after login/signup. Active creators skip the apply page.
+ */
+export function resolvePostAuthDestination(
+  requestedPath: string | null | undefined,
+  userData: UserLike,
+): string {
+  const safe = sanitizeInternalPath(requestedPath || "/", "/")
+  const pathname = safe.split("?")[0]?.split("#")[0] ?? ""
+  if (pathname === CREATOR_APPLY_PATH && isCreator(userData)) {
+    return STUDIO_HOME
+  }
+  return safe
 }
 
 /**

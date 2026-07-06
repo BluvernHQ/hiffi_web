@@ -7,7 +7,7 @@ export default function ArtistsPage() {
       path="/artists"
       eyebrow="Creators"
       title="Hiffi Artists"
-      description="Hiffi Artists is the home for independent rappers, producers, DJs, and beatmakers who want to share official music videos and build real fan relationships — without algorithmic gatekeeping."
+      description="Hiffi Artists is the home for independent rappers, producers, DJs, and beatmakers who want to share official music videos and build real fan relationships on a hip-hop-first platform."
       sections={[
         {
           title: "Built for independent hip-hop",
@@ -45,10 +45,6 @@ export default function ArtistsPage() {
                 creator-led interactions.
               </li>
               <li>
-                <strong>Monetization tools</strong> — Support from fans through tips, subscriptions, and paid access
-                as available on the platform.
-              </li>
-              <li>
                 <strong>Creative control</strong> — You own your content and decide how it is presented.
               </li>
             </ul>
@@ -58,9 +54,11 @@ export default function ArtistsPage() {
           title: "Who can join",
           children: (
             <p>
-              Rappers, producers, DJs, beatmakers, and hip-hop content creators who meet Hiffi&apos;s creator
-              guidelines can apply. We review applications to maintain quality and keep the platform focused on
-              authentic music culture.
+              Rappers, producers, DJs, beatmakers, and hip-hop content creators can{" "}
+              <Link href="/creator/apply" className="font-medium text-primary hover:underline">
+                become a creator instantly
+              </Link>
+              . Hiffi is built for hip-hop, rap, and related artists — no application wait.
             </p>
           ),
         },
@@ -76,19 +74,19 @@ export default function ArtistsPage() {
               </li>
               <li>
                 <Link href="/creator/apply" className="font-medium text-primary hover:underline">
-                  Submit a creator application
+                  Become a creator
                 </Link>{" "}
-                with your profile and sample work.
+                — instant access for hip-hop and rap artists.
               </li>
-              <li>Once approved, upload your first music video and start building your audience.</li>
+              <li>Upload your first music video and start building your audience.</li>
             </ol>
           ),
         },
       ]}
-      cta={{ label: "Apply as a creator", href: "/creator/apply" }}
+      cta={{ label: "Become a creator", href: "/creator/apply" }}
       secondaryCta={{ label: "Explore hip-hop on Hiffi", href: "/hip-hop" }}
       relatedLinks={[
-        { label: "Apply as a creator", href: "/creator/apply" },
+        { label: "Become a creator", href: "/creator/apply" },
         { label: "About Hiffi", href: "/about" },
         { label: "FAQ", href: "/faq" },
       ]}

@@ -140,7 +140,8 @@ export function PickView({
         sheet && atpSheetClass,
         !embedded && atpPanelClass,
         !sheet && panelWidthClass,
-        !sheet && "max-h-[min(560px,85dvh)]",
+        !sheet && !compact && "max-h-[min(560px,85dvh)]",
+        !sheet && compact && "h-full max-h-full",
         embedded && !sheet && "w-full rounded-none border-0 bg-transparent shadow-none backdrop-blur-none",
         sheet && "w-full min-h-0 flex-1",
         className,
@@ -152,6 +153,7 @@ export function PickView({
         thumbnailUrl={thumbnailUrl}
         compact={compact && !sheet}
         sheet={sheet}
+        className="shrink-0"
       />
 
       <h2 id="atp-heading" className={sheet ? atpSheetHeaderClass : "sr-only"}>
@@ -179,10 +181,18 @@ export function PickView({
         </div>
       </div>
 
-      <div className={cn(listScrollClass, sheet ? "px-0" : "px-1")}>{listBody()}</div>
+      <div
+        className={cn(
+          listScrollClass,
+          sheet ? "px-0" : "px-1",
+        )}
+      >
+        {listBody()}
+      </div>
 
       <div
         className={cn(
+          "shrink-0",
           sheet
             ? atpSheetFooterClass
             : cn(

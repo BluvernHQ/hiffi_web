@@ -6,7 +6,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { validateRedirect, buildSignupUrl } from "@/lib/auth-utils"
+import { validateRedirect, buildSignupUrl, resolvePostAuthDestination, resolveSkipDestination } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,7 +20,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const { login, user, loading: authLoading } = useAuth()
+  const { login, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -31,11 +31,10 @@ function LoginForm() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      // Use redirect path if valid, otherwise go to home
-      const destination = redirectPath || "/"
+      const destination = resolvePostAuthDestination(redirectPath, userData)
       router.replace(destination)
     }
-  }, [user, authLoading, router, redirectPath])
+  }, [user, userData, authLoading, router, redirectPath])
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -77,9 +76,7 @@ function LoginForm() {
   }
 
   const handleSkip = () => {
-    // If there's a valid redirect, go there; otherwise go home
-    const destination = redirectPath || "/"
-    router.replace(destination)
+    router.replace(resolveSkipDestination(redirectPath))
   }
 
   return (

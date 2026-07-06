@@ -13,7 +13,7 @@ Canonical page: https://www.hiffi.com/how-it-works
 
 ## For creators
 
-1. **Apply** — Submit the Become a Creator application at https://www.hiffi.com/creator/apply.
+1. **Become a creator** — Hip-hop and rap artists unlock creator access instantly at https://www.hiffi.com/creator/apply.
 2. **Set up your profile** — Add your bio, profile picture, and links.
 3. **Upload** — Publish official music videos through Studio (https://www.hiffi.com/studio).
 4. **Grow** — Get discovered via the hip-hop hub, mood playlists, search, and the home feed.

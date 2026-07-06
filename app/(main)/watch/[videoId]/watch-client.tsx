@@ -34,9 +34,25 @@ import {
 } from "@/lib/playlist-session"
 import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
 import { useToast } from "@/hooks/use-toast"
-import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount } from "@/lib/video-utils"
+import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
+import {
+  captureArtistFollowed,
+  captureVideoLiked,
+  onPlaylistSessionEnded,
+  onPlaylistSessionStarted,
+  onPlaylistTrackAdvanced,
+} from "@/lib/analytics/journey-tracking"
+import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
+import {
+  PLAYLIST_QUEUE_CLICK,
+  UP_NEXT_SIDEBAR_CLICK,
+  WATCH_LIKE_VIDEO,
+  WATCH_MORE_ACTIONS,
+  WATCH_SAVE_TO_PLAYLIST,
+  WATCH_UNLIKE_VIDEO,
+} from "@/lib/analytics/video-analytics-names"
 import { GuestWatchNudge } from "@/components/conversion/guest-watch-nudge"
 import { GuestUpNextNudge } from "@/components/conversion/guest-up-next-nudge"
 import {
@@ -47,7 +63,12 @@ import {
   setGuestRecPicksReady,
 } from "@/lib/guest-conversion/session"
 import { appendGuestHistoryEntry } from "@/lib/guest-conversion/guest-history"
-import { addPendingFollowIntent, addPendingLikeIntent } from "@/lib/guest-conversion/pending-intents"
+import {
+  addPendingFollowIntent,
+  addPendingLikeIntent,
+  removePendingFollowIntent,
+  removePendingLikeIntent,
+} from "@/lib/guest-conversion/pending-intents"
 import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
 import { ShareVideoDialog } from "@/components/video/share-video-dialog"
 import { ContentReportDialog } from "@/components/report/content-report-dialog"
@@ -64,6 +85,7 @@ import { debugLog, debugWarn } from "@/lib/debug"
 import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
+import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import type { SeoVideo } from "@/lib/seo/fetch-public"
 
 // Mock video data
@@ -193,6 +215,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const { activeVideo } = useGlobalVideo()
   const { toast } = useToast()
 
+  useEffect(() => {
+    if (!user) return
+    prefetchMyPlaylists()
+  }, [user])
+
   const routeVideoId = useMemo(() => {
     const p = params.videoId
     return (Array.isArray(p) ? p[0] : (p as string)) || ""
@@ -209,6 +236,18 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     const p = params.videoId
     return (Array.isArray(p) ? p[0] : p as string) || ""
   })
+
+  // Main feed/content is rendered inside #main-content (custom scroll container),
+  // so we must reset that container when entering or switching videos on watch.
+  useLayoutEffect(() => {
+    const mainContent = document.getElementById("main-content")
+    if (mainContent && mainContent.scrollTop > 0) {
+      mainContent.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }
+  }, [pathname, currentVideoId])
 
   // Sync currentVideoId when the URL param changes via real Next.js navigation
   // (deep links, browser address bar, etc.) so those paths still work correctly.
@@ -236,6 +275,42 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     autoplay: boolean
   } | null>(null)
   const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, PlaylistVideoMeta>>({})
+  const playlistJourneyIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!playlistContext) {
+      if (playlistJourneyIdRef.current) {
+        onPlaylistSessionEnded("left_watch")
+        playlistJourneyIdRef.current = null
+      }
+      return
+    }
+
+    if (playlistJourneyIdRef.current === playlistContext.playlistId) return
+
+    if (playlistJourneyIdRef.current) {
+      onPlaylistSessionEnded("left_watch")
+    }
+
+    const entryVideoId =
+      playlistContext.videoIds[playlistContext.currentIndex] || currentVideoId
+    onPlaylistSessionStarted({
+      playlistId: playlistContext.playlistId,
+      queueLength: playlistContext.videoIds.length,
+      entryTrackIndex: playlistContext.currentIndex,
+      entryVideoId,
+    })
+    playlistJourneyIdRef.current = playlistContext.playlistId
+  }, [playlistContext, currentVideoId])
+
+  useEffect(() => {
+    return () => {
+      if (playlistJourneyIdRef.current) {
+        onPlaylistSessionEnded("left_watch")
+        playlistJourneyIdRef.current = null
+      }
+    }
+  }, [])
 
   const hydratePlaylistVideoMeta = useCallback((meta?: Record<string, PlaylistVideoMeta>) => {
     if (!meta || Object.keys(meta).length === 0) return
@@ -270,12 +345,27 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const nextIndex = playlistContext.currentIndex + 1
       const playlistNextId = playlistContext.videoIds[nextIndex]
       if (playlistNextId) {
+        setPendingPlaybackContext({
+          videoId: playlistNextId,
+          openSource: "playlist",
+          openUiName: "player-next-playlist",
+          navigateTrigger: "player_next",
+          isAutoplay: true,
+          playlistId: playlistContext.playlistId,
+          playlistTrackIndex: nextIndex,
+        })
         captureConversionEvent("conversion_next_clicked", {
           video_id: currentVideoId,
           next_video_id: playlistNextId,
           source: "playlist",
           playlist_id: playlistContext.playlistId,
           is_autoplay: false,
+        })
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: nextIndex,
+          reason: "next_button",
+          videoId: playlistNextId,
         })
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
@@ -284,6 +374,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         return
       }
     }
+    setPendingPlaybackContext({
+      videoId: nextId,
+      openSource: "recommended",
+      openUiName: "player-next-recommended",
+      navigateTrigger: "player_next",
+      isAutoplay: true,
+    })
     captureConversionEvent("conversion_next_clicked", {
       video_id: currentVideoId,
       next_video_id: nextId,
@@ -300,6 +397,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const prevIndex = playlistContext.currentIndex - 1
       const prevId = playlistContext.videoIds[prevIndex]
       if (prevId) {
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: prevIndex,
+          reason: "prev_button",
+          videoId: prevId,
+        })
         const nextSession = { ...playlistContext, currentIndex: prevIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
@@ -980,10 +1083,15 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           }
 
           // Build complete video object with streaming URL and all metadata
+          const gatewayUrl = String(videoResponse.video_url || "").trim()
+          const storagePath = String(videoData.video_url || "").trim()
+          const streamingBase = gatewayUrl || storagePath
+
           const completeVideo = {
             ...videoData,
-            video_url: videoResponse.video_url, // Streaming URL from API
-            streaming_url: videoResponse.video_url, // Alias for compatibility
+            video_url: streamingBase,
+            streaming_url: streamingBase,
+            storage_video_url: storagePath,
             userUsername: videoData.user_username, // Alias for compatibility
             user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
@@ -1209,6 +1317,23 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   // which includes the 'following' boolean field. This eliminates the need for 
   // a separate API call to check following status on page load.
 
+  const handleAuthDialogDismiss = () => {
+    if (user) return
+
+    const videoId = video?.video_id || video?.videoId || currentVideoId
+    const creatorUsername = video?.userUsername || video?.user_username
+
+    if (authDialogCopyKey === "like" && videoId) {
+      removePendingLikeIntent(videoId)
+      setIsLiked(false)
+      setUpvoteState({ upvoted: false, downvoted: false })
+    }
+
+    if (authDialogCopyKey === "follow" && creatorUsername) {
+      removePendingFollowIntent(creatorUsername)
+    }
+  }
+
   const handleLike = async () => {
     if (!user) {
       const videoId = video?.video_id || video?.videoId || currentVideoId
@@ -1299,6 +1424,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         source: playlistContext ? "playlist" : "recommended",
         playlist_id: playlistContext?.playlistId,
       })
+      captureVideoLiked(videoId, nextLiked ? "like" : "unlike")
     } catch (error) {
       console.error("[hiffi] Failed to toggle like for video:", error)
       toast({
@@ -1480,6 +1606,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           title: "Success",
           description: "Unfollowed user",
         })
+        captureArtistFollowed(
+          video.video_id || video.videoId,
+          username,
+          "unfollow",
+        )
       } else {
         // Following
         const response = await apiClient.followUser(username)
@@ -1517,6 +1648,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           title: "Success",
           description: "Following user",
         })
+        captureArtistFollowed(
+          video.video_id || video.videoId,
+          username,
+          "follow",
+        )
       }
       
       // State is already optimistically updated above
@@ -1550,6 +1686,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
   const videoViewCount = getVideoViewCount(currentVideo)
   const showVideoViewCount = shouldShowVideoViewCount(videoViewCount)
+  const creatorFollowerCount = getProfileFollowerCount(videoCreator)
+  const showCreatorFollowerCount = shouldShowPublicFollowerCount(creatorFollowerCount)
   const shouldShowMetadataSkeleton = !currentVideo && (isMetadataLoading || isLoading)
 
   useEffect(() => {
@@ -1583,9 +1721,24 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const nextId = playlistContext.videoIds[nextIndex]
       if (nextId) {
         resetSeed()
+        setPendingPlaybackContext({
+          videoId: nextId,
+          openSource: "playlist",
+          openUiName: "playlist-autoplay",
+          navigateTrigger: "playlist_autoplay",
+          isAutoplay: true,
+          playlistId: playlistContext.playlistId,
+          playlistTrackIndex: nextIndex,
+        })
         const nextSession = { ...playlistContext, currentIndex: nextIndex }
         setPlaylistContext(nextSession)
         setPlaylistSession(nextSession)
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: nextIndex,
+          reason: "autoplay",
+          videoId: nextId,
+        })
         navigateToVideo(nextId, nextIndex)
         return
       }
@@ -1597,6 +1750,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
         resetSeed()
+        setPendingPlaybackContext({
+          videoId: nextVideoId,
+          openSource: "recommended",
+          openUiName: "video-end-autoplay",
+          navigateTrigger: "video_end_autoplay",
+          isAutoplay: true,
+        })
         debugLog("[hiffi] Autoplaying next video:", nextVideoId)
         router.push(`/watch/${nextVideoId}`)
       }
@@ -1663,6 +1823,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                 originalProfile={
                   currentPlayerVideo?.original_profile || currentPlayerVideo?.originalProfile
                 }
+                storageVideoPath={currentPlayerVideo?.storage_video_url}
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
                 previousVideoDisabled={!canNavigateToPreviousVideo}
@@ -1688,6 +1849,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        data-analytics-name={isLiked ? WATCH_UNLIKE_VIDEO : WATCH_LIKE_VIDEO}
                         className={cn(
                           "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                           isLiked && "text-primary hover:text-primary",
@@ -1699,24 +1861,41 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       >
                         <Heart className={cn("h-5 w-5", isLiked && "fill-primary text-primary")} />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        data-analytics-name="shared-video"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                        onClick={() => setShareDialogOpen(true)}
-                        aria-label="Share video"
-                        title="Share"
+                      <AddToPlaylistDialogLazy
+                        open={addToPlaylistOpen}
+                        onOpenChange={setAddToPlaylistOpen}
+                        videoId={String(playerVideoId || currentVideoId || "")}
+                        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+                        artistName={
+                          currentVideo?.userUsername ||
+                          currentVideo?.user_username ||
+                          undefined
+                        }
+                        thumbnailUrl={thumbnailUrl || undefined}
+                        popoverSide="bottom"
+                        popoverAlign="end"
                       >
-                        <Share2 className="h-5 w-5" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          data-analytics-name={WATCH_SAVE_TO_PLAYLIST}
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={openAddToPlaylist}
+                          onPointerEnter={prefetchMyPlaylists}
+                          aria-label="Save to playlist"
+                          title="Save to playlist"
+                        >
+                          <Bookmark className="h-5 w-5" />
+                        </Button>
+                      </AddToPlaylistDialogLazy>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
+                            data-analytics-name={WATCH_MORE_ACTIONS}
                             className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                             aria-label="More actions"
                             title="More"
@@ -1726,11 +1905,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
-                            data-analytics-name="added-to-playlist"
-                            onClick={openAddToPlaylist}
+                            data-analytics-name="shared-video"
+                            onClick={() => setShareDialogOpen(true)}
                           >
-                            <Bookmark className="h-4 w-4" />
-                            Save to playlist
+                            <Share2 className="h-4 w-4" />
+                            Share
                           </DropdownMenuItem>
                           {canReportVideo && (
                             <DropdownMenuItem
@@ -1776,9 +1955,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                               >
                                 {currentVideo?.userUsername || currentVideo?.user_username}
                               </Link>
-                              <span className="text-xs text-muted-foreground">
-                                {((videoCreator?.followers ?? videoCreator?.followers_count ?? videoCreator?.followersCount ?? videoCreator?.user?.followers ?? videoCreator?.user?.followers_count ?? 0)).toLocaleString()} followers
-                              </span>
+                              {showCreatorFollowerCount ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {creatorFollowerCount.toLocaleString()} followers
+                                </span>
+                              ) : null}
                             </>
                           )}
                         </div>
@@ -1834,9 +2015,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                             >
                               {currentVideo?.userUsername || currentVideo?.user_username}
                             </Link>
-                            <span className="text-xs text-muted-foreground">
-                              {((videoCreator?.followers ?? videoCreator?.followers_count ?? videoCreator?.followersCount ?? videoCreator?.user?.followers ?? videoCreator?.user?.followers_count ?? 0)).toLocaleString()} followers
-                            </span>
+                            {showCreatorFollowerCount ? (
+                              <span className="text-xs text-muted-foreground">
+                                {creatorFollowerCount.toLocaleString()} followers
+                              </span>
+                            ) : null}
                           </>
                         )}
                       </div>
@@ -1941,6 +2124,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                             )}
                             onClick={() => {
                               if (isActive) return
+                              onPlaylistTrackAdvanced({
+                                fromIndex: playlistContext.currentIndex,
+                                toIndex: absoluteIndex,
+                                reason: "manual_pick",
+                                videoId: id,
+                              })
                               const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
                               setPlaylistContext(nextSession)
                               setPlaylistSession(nextSession)
@@ -2143,6 +2332,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                            <button
                              key={id}
                              type="button"
+                             data-analytics-name={PLAYLIST_QUEUE_CLICK}
                              className={cn(
                                "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors md:px-2 md:py-1.5",
                                isActive
@@ -2153,6 +2343,21 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                              )}
                              onClick={() => {
                                if (isActive) return
+                               setPendingPlaybackContext({
+                                 videoId: id,
+                                 openSource: "playlist",
+                                 openUiName: PLAYLIST_QUEUE_CLICK,
+                                 navigateTrigger: "playlist_queue",
+                                 isAutoplay: true,
+                                 playlistId: playlistContext.playlistId,
+                                 playlistTrackIndex: absoluteIndex,
+                               })
+                               onPlaylistTrackAdvanced({
+                                 fromIndex: playlistContext.currentIndex,
+                                 toIndex: absoluteIndex,
+                                 reason: "manual_pick",
+                                 videoId: id,
+                               })
                                const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
                                setPlaylistContext(nextSession)
                                setPlaylistSession(nextSession)
@@ -2189,7 +2394,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       key={v.videoId || v.video_id}
                       video={v}
                       hideTimestamp
-                      openVideoUiName="opened-video-from-recommended"
+                      openVideoUiName={UP_NEXT_SIDEBAR_CLICK}
                     />
                    ))
                  ) : (
@@ -2213,6 +2418,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       <AuthDialog
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
+        onDismiss={handleAuthDialogDismiss}
         title={AUTH_DIALOG_COPY[authDialogCopyKey].title}
         description={AUTH_DIALOG_COPY[authDialogCopyKey].description}
         subdescription={
@@ -2250,18 +2456,6 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           })()
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
-      />
-      <AddToPlaylistDialogLazy
-        open={addToPlaylistOpen}
-        onOpenChange={setAddToPlaylistOpen}
-        videoId={String(playerVideoId || currentVideoId || "")}
-        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
-        artistName={
-          currentVideo?.userUsername ||
-          currentVideo?.user_username ||
-          undefined
-        }
-        thumbnailUrl={thumbnailUrl || undefined}
       />
       {canReportVideo && currentVideo && (
         <ContentReportDialog

@@ -21,6 +21,12 @@ import {
   isUserHandleSearch,
   normalizeSearchQueryForRequest,
 } from '@/lib/search-query';
+import {
+  onSearchOverlayClosed,
+  onSearchOverlayOpened,
+  onSearchQuerySubmitted,
+  onSearchResultSelected,
+} from '@/lib/analytics/journey-tracking';
 
 interface SearchResult {
   id: string;
@@ -80,6 +86,15 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const { toast } = useToast();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const previousBlobUrlsRef = useRef<Set<string>>(new Set()); // Track blob URLs for cleanup
+  const searchJourneyActiveRef = useRef(false);
+
+  const closeOverlay = (reason: 'dismissed' | 'navigated_away' = 'dismissed') => {
+    if (searchJourneyActiveRef.current) {
+      onSearchOverlayClosed(reason);
+      searchJourneyActiveRef.current = false;
+    }
+    onClose();
+  };
 
   const isHandleMode = isUserHandleSearch(query);
   const handleTerm = getUserSearchTerm(query);
@@ -87,6 +102,8 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
   useEffect(() => {
     if (isOpen) {
+      onSearchOverlayOpened('navbar');
+      searchJourneyActiveRef.current = true;
       setRecentSearches(readRecentSearches());
       inputRef.current?.focus();
       setQuery('');
@@ -224,14 +241,34 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
     };
   }, [query]);
 
-  const handleSearch = (searchQuery: string) => {
+  const handleSearch = (
+    searchQuery: string,
+    via: 'enter' | 'suggestion' | 'recent' | 'trending' | 'view_all' = 'enter',
+  ) => {
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery) {
+      onSearchQuerySubmitted(trimmedQuery, via, 'overlay');
       saveRecentSearch(trimmedQuery);
-      onClose();
+      closeOverlay('navigated_away');
       setQuery('');
       router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
     }
+  };
+
+  const handleResultSelect = (
+    result: SearchResult,
+    resultPosition: number,
+    fromQuery: string,
+  ) => {
+    onSearchResultSelected({
+      query: fromQuery,
+      resultType: result.type,
+      resultId: result.type === 'user' ? (result.username || result.id) : result.id,
+      resultPosition,
+      resultsShown: suggestions.length,
+      from: 'overlay',
+    });
+    closeOverlay('navigated_away');
   };
 
   const emptyStateItems = [
@@ -252,7 +289,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           'fixed inset-0 z-[90]',
           isAppPage ? 'bg-black/15' : 'bg-black/25',
         )}
-        onClick={onClose}
+        onClick={() => closeOverlay()}
       />
 
       {/* Floating search — centered, comfortable width without full-bleed gutters */}
@@ -307,10 +344,10 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       }
                     }
                     if (query.trim() && !(isHandleMode && !handleTerm)) {
-                      handleSearch(query);
+                      handleSearch(query, 'enter');
                     }
                   } else if (e.key === 'Escape') {
-                    onClose();
+                    closeOverlay();
                   } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     let totalItems = 0;
@@ -333,7 +370,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
               />
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => closeOverlay()}
                 aria-label="Close search"
                 className={cn(
                   'absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 transition-colors',
@@ -385,7 +422,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         <button
                           key={`recent-${search}`}
                           type="button"
-                          onClick={() => handleSearch(search)}
+                          onClick={() => handleSearch(search, 'recent')}
                           data-analytics-name="search-overlay-recent-search-button"
                           className={cn(
                             'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
@@ -421,7 +458,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         <button
                           key={search}
                           type="button"
-                          onClick={() => handleSearch(search)}
+                          onClick={() => handleSearch(search, 'trending')}
                           data-analytics-name="search-overlay-trending-search-button"
                           className={cn(
                             'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
@@ -497,7 +534,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       key={result.id}
                                       href={`/profile/${result.username}`}
                                       data-analytics-name="search-overlay-user-result-link"
-                                      onClick={onClose}
+                                      onClick={() => handleResultSelect(result, itemIndex, query)}
                                       className="block"
                                       ref={(el) => {
                                         if (el) resultItemRefs.current[itemIndex] = el;
@@ -650,7 +687,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       key={result.id}
                                       href={`/watch/${result.id}`}
                                       data-analytics-name="search-overlay-video-result-link"
-                                      onClick={onClose}
+                                      onClick={() => handleResultSelect(result, itemIndex, query)}
                                       className="block"
                                       ref={(el) => {
                                         if (el) resultItemRefs.current[itemIndex] = el;
@@ -683,7 +720,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                           selectedIndex === suggestions.length && (isAppPage ? 'bg-black/10' : 'bg-muted'),
                         )}
                         data-analytics-name="search-overlay-view-all-results-button"
-                        onClick={() => handleSearch(query)}
+                        onClick={() => handleSearch(query, 'view_all')}
                         ref={(el) => {
                           if (el) resultItemRefs.current[suggestions.length] = el;
                         }}
@@ -721,7 +758,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       variant="ghost"
                       size="sm"
                       className={cn('mt-1', isAppPage && 'text-black/80 hover:bg-black/8 hover:text-black')}
-                      onClick={() => handleSearch(query)}
+                      onClick={() => handleSearch(query, 'view_all')}
                     >
                       Search anyway
                     </Button>

@@ -22,6 +22,11 @@ import { setPlaylistSession } from "@/lib/playlist-session"
 import { requestHomeFullFeed } from "@/lib/mood-session"
 import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
 import { CuratedMixSection, type CuratedPlaylistSummary } from "@/components/layout/sidebar/curated-mix-section"
+import {
+  SIDEBAR_FOOTER_DISCOVER_LINKS,
+  SIDEBAR_FOOTER_LINKS,
+  type ContentPageLink,
+} from "@/lib/content-pages"
 
 interface SidebarProps {
   className?: string
@@ -326,6 +331,30 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     [closeSidebar, curatedFirstVideoById, router],
   )
 
+  const SidebarFooterInlineLink = ({ item }: { item: ContentPageLink }) => (
+    <Link
+      href={item.href}
+      className={cn(
+        "inline-block transition-colors hover:underline underline-offset-2",
+        isAppDownloadPage ? "text-black/60 hover:text-black" : "text-muted-foreground hover:text-foreground",
+      )}
+      onClick={(e) => {
+        const { shouldBlock, message } = checkUploadNavigationGuard()
+        if (shouldBlock) {
+          e.preventDefault()
+          if (typeof window !== "undefined" && window.confirm(message)) {
+            closeSidebar()
+            router.push(item.href)
+          }
+        } else {
+          closeSidebar()
+        }
+      }}
+    >
+      {item.label}
+    </Link>
+  )
+
   return (
     <>
       {/* Mobile Sidebar Overlay */}
@@ -346,7 +375,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
           // Desktop: sticky positioning below navbar, can be hidden
           // top-16 = 4rem = navbar height; use 100dvh to match app layout so footer isn't clipped
           "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100dvh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",
-          // Desktop overflow - hidden so only inner nav scrolls; footer stays visible
+          // Desktop overflow — inner column scrolls; footer links appear at scroll end
           "lg:overflow-hidden",
           // Mobile visibility
           !mobileOpen && "-translate-x-full",
@@ -356,10 +385,10 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
           className
         )}
       >
-        <div className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto">
+        <div className="flex h-full flex-col overflow-y-auto overscroll-y-contain">
+          <div className="flex min-h-full flex-col">
             {/* Mobile Header */}
-            <div className="flex h-16 items-center justify-between border-b px-4 lg:hidden shrink-0">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b px-4 lg:hidden">
               <h2 className="text-lg font-semibold">Menu</h2>
               <Button
                 variant="ghost"
@@ -370,7 +399,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
               </Button>
             </div>
 
-            {/* Navigation - Consistent padding across all pages */}
+            {/* Primary navigation */}
             <nav className="space-y-1 p-4 lg:p-4 lg:pt-4">
               {/* Main navigation items */}
               {mainNavItems.length > 0 && (
@@ -523,154 +552,42 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
               </div>
             )}
             </nav>
-          </div>
 
-          {/* Sidebar Footer */}
-          <div className="border-t px-4 py-4 mt-auto shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))] mb-[env(safe-area-inset-bottom)]">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-1.5">
-                <Link
-                  href="/terms-of-use"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/terms-of-use")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Terms of Use
-                </Link>
-                <Link
-                  href="/payment-terms"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/payment-terms")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Payment Terms
-                </Link>
-                <Link
-                  href="/privacy-policy"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/privacy-policy")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Privacy Policy
-                </Link>
-                <Link
-                  href="/faq"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/faq")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  FAQ
-                </Link>
-                <Link
-                  href="/app"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/app")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Download Hiffi App
-                </Link>
-                <Link
-                  href="/support"
-                  className={cn(
-                    "text-xs transition-colors",
-                    isAppDownloadPage
-                      ? "text-black/65 hover:text-black"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={(e) => {
-                    const { shouldBlock, message } = checkUploadNavigationGuard()
-                    if (shouldBlock) {
-                      e.preventDefault()
-                      if (typeof window !== "undefined" && window.confirm(message)) {
-                        closeSidebar()
-                        router.push("/support")
-                      }
-                    } else {
-                      closeSidebar()
-                    }
-                  }}
-                >
-                  Support
-                </Link>
+            {/* Footer links — scroll to reach (YouTube-style compact wrap) */}
+            <div
+              className={cn(
+                "mt-auto border-t px-4 py-5",
+                "pb-[calc(1.25rem+env(safe-area-inset-bottom))]",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex flex-wrap gap-x-2 gap-y-2 text-[13px] leading-snug",
+                  isAppDownloadPage ? "text-black/60" : "text-muted-foreground",
+                )}
+              >
+                {SIDEBAR_FOOTER_DISCOVER_LINKS.map((item) => (
+                  <SidebarFooterInlineLink key={item.href} item={item} />
+                ))}
               </div>
-                <div className={cn("text-xs mt-1", isAppDownloadPage ? "text-black/55" : "text-muted-foreground")}>
+              <div
+                className={cn(
+                  "mt-4 flex flex-wrap gap-x-2 gap-y-2 text-[13px] leading-snug",
+                  isAppDownloadPage ? "text-black/60" : "text-muted-foreground",
+                )}
+              >
+                {SIDEBAR_FOOTER_LINKS.map((item) => (
+                  <SidebarFooterInlineLink key={item.href} item={item} />
+                ))}
+              </div>
+              <p
+                className={cn(
+                  "mt-4 text-xs",
+                  isAppDownloadPage ? "text-black/50" : "text-muted-foreground/80",
+                )}
+              >
                 © 2026 Kinimi Corporation
-              </div>
+              </p>
             </div>
           </div>
         </div>

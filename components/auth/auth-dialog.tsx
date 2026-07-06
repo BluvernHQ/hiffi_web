@@ -44,6 +44,8 @@ export type AuthDialogCopyKey = keyof typeof AUTH_DIALOG_COPY
 interface AuthDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Called when the dialog is closed without choosing sign up / log in. */
+  onDismiss?: () => void
   title?: string
   description?: string
   subdescription?: string
@@ -59,6 +61,7 @@ interface AuthDialogProps {
 export function AuthDialog({
   open,
   onOpenChange,
+  onDismiss,
   title,
   description,
   subdescription,
@@ -91,6 +94,8 @@ export function AuthDialog({
   const resolvedSignupLabel = signupLabel || "Sign up free"
   const resolvedSigninLabel = signinLabel || "Log in"
 
+  // Dialog chrome (X / escape / overlay) goes through here. Sign up / Log in call
+  // onOpenChange(false) directly so pending guest intents are kept for post-auth replay.
   const handleOpenChange = (next: boolean) => {
     if (next && conversionTrigger) {
       captureConversionEvent("conversion_auth_prompt_shown", {
@@ -99,11 +104,14 @@ export function AuthDialog({
         source_path: pathname,
       })
     }
-    if (!next && open && conversionTrigger) {
-      captureConversionEvent("conversion_auth_prompt_dismissed", {
-        trigger: conversionTrigger,
-        source_path: pathname,
-      })
+    if (!next && open) {
+      if (conversionTrigger) {
+        captureConversionEvent("conversion_auth_prompt_dismissed", {
+          trigger: conversionTrigger,
+          source_path: pathname,
+        })
+      }
+      onDismiss?.()
     }
     onOpenChange(next)
   }

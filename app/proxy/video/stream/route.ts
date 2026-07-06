@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWorkersApiKey } from '@/lib/storage'
-import { getWorkersBaseUrl } from '@/lib/config'
+
+function isAllowedWorkersVideoUrl(videoUrl: string): boolean {
+  try {
+    return new URL(videoUrl).hostname.endsWith('.hiffi.workers.dev')
+  } catch {
+    return false
+  }
+}
 
 /**
  * Video streaming proxy that supports Range requests for proper video playback
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate that the URL is from Workers (security check)
-    if (!videoUrl.startsWith(getWorkersBaseUrl())) {
+    if (!isAllowedWorkersVideoUrl(videoUrl)) {
       return NextResponse.json(
         { error: 'Invalid video URL' },
         { status: 400 }

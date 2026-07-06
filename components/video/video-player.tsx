@@ -20,7 +20,22 @@ import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
 import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, getWorkersBaseUrl } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
-import { captureConversionEvent } from "@/lib/conversion-tracking"
+import {
+  buildFallbackUrls,
+  buildProfileMenu,
+  getPrimaryProfileKey,
+  isLogicalOriginalStoragePath,
+  profileKeyFromPlaybackUrl,
+  profileToPlaybackUrl,
+} from "@/lib/video-profiles"
+import { captureConversionEvent, capturePlaybackStarted } from "@/lib/conversion-tracking"
+import {
+  PAUSED_VIDEO,
+  PLAYED_VIDEO_CLICK,
+  PLAYER_NEXT_RECOMMENDED,
+  PLAYER_PREVIOUS,
+} from "@/lib/analytics/video-analytics-names"
+import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
 import { recordGuestVideoPlay } from "@/lib/guest-conversion/session"
 import { NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
@@ -49,6 +64,8 @@ interface VideoPlayerProps {
   availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
   /** Primary encoded profile from API (e.g. "720p", "original"). */
   originalProfile?: string
+  /** Storage path from API (e.g. videos/{id}/original.mp4) when videoUrl is the gateway base. */
+  storageVideoPath?: string
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
   /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
   onNext?: (nextId: string) => void
@@ -72,6 +89,7 @@ const STORAGE_KEYS = {
   WATCH_DEVICE_ID: "hiffi_watch_device_id",
 } as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
+const EMPTY_PROFILES: string[] = []
 
 type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
 
@@ -105,8 +123,9 @@ export function VideoPlayer({
   suggestedVideos, 
   onVideoEnd,
   onMediaReady,
-  availableProfiles = ["original"],
+  availableProfiles,
   originalProfile,
+  storageVideoPath,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
@@ -114,6 +133,8 @@ export function VideoPlayer({
   previousVideoDisabled = false,
   initialSeekSeconds,
 }: VideoPlayerProps) {
+  const resolvedProfiles = availableProfiles ?? EMPTY_PROFILES
+  const availableProfilesKey = JSON.stringify(resolvedProfiles)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
@@ -139,7 +160,8 @@ export function VideoPlayer({
   const videoSourceTypeRef = useRef<VideoSourceType | null>(null)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [profiles, setProfiles] = useState<Record<string, { label: string; path: string }>>({})
-  const [currentProfile, setCurrentProfile] = useState<string>("original")
+  const primaryProfileKey = getPrimaryProfileKey(originalProfile)
+  const [currentProfile, setCurrentProfile] = useState<string>(primaryProfileKey)
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const [urlError, setUrlError] = useState<string>("")
   const [playbackNetworkBanner, setPlaybackNetworkBanner] = useState("")
@@ -261,22 +283,19 @@ export function VideoPlayer({
   const watchDeviceIdRef = useRef("")
   const lastWatchPositionRef = useRef<number | null>(null)
   const trackedPlayVideoIdsRef = useRef<Set<string>>(new Set())
+  const userInitiatedPlayRef = useRef(false)
+  const replayAfterEndRef = useRef(false)
   const accumulatedWatchSecondsRef = useRef(0)
   const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
   const pendingForcedReportRef = useRef(false)
-  const availableProfilesRef = useRef(availableProfiles)
+  const availableProfilesRef = useRef(resolvedProfiles)
   const originalProfileRef = useRef(originalProfile)
   /** Tracks attempted MP4 URLs per video to avoid fallback loops / stale errors on skip. */
   const mp4FallbackAttemptsRef = useRef<Set<string>>(new Set())
 
-  useEffect(() => {
-    availableProfilesRef.current = availableProfiles
-  }, [availableProfiles])
-
-  useEffect(() => {
-    originalProfileRef.current = originalProfile
-  }, [originalProfile])
+  availableProfilesRef.current = resolvedProfiles
+  originalProfileRef.current = originalProfile
 
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
@@ -647,6 +666,7 @@ export function VideoPlayer({
       baseUrlRef.current = ""
       lastProcessedUrlRef.current = ""
       signedVideoUrlRef.current = ""
+      setCurrentProfile(getPrimaryProfileKey(originalProfileRef.current))
       setIsPlaying(false)
       setIsBuffering(true)
       setIsLoadingUrl(true)
@@ -712,19 +732,56 @@ export function VideoPlayer({
         console.log("[hiffi] Resolving source for video:", videoUrl)
         
         let targetPath = videoUrl
-        
-        // If it's a video ID and lookup is enabled, resolve to a streaming path.
-        if (!skipVideoLookup && /^[a-f0-9]{64}$/i.test(videoUrl)) {
-          const response = await apiClient.getVideo(videoUrl)
+        let profileForResolve = originalProfile
+        let profilesForFallback = resolvedProfiles
+        let storagePathForResolve = storageVideoPath?.trim() || ""
+
+        const lookupId =
+          (videoId || "").trim() || (/^[a-f0-9]{64}$/i.test(videoUrl) ? videoUrl : "")
+        const shouldLookupVideoMeta =
+          !skipVideoLookup &&
+          Boolean(lookupId) &&
+          (/^[a-f0-9]{64}$/i.test(videoUrl) ||
+            !profileForResolve ||
+            isLogicalOriginalStoragePath(videoUrl))
+
+        if (shouldLookupVideoMeta) {
+          const response = await apiClient.getVideo(lookupId)
           if (requestId !== resolveRequestIdRef.current) return
-          if (response.success && response.video_url) {
+          if (!response.success) {
+            throw new Error("Failed to get video metadata from API")
+          }
+          if (response.video_url) {
             targetPath = response.video_url
-          } else {
+          } else if (/^[a-f0-9]{64}$/i.test(videoUrl)) {
             throw new Error("Failed to get video path from API")
+          }
+
+          const videoMeta = response.video
+          if (videoMeta) {
+            if (!profileForResolve) {
+              profileForResolve =
+                (videoMeta.original_profile as string | undefined) ||
+                (videoMeta.originalProfile as string | undefined)
+            }
+            if (profilesForFallback.length === 0 && Array.isArray(videoMeta.profiles)) {
+              profilesForFallback = videoMeta.profiles
+            }
+            const metaStoragePath = String(videoMeta.video_url || "").trim()
+            if (metaStoragePath) {
+              storagePathForResolve = metaStoragePath
+            }
           }
         }
 
-        const source = await resolveVideoSource(targetPath)
+        originalProfileRef.current = profileForResolve
+        availableProfilesRef.current = profilesForFallback
+
+        const source = await resolveVideoSource(targetPath, {
+          originalProfile: profileForResolve,
+          availableProfiles: profilesForFallback,
+          storagePath: storagePathForResolve || undefined,
+        })
         if (requestId !== resolveRequestIdRef.current) return
         console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
         
@@ -735,6 +792,7 @@ export function VideoPlayer({
         signedVideoUrlRef.current = source.url
         signedUrlVideoIdRef.current = videoId || ""
         baseUrlRef.current = source.baseUrl || ""
+        setCurrentProfile(source.profileKey || getPrimaryProfileKey(profileForResolve))
         setUrlError("")
         setHasResolvedOnce(true)
       } catch (error) {
@@ -748,39 +806,30 @@ export function VideoPlayer({
     }
 
     fetchUrl()
-  }, [videoUrl, videoId, skipVideoLookup])
+  }, [videoUrl, videoId, skipVideoLookup, originalProfile, storageVideoPath, availableProfilesKey])
 
   // Build profiles map from availableProfiles prop when signedVideoUrl is available
   useEffect(() => {
     if (!signedVideoUrl) {
-      setProfiles({})
+      setProfiles((prev) => (Object.keys(prev).length === 0 ? prev : {}))
       return
     }
 
-    const profilesMap: Record<string, { label: string; path: string }> = {}
-    
-    // Default to at least "original" if no profiles provided
-    const profilesList = (availableProfiles && availableProfiles.length > 0) 
-      ? availableProfiles 
-      : ["original"]
+    const profilesMap = buildProfileMenu(originalProfile, resolvedProfiles)
 
-    profilesList.forEach(p => {
-      if (p === 'original') {
-        profilesMap[p] = { label: 'Original', path: 'original.mp4' }
-      } else {
-        profilesMap[p] = { label: p, path: `${p}.mp4` }
-      }
-    })
-    
     // Only update if the map has actually changed to prevent render loops
-    setProfiles(prev => {
-      const isSame = Object.keys(prev).length === Object.keys(profilesMap).length &&
-        Object.keys(profilesMap).every(key => 
-          prev[key] && prev[key].label === profilesMap[key].label && prev[key].path === profilesMap[key].path
+    setProfiles((prev) => {
+      const isSame =
+        Object.keys(prev).length === Object.keys(profilesMap).length &&
+        Object.keys(profilesMap).every(
+          (key) =>
+            prev[key] &&
+            prev[key].label === profilesMap[key].label &&
+            prev[key].path === profilesMap[key].path,
         )
       return isSame ? prev : profilesMap
     })
-  }, [signedVideoUrl, JSON.stringify(availableProfiles)])
+  }, [signedVideoUrl, availableProfilesKey, originalProfile])
 
   const switchQuality = (profile: string) => {
     const player = playerRef.current
@@ -794,9 +843,7 @@ export function VideoPlayer({
     const wasPaused = player.paused()
 
     // Progressive MP4 switching
-    const newSrc = profile === 'original' 
-      ? `${baseUrlRef.current}/original.mp4` 
-      : `${baseUrlRef.current}/${profile}.mp4`
+    const newSrc = profileToPlaybackUrl(baseUrlRef.current, profile)
       
       player.src({
       src: newSrc, 
@@ -917,14 +964,23 @@ export function VideoPlayer({
       const currentTrackedVideoId = String(signedUrlVideoIdRef.current || videoId || "").trim()
       if (currentTrackedVideoId && !trackedPlayVideoIdsRef.current.has(currentTrackedVideoId)) {
         trackedPlayVideoIdsRef.current.add(currentTrackedVideoId)
-        const source =
-          typeof window !== "undefined" && new URLSearchParams(window.location.search).get("playlist")
-            ? "playlist"
-            : "recommended"
-        captureConversionEvent("conversion_play_started", {
-          video_id: currentTrackedVideoId,
-          source,
-          is_autoplay: Boolean(autoPlay),
+        const playlistId =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("playlist") || undefined
+            : undefined
+        const isUserClick = userInitiatedPlayRef.current
+        const isReplay = replayAfterEndRef.current
+        userInitiatedPlayRef.current = false
+        replayAfterEndRef.current = false
+        capturePlaybackStarted(currentTrackedVideoId, {
+          isAutoplay: !isUserClick && Boolean(autoPlay),
+          playbackStartTrigger: isUserClick
+            ? isReplay
+              ? "replay_after_end_click"
+              : "player_play_click"
+            : "autoplay_page_load",
+          fallbackSource: playlistId ? "playlist" : "recommended",
+          playlistId: playlistId ?? undefined,
         })
         recordGuestVideoPlay(currentTrackedVideoId)
       }
@@ -994,8 +1050,9 @@ export function VideoPlayer({
         durationRef.current = newDuration
       }
 
-      // Identify "original" profile resolution for MP4
-      if (currentProfile === 'original') {
+      // Enrich source label with detected height for pre-embed originals.
+      const primaryKey = getPrimaryProfileKey(originalProfileRef.current)
+      if (currentProfile === primaryKey && primaryKey === "original") {
         const height = player.videoHeight()
         if (height > 0) {
           const label = getResolutionProfile(height)
@@ -1167,9 +1224,6 @@ export function VideoPlayer({
       }
     }
 
-    const profileToMp4Url = (baseUrl: string, profile: string) =>
-      profile === "original" ? `${baseUrl}/original.mp4` : `${baseUrl}/${profile}.mp4`
-
     const handleError = () => {
       const error = player.error()
       if (!error) return
@@ -1179,56 +1233,46 @@ export function VideoPlayer({
       const activeVideoId = videoIdRef.current
       const currentSrc = (player.currentSrc() || signedVideoUrlRef.current || "").trim()
 
-      // Ignore errors from intentional src clears while switching playlist tracks.
-      if (!currentSrc) return
-      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
-
-      // MEDIA_ERR_NETWORK (2)
-      if (code === 2) {
-        setIsBuffering(false)
-        showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
-        return
-      }
-
-      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
-      if (code === 4 || code === 3) {
+      const tryMp4Fallback = (errorCode: number): boolean => {
         let baseUrl = baseUrlRef.current
         if (!baseUrl) {
           baseUrl = currentSrc.replace(/\/[^/]+$/, "")
         }
         if (!baseUrl) {
-          console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+          console.error(`[hiffi] VideoJS Error (Code ${errorCode}):`, message)
           setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-          return
+          return false
         }
 
         const attemptKey = `${activeVideoId}:${currentSrc}`
         if (mp4FallbackAttemptsRef.current.has(attemptKey)) {
-          return
+          return false
         }
         mp4FallbackAttemptsRef.current.add(attemptKey)
 
-        const candidates: string[] = []
-        const origProfile = originalProfileRef.current
-        if (origProfile) candidates.push(profileToMp4Url(baseUrl, origProfile))
-        for (const profile of availableProfilesRef.current || []) {
-          candidates.push(profileToMp4Url(baseUrl, profile))
-        }
-        candidates.push(`${baseUrl}/original.mp4`)
+        const candidates = buildFallbackUrls(
+          baseUrl,
+          originalProfileRef.current,
+          availableProfilesRef.current,
+          currentSrc,
+        )
 
         const nextUrl = candidates.find((url) => {
-          if (!url || url === currentSrc) return false
+          if (!url) return false
           return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${url}`)
         })
 
         if (!nextUrl) {
-          console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
-          setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-          return
+          return false
         }
 
         mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
-        console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, nextUrl)
+        console.warn(`[hiffi] VideoJS Error (Code ${errorCode}), trying MP4 fallback:`, nextUrl)
+
+        const fallbackKey = profileKeyFromPlaybackUrl(nextUrl)
+        if (fallbackKey) {
+          setCurrentProfile(fallbackKey)
+        }
 
         setVideoSourceType("mp4")
         videoSourceTypeRef.current = "mp4"
@@ -1237,6 +1281,30 @@ export function VideoPlayer({
         setSignedVideoUrl(nextUrl)
         signedVideoUrlRef.current = nextUrl
         setUrlError("")
+        return true
+      }
+
+      // Ignore errors from intentional src clears while switching playlist tracks.
+      if (!currentSrc) return
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
+
+      // MEDIA_ERR_NETWORK (2) — often a 404 on a missing profile file
+      if (code === 2) {
+        setIsBuffering(false)
+        if (typeof navigator !== "undefined" && navigator.onLine && tryMp4Fallback(code)) {
+          return
+        }
+        showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        return
+      }
+
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
+      if (code === 4 || code === 3) {
+        if (tryMp4Fallback(code)) {
+          return
+        }
+        console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+        setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
         return
       }
 
@@ -1378,6 +1446,7 @@ export function VideoPlayer({
     if (hasEnded) {
       setHasEnded(false)
       player.currentTime(0)
+      replayAfterEndRef.current = true
     }
 
     // Check actual player state instead of relying on React state
@@ -1387,6 +1456,7 @@ export function VideoPlayer({
     if (isActuallyPlaying) {
       player.pause()
     } else {
+      userInitiatedPlayRef.current = true
       safePlay(player)
     }
   }
@@ -1826,7 +1896,7 @@ export function VideoPlayer({
         >
           <button
             type="button"
-            data-analytics-name="backward"
+            data-analytics-name={PLAYER_PREVIOUS}
             onClick={(e) => {
               e.stopPropagation()
               handlePrevious()
@@ -1847,7 +1917,7 @@ export function VideoPlayer({
             <SkipBack className="h-5 w-5" />
           </button>
           <button
-            data-analytics-name={isPlaying ? "paused_video" : "played_video"}
+            data-analytics-name={isPlaying ? PAUSED_VIDEO : PLAYED_VIDEO_CLICK}
             onClick={(e) => {
               e.stopPropagation()
               togglePlay()
@@ -1861,7 +1931,7 @@ export function VideoPlayer({
             )}
           </button>
           <button
-            data-analytics-name="fast-forward"
+            data-analytics-name={PLAYER_NEXT_RECOMMENDED}
             onClick={(e) => {
               e.stopPropagation()
               handleNext()
@@ -1881,7 +1951,7 @@ export function VideoPlayer({
       {hasEnded && !showNextUpOverlay && (
         <div 
           className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
-          data-analytics-name="played-video"
+          data-analytics-name={PLAYED_VIDEO_CLICK}
           onClick={togglePlay}
         >
           <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -1894,7 +1964,7 @@ export function VideoPlayer({
       {!isPlaying && !isBuffering && !hasEnded && !isAutoplayInProgress && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
-          data-analytics-name="played-video"
+          data-analytics-name={PLAYED_VIDEO_CLICK}
           onClick={togglePlay}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -2040,7 +2110,7 @@ export function VideoPlayer({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
-              data-analytics-name="backward"
+              data-analytics-name={PLAYER_PREVIOUS}
               onClick={(e) => {
                 e.stopPropagation()
                 handlePrevious()
@@ -2062,7 +2132,7 @@ export function VideoPlayer({
             </button>
 
             <button
-              data-analytics-name={isPlaying ? "paused_video" : "played_video"}
+              data-analytics-name={isPlaying ? PAUSED_VIDEO : PLAYED_VIDEO_CLICK}
               onClick={(e) => {
                 e.stopPropagation()
                 togglePlay()
@@ -2077,7 +2147,7 @@ export function VideoPlayer({
             </button>
 
             <button
-              data-analytics-name="fast-forward"
+              data-analytics-name={PLAYER_NEXT_RECOMMENDED}
               onClick={(e) => {
                 e.stopPropagation()
                 handleNext()
@@ -2183,13 +2253,25 @@ export function VideoPlayer({
         <NextUpOverlay
           nextVideo={suggestedVideos[0]}
           countdownDuration={5}
-          onPlay={() => {
+          onPlay={(trigger) => {
             if (typeof navigator !== "undefined" && navigator.onLine === false) {
               showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
               return
             }
             setShowNextUpOverlay(false)
             autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
+            const next = suggestedVideos[0]
+            const nextId = next?.videoId || next?.video_id
+            if (nextId) {
+              setPendingPlaybackContext({
+                videoId: String(nextId),
+                openSource: "recommended",
+                openUiName: trigger === "click" ? "up-next-overlay-play" : "up-next-overlay-autoplay",
+                navigateTrigger:
+                  trigger === "click" ? "up_next_overlay_click" : "up_next_overlay_autoplay",
+                isAutoplay: trigger === "autoplay",
+              })
+            }
             if (onVideoEnd) {
               onVideoEnd()
             }

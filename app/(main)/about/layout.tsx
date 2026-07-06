@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/layout/site-footer"
 export const metadata = routeMetadata({
   title: "About Hiffi",
   description:
-    "Hiffi is the artist-first hip-hop platform where rappers, producers, DJs, and fans connect — discover new music and culture without algorithmic gatekeeping.",
+    "Hiffi is the artist-first hip-hop streaming platform for rappers, producers, DJs, and fans — starting with Atlanta's rap scene and built for independent artist discovery.",
   path: "/about",
   keywords: [
     "about Hiffi",

@@ -13,9 +13,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { username: rawUsername } = await resolvedParams(params)
   const username = String(rawUsername || "").trim()
+  const absoluteTitle = username ? `@${username} Referral | Hiffi` : "Referral | Hiffi"
   return {
-    title: username ? `@${username} Referral | Hiffi` : "Referral | Hiffi",
-    description: "Join Hiffi through a creator referral link and start discovering independent artists.",
+    title: { absolute: absoluteTitle },
+    description: "Join Hiffi through a creator referral link and start discovering independent hip-hop artists.",
     robots: { index: false, follow: false },
   }
 }

@@ -64,6 +64,7 @@ export function buildVideoJsonLd(video: SeoVideo) {
   if (thumbnailObject) node.thumbnailUrl = thumbnailObject
   if (video.createdAt) node.uploadDate = video.createdAt
   if (video.updatedAt) node.dateModified = video.updatedAt
+  // Progressive MP4 on hiffi.com proxy — never HLS in contentUrl.
   if (video.contentUrl) node.contentUrl = video.contentUrl
   if (author) node.author = author
   if (video.tags?.length) node.keywords = video.tags.join(", ")
@@ -98,10 +99,7 @@ export function buildVideoJsonLd(video: SeoVideo) {
     },
     {
       "@type": "SeekToAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${pageUrl}?t={seek_to_second_number}`,
-      },
+      target: `${pageUrl}?t={seek_to_second_number}`,
       "startOffset-input": "required name=seek_to_second_number",
     },
   ]
@@ -189,10 +187,7 @@ export function buildMusicVideoJsonLd(video: SeoVideo) {
     },
     {
       "@type": "SeekToAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${pageUrl}?t={seek_to_second_number}`,
-      },
+      target: `${pageUrl}?t={seek_to_second_number}`,
       "startOffset-input": "required name=seek_to_second_number",
     },
   ]

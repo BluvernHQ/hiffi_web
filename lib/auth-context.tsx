@@ -10,7 +10,7 @@ import { trackUmami, setUmamiUser } from "@/lib/umami"
 import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents"
 import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
 import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
-import { isValidEmailFormat, passwordContainsWhitespace, sanitizeInternalPath } from "@/lib/auth-utils"
+import { isValidEmailFormat, passwordContainsWhitespace, resolvePostAuthDestination, sanitizeInternalPath } from "@/lib/auth-utils"
 import { debugLog, debugWarn } from "@/lib/debug"
 import { normalizeUserProfilePictureFields } from "@/lib/utils"
 import {
@@ -35,8 +35,14 @@ interface AuthContextType {
     password: string,
     redirectPath?: string | null,
   ) => Promise<void>
-  signup: (username: string, password: string, name: string, email: string) => Promise<{ success: boolean; registrationId?: string; error?: string }>
-  verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
+  signup: (
+    username: string,
+    password: string,
+    name: string,
+    email: string,
+    redirectPath?: string | null,
+    referralCodeOverride?: string | null,
+  ) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
   /** Clear profile photo in auth cache/state immediately (used by navbar). */
@@ -456,7 +462,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearGuestHistory()
 
       // Use redirect path if provided (from query param), otherwise go to home
-      const destination = sanitizeInternalPath(redirectPath || "/", "/")
+      const destination = resolvePostAuthDestination(redirectPath, finalUserData)
       debugLog("[hiffi] Redirecting after login to:", destination)
       router.replace(destination)
     } catch (error: any) {
@@ -466,7 +472,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signup = async (username: string, password: string, name: string, email: string) => {
+  const signup = async (
+    username: string,
+    password: string,
+    name: string,
+    email: string,
+    redirectPath?: string | null,
+    referralCodeOverride?: string | null,
+  ) => {
     try {
       debugLog("[hiffi] Attempting signup for:", username)
 
@@ -474,82 +487,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: "Password cannot contain spaces." }
       }
 
-      // Register user with backend - returns registration ID for OTP verification
-      const response = await apiClient.register({ username, password, name, email })
+      const referralCode =
+        referralCodeOverride?.trim() || getReferralCode() || undefined
 
-      if (!response.success) {
-        // Handle error response
+      const response = await apiClient.register({
+        username,
+        password,
+        name,
+        email,
+        ...(referralCode ? { referral_code: referralCode } : {}),
+      })
+
+      if (!response.success || !response.data?.token || !response.data.user) {
         const errorMessage = response.error || "Registration failed. Please try again."
         return { success: false, error: errorMessage }
       }
 
-      if (!response.data?.id) {
-        return { success: false, error: "Registration failed. Please try again." }
-      }
+      debugLog("[hiffi] Registration successful, user:", response.data.user.username)
 
-      debugLog("[hiffi] Registration successful, registration ID:", response.data.id)
-      return { success: true, registrationId: response.data.id }
-    } catch (error: any) {
-      console.error("[hiffi] Sign up failed:", error)
-      const errorMessage = error.message || "Failed to sign up. Please try again."
-      return { success: false, error: errorMessage }
-    }
-  }
-
-  const verifyOtp = async (registrationId: string, otp: string, redirectPath?: string | null) => {
-    try {
-      debugLog("[hiffi] Verifying OTP for registration ID:", registrationId)
-      const referralCode = getReferralCode()
-
-      // Verify OTP with backend
-      const response = await apiClient.verifyOtp({
-        id: registrationId,
-        otp,
-        ...(referralCode ? { referral_code: referralCode } : {}),
-      })
-
-      if (!response.success || !response.data) {
-        const errorMessage = response.error || "OTP verification failed. Please try again."
-        throw new Error(errorMessage)
-      }
-
-      debugLog("[hiffi] OTP verification successful, user:", response.data.user.username)
-
-      // Set user data from response
       setUser(response.data.user)
       setUserData(normalizeUserProfilePictureFields(response.data.user))
       identifyAnalyticsUser(response.data.user.username || null)
 
-      // Cache the user data
       if (typeof window !== "undefined") {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(response.data.user)))
+        localStorage.setItem(
+          USER_DATA_KEY,
+          JSON.stringify(normalizeUserProfilePictureFields(response.data.user)),
+        )
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
-      // Wait a moment for state updates to propagate to all components
-      await new Promise(resolve => setTimeout(resolve, 150))
+      await new Promise((resolve) => setTimeout(resolve, 150))
 
-      // Refresh user data to get full user details
+      let finalUserData: any = response.data.user
       try {
         const refreshedUserData = await refreshUserData(true)
         if (refreshedUserData) {
-          debugLog("[hiffi] User data refreshed after OTP verification")
+          finalUserData = refreshedUserData
+          debugLog("[hiffi] User data refreshed after registration")
         }
       } catch (refreshError) {
-        debugWarn("[hiffi] Failed to refresh user data after OTP verification, using verification response data:", refreshError)
+        debugWarn(
+          "[hiffi] Failed to refresh user data after registration, using register response data:",
+          refreshError,
+        )
       }
 
-      // Clear referral cookies after successful registration.
       clearReferralCode()
 
       const referralRedirectProfile = getReferralRedirectProfile()
       clearReferralRedirectProfile()
 
-      // User is authenticated and data is loaded, navigate based on referral intent or redirect path.
       const destination = referralRedirectProfile
         ? `/profile/${encodeURIComponent(referralRedirectProfile)}`
         : redirectPath || "/"
-      const safeDestination = sanitizeInternalPath(destination, "/")
+      const safeDestination = referralRedirectProfile
+        ? sanitizeInternalPath(destination, "/")
+        : resolvePostAuthDestination(redirectPath, finalUserData)
       const signupSource = normalizeConversionSource(
         referralRedirectProfile ? "profile" : redirectPath || "/signup",
       )
@@ -569,19 +563,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void replayPendingGuestIntents()
       resetGuestConversionSession()
       clearGuestHistory()
-      debugLog("[hiffi] OTP verification complete, redirecting to:", safeDestination)
+      debugLog("[hiffi] Registration complete, redirecting to:", safeDestination)
       router.replace(safeDestination)
-    } catch (error: any) {
-      console.error("[hiffi] OTP verification failed:", error)
 
-      // Clear any partial state
+      return { success: true }
+    } catch (error: any) {
+      console.error("[hiffi] Sign up failed:", error)
+
       apiClient.clearAuthToken()
       setUser(null)
       setUserData(null)
       identifyAnalyticsUser(null)
 
-      const errorMessage = error.message || "OTP verification failed. Please try again."
-      throw new Error(errorMessage)
+      const errorMessage = error.message || "Failed to sign up. Please try again."
+      return { success: false, error: errorMessage }
     }
   }
 
@@ -594,9 +589,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear stored credentials
       apiClient.clearCredentials()
 
-      setUser(null)
-      setUserData(null)
-
       // Clear cached data
       if (typeof window !== "undefined") {
         localStorage.removeItem(USER_DATA_KEY)
@@ -604,6 +596,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       debugLog("[hiffi] Logout successful")
+
+      const currentPath =
+        typeof window !== "undefined" ? window.location.pathname : ""
+
+      // Hard-navigate away from Studio before clearing React auth state so StudioShell
+      // does not race to /login?redirect=/studio.
+      if (currentPath.startsWith("/studio")) {
+        window.location.assign("/")
+        return
+      }
+
+      setUser(null)
+      setUserData(null)
 
       // Comprehensive cleanup function
       const cleanupOverlays = () => {
@@ -708,7 +713,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       login,
       signup,
-      verifyOtp,
       logout,
       refreshUserData,
       clearProfilePhoto,
@@ -719,7 +723,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       login,
       signup,
-      verifyOtp,
       logout,
       refreshUserData,
       clearProfilePhoto,

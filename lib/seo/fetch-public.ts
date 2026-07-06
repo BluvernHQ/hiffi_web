@@ -1,7 +1,13 @@
 import { cache } from "react"
 import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
+import { buildPlaybackCandidates, resolveVideoBaseUrl } from "@/lib/video-profiles"
 import { extractCreatorSameAs } from "@/lib/seo/social"
+import {
+  buildSeoImageProxyUrl,
+  buildSeoVideoStreamProxyUrl,
+  isProgressiveMp4Url,
+} from "@/lib/seo/video-public-urls"
 
 const REVALIDATE_SECONDS = 300
 
@@ -81,7 +87,9 @@ export type SeoVideo = {
   videoId: string
   title: string
   description: string
+  /** Google-crawlable thumbnail on hiffi.com (/proxy/image/…). */
   thumbnailUrl: string
+  /** Google-crawlable progressive MP4 on hiffi.com (/proxy/video/stream?url=…). */
   contentUrl: string
   creatorUsername: string
   /** Display name for SEO titles and MusicVideoObject (falls back to username). */
@@ -105,31 +113,42 @@ export type SeoProfile = {
   sameAs?: string[]
 }
 
-const VIDEO_FILE_RE = /\.(mp4|webm|mov|m4v|m3u8)(\?.*)?$/i
+const PROGRESSIVE_MP4_RE = /\.(mp4|m4v)(\?.*)?$/i
+const HLS_RE = /\.m3u8(\?.*)?$/i
 
 /**
- * Google Video indexing requires contentUrl to be a direct, crawlable media file.
- * API `data.video_url` is often a gateway path (404); `video.video_url` has `…/original.mp4`.
+ * Resolve Workers URL for the primary progressive MP4 (original.mp4 or profile variant).
+ * HLS master URLs are ignored — Google video indexing requires a direct MP4 contentUrl.
  */
-function resolveSeoVideoContentUrl(
+function resolveSeoVideoWorkersMp4Url(
   gatewayUrl: string | undefined,
   storagePath: string | undefined,
+  originalProfile?: string | null,
+  availableProfiles?: string[] | null,
 ): string {
+  const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
+
+  if (gateway && !HLS_RE.test(gateway) && PROGRESSIVE_MP4_RE.test(gateway)) {
+    const direct = gateway.startsWith("http") ? gateway : getVideoUrl(gateway)
+    if (isProgressiveMp4Url(direct)) return direct
+  }
+
+  const baseUrl = gateway && !HLS_RE.test(gateway)
+    ? gateway.replace(/\/$/, "")
+    : nested
+      ? resolveVideoBaseUrl(nested)
+      : ""
+
+  if (baseUrl) {
+    const candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles)
+    const mp4 = candidates.find((url) => isProgressiveMp4Url(url))
+    if (mp4) return mp4
+  }
+
   if (nested) {
     const nestedUrl = nested.startsWith("http") ? nested : getVideoUrl(nested)
-    if (VIDEO_FILE_RE.test(nestedUrl)) return nestedUrl
-  }
-
-  const gateway = String(gatewayUrl || "").trim()
-  if (gateway) {
-    if (VIDEO_FILE_RE.test(gateway)) return gateway
-    const base = gateway.replace(/\/$/, "")
-    return `${base}/original.mp4`
-  }
-
-  if (nested) {
-    return nested.startsWith("http") ? nested : getVideoUrl(nested)
+    if (isProgressiveMp4Url(nestedUrl)) return nestedUrl
   }
 
   return ""
@@ -163,10 +182,17 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     const id = v.video_id || videoId
     const title = (v.video_title || "Video").trim() || "Video"
     const description = (v.video_description || "").trim()
-    const thumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
-    const contentUrl = resolveSeoVideoContentUrl(norm.video_url, v.video_url)
-    const creator = (v.user_username || "").trim()
+    const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
     const raw = v as Record<string, unknown>
+    const workersMp4 = resolveSeoVideoWorkersMp4Url(
+      norm.video_url,
+      v.video_url,
+      (raw.original_profile ?? raw.originalProfile) as string | undefined,
+      Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null,
+    )
+    const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
+    const contentUrl = workersMp4 ? buildSeoVideoStreamProxyUrl(workersMp4) : ""
+    const creator = (v.user_username || "").trim()
     const dataVideo =
       json && typeof json === "object"
         ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video

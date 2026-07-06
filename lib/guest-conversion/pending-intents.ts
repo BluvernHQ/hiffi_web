@@ -34,6 +34,12 @@ export function addPendingLikeIntent(videoId: string, videoTitle?: string) {
   writePending([...existing, { type: "like", videoId: id, videoTitle }])
 }
 
+export function removePendingLikeIntent(videoId: string) {
+  const id = String(videoId || "").trim()
+  if (!id) return
+  writePending(getPendingGuestIntents().filter((i) => i.type !== "like" || i.videoId !== id))
+}
+
 export function addPendingFollowIntent(
   username: string,
   displayName?: string,
@@ -48,6 +54,14 @@ export function addPendingFollowIntent(
     ...existing,
     { type: "follow", username: user, displayName, avatarUrl },
   ])
+}
+
+export function removePendingFollowIntent(username: string) {
+  const user = String(username || "").trim()
+  if (!user) return
+  writePending(
+    getPendingGuestIntents().filter((i) => i.type !== "follow" || i.username !== user),
+  )
 }
 
 export function clearPendingGuestIntents() {

@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next"
 import { SITEMAP_STATIC_CONTENT_PAGES } from "@/lib/content-pages"
+import { getArtistCityPages, getArtistGenrePages } from "@/lib/artist-directory-seo"
+import { artistIndexCityHref, artistIndexCitySceneHref, artistIndexGenreHref } from "@/lib/artist-directory"
+import { getArtists } from "@/lib/artists"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
 import { MOODS } from "@/lib/mood-tabs"
@@ -22,7 +25,7 @@ function getSitemapVideoChunkSize(): number {
   return Math.min(parsed, 50_000)
 }
 
-function buildStaticEntries(): MetadataRoute.Sitemap {
+function buildStaticEntries(cityPages: Awaited<ReturnType<typeof getArtistCityPages>>, genrePages: Awaited<ReturnType<typeof getArtistGenrePages>>): MetadataRoute.Sitemap {
   return [
     {
       url: absoluteUrl("/"),
@@ -97,7 +100,50 @@ function buildStaticEntries(): MetadataRoute.Sitemap {
       changeFrequency,
       priority,
     })),
+    // Artist Index hub + SEO landing pages
+    {
+      url: absoluteUrl("/artist-index"),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "weekly" as const,
+      priority: 0.92,
+    },
+    {
+      url: absoluteUrl("/artist-index/claim"),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "monthly" as const,
+      priority: 0.88,
+    },
+    ...cityPages.map((city) => ({
+      url: absoluteUrl(artistIndexCityHref(city.slug)),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    })),
+    ...cityPages
+      .filter((city) => city.slug === "atlanta")
+      .map((city) => ({
+        url: absoluteUrl(artistIndexCitySceneHref(city.slug)),
+        lastModified: STATIC_LAST_MODIFIED,
+        changeFrequency: "monthly" as const,
+        priority: 0.86,
+      })),
+    ...genrePages.map((genre) => ({
+      url: absoluteUrl(artistIndexGenreHref(genre.slug)),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "weekly" as const,
+      priority: 0.88,
+    })),
   ]
+}
+
+async function buildArtistIndexProfileEntries(): Promise<MetadataRoute.Sitemap> {
+  const artists = await getArtists()
+  return artists.map((artist) => ({
+    url: absoluteUrl(`/artist-index/${artist.slug}`),
+    lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }))
 }
 
 function buildProfileLastModifiedByUsername(
@@ -173,14 +219,21 @@ export default async function sitemap(props: {
   const profileDates = buildProfileLastModifiedByUsername(entries)
 
   if (id === 0) {
-    const staticEntries = buildStaticEntries()
+    const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
+    const staticEntries = buildStaticEntries(cityPages, genrePages)
     const profileEntries = buildProfileEntries(profileDates, now)
+    const artistIndexEntries = await buildArtistIndexProfileEntries()
 
     if (entries.length <= chunkSize) {
-      return [...staticEntries, ...buildVideoEntries(entries, now), ...profileEntries]
+      return [
+        ...staticEntries,
+        ...artistIndexEntries,
+        ...buildVideoEntries(entries, now),
+        ...profileEntries,
+      ]
     }
 
-    return [...staticEntries, ...profileEntries]
+    return [...staticEntries, ...artistIndexEntries, ...profileEntries]
   }
 
   const chunkIndex = id - 1

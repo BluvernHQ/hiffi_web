@@ -14,14 +14,7 @@ const faqJsonLd = {
         text: "Hiffi is a music and video streaming platform where hip-hop creators publish official music videos and audiences watch, listen, follow artists, and support creators.",
       },
     },
-    {
-      "@type": "Question",
-      name: "Is Hiffi at hiffi.com related to other HIFFI organizations?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "No. Hiffi Streaming Platform at hiffi.com is not affiliated with unrelated insurance, consulting, or framework brands that use similar names.",
-      },
-    },
+  
     {
       "@type": "Question",
       name: "Where can I access Hiffi?",
@@ -75,20 +68,7 @@ export default function WhatIsHiffiPage() {
               </ul>
             ),
           },
-          {
-            title: "Not the same as other “HIFFI” brands",
-            children: (
-              <p>
-                Several unrelated companies use similar names (insurance, consulting, frameworks, etc.).{" "}
-                <strong>Hiffi Streaming Platform</strong> at{" "}
-                <Link href="/" className="font-medium text-primary hover:underline">
-                  hiffi.com
-                </Link>{" "}
-                is operated by Kinimi Corporation and is dedicated to independent hip-hop culture. We are not
-                affiliated with those other organizations.
-              </p>
-            ),
-          },
+        
           {
             title: "How to get started",
             children: (
@@ -109,9 +89,9 @@ export default function WhatIsHiffiPage() {
                 <li>
                   Creators can{" "}
                   <Link href="/creator/apply" className="font-medium text-primary hover:underline">
-                    apply to publish
+                    become a creator
                   </Link>{" "}
-                  after signing up.
+                  to publish — hip-hop and rap artists get instant access.
                 </li>
               </ol>
             ),

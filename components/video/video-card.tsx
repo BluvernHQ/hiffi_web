@@ -4,11 +4,12 @@ import type React from "react"
 
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { useState, useMemo } from "react"
+import { flushSync } from "react-dom"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { format, formatDistanceToNow } from "date-fns"
-import { Bookmark, Play, MoreVertical, Trash2 } from "lucide-react"
+import { Bookmark, Play, MoreVertical, Trash2, Share2 } from "lucide-react"
 import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
 import { ProfilePicture } from "@/components/profile/profile-picture"
@@ -23,17 +24,53 @@ import { useToast } from "@/hooks/use-toast"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { DeleteVideoDialog } from "./delete-video-dialog"
 import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
+import { useFeedVideoPreview } from "./feed-video-preview-provider"
+import { VideoCardHoverPreview, pauseActiveHoverPreview } from "./video-card-hover-preview"
+import { getPrimaryPreviewStreamUrl, getWatchStreamDirectUrl } from "@/lib/feed-preview/resolve-preview-url"
+import { warmWatchHandoff } from "@/lib/feed-preview/preview-warmer"
+import {
+  mapOpenUiNameToSource,
+  setPendingPlaybackContext,
+} from "@/lib/analytics/video-playback-context"
+import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+// Module-level mutex — only one VideoCard can be in the "hovering" state at a time.
+// When a new card enters, it evicts the previous card's isHovering before React batches.
+let _activeHoverSetter: ((v: boolean) => void) | null = null
+
+function claimHover(setter: (v: boolean) => void): void {
+  if (_activeHoverSetter && _activeHoverSetter !== setter) {
+    pauseActiveHoverPreview()
+    flushSync(() => _activeHoverSetter!(false))
+  }
+  _activeHoverSetter = setter
+}
+
+function releaseHover(setter: (v: boolean) => void): void {
+  if (_activeHoverSetter === setter) {
+    _activeHoverSetter = null
+  }
+}
 
 const AddToPlaylistDialog = dynamic(
   () =>
     import("@/components/video/add-to-playlist-dialog").then((m) => ({
       default: m.AddToPlaylistDialog,
+    })),
+  { ssr: false },
+)
+
+const ShareVideoDialog = dynamic(
+  () =>
+    import("@/components/video/share-video-dialog").then((m) => ({
+      default: m.ShareVideoDialog,
     })),
   { ssr: false },
 )
@@ -77,6 +114,10 @@ interface VideoCardProps {
   playlistNavigation?: PlaylistNavigation
   /** Use DM Sans for title / artist / metadata lines. */
   metadataFontDmSans?: boolean
+  /** Desktop hover preview (home feed). */
+  hoverPreviewEnabled?: boolean
+  /** Keep the ⋮ menu visible without requiring card hover (home / profile feeds). */
+  alwaysShowMoreMenu?: boolean
 }
 
 export function VideoCard({
@@ -90,14 +131,18 @@ export function VideoCard({
   openVideoUiName = "opened-video",
   playlistNavigation,
   metadataFontDmSans = false,
+  hoverPreviewEnabled = false,
+  alwaysShowMoreMenu = false,
 }: VideoCardProps) {
   const metadataFontClass = metadataFontDmSans ? "font-[family-name:var(--font-dm-sans)]" : ""
   const { user, userData } = useAuth()
   const { playVideo } = useGlobalVideo()
+  const feedPreview = useFeedVideoPreview()
   const { toast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
   const [playlistAuthDialogOpen, setPlaylistAuthDialogOpen] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const videoId = video.videoId || video.video_id || ""
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
@@ -114,6 +159,14 @@ export function VideoCard({
   const trackVideoOpen = () => {
     if (typeof window === "undefined") return
     const destinationUrl = `${window.location.origin}${watchPath}`
+    setPendingPlaybackContext({
+      videoId,
+      openSource: mapOpenUiNameToSource(openVideoUiName),
+      openUiName: openVideoUiName,
+      navigateTrigger: "card_click",
+      isAutoplay: false,
+      ...(playlistNavigation ? { playlistId: playlistNavigation.playlistId } : {}),
+    })
     ;(window as any).HifiAnalytics?.capture("opened-video", {
       element_ui_name: openVideoUiName,
       video_id: videoId,
@@ -121,9 +174,85 @@ export function VideoCard({
       url: destinationUrl,
       path: watchPath,
       source_path: window.location.pathname,
+      open_source: mapOpenUiNameToSource(openVideoUiName),
+      navigate_trigger: "card_click",
+      is_click: true,
+      is_autoplay: false,
       ...(playlistNavigation ? { playlist_id: playlistNavigation.playlistId } : {}),
     })
   }
+
+  const [previewVideoVisible, setPreviewVideoVisible] = useState(false)
+  const [isHovering, setIsHovering] = useState(false)
+  const cardRootRef = useRef<HTMLDivElement>(null)
+  const thumbnailLinkRef = useRef<HTMLAnchorElement>(null)
+
+  const previewStreamUrl = useMemo(
+    () => getPrimaryPreviewStreamUrl(video),
+    [video],
+  )
+
+  const watchStreamUrl = useMemo(
+    () => getWatchStreamDirectUrl(video),
+    [video],
+  )
+  const lastWatchWarmAtRef = useRef(0)
+
+  const shouldLoadPreview = isHovering
+
+  useEffect(() => {
+    if (!isHovering) {
+      setPreviewVideoVisible(false)
+    }
+  }, [isHovering])
+
+  // Release the module-level hover mutex on unmount so a removed card never
+  // blocks a future card from claiming hover.
+  useEffect(() => {
+    return () => releaseHover(setIsHovering)
+  }, [])
+
+  // DOM-level mouseenter — set hover before React paint so <video> loads on intent only.
+  useEffect(() => {
+    if (!hoverPreviewEnabled || !feedPreview?.enabled || isEncoding || !videoId || !previewStreamUrl) {
+      return
+    }
+    const el = thumbnailLinkRef.current
+    if (!el) return
+
+    const onEnter = () => {
+      claimHover(setIsHovering)
+      flushSync(() => setIsHovering(true))
+      feedPreview.requestPreview(videoId)
+    }
+    const onLeave = () => {
+      pauseActiveHoverPreview()
+      releaseHover(setIsHovering)
+      flushSync(() => setIsHovering(false))
+      feedPreview.releasePreview(videoId)
+    }
+    const onMouseDown = () => {
+      // Start loading watch URL before click — player should hit cache.
+      if (watchStreamUrl) {
+        warmWatchHandoff(watchStreamUrl)
+        lastWatchWarmAtRef.current = performance.now()
+      }
+    }
+
+    el.addEventListener("mouseenter", onEnter)
+    el.addEventListener("mouseleave", onLeave)
+    el.addEventListener("mousedown", onMouseDown)
+    el.addEventListener("focus", onEnter)
+    el.addEventListener("blur", onLeave)
+
+    return () => {
+      el.removeEventListener("mouseenter", onEnter)
+      el.removeEventListener("mouseleave", onLeave)
+      el.removeEventListener("mousedown", onMouseDown)
+      el.removeEventListener("focus", onEnter)
+      el.removeEventListener("blur", onLeave)
+    }
+  }, [feedPreview, hoverPreviewEnabled, isEncoding, previewStreamUrl, videoId, watchStreamUrl])
 
   const handleVideoOpen = (e: React.MouseEvent) => {
     if (isEncoding) {
@@ -131,6 +260,15 @@ export function VideoCard({
       toast(PROCESSING_VIDEO_TOAST)
       return
     }
+    if (watchStreamUrl) {
+      // Avoid duplicate warm from immediate mousedown + click chain.
+      const now = performance.now()
+      if (now - lastWatchWarmAtRef.current > 800) {
+        warmWatchHandoff(watchStreamUrl)
+      }
+      lastWatchWarmAtRef.current = now
+    }
+    feedPreview?.stopAllPreviews()
     if (playlistNavigation && videoId) {
       activatePlaylistNavigation(playlistNavigation, videoId)
     }
@@ -187,6 +325,7 @@ export function VideoCard({
           }
           setAddToPlaylistOpen(true)
         }}
+        onPointerEnter={prefetchMyPlaylists}
         aria-label="Add to playlist"
         title="Add to playlist"
       >
@@ -197,14 +336,21 @@ export function VideoCard({
   )
 
   return (
-    <div className="group w-full h-auto">
+    <div ref={cardRootRef} className="group w-full h-auto">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent h-auto">
         <CardContent className="p-0 flex flex-col h-auto gap-0.5 sm:gap-1 pb-0">
           <Link
+            ref={thumbnailLinkRef}
             href={watchPath}
             prefetch={!isEncoding}
             data-analytics-name={openVideoUiName}
-            className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted block"
+            className={[
+              "relative aspect-video w-full overflow-hidden bg-muted block",
+              "transition-[border-radius,box-shadow,transform] duration-200 ease-out",
+              shouldLoadPreview
+                ? "rounded-xl shadow-[0_8px_28px_rgba(0,0,0,0.18)] -translate-y-0.5"
+                : "rounded-lg group-hover:rounded-xl group-hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)] group-hover:-translate-y-0.5",
+            ].join(" ")}
             onClick={handleVideoOpen}
             aria-disabled={isEncoding}
             tabIndex={isEncoding ? -1 : undefined}
@@ -214,15 +360,48 @@ export function VideoCard({
                 src={thumbnailUrl}
                 alt={title || "Video thumbnail"}
                 fill
-                className="object-cover transition-transform duration-200 group-hover:scale-105"
+                className={[
+                  "object-cover transition-all duration-300",
+                  previewVideoVisible ? "opacity-0 scale-100" : "group-hover:scale-[1.04]",
+                ].join(" ")}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                 priority={priority}
                 authenticated={false}
               />
             ) : (
-              <VideoThumbnailPlaceholder fill className="transition-transform duration-200 group-hover:scale-105" />
+              <VideoThumbnailPlaceholder
+                fill
+                className={[
+                  "transition-transform duration-200",
+                  previewVideoVisible ? "opacity-0" : "group-hover:scale-[1.04]",
+                ].join(" ")}
+              />
             )}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+
+            {hoverPreviewEnabled ? (
+              <VideoCardHoverPreview
+                videoId={videoId}
+                title={title}
+                posterUrl={thumbnailUrl}
+                audioForcedMute={feedPreview?.audioForcedMute ?? true}
+                primaryStreamUrl={previewStreamUrl}
+                video={video}
+                shouldLoad={shouldLoadPreview && !!feedPreview?.enabled}
+                onVisibleChange={setPreviewVideoVisible}
+              />
+            ) : null}
+
+            {/* Loading ring — signals preview is buffering before it plays */}
+            {shouldLoadPreview && !previewVideoVisible ? (
+              <div className="preview-load-ring pointer-events-none absolute inset-0 z-[3] rounded-xl" aria-hidden />
+            ) : null}
+
+            <div
+              className={[
+                "absolute inset-0 transition-colors duration-200",
+                shouldLoadPreview ? "bg-black/0" : "bg-black/0 group-hover:bg-black/5",
+              ].join(" ")}
+            />
             
             {isEncoding && (
               <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white/90 text-[10px] px-2 py-0.5 rounded-md border border-white/10">
@@ -231,7 +410,7 @@ export function VideoCard({
               </div>
             )}
 
-            {!isEncoding && (
+            {!isEncoding && !shouldLoadPreview && (
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
                   <Play className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground ml-0.5" fill="currentColor" />
@@ -305,32 +484,6 @@ export function VideoCard({
             </div>
 
             <div className="flex shrink-0 items-start gap-0">
-              {showDeleteOption && isOwner && !isEncoding && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">Video options</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteDialogOpen(true)
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Video
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
               {!isEncoding && (
                 <AddToPlaylistDialog
                   open={addToPlaylistOpen}
@@ -342,6 +495,52 @@ export function VideoCard({
                 >
                   {addToPlaylistTrigger}
                 </AddToPlaylistDialog>
+              )}
+              {!isEncoding && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={
+                        alwaysShowMoreMenu
+                          ? "h-7 w-7 sm:h-8 sm:w-8 rounded-full hover:bg-muted"
+                          : "h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-muted"
+                      }
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Video options</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShareDialogOpen(true)
+                      }}
+                      data-analytics-name="video-card-share"
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share
+                    </DropdownMenuItem>
+                    {showDeleteOption && isOwner && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Video
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </div>
@@ -355,6 +554,12 @@ export function VideoCard({
               onDeleted={onDeleted}
             />
           )}
+          <ShareVideoDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            url={typeof window !== "undefined" ? `${window.location.origin}${watchPath}` : watchPath}
+            title={title || "Untitled Video"}
+          />
           <AuthDialog
             open={playlistAuthDialogOpen}
             onOpenChange={setPlaylistAuthDialogOpen}
