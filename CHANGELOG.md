@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.2.2] — 2026-07-07
+
+### Added
+
+- Admin Artist Inventory detail sheet — click a row to view full description, social links, and profile metadata
+- Artist Index social links now include TikTok and Facebook when available
+
+### Fixed
+
+- Artist Index profiles display inventory `bio` when provided, with the existing fallback copy when absent
+- Admin inventory table lists all social platforms (Instagram, YouTube, TikTok, Facebook)
+
 ## [2.2.1] — 2026-07-06
 
 ### Fixed
