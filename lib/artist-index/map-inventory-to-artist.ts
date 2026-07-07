@@ -39,7 +39,7 @@ export function mapInventoryProfileToArtist(
   const linked = linkedProfile ?? null
 
   let name = profile.artist_name.trim() || username
-  let bio = ""
+  let bio = profile.bio?.trim() ?? ""
   let image: string | null = null
   let bannerImage: string | null = null
   let followers = 0
@@ -51,10 +51,15 @@ export function mapInventoryProfileToArtist(
   let yt = getInventorySocialUrl(profile, "youtube") ?? null
   let tt = getInventorySocialUrl(profile, "tiktok") ?? null
   let fb = getInventorySocialUrl(profile, "facebook") ?? null
+  let spotify =
+    typeof profile.other_socials?.spotify === "string" && profile.other_socials.spotify.trim()
+      ? profile.other_socials.spotify.trim()
+      : null
 
   if (linked) {
     name = String(linked.name ?? name).trim() || name
-    bio = String(linked.bio ?? "").trim()
+    const linkedBio = String(linked.bio ?? "").trim()
+    if (linkedBio) bio = linkedBio
     const profilePicture = String(linked.profile_picture ?? linked.image ?? "").trim()
     image = getArtistImageUrl(profilePicture)
     const linkedBanner = String(linked.banner_image ?? linked.cover_image ?? "").trim()
@@ -83,6 +88,10 @@ export function mapInventoryProfileToArtist(
       pickSocialUrl(linked, "facebook", "facebook_url") ??
       sameAs.find((url) => url.includes("facebook.com")) ??
       fb
+    spotify =
+      pickSocialUrl(linked, "spotify", "spotify_url") ??
+      sameAs.find((url) => url.includes("spotify.com")) ??
+      spotify
   }
 
   return {
@@ -96,6 +105,7 @@ export function mapInventoryProfileToArtist(
     image,
     banner_image: bannerImage,
     contact_email: contactEmail,
+    spotify_url: spotify,
     ig_url: ig,
     ig_followers: null,
     yt_url: yt,

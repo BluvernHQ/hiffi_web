@@ -8,6 +8,15 @@ export interface ApiError {
   error: string
 }
 
+export const INVENTORY_SOCIAL_PLATFORMS = [
+  { key: "instagram", label: "Instagram", shortLabel: "IG" },
+  { key: "youtube", label: "YouTube", shortLabel: "YT" },
+  { key: "tiktok", label: "TikTok", shortLabel: "TT" },
+  { key: "facebook", label: "Facebook", shortLabel: "FB" },
+] as const
+
+export type InventorySocialPlatform = (typeof INVENTORY_SOCIAL_PLATFORMS)[number]["key"]
+
 export type InventorySocialLinks = {
   instagram?: string
   youtube?: string
@@ -19,6 +28,7 @@ export type InventorySocialLinks = {
 export interface PublicInventoryProfile {
   username: string
   artist_name: string
+  bio?: string | null
   other_socials?: InventorySocialLinks | null
   location?: string | null
 }
@@ -64,6 +74,7 @@ export interface InventoryEntry {
   id: number
   username: string
   artist_name: string
+  bio?: string | null
   email?: string | null
   other_socials?: InventorySocialLinks | null
   location?: string | null
@@ -131,6 +142,7 @@ export function normalizeInventoryEntry(raw: Record<string, unknown>): Inventory
     id: Number(raw.id ?? 0),
     username: String(raw.username ?? "").trim(),
     artist_name: String(raw.artist_name ?? "").trim(),
+    bio: raw.bio != null && String(raw.bio).trim() ? String(raw.bio).trim() : undefined,
     email: raw.email != null && String(raw.email).trim() ? String(raw.email).trim() : undefined,
     other_socials: normalizeInventorySocials(raw),
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
@@ -144,6 +156,7 @@ export function normalizePublicInventoryProfile(raw: Record<string, unknown>): P
   return {
     username: String(raw.username ?? "").trim().toLowerCase(),
     artist_name: String(raw.artist_name ?? "").trim(),
+    bio: raw.bio != null && String(raw.bio).trim() ? String(raw.bio).trim() : undefined,
     other_socials: normalizeInventorySocials(raw),
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
   }
@@ -157,7 +170,7 @@ export function getInventorySocialUrl(
     tiktok?: string
     facebook?: string
   },
-  platform: "instagram" | "youtube" | "tiktok" | "facebook",
+  platform: InventorySocialPlatform,
 ): string | undefined {
   const fromOther = entry.other_socials?.[platform]
   if (typeof fromOther === "string" && fromOther.trim()) return fromOther.trim()

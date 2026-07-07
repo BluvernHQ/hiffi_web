@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { format } from "date-fns"
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Loader2, RefreshCw, Search, X } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
-import { getInventorySocialUrl } from "@/lib/types/inventory"
+import { getInventorySocialUrl, INVENTORY_SOCIAL_PLATFORMS } from "@/lib/types/inventory"
 import type { InventoryEntry } from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { cn } from "@/lib/utils"
@@ -30,12 +31,22 @@ function SocialLink({ href, label }: { href?: string; label: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
       className="inline-flex items-center gap-1 text-primary hover:underline max-w-[140px] truncate"
       title={href}
     >
       {label}
       <ExternalLink className="h-3 w-3 shrink-0" />
     </a>
+  )
+}
+
+function DetailField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="text-sm text-foreground break-words whitespace-pre-wrap">{value || "—"}</div>
+    </div>
   )
 }
 
@@ -56,6 +67,12 @@ export function InventoryTable() {
   const [templateLoading, setTemplateLoading] = useState(false)
   const [exportCreatedAfter, setExportCreatedAfter] = useState("")
   const [exportCreatedBefore, setExportCreatedBefore] = useState("")
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+
+  const selectedRow = useMemo(
+    () => rows.find((row) => row.id === selectedId) ?? null,
+    [rows, selectedId],
+  )
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300)
@@ -248,7 +265,7 @@ export function InventoryTable() {
             ? "Searching inventory…"
             : count === 0
               ? "No inventory rows match your search."
-              : `${count.toLocaleString()} row${count === 1 ? "" : "s"} match filters · showing ${rows.length} on this page.`}
+              : `${count.toLocaleString()} row${count === 1 ? "" : "s"} match filters · showing ${rows.length} on this page · click a row for details.`}
         </p>
       </div>
 
@@ -267,7 +284,7 @@ export function InventoryTable() {
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : null}
-        <table className="w-full min-w-[960px]">
+        <table className="w-full min-w-[1120px]">
           <thead className="sticky top-0 z-10 bg-muted/50">
             <tr className="border-b">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -282,12 +299,14 @@ export function InventoryTable() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Location
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Instagram
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                YouTube
-              </th>
+              {INVENTORY_SOCIAL_PLATFORMS.map((platform) => (
+                <th
+                  key={platform.key}
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {platform.label}
+                </th>
+              ))}
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Linked user
               </th>
@@ -299,19 +318,24 @@ export function InventoryTable() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6 + INVENTORY_SOCIAL_PLATFORMS.length + 2} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No inventory profiles found.
                 </td>
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
+                <tr
+                  key={row.id}
+                  className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+                  onClick={() => setSelectedId(row.id)}
+                >
                   <td className="px-4 py-3 text-sm font-medium">{row.artist_name}</td>
                   <td className="px-4 py-3 text-sm">
                     <Link
                       href={`/artist-index/${encodeURIComponent(row.username)}`}
                       className="text-primary hover:underline"
                       target="_blank"
+                      onClick={(event) => event.stopPropagation()}
                     >
                       @{row.username}
                     </Link>
@@ -322,18 +346,21 @@ export function InventoryTable() {
                   <td className="px-4 py-3 text-sm text-muted-foreground max-w-[140px] truncate">
                     {row.location || "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    <SocialLink href={getInventorySocialUrl(row, "instagram")} label="IG" />
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <SocialLink href={getInventorySocialUrl(row, "youtube")} label="YT" />
-                  </td>
+                  {INVENTORY_SOCIAL_PLATFORMS.map((platform) => (
+                    <td key={platform.key} className="px-4 py-3 text-sm">
+                      <SocialLink
+                        href={getInventorySocialUrl(row, platform.key)}
+                        label={platform.shortLabel}
+                      />
+                    </td>
+                  ))}
                   <td className="px-4 py-3 text-sm">
                     {row.user_uid ? (
                       <Link
                         href={`/profile/${encodeURIComponent(row.username)}`}
                         className="text-primary hover:underline"
                         target="_blank"
+                        onClick={(event) => event.stopPropagation()}
                       >
                         View profile
                       </Link>
@@ -374,6 +401,91 @@ export function InventoryTable() {
           </Button>
         </div>
       </div>
+
+      <Sheet open={selectedId != null} onOpenChange={(open) => !open && setSelectedId(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          {selectedRow ? (
+            <>
+              <SheetHeader>
+                <SheetTitle>{selectedRow.artist_name}</SheetTitle>
+                <SheetDescription>@{selectedRow.username}</SheetDescription>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <DetailField label="Username" value={`@${selectedRow.username}`} />
+                  <DetailField label="Location" value={selectedRow.location} />
+                  <DetailField label="Email" value={selectedRow.email} />
+                  <DetailField
+                    label="Linked user"
+                    value={
+                      selectedRow.user_uid ? (
+                        <Link
+                          href={`/profile/${encodeURIComponent(selectedRow.username)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          View Hiffi profile
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        </Link>
+                      ) : (
+                        "—"
+                      )
+                    }
+                  />
+                </div>
+
+                <DetailField label="Description" value={selectedRow.bio} />
+
+                <div className="space-y-3 border-t pt-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Social links
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {INVENTORY_SOCIAL_PLATFORMS.map((platform) => {
+                      const href = getInventorySocialUrl(selectedRow, platform.key)
+                      return (
+                        <div key={platform.key} className="space-y-1">
+                          <p className="text-xs text-muted-foreground">{platform.label}</p>
+                          {href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
+                            >
+                              {href}
+                              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">—</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
+                  <DetailField label="Created" value={formatTimestamp(selectedRow.created_at)} />
+                  <DetailField label="Updated" value={formatTimestamp(selectedRow.updated_at)} />
+                </div>
+
+                <Link
+                  href={`/artist-index/${encodeURIComponent(selectedRow.username)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  Open public artist profile
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                </Link>
+              </div>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
