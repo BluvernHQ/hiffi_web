@@ -92,6 +92,12 @@ export function ArtistPreviewPanel({ artist }: ArtistPreviewPanelProps) {
       <div className="mt-6 grid flex-1 gap-4 sm:grid-cols-2">
         {management ? <StatField label="Management" value={management} /> : null}
         <SocialField
+          label="Spotify"
+          handle={getSocialHandle(artist.spotify_url ?? null)}
+          followers={artist.spotify_followers ?? null}
+          href={artist.spotify_url ?? null}
+        />
+        <SocialField
           label="Instagram"
           handle={getSocialHandle(artist.ig_url)}
           followers={artist.ig_followers}
