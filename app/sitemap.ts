@@ -5,6 +5,7 @@ import { artistIndexCityHref, artistIndexCitySceneHref, artistIndexGenreHref } f
 import { getArtists } from "@/lib/artists"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
+import { getAllAtlantaSitemapPaths } from "@/lib/atlanta/registry"
 import { MOODS } from "@/lib/mood-tabs"
 
 export const revalidate = 3600
@@ -132,6 +133,13 @@ function buildStaticEntries(cityPages: Awaited<ReturnType<typeof getArtistCityPa
       lastModified: STATIC_LAST_MODIFIED,
       changeFrequency: "weekly" as const,
       priority: 0.88,
+    })),
+    // Atlanta content cluster (static curated guides)
+    ...getAllAtlantaSitemapPaths().map((path) => ({
+      url: absoluteUrl(path),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "monthly" as const,
+      priority: path === "/atlanta" ? 0.85 : path.split("/").length <= 3 ? 0.8 : 0.72,
     })),
   ]
 }

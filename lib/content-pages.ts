@@ -17,6 +17,7 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
 /** Compact discover links for the app sidebar footer (YouTube-style, not the full site footer). */
 export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
   { href: "/hip-hop", label: "Hip-Hop" },
+  { href: "/atlanta", label: "Atlanta guide" },
   { href: "/artist-index", label: "Artist Index" },
   { href: "/artist-index/claim", label: "Claim your profile" },
 ]
@@ -60,6 +61,7 @@ export function isContentPage(pathname: string | null): boolean {
   if (!pathname) return false
   if (CONTENT_PAGE_PATHS.includes(pathname)) return true
   if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
+  if (pathname === "/atlanta" || pathname.startsWith("/atlanta/")) return true
   return false
 }
 
