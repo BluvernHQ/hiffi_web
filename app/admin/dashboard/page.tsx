@@ -22,7 +22,6 @@ import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
-import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
 import { AdminReferralsTable } from "@/components/admin/referrals-table"
 import { AdminFollowersTable } from "@/components/admin/followers-table"
 import { AdminSearchesTable } from "@/components/admin/searches-table"
@@ -31,6 +30,7 @@ import { AdminCollaborationInquiriesTable } from "@/components/admin/collaborati
 import { AdminFlagsTable } from "@/components/admin/flags-table"
 import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
+import { AnalyticsJourneysPanel } from "@/components/admin/analytics-journeys-panel"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
@@ -59,14 +59,33 @@ function AdminDashboardContent() {
     ? "flags"
     : searchParams.get("playlistId")
       ? "curated_playlists"
-      : searchParams.get("section") || "overview"
+      : searchParams.get("sessionId")
+        ? "journeys"
+        : searchParams.get("section") || "overview"
   const flagId = searchParams.get("flagId")
   const playlistId = searchParams.get("playlistId")
   const fallbackSection = admin ? getFirstAllowedSection(admin) : "overview"
-  const activeSection = canAdminAccessSection(admin, section) ? section : fallbackSection
+  const normalizedSection = section === "activity" ? "journeys" : section
+  const activeSection = canAdminAccessSection(admin, normalizedSection) ? normalizedSection : fallbackSection
 
   useEffect(() => {
-    if (!searchParams.get("section") && !searchParams.get("flagId") && !searchParams.get("playlistId") && !authLoading && isAuthVerified && admin) {
+    if (section === "activity") {
+      const next = new URLSearchParams(searchParams.toString())
+      next.set("section", "journeys")
+      router.replace(`/admin/dashboard?${next.toString()}`)
+    }
+  }, [section, searchParams, router])
+
+  useEffect(() => {
+    if (
+      !searchParams.get("section") &&
+      !searchParams.get("flagId") &&
+      !searchParams.get("playlistId") &&
+      !searchParams.get("sessionId") &&
+      !authLoading &&
+      isAuthVerified &&
+      admin
+    ) {
       router.replace(`/admin/dashboard?section=${getFirstAllowedSection(admin)}`)
     }
   }, [searchParams, router, authLoading, isAuthVerified, admin])
@@ -74,10 +93,11 @@ function AdminDashboardContent() {
   // Redirect if user lacks permission for the requested section
   useEffect(() => {
     if (!isAuthVerified || authLoading) return
-    if (section !== activeSection) {
+    if (section === "activity") return
+    if (normalizedSection !== activeSection) {
       router.replace(`/admin/dashboard?section=${activeSection}`)
     }
-  }, [section, activeSection, isAuthVerified, authLoading, router])
+  }, [section, normalizedSection, activeSection, isAuthVerified, authLoading, router])
 
   const homeSection = admin ? getFirstAllowedSection(admin) : "overview"
 
@@ -322,15 +342,17 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {activeSection === "activity" && can("admin:activity") && (
-                <div className="space-y-4">
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Activity Logs</h1>
+              {activeSection === "journeys" && can("admin:journeys") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Meaningful user activity logs from analytics events
+                      List sessions first (with IP/geo), then expand one session to see only its events
                     </p>
                   </div>
-                  {showContent ? <AdminActivityLogsTable /> : <TableSkeleton />}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AnalyticsJourneysPanel /> : <TableSkeleton />}
+                  </div>
                 </div>
               )}
 

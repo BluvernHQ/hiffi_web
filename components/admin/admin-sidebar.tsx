@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3,
-  Activity,
   Users,
   Video,
   MessageSquare,
@@ -24,6 +23,7 @@ import {
   ArrowDownToLine,
   ListMusic,
   Mic2,
+  Route,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -90,7 +90,7 @@ const navSections: NavSection[] = [
   {
     title: "Insights",
     items: [
-      { icon: Activity, label: "Activity Logs", value: "activity", permission: "admin:activity" },
+      { icon: Route, label: "Journeys", value: "journeys", permission: "admin:journeys" },
       { icon: SearchIcon, label: "Searches", value: "searches", permission: "admin:searches" },
       { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: "admin:utm" },
       { icon: Handshake, label: "Collaboration", value: "collaboration", permission: "admin:collaboration" },
@@ -140,7 +140,9 @@ export function AdminSidebar({
     ? "flags"
     : searchParams.get("playlistId")
       ? "curated_playlists"
-      : searchParams.get("section") || "overview"
+      : searchParams.get("sessionId")
+        ? "journeys"
+        : searchParams.get("section") || "overview"
 
   const handleSectionChange = (value: string) => {
     router.push(`/admin/dashboard?section=${value}`)

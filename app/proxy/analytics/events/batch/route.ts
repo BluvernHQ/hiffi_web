@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { analyticsIngestHeaders } from "@/lib/analytics/ingest-key"
 
 function stripAdminEvents(body: string): string {
   try {
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "content-type": contentType,
+        ...analyticsIngestHeaders(),
         ...(authHeader ? { Authorization: authHeader } : {}),
         ...(ingestKey ? { "X-Analytics-Ingest-Key": ingestKey } : {}),
       },
@@ -59,4 +61,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Failed to proxy analytics events batch request." }, { status: 502 })
   }
 }
-

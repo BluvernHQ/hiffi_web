@@ -17,8 +17,7 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
 import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
 import { analyticsUmamiDomains, isApiAnalyticsEnabled } from '@/lib/analytics/is-api-analytics-enabled'
-import { getAnalyticsAppVersion } from '@/lib/app-version'
-import { getApiBaseUrl } from '@/lib/config'
+import { getAnalyticsBuildId } from '@/lib/app-version'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" })
@@ -177,11 +176,10 @@ export default function RootLayout({
       (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com"),
   )
   const apiAnalyticsEnabled = isApiAnalyticsEnabled()
-  const apiAnalyticsBaseUrl = getApiBaseUrl().replace(/\/$/, "")
-  // Serve tracker via same-origin proxy so autocapture can route through wrapped capture().
+  // Serve tracker via same-origin proxy so batch/identify stay on this host.
   const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
-  const analyticsAppVersion = getAnalyticsAppVersion()
+  const analyticsBuildId = getAnalyticsBuildId()
 
   return (
     <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
@@ -195,9 +193,8 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <ApiAnalyticsShell
               src={apiAnalyticsSrc}
-              baseUrl={apiAnalyticsBaseUrl}
               ingestKey={analyticsIngestKey}
-              appVersion={analyticsAppVersion}
+              buildId={analyticsBuildId}
             />
           </Suspense>
         )}

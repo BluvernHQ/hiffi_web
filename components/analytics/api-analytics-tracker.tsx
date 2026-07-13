@@ -6,13 +6,12 @@ import { installCaptureDeduper } from "@/lib/analytics/dedupe-click-capture"
 
 interface ApiAnalyticsTrackerProps {
   src: string
-  baseUrl: string
   ingestKey: string | null
-  appVersion: string
+  buildId: string
   pathname: string
 }
 
-export function ApiAnalyticsTracker({ src, baseUrl, ingestKey, appVersion, pathname }: ApiAnalyticsTrackerProps) {
+export function ApiAnalyticsTracker({ src, ingestKey, buildId, pathname }: ApiAnalyticsTrackerProps) {
   const isAdminRoute = isAdminAnalyticsSurface(pathname)
 
   // Do not initialize first-party analytics on admin-only entry — avoids an admin $pageview.
@@ -35,15 +34,17 @@ export function ApiAnalyticsTracker({ src, baseUrl, ingestKey, appVersion, pathn
         const originalCapture = analytics.capture.bind(analytics)
         analytics.capture = installCaptureDeduper(installAdminAnalyticsGuard(originalCapture))
 
+        // Same-origin only: browser → /proxy/... → Next route → API.
+        // Never pass the API host as baseUrl (that would skip the local proxy).
         analytics.init({
-          baseUrl: typeof window !== "undefined" ? window.location.origin : baseUrl.replace(/\/$/, ""),
+          baseUrl: window.location.origin,
           batchPath: "/proxy/analytics/events/batch",
+          identifyPath: "/proxy/analytics/sessions/identify",
           ingestKey,
-          appVersion,
+          buildId,
           autocapture: true,
           flushIntervalMs: 5000,
-          maxBatch: 100,
-          captureNameAttributes: ["data-analytics-name", "data-track"],
+          maxBatch: 25,
         })
 
         w.__hifiAnalyticsInitialized = true
