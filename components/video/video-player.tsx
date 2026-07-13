@@ -284,6 +284,10 @@ export function VideoPlayer({
   const lastWatchPositionRef = useRef<number | null>(null)
   const trackedPlayVideoIdsRef = useRef<Set<string>>(new Set())
   const userInitiatedPlayRef = useRef(false)
+  /** Next/Prev click: prefer unmuted play using saved preference (gesture-linked nav). */
+  const userGesturePlayPendingRef = useRef(false)
+  /** True while swapping video sources; blocks volumechange → React mute corruption. */
+  const isSourceSwitchingRef = useRef(false)
   const replayAfterEndRef = useRef(false)
   const accumulatedWatchSecondsRef = useRef(0)
   const hasSentInitialWatchReportRef = useRef(false)
@@ -449,41 +453,77 @@ export function VideoPlayer({
   // Robust play function to prevent "interrupted by a new load request" error
   const safePlay = async (player: any) => {
     if (!player) return
-    
+
+    const preferMuted = isMutedRef.current
+    const preferVolume = volumeRef.current > 0 ? volumeRef.current : 1
+    const fromUserNav = userGesturePlayPendingRef.current
+
     try {
-      // Ensure player state matches our React state preference before trying to play
-      // This is crucial for preserving user intent across refreshes
-      player.muted(isMuted)
-      player.volume(volume)
+      // Apply saved preference (refs), not a stale render closure — critical across Next/Prev.
+      player.muted(preferMuted)
+      player.volume(preferVolume)
 
       const result = player.play()
-      if (result !== undefined && typeof result.then === 'function') {
+      if (result !== undefined && typeof result.then === "function") {
         await result
       }
-      // If we got here, unmuted play succeeded or was allowed
       setForcedMute(false)
+      userGesturePlayPendingRef.current = false
     } catch (err: any) {
       const errorName = err && (err.name || (err.constructor && err.constructor.name))
-      if (errorName === 'NotAllowedError') {
+      if (errorName === "NotAllowedError") {
         console.log("[hiffi] Autoplay with sound blocked. Autoplaying muted but preserving preference.")
-        
-        // Mute the player instance to allow video to start, but DO NOT update React state
-        // This keeps the UI showing the user's intended state (e.g. unmuted).
+
+        // Mute only the media element for policy. Never rewrite React/localStorage mute preference.
         setForcedMute(true)
         player.muted(true)
-        
+
         try {
           const mutedResult = player.play()
-          if (mutedResult !== undefined && typeof mutedResult.then === 'function') {
+          if (mutedResult !== undefined && typeof mutedResult.then === "function") {
             await mutedResult
+          }
+          // After Next/Prev, retry unmute once playback is alive (policy sometimes allows this).
+          if (fromUserNav && !preferMuted) {
+            window.setTimeout(() => {
+              if (
+                !player ||
+                player.paused() ||
+                !isForcedMuteRef.current ||
+                isMutedRef.current ||
+                unmuteRestoreBlockedRef.current
+              ) {
+                return
+              }
+              try {
+                player.muted(false)
+                player.volume(volumeRef.current > 0 ? volumeRef.current : 1)
+                window.setTimeout(() => {
+                  if (player && !player.paused() && !player.muted()) {
+                    setForcedMute(false)
+                    userGesturePlayPendingRef.current = false
+                  } else if (player?.paused()) {
+                    unmuteRestoreBlockedRef.current = true
+                    player.muted(true)
+                    void player.play().catch(() => {})
+                  }
+                }, 100)
+              } catch {
+                unmuteRestoreBlockedRef.current = true
+              }
+            }, 300)
+          } else {
+            userGesturePlayPendingRef.current = false
           }
         } catch (mutedErr) {
           console.error("[hiffi] Muted autoplay also failed:", mutedErr)
           setAutoplayInProgress(false)
+          userGesturePlayPendingRef.current = false
         }
-      } else if (errorName !== 'AbortError') {
+      } else if (errorName !== "AbortError") {
         console.warn("[hiffi] Play failed:", err)
         setAutoplayInProgress(false)
+        userGesturePlayPendingRef.current = false
       }
     }
   }
@@ -505,13 +545,8 @@ export function VideoPlayer({
   const setForcedMute = (value: boolean) => {
     isForcedMuteRef.current = value
     setIsForcedMute(value)
-
-    // When the browser forces mute (autoplay policies), also reflect that in the UI
-    // so the user clearly sees the video as muted instead of looking "unmuted but silent".
-    if (value) {
-      setIsMuted(true)
-      setVolume(0)
-    }
+    // Do not write isMuted/volume here. Browser-forced mute is temporary UI/player state;
+    // overwriting preference made Next/Prev permanently start muted until manual unmute.
   }
 
   // Unified wake function for mobile
@@ -532,15 +567,21 @@ export function VideoPlayer({
     // Clear autoplay progress on any interaction
     setAutoplayInProgress(false)
 
-    // Clear forced-mute flag on any interaction and restore intended sound
+    // Clear forced-mute flag on interaction and restore saved preference (gesture unlocks sound).
     if (isForcedMuteRef.current) {
       const player = playerRef.current
       if (player) {
-        console.log("[hiffi] User interacted, restoring audio preference:", { isMuted, volume })
-        player.muted(isMuted)
-        player.volume(volume)
+        const wantMuted = isMutedRef.current
+        const wantVolume = volumeRef.current > 0 ? volumeRef.current : 1
+        console.log("[hiffi] User interacted, restoring audio preference:", {
+          isMuted: wantMuted,
+          volume: wantVolume,
+        })
+        player.muted(wantMuted)
+        player.volume(wantVolume)
         setForcedMute(false)
         unmuteRestoreBlockedRef.current = false
+        userGesturePlayPendingRef.current = false
       }
     }
 
@@ -647,6 +688,9 @@ export function VideoPlayer({
     if (videoId) {
       void reportWatchProgress(true)
       stopOtherMediaElements()
+      // Mark switch BEFORE any player.muted(true) so volumechange sync cannot overwrite preference.
+      isSourceSwitchingRef.current = true
+      if (autoPlay) setAutoplayInProgress(true)
       const player = playerRef.current
       if (player) {
         // Stop previous media immediately during a source switch
@@ -678,7 +722,6 @@ export function VideoPlayer({
       clearConnectivityStallTimer()
       setHasEnded(false)
       setShowNextUpOverlay(false)
-      if (autoPlay) setAutoplayInProgress(true)
       unmuteRestoreBlockedRef.current = false
       watchSessionIdRef.current = generateSessionId()
       hasSentInitialWatchReportRef.current = false
@@ -1160,48 +1203,65 @@ export function VideoPlayer({
       setConnectionNotice("")
       setIsBuffering(false)
       notifyMediaReady()
-      
-      // If video was forced to mute for autoplay, try to restore user's preference after playback starts
-      // This gives the browser a chance to allow unmuted playback once playback has started.
-      // Only try once per video; if the browser blocks unmute, don't retry on every playing event.
-      if (
-        !unmuteRestoreBlockedRef.current &&
-        isForcedMuteRef.current &&
-        !isMutedRef.current &&
-        player.muted()
-      ) {
-        // Try to unmute after a short delay to ensure playback is stable
-        setTimeout(() => {
-          if (player && !player.paused() && isForcedMuteRef.current && !isMutedRef.current && !unmuteRestoreBlockedRef.current) {
-            console.log("[hiffi] Attempting to restore unmuted playback after forced mute")
-            try {
-              player.muted(false)
-              player.volume(volumeRef.current)
+      isSourceSwitchingRef.current = false
 
-              // If unmuting succeeded and the player is still playing, we can clear the forced mute flag.
-              // If the browser blocked unmute and paused, revert to muted and stop retrying.
-              setTimeout(() => {
-                if (player && !player.paused() && !player.muted()) {
-                  console.log("[hiffi] Successfully restored unmuted playback")
-                  setForcedMute(false)
-                } else if (player && player.paused()) {
-                  // Browser blocked unmuting and paused the video; revert to muted and don't retry again
-                  console.log("[hiffi] Unmuting blocked by browser, reverting to muted play")
-                  unmuteRestoreBlockedRef.current = true
-                  player.muted(true)
-                  player.play().catch(() => {})
-                }
-              }, 100)
-            } catch (err) {
-              console.log("[hiffi] Could not restore unmuted playback:", err)
+      // After Next/Prev (or other forced mute), restore sound once playback is running.
+      const shouldRestoreUnmute =
+        !unmuteRestoreBlockedRef.current &&
+        !isMutedRef.current &&
+        player.muted() &&
+        (isForcedMuteRef.current || userGesturePlayPendingRef.current)
+
+      if (!shouldRestoreUnmute) return
+
+      const attemptUnmute = () => {
+        if (
+          !player ||
+          player.paused() ||
+          isMutedRef.current ||
+          unmuteRestoreBlockedRef.current
+        ) {
+          return
+        }
+        if (!player.muted() && !isForcedMuteRef.current) {
+          userGesturePlayPendingRef.current = false
+          return
+        }
+        console.log("[hiffi] Attempting to restore unmuted playback after forced mute")
+        try {
+          player.muted(false)
+          player.volume(volumeRef.current > 0 ? volumeRef.current : 1)
+          window.setTimeout(() => {
+            if (player && !player.paused() && !player.muted()) {
+              console.log("[hiffi] Successfully restored unmuted playback")
+              setForcedMute(false)
+              userGesturePlayPendingRef.current = false
+            } else if (player && player.paused()) {
+              console.log("[hiffi] Unmuting blocked by browser, reverting to muted play")
               unmuteRestoreBlockedRef.current = true
+              setForcedMute(true)
+              player.muted(true)
+              void player.play().catch(() => {})
             }
-          }
-        }, 500)
+          }, 50)
+        } catch (err) {
+          console.log("[hiffi] Could not restore unmuted playback:", err)
+          unmuteRestoreBlockedRef.current = true
+        }
       }
+
+      // Immediate + short delayed retry — Next loads async so gesture may already be gone.
+      attemptUnmute()
+      window.setTimeout(attemptUnmute, 250)
     }
     
     const syncVolumeFromPlayer = () => {
+      // Ignore temporary mute during Next/Prev source swaps — that path calls player.muted(true)
+      // only to stop audio bleed and must not overwrite the user's mute preference.
+      if (isSourceSwitchingRef.current || userGesturePlayPendingRef.current) {
+        return
+      }
+
       const playerMuted = player.muted()
       const playerVolume = player.volume()
 
@@ -1219,6 +1279,8 @@ export function VideoPlayer({
         setForcedMute(false)
       }
       if (Math.abs(playerVolume - volumeRef.current) > 0.01) {
+        // Don't zero out saved volume from temporary mute during policy fallback
+        if (isForcedMuteRef.current && playerMuted) return
         setVolume(playerVolume)
         setForcedMute(false)
       }
@@ -1357,12 +1419,13 @@ export function VideoPlayer({
     durationRef.current = 0
     setHasEnded(false)
     if (autoPlay) setAutoplayInProgress(true)
+    isSourceSwitchingRef.current = true
     
     // Update source
     player.pause()
     stopOtherMediaElements()
-    player.muted(isMutedRef.current)
-    player.volume(volumeRef.current)
+    // Keep element muted only until play() — preference restored in safePlay.
+    player.muted(true)
     const mimeType = signedVideoUrl.endsWith(".m3u8")
       ? "application/x-mpegURL"
       : "video/mp4"
@@ -1375,14 +1438,23 @@ export function VideoPlayer({
     if (autoPlay) {
       player.one("loadedmetadata", () => {
         if (signedUrlVideoIdRef.current !== videoId) return
-        void safePlay(player).catch((err: unknown) => {
-          const errorName =
-            err && typeof err === "object" && "name" in err ? String((err as { name?: string }).name) : ""
-          if (errorName !== "AbortError") {
-            console.error("[hiffi] Autoplay after source change failed:", err)
-          }
-        })
+        // Restore preferred audio immediately before play attempt.
+        player.muted(isMutedRef.current)
+        player.volume(volumeRef.current > 0 ? volumeRef.current : 1)
+        void safePlay(player)
+          .catch((err: unknown) => {
+            const errorName =
+              err && typeof err === "object" && "name" in err ? String((err as { name?: string }).name) : ""
+            if (errorName !== "AbortError") {
+              console.error("[hiffi] Autoplay after source change failed:", err)
+            }
+          })
+          .finally(() => {
+            isSourceSwitchingRef.current = false
+          })
       })
+    } else {
+      isSourceSwitchingRef.current = false
     }
 
     // Safety timeout for source changes too
@@ -1393,6 +1465,7 @@ export function VideoPlayer({
           console.log("[hiffi] Autoplay for new source failed or blocked, clearing loading state")
           setAutoplayInProgress(false)
         }
+        isSourceSwitchingRef.current = false
         autoplayAttemptTimeoutRef.current = null
       }, 3000)
     }
@@ -1734,9 +1807,25 @@ export function VideoPlayer({
 
   const isPreviousVideoNavDisabled = Boolean(onPrevious && previousVideoDisabled)
 
+  const markUserGestureVideoNav = () => {
+    const player = playerRef.current
+    // If the user can currently hear audio, lock that as the preference for the next clip.
+    // Repairs in-session corruption from older muted-sync bugs without touching localStorage mute=true users.
+    if (player && !player.paused() && !player.muted() && Number(player.volume()) > 0) {
+      if (isMutedRef.current) setIsMuted(false)
+      const v = Number(player.volume())
+      if (volumeRef.current <= 0 && v > 0) setVolume(v)
+    }
+    userGesturePlayPendingRef.current = true
+    userInitiatedPlayRef.current = true
+    unmuteRestoreBlockedRef.current = false
+    setForcedMute(false)
+  }
+
   const handlePrevious = () => {
     if (onPrevious) {
       if (previousVideoDisabled) return
+      markUserGestureVideoNav()
       onPrevious()
       return
     }
@@ -1758,6 +1847,9 @@ export function VideoPlayer({
     const next = currentSuggestedVideos[0]
     const nextId = next.videoId || next.video_id
     if (!nextId) return
+
+    // Keep preference intact and retry unmuted play after the next source loads.
+    markUserGestureVideoNav()
 
     if (onNext) {
       // In-place switch: parent handles URL + state; player stays mounted → fullscreen preserved
@@ -2260,6 +2352,9 @@ export function VideoPlayer({
             }
             setShowNextUpOverlay(false)
             autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
+            if (trigger === "click") {
+              markUserGestureVideoNav()
+            }
             const next = suggestedVideos[0]
             const nextId = next?.videoId || next?.video_id
             if (nextId) {
