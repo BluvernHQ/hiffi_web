@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.2.3] — 2026-07-14
+
+### Fixed
+
+- Watch player Next/Previous no longer forces mute after switching videos (preserves audio preference across in-place source changes)
+
 ## [2.2.2] — 2026-07-07
 
 ### Added
