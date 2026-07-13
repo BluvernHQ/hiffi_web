@@ -114,8 +114,8 @@ export function mapInventoryProfileToArtist(
     tt_followers: null,
     fb_url: fb,
     total_reach: followers,
-    claim_status: "unclaimed",
-    verified: false,
+    claim_status: profile.claim_status,
+    verified: profile.claim_status === "claimed",
     featured: false,
     added_date: addedDate,
   }

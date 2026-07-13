@@ -83,11 +83,15 @@ function HeaderBadge({ artist }: { artist: Artist }) {
     )
   }
 
-  return (
-    <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-foreground">
-      Pending
-    </span>
-  )
+  if (artist.claim_status === "pending") {
+    return (
+      <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-foreground">
+        Under Review
+      </span>
+    )
+  }
+
+  return null
 }
 
 export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
@@ -96,7 +100,11 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
   const claimHref = artistIndexClaimHref(artist.slug)
   const editHref = artistIndexEditHref(artist.slug)
   const secondaryHref = artist.verified ? editHref : claimHref
-  const secondaryLabel = artist.verified ? "Suggest update" : "Claim"
+  const secondaryLabel = artist.verified
+    ? "Suggest update"
+    : artist.claim_status === "pending"
+      ? "Request ownership"
+      : "Claim"
 
   return (
     <article

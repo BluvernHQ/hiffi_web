@@ -117,7 +117,7 @@ export function getArtistProfileSubtitle(artist: Artist): string {
     return `${genres} • Official profile`
   }
   if (artist.claim_status === "pending") {
-    return `${genres} • Claim pending`
+    return `${genres} • Under review`
   }
   return `${genres} • Unclaimed profile`
 }

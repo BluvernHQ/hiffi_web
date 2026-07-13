@@ -15,6 +15,7 @@ export type AdminListResult<Row> = {
   limit: number
   offset: number
   count: number
+  has_more: boolean
   filters?: Record<string, unknown>
 }
 
@@ -46,26 +47,42 @@ function normalizeList<Row>(
 ): AdminListResult<Row> {
   if (response?.success && response?.data) {
     const data = response.data
+    const items = (data[key] || []) as Row[]
+    const limit = data.limit || fallbackLimit
     return {
       status: "success",
-      items: (data[key] || []) as Row[],
-      limit: data.limit || fallbackLimit,
+      items,
+      limit,
       offset: data.offset || fallbackOffset,
       count: data.count || 0,
+      has_more:
+        typeof data.has_more === "boolean" ? data.has_more : items.length >= limit,
       filters: (data.filters || {}) as Record<string, unknown>,
     }
   }
   if (response?.status === "success" || response?.success) {
+    const items = (response[key] || []) as Row[]
+    const limit = response.limit || fallbackLimit
     return {
       status: response.status || "success",
-      items: (response[key] || []) as Row[],
-      limit: response.limit || fallbackLimit,
+      items,
+      limit,
       offset: response.offset || fallbackOffset,
       count: response.count || 0,
+      has_more:
+        typeof response.has_more === "boolean" ? response.has_more : items.length >= limit,
       filters: (response.filters || {}) as Record<string, unknown>,
     }
   }
-  return { status: "error", items: [], limit: fallbackLimit, offset: fallbackOffset, count: 0, filters: {} }
+  return {
+    status: "error",
+    items: [],
+    limit: fallbackLimit,
+    offset: fallbackOffset,
+    count: 0,
+    has_more: false,
+    filters: {},
+  }
 }
 
 export async function adminListUsers(
@@ -266,16 +283,11 @@ export async function adminGetAnalyticsEvents(
 export async function adminListSearches(
   ctx: ApiClientContext,
   params: Record<string, string | number | undefined>,
-): Promise<AdminListResult<AdminSearchRow> & { has_more?: boolean }> {
+): Promise<AdminListResult<AdminSearchRow>> {
   const queryParams = toSearchParams(params)
   const endpoint = `/admin/searches${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
   const res = await ctx.request<any>(endpoint, { method: "GET" }, true)
-  const base = normalizeList<AdminSearchRow>(res, "searches", Number(params.limit ?? 20), Number(params.offset ?? 0))
-  const data = res?.success && res?.data ? res.data : res
-  return {
-    ...base,
-    has_more: Boolean(data?.has_more),
-  }
+  return normalizeList<AdminSearchRow>(res, "searches", Number(params.limit ?? 20), Number(params.offset ?? 0))
 }
 
 export async function adminGetReferals(

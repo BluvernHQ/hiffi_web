@@ -2771,9 +2771,25 @@ class ApiClient {
     created_before?: string
     updated_after?: string
     updated_before?: string
-  }): Promise<{ status: string; users: AdminUserRow[]; limit: number; offset: number; count: number; filters?: Record<string, unknown> }> {
+  }): Promise<{
+    status: string
+    users: AdminUserRow[]
+    limit: number
+    offset: number
+    count: number
+    has_more: boolean
+    filters?: Record<string, unknown>
+  }> {
     const res: AdminListResult<AdminUserRow> = await adminAdminListUsers(this, params as any)
-    return { status: res.status, users: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
+    return {
+      status: res.status,
+      users: res.items,
+      limit: res.limit,
+      offset: res.offset,
+      count: res.count,
+      has_more: res.has_more,
+      filters: res.filters,
+    }
   }
 
   // Admin endpoints - List Videos

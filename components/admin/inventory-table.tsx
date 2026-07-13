@@ -5,8 +5,11 @@ import { format } from "date-fns"
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Loader2, RefreshCw, Search, X } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
-import { getInventorySocialUrl, INVENTORY_SOCIAL_PLATFORMS } from "@/lib/types/inventory"
-import type { InventoryEntry } from "@/lib/types/inventory"
+import { getApiBaseUrl } from "@/lib/config"
+import { getInventorySocialUrl, INVENTORY_SOCIAL_PLATFORMS, normalizePublicInventoryProfile } from "@/lib/types/inventory"
+import type { InventoryEntry, PublicInventoryClaimStatus } from "@/lib/types/inventory"
+import { unwrapSuccessData } from "@/lib/api/envelope"
+import type { InventoryProfileListResponse } from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -50,6 +53,48 @@ function DetailField({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
+function claimStatusBadgeClass(status: PublicInventoryClaimStatus): string {
+  switch (status) {
+    case "claimed":
+      return "bg-emerald-100 text-emerald-800 border-emerald-200"
+    case "pending":
+      return "bg-amber-100 text-amber-900 border-amber-200"
+    default:
+      return "bg-muted text-muted-foreground border-border"
+  }
+}
+
+function claimStatusLabel(status: PublicInventoryClaimStatus): string {
+  switch (status) {
+    case "claimed":
+      return "Claimed"
+    case "pending":
+      return "Pending"
+    default:
+      return "Unclaimed"
+  }
+}
+
+async function fetchPublicClaimStatus(username: string): Promise<PublicInventoryClaimStatus | null> {
+  const slug = username.trim().toLowerCase()
+  if (!slug) return null
+  try {
+    const res = await fetch(
+      `${getApiBaseUrl()}/inventory?${new URLSearchParams({ username: slug, limit: "5" })}`,
+      { headers: { Accept: "application/json" } },
+    )
+    if (!res.ok) return null
+    const json = await res.json()
+    const data = unwrapSuccessData<InventoryProfileListResponse>(json)
+    const match = (data.items ?? [])
+      .map((item) => normalizePublicInventoryProfile(item as unknown as Record<string, unknown>))
+      .find((item) => item.username === slug)
+    return match?.claim_status ?? null
+  } catch {
+    return null
+  }
+}
+
 export function InventoryTable() {
   const { toast } = useToast()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
@@ -68,6 +113,8 @@ export function InventoryTable() {
   const [exportCreatedAfter, setExportCreatedAfter] = useState("")
   const [exportCreatedBefore, setExportCreatedBefore] = useState("")
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [detailClaimStatus, setDetailClaimStatus] = useState<PublicInventoryClaimStatus | null>(null)
+  const [detailClaimLoading, setDetailClaimLoading] = useState(false)
 
   const selectedRow = useMemo(
     () => rows.find((row) => row.id === selectedId) ?? null,
@@ -78,6 +125,30 @@ export function InventoryTable() {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300)
     return () => clearTimeout(t)
   }, [searchInput])
+
+  useEffect(() => {
+    if (!selectedRow) {
+      setDetailClaimStatus(null)
+      return
+    }
+    if (selectedRow.claim_status) {
+      setDetailClaimStatus(selectedRow.claim_status)
+      setDetailClaimLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setDetailClaimLoading(true)
+    void fetchPublicClaimStatus(selectedRow.username).then((status) => {
+      if (!cancelled) {
+        setDetailClaimStatus(status)
+        setDetailClaimLoading(false)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedRow])
 
   const fetchRows = async (isRefresh = false) => {
     if (guardOfflineBeforeFetch()) {
@@ -414,6 +485,28 @@ export function InventoryTable() {
               <div className="mt-6 space-y-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DetailField label="Username" value={`@${selectedRow.username}`} />
+                  <DetailField
+                    label="Claim status"
+                    value={
+                      detailClaimLoading ? (
+                        <span className="inline-flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Loading…
+                        </span>
+                      ) : detailClaimStatus ? (
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                            claimStatusBadgeClass(detailClaimStatus),
+                          )}
+                        >
+                          {claimStatusLabel(detailClaimStatus)}
+                        </span>
+                      ) : (
+                        "—"
+                      )
+                    }
+                  />
                   <DetailField label="Location" value={selectedRow.location} />
                   <DetailField label="Email" value={selectedRow.email} />
                   <DetailField

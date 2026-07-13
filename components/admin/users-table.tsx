@@ -71,6 +71,7 @@ export function AdminUsersTable() {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
   const [deletingUsername, setDeletingUsername] = useState<string | null>(null)
@@ -110,6 +111,8 @@ export function AdminUsersTable() {
   const fetchGenerationRef = useRef(0)
   /** Skip one URL→state sync cycle after programmatic clear (prevents stale ?q= re-applying). */
   const skipUrlSyncRef = useRef(false)
+  /** Previous search input — used to reset page only when clearing an active search. */
+  const prevSearchInputRef = useRef(searchInput)
   
   // Refs to maintain focus on search inputs
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
@@ -150,6 +153,7 @@ export function AdminUsersTable() {
     if (guardOfflineBeforeFetch()) {
       setUsers([])
       setTotal(0)
+      setHasMore(false)
       setLoading(false)
       return
     }
@@ -164,6 +168,7 @@ export function AdminUsersTable() {
       
       let usersData: any[] = []
       let totalCount = 0
+      let pageHasMore = false
       
       if (isSearchBarActive) {
         // When searching, make two API calls - one for username, one for name
@@ -191,9 +196,9 @@ export function AdminUsersTable() {
         const fetchAllPages = async (params: any): Promise<any[]> => {
           const allUsers: any[] = []
           let currentOffset = 0
-          let hasMore = true
+          let more = true
           
-          while (hasMore) {
+          while (more) {
             const response = await adminApiClient.adminListUsers({
               ...params,
               offset: currentOffset,
@@ -203,15 +208,11 @@ export function AdminUsersTable() {
             const pageUsers = response.users || []
             allUsers.push(...pageUsers)
             
-            // Check if there are more pages
-            if (pageUsers.length < limit) {
-              hasMore = false
-            } else {
-              currentOffset += limit
-              // Safety limit: don't fetch more than 100 pages (2000 users)
-              if (currentOffset >= 100 * limit) {
-                hasMore = false
-              }
+            more = Boolean(response.has_more)
+            currentOffset += limit
+            // Safety limit: don't fetch more than 100 pages (2000 users)
+            if (currentOffset >= 100 * limit) {
+              more = false
             }
           }
           
@@ -260,6 +261,7 @@ export function AdminUsersTable() {
         // Apply pagination to the filtered results
         const startIndex = offset
         const endIndex = offset + limit
+        pageHasMore = endIndex < totalCount
         usersData = usersData.slice(startIndex, endIndex)
       } else {
         // Normal filtering (no search bar active)
@@ -284,27 +286,9 @@ export function AdminUsersTable() {
 
         const response = await adminApiClient.adminListUsers(params)
         usersData = response.users || []
-        
-        // Handle total count - API might return count as page size, not total
-        totalCount = response.count || 0
-        
-        // Smart total count detection:
-        // 1. If we got a full page (limit items), there might be more pages
-        // 2. If we got fewer than limit, this is the last page
-        // 3. If API count is much larger than current page, trust it
-        if (usersData.length === limit) {
-          // Full page - check if API count is reliable
-          if (totalCount === limit || totalCount === 0 || totalCount === usersData.length) {
-            // API likely returned page count, not total - estimate at least one more page exists
-            totalCount = (page * limit) + 1
-          } else if (totalCount > (page * limit)) {
-            // API returned a total larger than current page - trust it
-            // totalCount stays as-is
-          }
-        } else if (usersData.length < limit) {
-          // Partial page - this is definitely the last page
-          totalCount = (page - 1) * limit + usersData.length
-        }
+        // API `count` is this page's size; `has_more` drives pagination.
+        totalCount = offset + usersData.length + (response.has_more ? 1 : 0)
+        pageHasMore = Boolean(response.has_more)
       }
       
       if (generation !== fetchGenerationRef.current) return
@@ -348,13 +332,14 @@ export function AdminUsersTable() {
       
       setUsers(usersData)
       setTotal(totalCount)
+      setHasMore(pageHasMore)
       console.log("[admin] Users fetched:", {
         count: usersData.length,
         total: totalCount,
+        hasMore: pageHasMore,
         page,
         limit,
         offset,
-        totalPages: Math.ceil(totalCount / limit),
         isSearchActive: isSearchBarActive,
         searchQuery: isSearchBarActive ? searchQuery : undefined,
       })
@@ -362,6 +347,7 @@ export function AdminUsersTable() {
       if (generation !== fetchGenerationRef.current) return
       setUsers([])
       setTotal(0)
+      setHasMore(false)
       handleFetchError(error, {
         genericMessage: "Failed to fetch users",
         onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
@@ -375,6 +361,9 @@ export function AdminUsersTable() {
 
   // Debounce search input - wait 500ms after user stops typing before searching
   useEffect(() => {
+    const prevSearchInput = prevSearchInputRef.current
+    prevSearchInputRef.current = searchInput
+
     if (searchInput.trim() === "") {
       setSearchQuery("")
       // Only touch the URL when deep-link params are present — avoid re-reading stale ?q=
@@ -385,7 +374,9 @@ export function AdminUsersTable() {
         !!readAdminTableUrlFilters(searchParams).userUsername
       if (hasDeepLink) {
         stripDeepLinkParamsFromUrl()
-      } else if (page !== 1) {
+      } else if (prevSearchInput.trim() !== "" && page !== 1) {
+        // Reset page only when the user clears an active search — not on every
+        // empty-search render (that was bouncing pagination back to page 1).
         syncUsersPageToUrl(1)
       }
       return
@@ -599,14 +590,19 @@ export function AdminUsersTable() {
     Object.values(filters).some((v) => v !== "") ||
     !!urlFilters.userUid ||
     !!urlFilters.userUsername
-  const totalPages = Math.ceil(total / limit)
-  const maxUsersPage = total <= 0 ? 1 : Math.max(1, totalPages)
+  const canGoPrev = page > 1
+  const canGoNext = hasMore
+  const pageOffset = Math.max(0, (page - 1) * limit)
+  // Search path knows an exact total; browse path only knows "at least this many".
+  const knownExactTotal = searchQuery.trim() !== ""
 
   useEffect(() => {
-    if (page > maxUsersPage) {
-      syncUsersPageToUrl(maxUsersPage)
+    // If a deep-linked page is past the end, step back once data arrives empty.
+    if (loading) return
+    if (page > 1 && users.length === 0 && !hasMore) {
+      syncUsersPageToUrl(page - 1)
     }
-  }, [page, maxUsersPage, syncUsersPageToUrl])
+  }, [loading, page, users.length, hasMore, syncUsersPageToUrl])
 
   // Helper function to convert ISO string to datetime-local format (local time)
   const isoToLocalDateTime = (isoString: string): string => {
@@ -1241,108 +1237,50 @@ export function AdminUsersTable() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t shrink-0">
           <div className="text-sm text-muted-foreground">
-            {total > 0 ? (
+            {users.length > 0 ? (
               <>
-                Showing <span className="font-medium text-foreground">{((page - 1) * limit) + 1}</span> to{" "}
-                <span className="font-medium text-foreground">{Math.min(page * limit, total)}</span> of{" "}
-                <span className="font-medium text-foreground">{total}</span> users
-                {totalPages > 1 && (
-                  <span className="ml-2">(Page {page} of {totalPages})</span>
+                Showing <span className="font-medium text-foreground">{pageOffset + 1}</span> to{" "}
+                <span className="font-medium text-foreground">{pageOffset + users.length}</span>
+                {knownExactTotal ? (
+                  <>
+                    {" "}
+                    of <span className="font-medium text-foreground">{total}</span> users
+                  </>
+                ) : hasMore ? (
+                  <span> (more available)</span>
+                ) : (
+                  <span> users</span>
                 )}
+                <span className="ml-2">· Page {page}</span>
               </>
             ) : (
               <span>No users found</span>
             )}
           </div>
-          {totalPages > 1 ? (
+          {canGoPrev || canGoNext ? (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => syncUsersPageToUrl(Math.max(1, page - 1))}
-                disabled={page === 1}
+                disabled={!canGoPrev || loading}
                 className="gap-1"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Previous
               </Button>
-              
-              {/* Page Numbers */}
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const pages: (number | string)[] = []
-                  const maxVisible = 7
-                  
-                  if (totalPages <= maxVisible) {
-                    // Show all pages if 7 or fewer
-                    for (let i = 1; i <= totalPages; i++) {
-                      pages.push(i)
-                    }
-                  } else {
-                    // Show first page
-                    pages.push(1)
-                    
-                    if (page > 3) {
-                      pages.push("...")
-                    }
-                    
-                    // Show pages around current page
-                    const start = Math.max(2, page - 1)
-                    const end = Math.min(totalPages - 1, page + 1)
-                    
-                    for (let i = start; i <= end; i++) {
-                      pages.push(i)
-                    }
-                    
-                    if (page < totalPages - 2) {
-                      pages.push("...")
-                    }
-                    
-                    // Show last page
-                    pages.push(totalPages)
-                  }
-                  
-                  return pages.map((p, idx) => {
-                    if (p === "...") {
-                      return (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
-                          ...
-                        </span>
-                      )
-                    }
-                    
-                    const pageNum = p as number
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={page === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => syncUsersPageToUrl(pageNum)}
-                        className="min-w-[2.5rem]"
-                      >
-                        {pageNum}
-                      </Button>
-                    )
-                  })
-                })()}
-              </div>
-              
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => syncUsersPageToUrl(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
+                onClick={() => syncUsersPageToUrl(page + 1)}
+                disabled={!canGoNext || loading}
                 className="gap-1"
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          ) : (
-            <div className="text-xs text-muted-foreground">
-              {total > 0 && total <= limit ? "All users displayed" : ""}
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 

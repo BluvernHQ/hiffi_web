@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
 import type { InventoryClaimSubmit } from "@/lib/types/inventory"
+import { revalidateArtistInventory } from "@/lib/artist-index/revalidate-inventory"
 
 export const dynamic = "force-dynamic"
 
@@ -15,17 +16,21 @@ export async function POST(request: Request) {
       )
     }
 
+    const username = body.username.trim().toLowerCase()
     const res = await fetch(`${getApiBaseUrl()}/inventory/claims`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: body.username.trim().toLowerCase(),
+        username,
         name: body.name.trim(),
         email: body.email.trim(),
       }),
     })
 
     const payload = await res.json()
+    if (res.ok && payload?.success) {
+      revalidateArtistInventory(username)
+    }
     return NextResponse.json(payload, { status: res.status })
   } catch {
     return NextResponse.json(
