@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, PencilLine, X } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import { ArtistClaimCta } from "@/components/artists/ArtistClaimCta"
 import { ArtistDetailAbout } from "@/components/artists/ArtistDetailAbout"
 import { ArtistDetailHero } from "@/components/artists/ArtistDetailHero"
@@ -90,7 +91,16 @@ export function ArtistDetailInteractive({
           </div>
         </header>
       ) : (
-        <ArtistDetailHero artist={artist} profilePath={profilePath} />
+        <>
+          <Link
+            href={ARTIST_INDEX_PATH}
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Back to Artist Index
+          </Link>
+          <ArtistDetailHero artist={artist} profilePath={profilePath} />
+        </>
       )}
 
       {editMode ? (
