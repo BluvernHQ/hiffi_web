@@ -163,33 +163,37 @@ export default function HiffiHeader() {
             <div className="nav-menu">
               <div ref={navLinksRef} className="nav-links">
                 <Link
-                  aria-label="For Creators"
+                  aria-label="How it works"
+                  href="/how-it-works"
+                  className="nav-link w-nav-link"
+                  onClick={closeMenu}
+                >
+                  How it works
+                </Link>
+                <Link
+                  aria-label="Artists"
+                  href="/artists"
+                  className="nav-link w-nav-link"
+                  onClick={closeMenu}
+                >
+                  Artists
+                </Link>
+                <Link
+                  aria-label="For creators"
                   href="/creator/apply"
                   className="nav-link w-nav-link"
                   onClick={closeMenu}
                 >
                   For creators
                 </Link>
-                <Link aria-label="For Fans" href="/signup" className="nav-link w-nav-link" onClick={closeMenu}>
-                  For fans
-                </Link>
                 <Link
-                  aria-label="About"
-                  href="/about"
-                  className="nav-link w-nav-link w--current"
-                  {...{ "change-color": "" }}
-                  onClick={closeMenu}
-                >
-                  About
-                </Link>
-                <Link
-                  aria-label="Contact Us"
-                  href="/support"
+                  aria-label="Download the Hiffi app"
+                  href="/app"
                   className="nav-link w-nav-link"
                   {...{ "change-color": "" }}
                   onClick={closeMenu}
                 >
-                  Contact us
+                  Get the app
                 </Link>
                 <div ref={hoverLineRef} className="nav-link-hover">
                   <div className="nav-link-hover-line change" />

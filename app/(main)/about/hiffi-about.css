@@ -432,6 +432,47 @@ footer.footer .footer-bg {
   background-image: url("/hiffi-about/why-us-card-bg-hiffi.png") !important;
 }
 
+/* Hero — subtle Hiffi red atmosphere (dots + soft glows) */
+.hero-sc {
+  position: relative;
+  isolation: isolate;
+  background-color: #faf7f7;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgb(237 28 47 / 14%) 0%, transparent 42%),
+    radial-gradient(circle at 82% 18%, rgb(241 77 93 / 11%) 0%, transparent 38%),
+    radial-gradient(circle at 70% 78%, rgb(196 24 40 / 10%) 0%, transparent 45%),
+    radial-gradient(circle at 28% 86%, rgb(237 28 47 / 8%) 0%, transparent 40%),
+    radial-gradient(rgb(237 28 47 / 18%) 0.9px, transparent 1.1px);
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    1.15rem 1.15rem;
+  background-position:
+    center,
+    center,
+    center,
+    center,
+    0 0;
+}
+
+.hero-sc::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 40% at 50% 0%, rgb(237 28 47 / 9%), transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / 35%) 0%, transparent 42%, rgb(255 255 255 / 55%) 100%);
+}
+
+.hero-sc > .full-container.hero-s {
+  position: relative;
+  z-index: 1;
+}
+
 /* Hero headline — readable on light hero background */
 .text-elements.hero-s .headline-h1,
 .text-elements.hero-s .headline-h1 .char,
@@ -741,7 +782,6 @@ footer.footer .footer-bg {
 
 .benefits-sticky .iphone-frame,
 .benefits-sticky .screen-video-embed,
-.benefits-sticky .iphone-ui,
 .benefits-sticky .iphone-pop-area {
   position: absolute;
   inset: 0;
@@ -749,12 +789,10 @@ footer.footer .footer-bg {
   height: 100%;
 }
 
-.benefits-sticky .iphone-ui {
-  z-index: 20;
-}
-
 .benefits-sticky .screen-video-embed {
   z-index: 10;
+  overflow: hidden;
+  background: #0a0a0a;
 }
 
 .benefits-sticky .iphone-pop-area {
@@ -776,6 +814,18 @@ footer.footer .footer-bg {
   background-position: center !important;
   background-repeat: no-repeat !important;
   pointer-events: none !important;
+}
+
+.benefits-video-brand {
+  position: absolute;
+  top: 5.2%;
+  left: 7%;
+  z-index: 15;
+  width: 9.5rem;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0.25rem 1.1rem rgb(0 0 0 / 45%));
+  pointer-events: none;
 }
 
 .benefits-sticky .screen-video-embed video {
@@ -1002,6 +1052,11 @@ footer.footer .footer-bg {
   pointer-events: none;
 }
 
+.benefits-sticky.is-white-mode .benefits-video-brand {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
 .benefits-sticky.is-white-mode .beneftis-cards {
   opacity: 0;
   pointer-events: none;
@@ -1117,6 +1172,7 @@ footer.footer .footer-bg {
 }
 
 
+/* Screen clip to phone glass; no UI chrome overlay */
 .benefits-sticky .screen-video-embed,
 .benefits-sticky .iphone-pop-area {
   -webkit-mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;

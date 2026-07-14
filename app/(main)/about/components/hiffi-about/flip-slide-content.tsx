@@ -5,6 +5,7 @@ const ARTIST_IMAGES = {
   s4: "/artist3.jpeg",
   s6: "/artist2.jpeg",
   s8: "/artist4.jpeg",
+  s3: "/artist5.jpeg",
 } as const;
 
 function AssetImg({
@@ -100,7 +101,7 @@ export function FlipSlideContent({ variant }: { variant: string }) {
           </div>
           <div className="flip-widget-point card-3-s2">
             <div className="flip-photo-frame card-3-scale">
-              <AssetImg file="6821a59ae3bfe300713424e2_483885f5c0aaefac3bf8e130dadcab41_flip-photo-4.webp" cover />
+              <AssetImg file="6821a59ae3bfe300713424e0_a42bd0651b7aae6553bc021a365d96b6_flip-card-bg-3.webp" cover />
             </div>
           </div>
           <div className="flip-widget-point card-3-s3">

@@ -1,4 +1,5 @@
 import { Poppins } from "next/font/google";
+import AboutSiteFooter from "./components/hiffi-about/about-site-footer";
 import "./hiffi-about.css";
 
 const poppins = Poppins({
@@ -12,6 +13,7 @@ export default function AboutLayout({ children }: { children: React.ReactNode })
       <link rel="stylesheet" href="/hiffi-about/hiffi-about.css" />
       <link rel="stylesheet" href="/hiffi-about/flip.css" />
       <div className={poppins.className}>{children}</div>
+      <AboutSiteFooter />
     </>
   );
 }

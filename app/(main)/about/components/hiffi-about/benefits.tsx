@@ -99,8 +99,13 @@ export default function HiffiAboutBenefits() {
                     >
                       <source src={hiffiAboutAsset("benefits-screen-video.mp4")} type="video/mp4" />
                     </video>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/hiffi_logo.png"
+                      alt="Hiffi"
+                      className="benefits-video-brand"
+                    />
                   </div>
-                  <div className="iphone-ui" aria-hidden />
                   <div className="iphone-frame" aria-hidden>
                     <div className="iphone-frame-css w-embed" />
                   </div>
