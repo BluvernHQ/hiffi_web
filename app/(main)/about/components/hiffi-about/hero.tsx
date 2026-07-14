@@ -99,7 +99,7 @@ export default function HiffiAboutHero() {
           <div className="headline-wrapper hero-s">
             <h1 className="headline-h1 hero-headline">
               <span {...{ "data-split": "lines-blur" }} className="hero-headline-line">
-                Music&apos;s
+                HipHop&apos;s
               </span>
               <span
                 {...{ "data-split": "lines-blur" }}

@@ -5,7 +5,7 @@ import { hiffiAboutAsset } from "./assets";
 import { BenefitsTagIcon } from "./benefits-tag-icon";
 import { useHiffiAboutSectionInit } from "./use-hiffi-about-section-init";
 
-const CREATOR_TAGS = ["Visibility", "Amplification", "Community", "Monetization"];
+const CREATOR_TAGS = ["Visibility", "Amplification", "Community"];
 const FAN_TAGS = ["Discovery", "Community", "Culture"];
 
 function BenefitTag({ label, variant }: { label: string; variant: "blue" | "orange" }) {

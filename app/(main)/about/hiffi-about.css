@@ -675,7 +675,7 @@ footer.footer .footer-bg {
   aspect-ratio: 1;
   border: 0.32rem solid #fff;
   border-radius: 50%;
-  background: url("/artist1.jpeg") center / cover no-repeat;
+  background: url("/hiffi-about/artst1.webp") center / cover no-repeat;
   box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 12%);
   transform: translate(-50%, -50%);
   pointer-events: none;

@@ -1,22 +1,22 @@
 [
   {
-    "cover": "values-stock-artist-portrait.jpg",
+    "cover": "values-stock-artist-portrait.webp",
     "flipClass": "s1"
   },
   {
-    "cover": "values-stock-live-performance.jpg",
+    "cover": "values-stock-live-performance.webp",
     "flipClass": "s2"
   },
   {
-    "cover": "/artist5.jpeg",
+    "cover": "artist5.webp",
     "flipClass": "s3"
   },
   {
-    "cover": "values-stock-studio.jpg",
+    "cover": "values-stock-studio.webp",
     "flipClass": "s4"
   },
   {
-    "cover": "/artist1.jpeg",
+    "cover": "artst1.webp",
     "flipClass": "s5"
   },
   {
@@ -32,7 +32,7 @@
     "flipClass": "s1"
   },
   {
-    "cover": "values-stock-live-performance.jpg",
+    "cover": "values-stock-live-performance.webp",
     "flipClass": "s2"
   },
   {
@@ -48,7 +48,7 @@
     "flipClass": "s5"
   },
   {
-    "cover": "values-stock-concert-crowd.jpg",
+    "cover": "img8.webp",
     "flipClass": "s6"
   },
   {
@@ -56,7 +56,7 @@
     "flipClass": "s7"
   },
   {
-    "cover": "values-stock-studio.jpg",
+    "cover": "values-stock-studio.webp",
     "flipClass": "s8"
   }
 ]

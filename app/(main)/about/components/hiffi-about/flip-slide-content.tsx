@@ -1,7 +1,7 @@
 import { hiffiAboutAsset, slideAsset } from "./assets";
 
 const ARTIST_IMAGES = {
-  s1: "/artist1.jpeg",
+  s1: "/hiffi-about/artst1.webp",
   s4: "/artist3.jpeg",
   s6: "/artist2.jpeg",
   s8: "/artist4.jpeg",
