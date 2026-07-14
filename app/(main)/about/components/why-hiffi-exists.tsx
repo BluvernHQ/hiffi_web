@@ -8,7 +8,13 @@ const BADGES = [
   { label: "Fan Connection", className: "bottom-[28%] right-[4%] md:bottom-[30%] md:right-[8%]" },
 ] as const;
 
-function ValueBadge({ label, className }: (typeof BADGES)[number]) {
+function ValueBadge({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
