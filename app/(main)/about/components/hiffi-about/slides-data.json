@@ -20,15 +20,15 @@
     "flipClass": "s5"
   },
   {
-    "cover": "image6.jpg",
+    "cover": "image6.webp",
     "flipClass": "s7"
   },
   {
-    "cover": "image5.jpg",
+    "cover": "image5.webp",
     "flipClass": "s8"
   },
   {
-    "cover": "/image2.jpg",
+    "cover": "image2.webp",
     "flipClass": "s1"
   },
   {
@@ -36,15 +36,15 @@
     "flipClass": "s2"
   },
   {
-    "cover": "image5.jpg",
+    "cover": "image5.webp",
     "flipClass": "s3"
   },
   {
-    "cover": "/image1.jpg",
+    "cover": "image1.webp",
     "flipClass": "s4"
   },
   {
-    "cover": "/image0.jpg",
+    "cover": "image0.webp",
     "flipClass": "s5"
   },
   {
@@ -52,7 +52,7 @@
     "flipClass": "s6"
   },
   {
-    "cover": "image3.jpg",
+    "cover": "image3.webp",
     "flipClass": "s7"
   },
   {
