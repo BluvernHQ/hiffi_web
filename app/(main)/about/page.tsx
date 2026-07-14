@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { absoluteUrl } from "@/lib/seo/site";
-import JoyJamHome from "./components/joyjam/joyjam-home";
+import HiffiAboutHome from "./components/hiffi-about/hiffi-about-home";
 
 export const metadata: Metadata = {
   title: "About Hiffi | Artist-First Music Platform",
@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  return <JoyJamHome />;
+  return <HiffiAboutHome />;
 }

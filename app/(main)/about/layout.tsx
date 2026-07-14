@@ -1,5 +1,5 @@
 import { Poppins } from "next/font/google";
-import "./joyjam-clone.css";
+import "./hiffi-about.css";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -9,8 +9,8 @@ const poppins = Poppins({
 export default function AboutLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <link rel="stylesheet" href="/joyjam/joyjam.css" />
-      <link rel="stylesheet" href="/joyjam/flip.css" />
+      <link rel="stylesheet" href="/hiffi-about/hiffi-about.css" />
+      <link rel="stylesheet" href="/hiffi-about/flip.css" />
       <div className={poppins.className}>{children}</div>
     </>
   );
