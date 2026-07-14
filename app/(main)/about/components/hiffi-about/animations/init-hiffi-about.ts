@@ -1,5 +1,5 @@
 import SplitType from "split-type";
-import type Lenis from "lenis";
+import type { HiffiAboutScroller } from "./init-lenis-scroll";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { initBenefitsScroll } from "./init-benefits-scroll";
@@ -63,7 +63,9 @@ export function initSplitText(root: ParentNode) {
     const duration = parseFloat(settings.duration ?? String(preset.duration));
     const ease = settings.ease ?? preset.ease;
 
-    const split = new SplitType(el, { types });
+    const split = new SplitType(el, {
+      types: types as NonNullable<ConstructorParameters<typeof SplitType>[1]>["types"],
+    });
     const targets =
       targetKey === "chars" ? split.chars : targetKey === "lines" ? split.lines : split.words;
     if (!targets?.length) return;
@@ -126,7 +128,7 @@ export function initViewItems(root: ParentNode) {
   return () => observer.disconnect();
 }
 
-export function initNavColor(root: ParentNode, lenis: Lenis) {
+export function initNavColor(root: ParentNode, lenis: HiffiAboutScroller) {
   const navbar = root.querySelector<HTMLElement>("[navbar-element]");
   if (!navbar) return () => {};
 
@@ -226,7 +228,7 @@ export function initWaveHovers(root: ParentNode) {
   root.querySelectorAll<HTMLElement>("[wave-parent-default]").forEach(setupDefaultWave);
 }
 
-export function initScrollScale(root: ParentNode, lenis: Lenis) {
+export function initScrollScale(root: ParentNode, lenis: HiffiAboutScroller) {
   const scalableElems = root.querySelectorAll<HTMLElement>("[scroll-scale]");
   const scaleTos = Array.from(scalableElems).map((el) => {
     const scalePower = parseFloat(el.getAttribute("scroll-scale") ?? "1");
@@ -374,7 +376,7 @@ export function reinitHiffiAboutDom(root: ParentNode) {
   };
 }
 
-export function initHiffiAboutAnimations(root: HTMLElement, lenis: Lenis) {
+export function initHiffiAboutAnimations(root: HTMLElement, lenis: HiffiAboutScroller) {
   const cleanupSplit = initSplitText(root);
   const cleanupView = initViewItems(root);
   const cleanupNav = initNavColor(root, lenis);

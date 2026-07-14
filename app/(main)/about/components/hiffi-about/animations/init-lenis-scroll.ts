@@ -5,22 +5,103 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
+/** Duck-typed for both Lenis and native scroll on mobile */
+export type HiffiAboutScroller = {
+  scroll: number;
+  on: (event: string, handler: () => void) => void;
+  off: (event: string, handler: () => void) => void;
+  scrollTo: (value: number, opts?: { immediate?: boolean }) => void;
+  resize: () => void;
+  destroy: () => void;
+};
+
 export type LenisScrollHandle = {
-  lenis: Lenis;
+  lenis: HiffiAboutScroller;
   destroy: () => void;
   refresh: () => void;
 };
 
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Lenis + GSAP ScrollTrigger — matches original template's native-scroll Lenis setup */
-export function initLenisScroll(): LenisScrollHandle {
+function widthOnlyRefresh(refresh: () => void) {
+  let lastW = window.innerWidth;
+  return () => {
+    const w = window.innerWidth;
+    if (Math.abs(w - lastW) < 2) return;
+    lastW = w;
+    refresh();
+  };
+}
+
+/** Native scroll path — Lenis + scrollerProxy teleports scrub pins on mobile */
+function initNativeScroll(): LenisScrollHandle {
+  const handlers = new Set<() => void>();
+
+  const onScroll = () => {
+    ScrollTrigger.update();
+    handlers.forEach((fn) => fn());
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.scrollTo(0, 0);
+
+  const lenis: HiffiAboutScroller = {
+    get scroll() {
+      return window.scrollY || window.pageYOffset || 0;
+    },
+    on(event, handler) {
+      if (event === "scroll") handlers.add(handler);
+    },
+    off(event, handler) {
+      if (event === "scroll") handlers.delete(handler);
+    },
+    scrollTo(value) {
+      window.scrollTo(0, value);
+    },
+    resize() {},
+    destroy() {
+      window.removeEventListener("scroll", onScroll);
+      handlers.clear();
+    },
+  };
+
+  const refresh = () => {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
+  };
+
+  const onSectionLoaded = () => refresh();
+  const onLoad = () => refresh();
+  const onResize = widthOnlyRefresh(refresh);
+
+  window.addEventListener("hiffi-about:section-loaded", onSectionLoaded);
+  window.addEventListener("load", onLoad);
+  window.addEventListener("resize", onResize);
+
+  requestAnimationFrame(refresh);
+
+  return {
+    lenis,
+    refresh,
+    destroy() {
+      clearTimeout(refreshTimer);
+      window.removeEventListener("hiffi-about:section-loaded", onSectionLoaded);
+      window.removeEventListener("load", onLoad);
+      window.removeEventListener("resize", onResize);
+      lenis.destroy();
+    },
+  };
+}
+
+/** Lenis + GSAP ScrollTrigger — desktop / fine pointer only */
+function initLenisDesktop(): LenisScrollHandle {
   const scroller = document.documentElement;
 
   const lenis = new Lenis({
     duration: 1,
     easing: (t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
     smoothWheel: true,
+    syncTouch: false,
     wheelMultiplier: 1,
     touchMultiplier: 1.5,
     infinite: false,
@@ -60,26 +141,24 @@ export function initLenisScroll(): LenisScrollHandle {
     refreshTimer = setTimeout(() => {
       lenis.resize();
       ScrollTrigger.refresh();
-    }, 50);
+    }, 120);
   };
 
   const onSectionLoaded = () => refresh();
   const onLoad = () => refresh();
-  const onResize = () => refresh();
+  const onResize = widthOnlyRefresh(refresh);
 
   window.addEventListener("hiffi-about:section-loaded", onSectionLoaded);
   window.addEventListener("load", onLoad);
   window.addEventListener("resize", onResize);
 
-  // Reset scroll on entry — avoids Next.js restoring a stale position
   lenis.scrollTo(0, { immediate: true });
 
   requestAnimationFrame(refresh);
   window.setTimeout(refresh, 400);
-  window.setTimeout(refresh, 1200);
 
   return {
-    lenis,
+    lenis: lenis as unknown as HiffiAboutScroller,
     refresh,
     destroy() {
       clearTimeout(refreshTimer);
@@ -91,4 +170,12 @@ export function initLenisScroll(): LenisScrollHandle {
       ScrollTrigger.scrollerProxy(scroller, {});
     },
   };
+}
+
+export function initLenisScroll(): LenisScrollHandle {
+  // Responsive device mode + real phones: native scroll is stable with scrub ST
+  if (window.matchMedia("(max-width: 991px)").matches) {
+    return initNativeScroll();
+  }
+  return initLenisDesktop();
 }

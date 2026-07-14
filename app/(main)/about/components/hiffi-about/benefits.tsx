@@ -78,8 +78,10 @@ export default function HiffiAboutBenefits() {
 
               <div className="text-elements benefits-s">
                 <div className="headline-wrapper benefits-s">
-                  <h2 data-split="chars-blur" className="headline-h1">
-                    The Hiffi Experience
+                  <h2 data-split="chars-blur" className="headline-h1 benefits-headline">
+                    The Hiffi
+                    <br />
+                    Experience
                   </h2>
                 </div>
               </div>

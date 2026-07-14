@@ -108,54 +108,43 @@ function refreshBenefitsScroll() {
   });
 }
 
-function measureAtPhoneYZero<T>(
-  iphonePosition: HTMLElement,
-  measure: () => T
-): T {
-  const prevY = (gsap.getProperty(iphonePosition, "y") as number) || 0;
-  gsap.set(iphonePosition, { y: 0 });
-  const result = measure();
-  gsap.set(iphonePosition, { y: prevY });
-  return result;
+/**
+ * Bottom-aligned phone: geometry at y=0 is stickyH - phoneH.
+ * Read-only — never write y:0 during measure (that was flashing every ScrollTrigger.refresh).
+ */
+function phoneGeom(sticky: HTMLElement, iphone: HTMLElement) {
+  const stickyHeight = sticky.clientHeight;
+  const phoneHeight = iphone.getBoundingClientRect().height;
+  return { stickyHeight, phoneHeight, phoneTopAtZero: stickyHeight - phoneHeight };
 }
 
 /** Push phone down so ~40% peeks in with a clear gap below the headline */
 function computePhonePeekY(
   sticky: HTMLElement,
-  iphonePosition: HTMLElement,
+  _iphonePosition: HTMLElement,
   headline: HTMLElement,
   iphone: HTMLElement,
   peekRatio = 0.4,
   gapVh = 0.12
 ): number {
-  return measureAtPhoneYZero(iphonePosition, () => {
-    const stickyHeight = sticky.clientHeight;
-    const phoneHeight = iphone.getBoundingClientRect().height;
-    const headlineBottom = headline.offsetTop + headline.offsetHeight;
-    const phoneTopAtZero = stickyHeight - phoneHeight;
-    const peekTop = stickyHeight - phoneHeight * peekRatio;
-    const gapTop = headlineBottom + stickyHeight * gapVh;
-    const desiredTop = Math.max(gapTop, peekTop);
-
-    return Math.max(0, desiredTop - phoneTopAtZero);
-  });
+  const { stickyHeight, phoneHeight, phoneTopAtZero } = phoneGeom(sticky, iphone);
+  const headlineBottom = headline.offsetTop + headline.offsetHeight;
+  const peekTop = stickyHeight - phoneHeight * peekRatio;
+  const gapTop = headlineBottom + stickyHeight * gapVh;
+  const desiredTop = Math.max(gapTop, peekTop);
+  return Math.max(0, desiredTop - phoneTopAtZero);
 }
 
 /** Centered/pinned phone Y — scroll-independent, pairs with peekY */
 function computePhonePinnedY(
   sticky: HTMLElement,
-  iphonePosition: HTMLElement,
+  _iphonePosition: HTMLElement,
   iphone: HTMLElement,
   centerRatio = 0.46
 ): number {
-  return measureAtPhoneYZero(iphonePosition, () => {
-    const stickyHeight = sticky.clientHeight;
-    const phoneHeight = iphone.getBoundingClientRect().height;
-    const phoneTopAtZero = stickyHeight - phoneHeight;
-    const desiredTop = (stickyHeight - phoneHeight) * centerRatio;
-
-    return desiredTop - phoneTopAtZero;
-  });
+  const { stickyHeight, phoneHeight, phoneTopAtZero } = phoneGeom(sticky, iphone);
+  const desiredTop = (stickyHeight - phoneHeight) * centerRatio;
+  return desiredTop - phoneTopAtZero;
 }
 
 function layoutPhoneY(
@@ -244,7 +233,8 @@ function buildDesktopTimeline(root: HTMLElement) {
   const tags = setupBenefitTags(root);
 
   gsap.set(iphone, { scale: 0.178, transformOrigin: "center bottom" });
-  gsap.set(headline, { y: 0 });
+  // xPercent keeps horizontal center when scrubbing y (CSS translateX gets overwritten)
+  gsap.set(headline, { left: "50%", xPercent: -50, x: 0, y: 0, force3D: true });
   const layout = layoutPhoneY(sticky, iphonePosition, headline, iphone);
   gsap.set(iphonePosition, { y: layout.peekY });
   if (cardS1) gsap.set(cardS1, { y: "100vh" });
@@ -370,6 +360,8 @@ function buildMobileTimeline(root: HTMLElement) {
   const valuesCards = root.querySelector<HTMLElement>(".values-cards");
   const whiteAnchor = root.querySelector<HTMLElement>(".values-white-anchor");
   const headlineMask = root.querySelector<HTMLElement>(".values-headline-mask");
+  const valuesS1 = root.querySelector<HTMLElement>(".values-card-position.s1");
+  const valuesS2 = root.querySelector<HTMLElement>(".values-card-position.s2");
   const sliderPath = root.querySelector<HTMLElement>(".values-slider-path");
   const pathVideos = root.querySelector<HTMLElement>(".values-path-videos");
 
@@ -377,18 +369,34 @@ function buildMobileTimeline(root: HTMLElement) {
 
   const tags = setupBenefitTags(root);
 
-  gsap.set(iphone, { scale: 0.68, transformOrigin: "center bottom" });
-  gsap.set(headline, { y: 0 });
-  const mobilePeekY = computePhonePeekY(sticky, iphonePosition, headline, iphone, 0.45, 0.1);
-  gsap.set(iphonePosition, { y: mobilePeekY });
-  if (cards) gsap.set(cards, { xPercent: 150 });
+  const MOBILE_PEEK_SCALE = 0.68;
+  // Fixed numbers — never remasure mid-scrub (was teleporting on invalidateOnRefresh)
+  gsap.set(iphone, {
+    scale: MOBILE_PEEK_SCALE,
+    transformOrigin: "center bottom",
+    force3D: true,
+  });
+  // Mobile: full-width centered via CSS text-align — don't apply xPercent
+  gsap.set(headline, { clearProps: "left,xPercent", x: 0, y: 0, force3D: true });
+  gsap.set(iphonePosition, { force3D: true });
+
+  const peekY = computePhonePeekY(sticky, iphonePosition, headline, iphone, 0.55, 0.06);
+  const pinnedY = computePhonePinnedY(sticky, iphonePosition, iphone, 0.4);
+  gsap.set(iphonePosition, { y: peekY });
+
+  if (cards) gsap.set(cards, { xPercent: 150, force3D: true });
   gsap.set(screenPop, { yPercent: 100, height: "0%" });
   if (popText) gsap.set(popText, { scale: 1.35, yPercent: -80, opacity: 0 });
   if (benefitsBg) gsap.set(benefitsBg, { opacity: 1 });
-  if (valuesCards) gsap.set(valuesCards, { opacity: 0, y: "170vh" });
+  // Container stays put; the two cards scrub through the viewport like desktop
+  if (valuesCards) gsap.set(valuesCards, { opacity: 0, y: 0 });
+  if (valuesS1) gsap.set(valuesS1, { y: "110vh", force3D: true });
+  if (valuesS2) gsap.set(valuesS2, { y: "150vh", force3D: true });
   if (headlineMask) gsap.set(headlineMask, { yPercent: 0 });
   if (pathVideos) gsap.set(pathVideos, { x: 0 });
-  sticky?.classList.remove(
+
+  // Never toggle is-phone-zoom on mobile — CSS reflows top/align and teleports the phone
+  sticky.classList.remove(
     "is-white-mode",
     "is-white-bg",
     "is-phone-zoom",
@@ -397,53 +405,64 @@ function buildMobileTimeline(root: HTMLElement) {
     "is-cards-reveal",
     "is-benefits-ready"
   );
-  sticky?.classList.add("is-benefits-ready");
+  sticky.classList.add("is-benefits-ready");
 
-  const mobileLayout = {
-    peekY: mobilePeekY,
-    pinnedY: computePhonePinnedY(sticky, iphonePosition, iphone, 0.42),
-  };
+  let tagsPlayed = false;
 
-  let lastProgress = 0;
+  // Segments are placed in timeline-time units but the timeline runs 0.901
+  // long, so a seg at time t plays at scroll progress t / 0.901. Map class
+  // thresholds the same way so CSS state flips in sync with the tweens
+  // (is-white-mode used to fire mid-zoom and drop the phone bezel early).
+  const TL_DURATION = 0.901;
+  const at = (t: number) => t / TL_DURATION;
 
   const tl = gsap.timeline({
     scrollTrigger: {
       trigger: height,
       start: "top top",
       end: "bottom bottom",
-      scrub: true,
-      invalidateOnRefresh: true,
+      scrub: 1,
+      // Remeasure mid-scroll = y jumps — lock values
+      invalidateOnRefresh: false,
       onUpdate(self) {
         const p = self.progress;
-        sticky?.classList.toggle("is-phone-risen", p >= 0.1);
-        sticky?.classList.toggle("is-cards-reveal", p >= 0.1 && p < 0.30);
-        sticky?.classList.toggle("is-phone-pop", p >= 0.30 && p < 0.66);
-        syncPhoneZoomLayout(p, lastProgress, 0.56, 0.66, iphone, sticky);
-        syncWhiteMode(p, lastProgress, 0.66, iphone, sticky);
-        if (p < 0.18) {
+        const risen = p >= at(0.1);
+        const cardsReveal = p >= at(0.1) && p < at(0.3);
+        const phonePop = p >= at(0.3) && p < at(0.66);
+        const white = p >= at(0.66);
+
+        sticky.classList.toggle("is-phone-risen", risen);
+        sticky.classList.toggle("is-cards-reveal", cardsReveal);
+        sticky.classList.toggle("is-phone-pop", phonePop);
+        sticky.classList.toggle("is-white-mode", white);
+        sticky.classList.toggle("is-white-bg", white);
+        sticky.classList.remove("is-phone-zoom");
+
+        if (p >= at(0.2) && !tagsPlayed) {
+          tagsPlayed = true;
+          tags.playCreator();
+          tags.playFan();
+        } else if (p < at(0.16) && tagsPlayed) {
+          tagsPlayed = false;
           tags.resetCreator();
           tags.resetFan();
         }
-        lastProgress = p;
       },
     },
   });
 
-  seg(tl, 0.1, 0.2, iphonePosition, { y: () => mobileLayout.pinnedY });
+  seg(tl, 0.1, 0.2, iphonePosition, { y: pinnedY });
   seg(tl, 0.1, 0.2, headline, { y: "-42vh" });
   if (cards) seg(tl, 0.1, 0.2, cards, { xPercent: 0 });
-  tl.call(() => {
-    tags.playCreator();
-    tags.playFan();
-  }, undefined, 0.22);
 
-  if (cards) seg(tl, 0.30, 0.1, cards, { xPercent: -150 });
-  seg(tl, 0.30, 0.08, headline, { y: "-105vh" });
+  if (cards) seg(tl, 0.3, 0.1, cards, { xPercent: -150 });
+  seg(tl, 0.3, 0.08, headline, { y: "-105vh" });
 
-  if (benefitsBg) seg(tl, 0.30, 0.04, benefitsBg, { opacity: 0 });
-  seg(tl, 0.30, 0.14, screenPop, { yPercent: 0, height: "50%" });
+  if (benefitsBg) seg(tl, 0.3, 0.04, benefitsBg, { opacity: 0 });
+  seg(tl, 0.3, 0.14, screenPop, { yPercent: 0, height: "50%" });
   if (popText) seg(tl, 0.36, 0.12, popText, { opacity: 0.35, scale: 1.15, yPercent: -25 });
 
+  // Keep origin center bottom for whole zoom — no mid-scrub origin flip
   seg(tl, 0.56, 0.1, iphone, { scale: 1 });
   seg(tl, 0.56, 0.1, screenPop, { height: "100%" });
   seg(tl, 0.56, 0.1, iphonePosition, { y: 0 });
@@ -451,8 +470,12 @@ function buildMobileTimeline(root: HTMLElement) {
   if (headlineMask) seg(tl, 0.6, 0.08, headlineMask, { yPercent: 100 });
   if (whiteAnchor) seg(tl, 0.6, 0.08, whiteAnchor, { yPercent: 0 });
 
-  if (valuesCards) seg(tl, 0.66, 0.001, valuesCards, { opacity: 1, y: 0 });
+  // Values cards ride through the viewport on scroll (cards start below fold,
+  // so the opacity flip is invisible — no more static pop-in/pop-out)
+  if (valuesCards) seg(tl, 0.64, 0.001, valuesCards, { opacity: 1 });
   if (sliderPath) seg(tl, 0.66, 0.001, sliderPath, { xPercent: 30 });
+  if (valuesS1) seg(tl, 0.66, 0.24, valuesS1, { y: "-140vh" });
+  if (valuesS2) seg(tl, 0.66, 0.24, valuesS2, { y: "-170vh" });
 
   if (pathVideos) {
     const scrubDistance = () => {
@@ -460,11 +483,14 @@ function buildMobileTimeline(root: HTMLElement) {
       const viewport = strip.parentElement?.clientWidth ?? strip.clientWidth;
       return -Math.max(strip.scrollWidth - viewport, 0) * 0.66;
     };
-    seg(tl, 0.66, 0.24, pathVideos, { x: scrubDistance });
+    // Capture once — function getters + refresh remasure teleports
+    const pathX = scrubDistance();
+    seg(tl, 0.66, 0.24, pathVideos, { x: pathX });
   }
 
-  if (sliderPath) seg(tl, 0.9, 0.001, sliderPath, { xPercent: -40 });
-  if (valuesCards) seg(tl, 0.9, 0.001, valuesCards, { y: "-150vh" });
+  // Keep total duration at 0.901 (same as before) so every position keeps its
+  // scroll mapping — segments are placed in time units, not raw progress.
+  tl.to({}, { duration: 0.001 }, 0.9);
 
   return tl;
 }
@@ -487,7 +513,7 @@ export function initBenefitsScroll(root: ParentNode) {
   const timelines: (gsap.core.Timeline | null)[] = [];
   const refreshHandlers: Array<() => void> = [];
 
-  mm.add("(min-width: 479px)", () => {
+  mm.add("(min-width: 480px)", () => {
     const built = buildDesktopTimeline(scope);
     if (built) {
       timelines.push(built.tl);
@@ -495,7 +521,7 @@ export function initBenefitsScroll(root: ParentNode) {
     }
   });
 
-  mm.add("(max-width: 478px)", () => {
+  mm.add("(max-width: 479px)", () => {
     timelines.push(buildMobileTimeline(scope));
   });
 

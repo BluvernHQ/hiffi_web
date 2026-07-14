@@ -1,6 +1,8 @@
-/* original template rem scale — about page only; sync before JS mount */
+/* original template rem scale — about page only; sync before JS mount.
+   svw stays stable when mobile URL bar shows/hides (vw can thrash rem + rem cascade). */
 html {
   font-size: 1vw;
+  font-size: 1svw;
 }
 
 /* Hiffi theme — remap HiffiAbout blue/orange accents to brand red */
@@ -427,6 +429,27 @@ footer.footer .footer-bg {
   object-fit: contain;
 }
 
+/* SiteFooter island — undo Webflow element resets that leak into the Tailwind
+   footer (ul { padding-left: 40px }, p { margin-bottom: 10px }). Tailwind
+   preflight expects zeroed defaults; the fixed 40px eats the scaled layout box
+   and crushes the link columns on mobile. */
+.about-site-footer ul,
+.about-site-footer ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about-site-footer p,
+.about-site-footer figure {
+  margin: 0;
+}
+
+/* Template body font (Poppins) cascades in — use the site font like other pages */
+.about-site-footer {
+  font-family: var(--font-sans, "Geist", sans-serif);
+}
+
 /* Hiffi why-us card background (J replaced with H in asset) */
 .why-us-card.s2 {
   background-image: url("/hiffi-about/why-us-card-bg-hiffi.png") !important;
@@ -725,6 +748,51 @@ footer.footer .footer-bg {
   transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.text-elements.benefits-s .headline-wrapper.benefits-s {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  text-align: center !important;
+}
+
+.text-elements.benefits-s .headline-h1.benefits-headline {
+  width: 100%;
+  margin: 0;
+  text-align: center !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* SplitType wraps each visual line — force each to full width + center */
+.text-elements.benefits-s .headline-h1.benefits-headline .line {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100%;
+  margin-inline: auto;
+  text-align: center !important;
+}
+
+.text-elements.benefits-s .headline-h1.benefits-headline .char {
+  display: inline !important;
+  float: none !important;
+}
+
+/* White card for light about page */
+.benefits-sticky .benefits-card {
+  background-color: #fff !important;
+  border: 1px solid rgb(0 0 0 / 10%);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 8%);
+}
+
+.benefits-sticky .benefits-card .subheadline-l {
+  color: #080808;
+  text-align: center;
 }
 
 .beneftis-cards {
@@ -775,9 +843,10 @@ footer.footer .footer-bg {
   height: auto;
   aspect-ratio: 12 / 24.45;
   flex-shrink: 0;
-  transform: scale(0.178);
+  /* transform/scale owned by GSAP — CSS scale here fought scrub and flashed on refresh */
   transform-origin: center bottom;
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 .benefits-sticky .iphone-frame,
@@ -856,13 +925,50 @@ footer.footer .footer-bg {
     url("/hiffi-about/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png"); */
 }
 
-@media screen and (max-width: 478px) {
+/* Mobile benefits — size "The Hiffi Experience" + avoid mid-scrub flashes */
+@media screen and (max-width: 991px) {
   .text-elements.benefits-s {
-    top: 12rem;
+    top: 14rem;
+    left: 0;
+    right: 0;
     width: 100%;
     max-width: none;
-    left: 0;
     transform: none;
+    padding-inline: 4vw;
+    box-sizing: border-box;
+    text-align: center !important;
+  }
+
+  .text-elements.benefits-s .headline-h1 {
+    font-size: 12vw !important;
+    line-height: 1.02 !important;
+    letter-spacing: -0.03em;
+    text-align: center !important;
+  }
+
+  .text-elements.benefits-s .headline-h1.benefits-headline .char {
+    display: inline !important;
+  }
+
+  .text-elements.benefits-s .headline-h1.benefits-headline .line {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .text-elements.benefits-s {
+    top: 12rem;
+    padding-inline: 5vw;
+  }
+
+  .text-elements.benefits-s .headline-h1 {
+    font-size: 11.5vw !important;
+  }
+
+  .benefits-sticky .benefits-card {
+    background-color: #fff !important;
   }
 
   .iphone-position {
@@ -874,8 +980,7 @@ footer.footer .footer-bg {
     position: absolute !important;
     width: auto;
     height: 130vh;
-    max-height: 110rem;
-    transform: scale(0.68);
+    max-height: none;
     transform-origin: center bottom;
   }
 
@@ -886,19 +991,6 @@ footer.footer .footer-bg {
     -webkit-mask-position: center 11.5% !important;
     mask-position: center 11.5% !important;
   }
-
-  /* .benefits-bg {
-    background-image:
-      linear-gradient(
-        180deg,
-        var(--jam--oil-black, #0c0b0c),
-        transparent 15%,
-        transparent 48%,
-        transparent 85%,
-        var(--jam--oil-black, #0c0b0c)
-      ),
-      url("/hiffi-about/6821a59ae3bfe3007134260f_465848268cc696b2f54df0a2420c0e39_benefits-bg-p.png");
-  } */
 }
 
 .iphone-ui {
@@ -1080,15 +1172,31 @@ footer.footer .footer-bg {
   height: 0%;
 }
 
-/* Center-origin zoom — only during fullscreen scale (keeps peek visible before) */
-.benefits-sticky.is-phone-zoom .iphone-position {
-  top: 0;
-  bottom: 0;
-  align-items: center;
+/* Center-origin zoom — desktop only. On mobile this reflow teleports the phone. */
+@media screen and (min-width: 480px) {
+  .benefits-sticky.is-phone-zoom .iphone-position {
+    top: 0;
+    bottom: 0;
+    align-items: center;
+  }
+
+  .benefits-sticky.is-phone-zoom .iphone {
+    transform-origin: center center !important;
+  }
 }
 
-.benefits-sticky.is-phone-zoom .iphone {
-  transform-origin: center center !important;
+@media screen and (max-width: 479px) {
+  .benefits-sticky.is-phone-zoom .iphone-position,
+  .benefits-sticky .iphone-position {
+    top: auto;
+    bottom: 0;
+    align-items: flex-end;
+  }
+
+  .benefits-sticky.is-phone-zoom .iphone,
+  .benefits-sticky .iphone {
+    transform-origin: center bottom !important;
+  }
 }
 
 /* Pre-JS: cards off-screen, white sheet collapsed */
@@ -1134,19 +1242,22 @@ footer.footer .footer-bg {
   pointer-events: none;
 }
 
-/* Fullscreen layout only once zoom is done — never during scrub-back mid-zoom */
-.benefits-sticky.is-white-bg .iphone-position {
-  top: 0;
-  bottom: 0;
-  align-items: center;
-}
+/* Fullscreen layout only once zoom is done — never during scrub-back mid-zoom.
+   Mobile: skip — flipping width/height + align mid-scrub teleports the phone. */
+@media screen and (min-width: 480px) {
+  .benefits-sticky.is-white-bg .iphone-position {
+    top: 0;
+    bottom: 0;
+    align-items: center;
+  }
 
-.benefits-sticky.is-white-bg .iphone {
-  width: 100% !important;
-  height: 100% !important;
-  max-height: none;
-  aspect-ratio: unset;
-  transform-origin: center center !important;
+  .benefits-sticky.is-white-bg .iphone {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none;
+    aspect-ratio: unset;
+    transform-origin: center center !important;
+  }
 }
 
 .benefits-sticky.is-white-bg .values-screen-pop {
@@ -1254,6 +1365,8 @@ footer.footer .footer-bg {
 .text-elements.hero-s .headline-h1.hero-headline {
   overflow: visible;
   width: 100%;
+  /* desktop: token; mobile overrides / GSAP may shrink via --hero-headline-size */
+  font-size: var(--hero-headline-size, var(--_fonts---headline--h1));
 }
 
 .text-elements.hero-s .headline-h1.hero-headline .hero-headline-line {
@@ -1312,7 +1425,7 @@ footer.footer .footer-bg {
   }
 
   .hero-sc .circle-slider-container {
-    width: 320rem;
+    width: min(280rem, 780vw);
   }
 
   .text-elements.hero-s {
@@ -1345,7 +1458,10 @@ footer.footer .footer-bg {
     z-index: -1;
   }
 
+  /* vw — not 23.4rem token; GSAP may shrink further via --hero-headline-size */
   .text-elements.hero-s .headline-h1.hero-headline {
+    font-size: var(--hero-headline-size, 10.5vw) !important;
+    line-height: 0.95 !important;
     filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.9));
   }
 
@@ -1356,6 +1472,8 @@ footer.footer .footer-bg {
   }
 
   .text-elements.hero-s .subheadline-m.hero-subline {
+    font-size: 4.1vw !important;
+    line-height: 1.45 !important;
     max-width: none !important;
   }
 
@@ -1368,27 +1486,20 @@ footer.footer .footer-bg {
   .hero-sc .circle-slider-position {
     top: 28vw !important;
   }
-
-  .text-elements.hero-s .headline-h1.hero-headline {
-    font-size: var(--_fonts---headline--h1) !important;
-    line-height: 0.95 !important;
-  }
-
-  .text-elements.hero-s .subheadline-m.hero-subline {
-    font-size: var(--_fonts---subheadline--m) !important;
-    line-height: var(--_fonts---line-height--130) !important;
-  }
 }
 
 @media screen and (max-width: 479px) {
   .hero-sc .circle-slider-position {
-    top: 30vw !important;
+    top: 28vw !important;
+  }
+
+  .hero-sc .circle-slider-container {
+    width: min(240rem, 680vw);
   }
 
   .text-elements.hero-s .headline-h1.hero-headline {
-    font-size: var(--_fonts---headline--h1) !important;
-    line-height: 0.95 !important;
-    letter-spacing: -0.03em;
+    font-size: var(--hero-headline-size, 10.2vw) !important;
+    letter-spacing: -0.04em;
   }
 
   .description-wrapper.hero-s {
@@ -1397,11 +1508,13 @@ footer.footer .footer-bg {
   }
 
   .text-elements.hero-s .subheadline-m.hero-subline {
-    font-size: var(--_fonts---subheadline--m) !important;
-    line-height: var(--_fonts---line-height--130) !important;
+    font-size: 4.26vw !important;
+    line-height: 1.5 !important;
   }
 
   .headline-wrapper.hero-s {
     max-width: 92vw;
+    padding-inline: 0.5rem;
+    box-sizing: border-box;
   }
 }
