@@ -1,6 +1,7 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from "react"
+import { usePathname } from "next/navigation"
 
 interface SidebarContextType {
   isSidebarOpen: boolean
@@ -16,41 +17,48 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
 const SIDEBAR_STORAGE_KEY = 'hiffi_sidebar_desktop_open'
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+
   // Mobile sidebar state - always starts closed (no persistence needed)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  // Desktop sidebar state - initialize to false for SSR/Hydration
+  // Desktop sidebar state - initialized and hydrated from localStorage.
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [desktopStateHydrated, setDesktopStateHydrated] = useState(false)
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    setMounted(true)
+  // Download page: desktop sidebar defaults closed. Other routes: restore from localStorage.
+  // Skip persisting while on /app so a visit here does not overwrite the global sidebar preference.
+  useLayoutEffect(() => {
     try {
-      if (typeof window !== 'undefined') {
+      if (pathname === "/app") {
+        setIsDesktopSidebarOpen(false)
+      } else {
         const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
         if (saved !== null) {
-          setIsDesktopSidebarOpen(saved === 'true')
+          setIsDesktopSidebarOpen(saved === "true")
         }
       }
     } catch (error) {
-      console.debug('[hiffi] Failed to load sidebar state:', error)
+      console.debug("[hiffi] Failed to load sidebar state:", error)
+    } finally {
+      setDesktopStateHydrated(true)
     }
-  }, [])
+  }, [pathname])
 
   // Save desktop sidebar state to localStorage whenever it changes
   useEffect(() => {
-    if (!mounted) return
+    if (!desktopStateHydrated) return
+    if (pathname === "/app") return
     try {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isDesktopSidebarOpen))
     } catch (error) {
       // Ignore localStorage errors (e.g., in private browsing)
-      console.debug('[hiffi] Failed to save sidebar state:', error)
+      console.debug("[hiffi] Failed to save sidebar state:", error)
     }
-  }, [isDesktopSidebarOpen, mounted])
+  }, [isDesktopSidebarOpen, desktopStateHydrated, pathname])
 
-  const toggleDesktopSidebar = () => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)
-  const toggleMobileSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+  const toggleDesktopSidebar = () => setIsDesktopSidebarOpen((prev) => !prev)
+  const toggleMobileSidebar = () => setIsSidebarOpen((prev) => !prev)
 
   return (
     <SidebarContext.Provider

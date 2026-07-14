@@ -5,10 +5,11 @@ import Image from "next/image"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { buildLoginUrl } from "@/lib/auth-utils"
+import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
+import { isCreator } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2 } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2, Flag } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,16 +18,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ProfilePicture } from "@/components/profile/profile-picture"
+import { NavbarProfileAvatar } from "@/components/profile/navbar-profile-avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect } from "react"
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/lib/utils"
 
 
 interface NavbarProps {
   onMenuClick?: () => void
-  currentFilter?: 'all' | 'following'
+  currentFilter?: 'all' | 'following' | 'liked' | 'history'
+  variant?: 'full' | 'minimal'
+}
+
+function MinimalNavbarHeader() {
+  return (
+    <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center px-2 sm:px-3 md:px-4">
+        <Link href="/" className="flex items-center gap-3" data-analytics-name="appbar-logo">
+          <Image
+            src="/appbarlogo.png"
+            alt="Hiffi Logo"
+            width={132}
+            height={32}
+            className="h-8 w-auto object-contain"
+            style={{ width: "auto" }}
+            priority
+          />
+        </Link>
+      </div>
+    </header>
+  )
 }
 
 /** Radix Dialog + Dropdown can leave body pointer-events locked after close; confirm path already forces cleanup. */
@@ -56,6 +77,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
+  const isAppDownloadPage = pathname === "/app"
 
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
@@ -125,58 +147,97 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header
+        className={isAppDownloadPage
+          ? "sticky top-0 z-[80] w-full border-b border-black/15 bg-[#f3f0e8]"
+          : "sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"}
+      >
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className={isAppDownloadPage ? "h-9 w-9 text-black/70 hover:bg-black/5 hover:text-black" : "h-9 w-9"}
               onClick={onMenuClick}
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3" data-analytics-name="appbar-logo">
               <Image
                 src="/appbarlogo.png"
                 alt="Hiffi Logo"
                 width={132}
                 height={32}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>
           </div>
 
-          <div className="flex-1 flex items-center justify-center px-2 min-w-0">
+          {/* Tablet/desktop: full search pill in center; mobile shows nothing here (spacer only) */}
+          <div className="flex-1 hidden sm:flex items-center justify-center px-2 min-w-0">
             <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
               <div
                 onClick={() => setIsSearchOpen(true)}
-                className="group relative flex items-center w-full h-9 rounded-full bg-muted/50 border border-input hover:bg-muted hover:border-primary/30 transition-all cursor-pointer overflow-hidden"
+                data-analytics-name="navbar-open-search-button"
+                className={
+                  isAppDownloadPage
+                    ? "group relative flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-full border border-black/15 bg-white/90 shadow-sm transition-all hover:border-black/25 hover:bg-white"
+                    : "group relative flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-full border border-input bg-muted/50 transition-all hover:border-primary/30 hover:bg-muted"
+                }
               >
-                <Search className="absolute left-3 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="pl-10 text-sm text-muted-foreground truncate pr-4">
-                  Search...
+                <Search
+                  className={
+                    isAppDownloadPage
+                      ? "absolute left-3 h-4 w-4 text-black/45 transition-colors group-hover:text-[#dc2626]"
+                      : "absolute left-3 h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                  }
+                />
+                <span
+                  className={
+                    isAppDownloadPage
+                      ? "truncate pl-10 pr-4 text-sm text-black/55"
+                      : "truncate pl-10 pr-4 text-sm text-muted-foreground"
+                  }
+                >
+                  Search or @username...
                 </span>
               </div>
             </div>
           </div>
+          {/* Mobile spacer when search hidden in center */}
+          <div className="flex-1 sm:hidden" />
 
-          <div className="flex items-center gap-2 md:gap-4 pr-2 sm:pr-3 md:pr-4 flex-shrink-0">
-            {user && userData ? (
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 pr-2 sm:pr-3 md:pr-4 flex-shrink-0">
+            {/* Mobile-only icon search trigger, sits with action cluster */}
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              data-analytics-name="navbar-open-search-button-mobile"
+              aria-label="Open search"
+              className={
+                isAppDownloadPage
+                  ? "sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-full text-black/70 hover:bg-black/5 hover:text-black"
+                  : "sm:hidden inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+              }
+            >
+              <Search className="h-5 w-5" />
+            </button>
+            {user ? (
               <>
-                {showUploadButton && (
+                {showUploadButton && userData && (
                   <>
-                    {userData.role === "creator" ? (
-                      <Button variant="ghost" size="icon" asChild className="hidden md:flex">
-                        <Link href="/creator/apply">
+                    {isCreator(userData) ? (
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
+                        <Link href="/studio">
                           <Upload className="h-5 w-5" />
                           <span className="sr-only">Hiffi Studio</span>
                         </Link>
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="icon" asChild className="hidden md:flex">
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-become-creator-button">
                         <Link href="/creator/apply">
                           <Sparkles className="h-5 w-5" />
                           <span className="sr-only">Become Creator</span>
@@ -187,28 +248,32 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 )}
                 <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <ProfilePicture user={userData} size="sm" />
-                    </Button>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Open account menu"
+                    >
+                      <NavbarProfileAvatar user={userData ?? user} />
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userData.name || userData.username}</p>
-                        <p className="text-xs leading-none text-muted-foreground">@{userData.username}</p>
+                        <p className="text-sm font-medium leading-none">{(userData ?? user).name || (userData ?? user).username}</p>
+                        <p className="text-xs leading-none text-muted-foreground">@{(userData ?? user).username}</p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/profile/${userData.username}`}>
+                      <Link href={`/profile/${(userData ?? user).username}`} data-analytics-name="navbar-profile-link">
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
-                    {userData.role === "creator" ? (
+                    {isCreator(userData) ? (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link href="/creator/apply">
+                          <Link href="/studio" data-analytics-name="navbar-user-menu-hiffi-studio-link">
                             <Video className="mr-2 h-4 w-4" />
                             <span>Hiffi Studio</span>
                           </Link>
@@ -216,18 +281,25 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       </>
                     ) : (
                       <DropdownMenuItem asChild>
-                        <Link href="/creator/apply">
+                        <Link href="/creator/apply" data-analytics-name="navbar-user-menu-become-creator-link">
                           <Sparkles className="mr-2 h-4 w-4" />
                           <span>Become a Creator</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem asChild>
+                      <Link href="/support/reports" data-analytics-name="navbar-my-reports-link">
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>My reports</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={(e) => {
                         e.preventDefault()
                         setUserMenuOpen(false)
-                        setLogoutDialogOpen(true)
+                        // Open after dropdown unmounts — same-tick open often prevents dialog from showing (Radix stacking / focus).
+                        queueMicrotask(() => setLogoutDialogOpen(true))
                       }}
                       className="text-destructive focus:text-destructive"
                     >
@@ -238,9 +310,21 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 </DropdownMenu>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <Button asChild className="rounded-full px-6">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent"
+                  data-analytics-name="navbar-login-button"
+                >
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>
+                </Button>
+                <Button
+                  asChild
+                  className="rounded-full px-4 sm:px-6"
+                  data-analytics-name="navbar-signup-button"
+                >
+                  <Link href={buildSignupUrl(pathname, searchParamsString)}>Sign up</Link>
                 </Button>
               </div>
             )}
@@ -252,7 +336,10 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={handleLogoutDialogOpenChange}>
-        <DialogContent overlayClassName="bg-black/35 backdrop-blur-sm">
+        <DialogContent
+          className="z-[100]"
+          overlayClassName="z-[100] bg-black/35 backdrop-blur-sm"
+        >
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>
@@ -267,6 +354,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               variant="destructive"
               onClick={handleLogoutConfirm}
               disabled={isLoggingOut}
+              data-analytics-name="navbar-logout-confirm-button"
             >
               {isLoggingOut ? (
                 <>
@@ -285,10 +373,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
 }
 
 // Public Navbar component wrapped in Suspense
-export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
+export function Navbar({ onMenuClick, currentFilter, variant = 'full' }: NavbarProps) {
+  if (variant === 'minimal') {
+    return <MinimalNavbarHeader />
+  }
+
   return (
     <Suspense fallback={
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-black/15 bg-[#f3f0e8]">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 px-2 sm:px-3 md:px-4 flex-shrink-0">
             <Link href="/" className="flex items-center gap-3">
@@ -298,6 +390,7 @@ export function Navbar({ onMenuClick, currentFilter }: NavbarProps) {
                 width={132}
                 height={32}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
                 priority
               />
             </Link>

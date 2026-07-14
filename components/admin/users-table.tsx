@@ -1,15 +1,21 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Ban, CheckCircle } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
+import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
+import { readAdminTableUrlFilters, hasAdminTableDeepLink, stripAdminTableFilterParams } from "@/lib/report/admin-table-url-filters"
 import {
   Dialog,
   DialogContent,
@@ -21,10 +27,49 @@ import {
 import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
 
+const USERS_PAGE_QUERY = "users_page"
+
 export function AdminUsersTable() {
+  const { canWrite } = useAdminPermissions()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const page = useMemo(() => {
+    const raw = searchParams.get(USERS_PAGE_QUERY)
+    if (!raw) return 1
+    const n = parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 1 ? n : 1
+  }, [searchParams])
+
+  const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
+
+  const syncUsersPageToUrl = useCallback(
+    (nextPage: number) => {
+      const fromWindow =
+        typeof window !== "undefined" &&
+        window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
+      const params = new URLSearchParams(
+        fromWindow ? window.location.search.slice(1) : searchParams.toString(),
+      )
+      if (!params.get("section")) params.set("section", "users")
+      const p = Math.max(1, Math.floor(nextPage))
+      if (p <= 1) params.delete(USERS_PAGE_QUERY)
+      else params.set(USERS_PAGE_QUERY, String(p))
+      const qs = params.toString()
+      router.replace(`/admin/dashboard${qs ? `?${qs}` : ""}`)
+    },
+    [router, searchParams],
+  )
+
+  const stripDeepLinkParamsFromUrl = useCallback(() => {
+    skipUrlSyncRef.current = true
+    const params = stripAdminTableFilterParams(new URLSearchParams(searchParams.toString()))
+    if (!params.get("section")) params.set("section", "users")
+    params.delete(USERS_PAGE_QUERY)
+    router.replace(`/admin/dashboard?${params.toString()}`)
+  }, [router, searchParams])
+
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [showFilters, setShowFilters] = useState(true)
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true)
@@ -35,15 +80,20 @@ export function AdminUsersTable() {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
   useEffect(() => {
+    if (hasAdminTableDeepLink(urlFilters)) {
+      setIsFilterCollapsed(false)
+      return
+    }
     const savedState = localStorage.getItem("admin-filter-collapsed")
     if (savedState !== null) {
       setIsFilterCollapsed(savedState === "true")
     }
-  }, [])
+  }, [urlFilters.userUid, urlFilters.userUsername])
 
   // Save collapsed state to localStorage (shared across all admin pages)
   const handleToggleCollapse = () => {
@@ -54,8 +104,12 @@ export function AdminUsersTable() {
 
   // Search bar state (separate from sidebar filters)
   // searchInput is the immediate input value, searchQuery is debounced for actual searching
-  const [searchInput, setSearchInput] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchInput, setSearchInput] = useState(() => (searchParams.get("q") || "").trim())
+  const [searchQuery, setSearchQuery] = useState(() => (searchParams.get("q") || "").trim())
+  
+  const fetchGenerationRef = useRef(0)
+  /** Skip one URL→state sync cycle after programmatic clear (prevents stale ?q= re-applying). */
+  const skipUrlSyncRef = useRef(false)
   
   // Refs to maintain focus on search inputs
   const desktopSearchInputRef = useRef<HTMLInputElement>(null)
@@ -67,26 +121,41 @@ export function AdminUsersTable() {
   const nameFilterRef = useRef<HTMLInputElement>(null)
   const wasFilterFocusedRef = useRef<string | null>(null)
 
-  // Filter state
-  const [filters, setFilters] = useState({
-    username: "",
-    name: "",
-    role: "",
-    followers_min: "",
-    followers_max: "",
-    following_min: "",
-    following_max: "",
-    total_videos_min: "",
-    total_videos_max: "",
-    created_after: "",
-    created_before: "",
-    updated_after: "",
-    updated_before: "",
+  // Filter state — seed from URL so the first fetch is already scoped
+  const [filters, setFilters] = useState(() => {
+    const fromUrl = readAdminTableUrlFilters(searchParams)
+    return {
+      uid: fromUrl.userUid,
+      username: fromUrl.userUsername,
+      name: "",
+      role: "",
+      followers_min: "",
+      followers_max: "",
+      following_min: "",
+      following_max: "",
+      total_videos_min: "",
+      total_videos_max: "",
+      created_after: "",
+      created_before: "",
+      updated_after: "",
+      updated_before: "",
+    }
   })
 
+  const resolvedUid = filters.uid.trim() || urlFilters.userUid
+  const resolvedUsername = filters.username.trim() || urlFilters.userUsername
+
   const fetchUsers = async () => {
+    const generation = ++fetchGenerationRef.current
+    if (guardOfflineBeforeFetch()) {
+      setUsers([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       // Calculate offset: page 1 = offset 0, page 2 = offset 20, etc.
       const offset = Math.max(0, (page - 1) * limit)
       
@@ -106,6 +175,7 @@ export function AdminUsersTable() {
         const baseParams: any = { limit, offset: 0 }
         
         if (filters.role) baseParams.role = filters.role
+        if (resolvedUid) baseParams.uid = resolvedUid
         if (filters.followers_min) baseParams.followers_min = parseInt(filters.followers_min)
         if (filters.followers_max) baseParams.followers_max = parseInt(filters.followers_max)
         if (filters.following_min) baseParams.following_min = parseInt(filters.following_min)
@@ -124,7 +194,7 @@ export function AdminUsersTable() {
           let hasMore = true
           
           while (hasMore) {
-            const response = await apiClient.adminListUsers({
+            const response = await adminApiClient.adminListUsers({
               ...params,
               offset: currentOffset,
               limit,
@@ -197,8 +267,9 @@ export function AdminUsersTable() {
         const params: any = { limit, offset }
         
         // Individual filters: send both if they have different values
-        if (filters.username) params.username = filters.username
+        if (resolvedUsername) params.username = resolvedUsername
         if (filters.name) params.name = filters.name
+        if (resolvedUid) params.uid = resolvedUid
         if (filters.role) params.role = filters.role
         if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
         if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
@@ -211,7 +282,7 @@ export function AdminUsersTable() {
         if (filters.updated_after) params.updated_after = filters.updated_after
         if (filters.updated_before) params.updated_before = filters.updated_before
 
-        const response = await apiClient.adminListUsers(params)
+        const response = await adminApiClient.adminListUsers(params)
         usersData = response.users || []
         
         // Handle total count - API might return count as page size, not total
@@ -236,6 +307,8 @@ export function AdminUsersTable() {
         }
       }
       
+      if (generation !== fetchGenerationRef.current) return
+
       // Client-side sorting
       if (sortKey && sortDirection) {
         usersData = [...usersData].sort((a, b) => {
@@ -286,38 +359,74 @@ export function AdminUsersTable() {
         searchQuery: isSearchBarActive ? searchQuery : undefined,
       })
     } catch (error) {
-      console.error("[admin] Failed to fetch users:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive",
+      if (generation !== fetchGenerationRef.current) return
+      setUsers([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch users",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
-      setLoading(false)
+      if (generation === fetchGenerationRef.current) {
+        setLoading(false)
+      }
     }
   }
 
   // Debounce search input - wait 500ms after user stops typing before searching
-  // Clear immediately if input is empty
   useEffect(() => {
     if (searchInput.trim() === "") {
-      // Clear search immediately when input is empty
       setSearchQuery("")
-      setPage(1)
+      // Only touch the URL when deep-link params are present — avoid re-reading stale ?q=
+      // from window.location via syncUsersPageToUrl (which would undo Clear).
+      const hasDeepLink =
+        !!(searchParams.get("q") || "").trim() ||
+        !!readAdminTableUrlFilters(searchParams).userUid ||
+        !!readAdminTableUrlFilters(searchParams).userUsername
+      if (hasDeepLink) {
+        stripDeepLinkParamsFromUrl()
+      } else if (page !== 1) {
+        syncUsersPageToUrl(1)
+      }
       return
     }
 
     const timeoutId = setTimeout(() => {
       setSearchQuery(searchInput)
-      setPage(1)
+      syncUsersPageToUrl(1)
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [searchInput])
+  }, [searchInput, searchParams, page, stripDeepLinkParamsFromUrl, syncUsersPageToUrl])
+
+  // Sync search bar when URL ?q= changes (e.g. deep link from migration requests)
+  useEffect(() => {
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false
+      return
+    }
+
+    const q = (searchParams.get("q") || "").trim()
+    setSearchInput(q)
+    setSearchQuery(q)
+  }, [searchParams])
+
+  // Hydrate sidebar uid/username from URL deep links only when present
+  useEffect(() => {
+    const { userUid, userUsername } = readAdminTableUrlFilters(searchParams)
+    if (userUid || userUsername) {
+      setFilters((prev) => ({
+        ...prev,
+        ...(userUid && prev.uid !== userUid ? { uid: userUid } : {}),
+        ...(userUsername && prev.username !== userUsername ? { username: userUsername } : {}),
+      }))
+      setIsFilterCollapsed(false)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchUsers()
-  }, [page, filters, searchQuery, sortKey, sortDirection])
+  }, [page, filters, searchQuery, sortKey, sortDirection, resolvedUid, resolvedUsername])
 
   // Maintain focus on search input after re-renders
   // This runs whenever users, loading, or searchInput changes to ensure focus is maintained during search
@@ -345,7 +454,7 @@ export function AdminUsersTable() {
   const handleSort = (key: string, direction: SortDirection) => {
     setSortKey(direction ? key : null)
     setSortDirection(direction)
-    setPage(1)
+    syncUsersPageToUrl(1)
   }
 
   // Debounce timers for number inputs
@@ -386,12 +495,12 @@ export function AdminUsersTable() {
       
       // Debounce the page reset - wait 500ms after user stops typing
       textFilterTimersRef.current[key] = setTimeout(() => {
-        setPage(1)
+        syncUsersPageToUrl(1)
         delete textFilterTimersRef.current[key]
       }, 500)
     } else {
       // For other filters, reset page immediately
-      setPage(1)
+      syncUsersPageToUrl(1)
     }
   }
   
@@ -433,7 +542,7 @@ export function AdminUsersTable() {
     
     // Debounce the page reset - wait 500ms after user stops clicking arrows
     numberInputTimersRef.current[key] = setTimeout(() => {
-      setPage(1)
+      syncUsersPageToUrl(1)
       delete numberInputTimersRef.current[key]
     }, 500)
   }
@@ -462,9 +571,11 @@ export function AdminUsersTable() {
   }
 
   const clearFilters = () => {
+    skipUrlSyncRef.current = true
     setSearchInput("")
     setSearchQuery("")
     setFilters({
+      uid: "",
       username: "",
       name: "",
       role: "",
@@ -479,11 +590,23 @@ export function AdminUsersTable() {
       updated_after: "",
       updated_before: "",
     })
-    setPage(1)
+
+    stripDeepLinkParamsFromUrl()
   }
 
-  const hasActiveFilters = searchQuery.trim() !== "" || Object.values(filters).some((v) => v !== "")
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    Object.values(filters).some((v) => v !== "") ||
+    !!urlFilters.userUid ||
+    !!urlFilters.userUsername
   const totalPages = Math.ceil(total / limit)
+  const maxUsersPage = total <= 0 ? 1 : Math.max(1, totalPages)
+
+  useEffect(() => {
+    if (page > maxUsersPage) {
+      syncUsersPageToUrl(maxUsersPage)
+    }
+  }, [page, maxUsersPage, syncUsersPageToUrl])
 
   // Helper function to convert ISO string to datetime-local format (local time)
   const isoToLocalDateTime = (isoString: string): string => {
@@ -508,7 +631,7 @@ export function AdminUsersTable() {
 
     try {
       setDeletingUsername(userToDelete.username)
-      await apiClient.deleteUserByUsername(userToDelete.username)
+      await adminApiClient.deleteUserByUsername(userToDelete.username)
       
       toast({
         title: "Success",
@@ -535,7 +658,7 @@ export function AdminUsersTable() {
 
     try {
       setTogglingUserId(user.uid || user.username)
-      const response = await apiClient.adminDisableUser(user.username)
+      const response = await adminApiClient.adminDisableUser(user.username)
       
       toast({
         title: "Success",
@@ -560,7 +683,7 @@ export function AdminUsersTable() {
 
     try {
       setTogglingUserId(user.uid || user.username)
-      const response = await apiClient.adminEnableUser(user.username)
+      const response = await adminApiClient.adminEnableUser(user.username)
       
       toast({
         title: "Success",
@@ -588,6 +711,18 @@ export function AdminUsersTable() {
     )
   }
 
+  if (networkError && users.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchUsers()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="grid grid-cols-[auto_1fr] gap-4 min-h-0 overflow-hidden relative h-full w-full">
       {/* Filter Sidebar - Always visible on desktop, toggleable on mobile */}
@@ -597,11 +732,21 @@ export function AdminUsersTable() {
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         onClear={clearFilters}
-        activeFilterCount={Object.values(filters).filter((v) => v !== "").length}
+        activeFilterCount={
+          Object.values(filters).filter((v) => v !== "").length + (searchQuery.trim() ? 1 : 0)
+        }
         isCollapsed={isFilterCollapsed}
         onToggleCollapse={handleToggleCollapse}
       >
         <FilterSection title="Search">
+          <FilterField label="User ID (UID)" htmlFor="uid">
+            <Input
+              id="uid"
+              placeholder="Exact UID..."
+              value={filters.uid}
+              onChange={(e) => handleFilterChange("uid", e.target.value)}
+            />
+          </FilterField>
           <FilterField label="Username" htmlFor="username">
             <Input
               ref={usernameFilterRef}
@@ -669,7 +814,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -688,7 +833,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -710,7 +855,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -729,7 +874,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -751,7 +896,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -770,7 +915,7 @@ export function AdminUsersTable() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
-                  setPage(1)
+                  syncUsersPageToUrl(1)
                 }
               }}
               onWheel={(e) => {
@@ -833,6 +978,11 @@ export function AdminUsersTable() {
       {/* Main Content - Flexible column that scrolls independently */}
       {/* Grid column 2: 1fr (takes remaining space) */}
       <div className="min-w-0 overflow-hidden flex flex-col h-full w-full">
+        {urlFilters.returnTo ? (
+          <div className="shrink-0 mb-4">
+            <AdminReturnBanner returnTo={urlFilters.returnTo} />
+          </div>
+        ) : null}
         {/* Search Bar - Desktop */}
         <div className="hidden lg:flex items-center gap-3 shrink-0 mb-4">
           <div className="relative flex-1 max-w-md">
@@ -951,12 +1101,19 @@ export function AdminUsersTable() {
                   </td>
                 </tr>
               ) : (
-                  users.map((user) => (
+                  users.map((user) => {
+                  const isDeepLinked =
+                    (!!resolvedUid && user.uid === resolvedUid) ||
+                    (!!resolvedUsername &&
+                      String(user.username || "").toLowerCase() ===
+                        resolvedUsername.toLowerCase())
+
+                  return (
                   <tr 
                     key={user.uid || user.username} 
                       className={`border-b hover:bg-muted/50 transition-colors group ${
                         user.disabled ? "opacity-60 bg-muted/30" : ""
-                      }`}
+                      } ${isDeepLinked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
                   >
                       <td className={`px-3 py-2 sticky left-0 z-10 border-r-2 border-primary/20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] min-w-[150px] group-hover:bg-muted/50 ${
                         user.disabled ? "bg-muted/30" : "bg-background"
@@ -1024,7 +1181,7 @@ export function AdminUsersTable() {
                           <Button variant="ghost" size="sm" asChild>
                         <Link href={`/profile/${user.username}`}>View</Link>
                       </Button>
-                          {user.disabled ? (
+                          {canWrite && (user.disabled ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1054,7 +1211,8 @@ export function AdminUsersTable() {
                                 <Ban className="h-4 w-4" />
                               )}
                             </Button>
-                          )}
+                          ))}
+                          {canWrite && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1068,10 +1226,12 @@ export function AdminUsersTable() {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
+                          )}
                         </div>
                     </td>
                   </tr>
-                ))
+                  )
+                  })
               )}
             </tbody>
           </table>
@@ -1099,7 +1259,7 @@ export function AdminUsersTable() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => syncUsersPageToUrl(Math.max(1, page - 1))}
                 disabled={page === 1}
                 className="gap-1"
               >
@@ -1157,7 +1317,7 @@ export function AdminUsersTable() {
                         key={pageNum}
                         variant={page === pageNum ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setPage(pageNum)}
+                        onClick={() => syncUsersPageToUrl(pageNum)}
                         className="min-w-[2.5rem]"
                       >
                         {pageNum}
@@ -1170,7 +1330,7 @@ export function AdminUsersTable() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => syncUsersPageToUrl(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 className="gap-1"
               >

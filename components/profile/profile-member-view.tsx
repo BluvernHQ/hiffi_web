@@ -1,0 +1,199 @@
+import { format } from "date-fns"
+import { Calendar, Flag, Share2, UserCheck, UserPlus } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
+import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
+import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import {
+  getProfileFollowerCount,
+  getProfileFollowingCount,
+  shouldShowPublicFollowerCount,
+  shouldShowPublicFollowingCount,
+} from "@/lib/video-utils"
+
+/** Public profile for members (role user) — no creator videos grid or video stats. */
+export function ProfileMemberView(props: {
+  profileUser: any
+  username: string
+  isFollowing: boolean
+  isFollowingAction: boolean
+  followActionType: "follow" | "unfollow" | null
+  profilePictureVersion: number
+  authDialogOpen: boolean
+  setAuthDialogOpen: (open: boolean) => void
+  handleShare: () => void
+  handleFollow: () => void
+  onReport?: () => void
+}) {
+  const {
+    profileUser,
+    username,
+    isFollowing,
+    isFollowingAction,
+    followActionType,
+    profilePictureVersion,
+    authDialogOpen,
+    setAuthDialogOpen,
+    handleShare,
+    handleFollow,
+    onReport,
+  } = props
+
+  const displayName =
+    profileUser.name && String(profileUser.name).trim()
+      ? String(profileUser.name).trim()
+      : profileUser.username || username
+
+  const followerCount = getProfileFollowerCount(profileUser)
+  const followingCount = getProfileFollowingCount(profileUser)
+  const showFollowerCount = shouldShowPublicFollowerCount(followerCount)
+  const showFollowingCount = shouldShowPublicFollowingCount(followingCount)
+
+  return (
+    <>
+      <div className="bg-background w-full">
+        <ProfileCoverBanner
+          coverUrl={profileUser.coverUrl}
+          displayName={displayName}
+          username={profileUser.username || username}
+        />
+
+        <div className="w-full px-3 py-4 sm:px-4 md:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto pb-4 sm:pb-6 md:pb-8">
+            <div className="relative -mt-12 sm:-mt-16 md:-mt-20 mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-end gap-3 sm:gap-4 md:gap-6">
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 border-2 sm:border-3 md:border-4 border-background shadow-lg">
+                <AvatarImage
+                  src={(() => {
+                    const baseUrl = getProfilePictureUrl(profileUser, true)
+                    const proxyUrl = getProfilePictureProxyUrl(baseUrl)
+                    if (proxyUrl && profilePictureVersion > 0) {
+                      const separator = proxyUrl.includes("?") ? "&" : "?"
+                      return `${proxyUrl}${separator}v=${profilePictureVersion}`
+                    }
+                    return proxyUrl || undefined
+                  })()}
+                  alt={`${displayName}'s profile picture`}
+                />
+                <AvatarFallback
+                  className="text-xl sm:text-2xl font-bold text-white"
+                  style={{
+                    backgroundColor: getColorFromName(displayName),
+                  }}
+                >
+                  {getAvatarLetter(profileUser, username || "U")}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="flex-1 min-w-0 pt-1 sm:pt-0 sm:pb-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">{displayName}</h1>
+                <p className="text-muted-foreground text-sm">@{profileUser.username || username}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Member on Hiffi</p>
+              </div>
+
+              <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-2 sm:mt-0 sm:pb-2">
+                <Button
+                  className="flex-1 sm:flex-none"
+                  size="sm"
+                  variant={isFollowing ? "secondary" : "default"}
+                  onClick={handleFollow}
+                  disabled={isFollowingAction}
+                >
+                  {isFollowingAction ? (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4 animate-pulse" />
+                      {followActionType === "unfollow" ? "Unfollowing..." : "Following..."}
+                    </>
+                  ) : isFollowing ? (
+                    <>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Follow
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleShare} aria-label="Share profile">
+                  <Share2 className="h-4 w-4" />
+                </Button>
+                {onReport && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    data-analytics-name="report-profile"
+                    onClick={onReport}
+                    aria-label="Report profile"
+                    title="Report"
+                  >
+                    <Flag className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base sm:text-lg">About</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0">
+                <p className="text-sm leading-relaxed text-muted-foreground break-words">
+                  {profileUser.bio?.trim() || "No bio yet."}
+                </p>
+
+                {profileUser.createdat && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4 shrink-0" />
+                    <span>Joined {format(new Date(profileUser.createdat), "MMMM yyyy")}</span>
+                  </div>
+                )}
+
+                {(showFollowerCount || showFollowingCount) && (
+                  <div className="pt-4 border-t">
+                    <h3 className="font-semibold mb-3 text-sm">Stats</h3>
+                    <div
+                      className={
+                        showFollowerCount && showFollowingCount
+                          ? "grid grid-cols-2 gap-3 max-w-xs"
+                          : "grid grid-cols-1 gap-3 max-w-[10rem]"
+                      }
+                    >
+                      {showFollowerCount ? (
+                        <div className="p-3 bg-muted rounded-lg text-center">
+                          <div className="text-lg font-bold">{followerCount.toLocaleString()}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">Followers</div>
+                        </div>
+                      ) : null}
+                      {showFollowingCount ? (
+                        <div className="p-3 bg-muted rounded-lg text-center">
+                          <div className="text-lg font-bold">{followingCount.toLocaleString()}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">Following</div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        title={AUTH_DIALOG_COPY.follow.title}
+        description={AUTH_DIALOG_COPY.follow.description}
+        signupLabel={AUTH_DIALOG_COPY.follow.signupLabel}
+        signinLabel={AUTH_DIALOG_COPY.follow.signinLabel}
+        conversionTrigger="follow_attempt"
+        artistUsername={username}
+        artistDisplayName={profileUser?.name || profileUser?.username}
+        artistUser={profileUser}
+      />
+    </>
+  )
+}

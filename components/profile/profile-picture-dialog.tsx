@@ -33,7 +33,7 @@ export function ProfilePictureDialog({
   const [uploadProgress, setUploadProgress] = useState(0)
   const [hasError, setHasError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { refreshUserData } = useAuth()
+  const { refreshUserData, clearProfilePhoto } = useAuth()
   const { toast } = useToast()
 
   // Track the last uploaded image path to keep preview until profile updates
@@ -108,12 +108,71 @@ export function ProfilePictureDialog({
     reader.readAsDataURL(file)
   }
 
+  const hasSavedProfilePicture =
+    typeof currentProfilePicture === "string" &&
+    currentProfilePicture.trim() !== ""
+
   const handleRemoveImage = () => {
     setSelectedImage(null)
     setImagePreview(null)
     setHasError(false) // Clear error when removing image
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
+    }
+  }
+
+  const handleRemoveSavedProfilePicture = async () => {
+    setHasError(false)
+
+    try {
+      await apiClient.updateSelfUser({ profile_picture: "" })
+      clearProfilePhoto()
+
+      if (typeof window !== "undefined") {
+        const cachedData = localStorage.getItem("hiffi_user_data")
+        if (cachedData) {
+          try {
+            const parsed = JSON.parse(cachedData)
+            parsed.profile_picture = ""
+            parsed.image = ""
+            localStorage.setItem("hiffi_user_data", JSON.stringify(parsed))
+          } catch {
+            localStorage.removeItem("hiffi_user_data")
+          }
+        }
+        localStorage.removeItem("hiffi_user_data_timestamp")
+      }
+
+      toast({
+        title: "Profile picture removed",
+        description: "Your profile picture has been removed.",
+      })
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("profilePictureUpdated", { detail: { cleared: true } }))
+      }
+      await onProfileUpdated?.()
+    } catch (error: unknown) {
+      console.error("[hiffi] Failed to remove profile photo:", error)
+      setHasError(true)
+      toast({
+        title: "Remove failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove profile photo. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRemoveClick = () => {
+    if (selectedImage) {
+      handleRemoveImage()
+      return
+    }
+    if (hasSavedProfilePicture) {
+      void handleRemoveSavedProfilePicture()
     }
   }
 
@@ -287,17 +346,17 @@ export function ProfilePictureDialog({
                   <Camera className="h-4 w-4" />
                   {selectedImage ? "Change Photo" : "Upload Photo"}
                 </Button>
-                {selectedImage && (
+                {(selectedImage || hasSavedProfilePicture) && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleRemoveImage}
+                    onClick={handleRemoveClick}
                     disabled={uploadingImage}
                     className="gap-2"
                   >
                     <X className="h-4 w-4" />
-                    Remove
+                    Remove Photo
                   </Button>
                 )}
               </div>

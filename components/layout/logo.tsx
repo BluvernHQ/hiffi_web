@@ -17,7 +17,8 @@ export function Logo({ className, size = 32, showText = false }: LogoProps) {
         alt="Hiffi"
         width={showText ? size * 4 : size * 1.5}
         height={size}
-        className="object-contain"
+        className="h-auto w-auto object-contain"
+        style={{ height: size, width: "auto" }}
         priority
       />
     </div>

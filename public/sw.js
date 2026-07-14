@@ -11,6 +11,7 @@
 //   - Prod: https://workers.hiffi.workers.dev
 
 let API_KEY = 'gdwvvwwvdyvyvwevyvfwedfwerwf34rt3f3f3' // Default, will be updated via message
+let AUTH_TOKEN = '' // JWT token, updated via message
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -22,9 +23,10 @@ self.addEventListener('activate', (event) => {
 
 // Listen for messages to update API key
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SET_API_KEY') {
+  if (event.data && event.data.type === 'SET_AUTH_HEADERS') {
     API_KEY = event.data.apiKey || 'gdwvvwwvdyvyvwevyvfwedfwerwf34rt3f3f3'
-    console.log('[hiffi] Service Worker API key updated')
+    AUTH_TOKEN = event.data.authToken || ''
+    console.log('[hiffi] Service Worker auth headers updated')
   }
 })
 
@@ -38,6 +40,9 @@ self.addEventListener('fetch', (event) => {
     // Clone the request to preserve headers
     const headers = new Headers(event.request.headers)
     headers.set('x-api-key', API_KEY)
+    if (AUTH_TOKEN) {
+      headers.set('authorization', `Bearer ${AUTH_TOKEN}`)
+    }
     
     // Preserve Range header if present (for video seeking)
     if (event.request.headers.has('range')) {

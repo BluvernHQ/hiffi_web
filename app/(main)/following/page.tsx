@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { VideoGrid } from '@/components/video/video-grid'
 import { FollowingEmptyState } from '@/components/video/following-empty-state'
+import { OfflineState } from "@/components/network/offline-state"
 import { useAuth } from '@/lib/auth-context'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
+import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors'
 import { Loader2, Video } from 'lucide-react'
 
 const VIDEOS_PER_PAGE = 10
@@ -21,30 +23,43 @@ export default function FollowingPage() {
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isFetching, setIsFetching] = useState(false)
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!userData?.username) {
-        // Redirect to login if not authenticated
-        router.push('/login')
-        return
-      }
-      // Reset and fetch videos on mount
+    if (!authLoading && userData?.username) {
       setOffset(0)
       setHasMore(true)
       setVideos([])
       fetchVideos(0, true)
     }
-  }, [userData, authLoading, router])
+  }, [userData, authLoading])
 
   const fetchVideos = async (currentOffset: number, isInitialLoad: boolean = false) => {
     // Prevent duplicate requests
     if (isFetching) {
-      console.log("[hiffi] Already fetching following videos, skipping duplicate request")
+      // noisy debug removed
+      return
+    }
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setOfflineMessage(userFacingNetworkMessage())
+      setLoading(false)
+      setLoadingMore(false)
+      setIsFetching(false)
+      setHasMore(false)
+      if (isInitialLoad || currentOffset === 0) {
+        setVideos([])
+        toast({
+          title: "No internet connection",
+          description: userFacingNetworkMessage(),
+          variant: "destructive",
+        })
+      }
       return
     }
 
     try {
+      setOfflineMessage(null)
       setIsFetching(true)
 
       if (isInitialLoad) {
@@ -89,15 +104,20 @@ export default function FollowingPage() {
 
       // Retry logic for pagination (but not for initial load)
       if (currentOffset > 0) {
-        console.log("[hiffi] Retrying pagination request...")
+        // noisy debug removed
         setHasMore(false)
       } else {
         // Set empty array on error for initial load
         setVideos([])
         setHasMore(false)
+        if (isConnectivityError(error)) {
+          setOfflineMessage(userFacingNetworkMessage())
+        }
         toast({
-          title: "Error",
-          description: "Failed to load videos from creators you follow",
+          title: isConnectivityError(error) ? "No internet connection" : "Error",
+          description: isConnectivityError(error)
+            ? userFacingNetworkMessage()
+            : "Failed to load videos from creators you follow",
           variant: "destructive",
         })
       }
@@ -141,9 +161,14 @@ export default function FollowingPage() {
     )
   }
 
-  // Show empty state if not authenticated
   if (!userData?.username) {
-    return null // Will redirect
+    return (
+      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="w-full">
+          <FollowingEmptyState hasFollowedUsers={false} onDiscoverClick={() => router.push("/")} />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -170,7 +195,17 @@ export default function FollowingPage() {
           )}
 
           {/* Show custom empty state for Following filter */}
-          {!isLoadingVideos && videos.length === 0 ? (
+          {!isLoadingVideos && videos.length === 0 && offlineMessage ? (
+            <div className="flex min-h-[55vh] items-center justify-center">
+              <OfflineState
+                title="You're offline"
+                description={offlineMessage}
+                className="mx-auto"
+                supportText="Your follows and feed are safe. We'll load fresh videos once you're online."
+                onRetry={() => void fetchVideos(0, true)}
+              />
+            </div>
+          ) : !isLoadingVideos && videos.length === 0 ? (
             <FollowingEmptyState
               hasFollowedUsers={true}
               onDiscoverClick={() => router.push('/')}

@@ -3,6 +3,11 @@
  * Handles redirect query parameter preservation for seamless UX
  */
 
+import { isCreator, type UserLike } from "@/lib/auth/roles"
+import { STUDIO_HOME } from "@/lib/studio-routes"
+
+const CREATOR_APPLY_PATH = "/creator/apply"
+
 /**
  * Builds a login URL with redirect query parameter
  * Preserves the current page context so users return after authentication
@@ -33,6 +38,50 @@ export function buildSignupUrl(currentPath: string, searchParams?: string): stri
 }
 
 /**
+ * Routes that require a signed-in session. Skip on login/signup must not return here
+ * or the user gets stuck in a redirect loop.
+ */
+const AUTH_REQUIRED_PATH_PREFIXES = ["/support/reports", "/studio", "/playlists"] as const
+
+export function isAuthRequiredPath(path: string | null | undefined): boolean {
+  if (!path) return false
+  const pathname = path.split("?")[0]?.split("#")[0] ?? ""
+  return AUTH_REQUIRED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
+/**
+ * Where to send users who skip login/signup. Protected redirect targets fall back to
+ * a public page (e.g. /support/reports → /support) instead of looping back to login.
+ */
+export function resolveSkipDestination(redirectPath: string | null): string {
+  if (!redirectPath) return "/"
+  if (!isAuthRequiredPath(redirectPath)) return redirectPath
+
+  const pathname = redirectPath.split("?")[0]?.split("#")[0] ?? ""
+  if (pathname.startsWith("/support/")) return "/support"
+  if (pathname === "/studio" || pathname.startsWith("/studio/")) return CREATOR_APPLY_PATH
+
+  return "/"
+}
+
+/**
+ * Resolve where to send a user after login/signup. Active creators skip the apply page.
+ */
+export function resolvePostAuthDestination(
+  requestedPath: string | null | undefined,
+  userData: UserLike,
+): string {
+  const safe = sanitizeInternalPath(requestedPath || "/", "/")
+  const pathname = safe.split("?")[0]?.split("#")[0] ?? ""
+  if (pathname === CREATOR_APPLY_PATH && isCreator(userData)) {
+    return STUDIO_HOME
+  }
+  return safe
+}
+
+/**
  * Validates and sanitizes a redirect URL
  * Ensures redirect only points to internal routes (security)
  * 
@@ -44,7 +93,13 @@ export function validateRedirect(redirect: string | null | undefined): string | 
   
   try {
     // Decode the redirect value
-    const decoded = decodeURIComponent(redirect)
+    const decoded = decodeURIComponent(redirect).trim()
+
+    // Reject protocol-relative URLs (e.g. //admin) that escape current origin.
+    if (decoded.startsWith("//")) {
+      console.warn("[auth-utils] Invalid redirect: protocol-relative URL detected", decoded)
+      return null
+    }
     
     // Must start with / (internal route)
     if (!decoded.startsWith('/')) {
@@ -69,5 +124,33 @@ export function validateRedirect(redirect: string | null | undefined): string | 
     console.warn("[auth-utils] Failed to decode redirect:", e)
     return null
   }
+}
+
+/**
+ * Normalize an internal app route for safe client navigation.
+ * - Rejects protocol-relative URLs (//foo)
+ * - Forces a leading slash
+ * - Collapses repeated leading slashes
+ */
+export function sanitizeInternalPath(path: string | null | undefined, fallback = "/"): string {
+  const raw = String(path ?? "").trim()
+  if (!raw) return fallback
+
+  if (raw.startsWith("//")) return fallback
+
+  const normalized = raw.startsWith("/") ? raw : `/${raw}`
+  return normalized.replace(/^\/+/, "/")
+}
+
+/** Basic email shape check (matches signup validation). */
+const EMAIL_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function isValidEmailFormat(email: string): boolean {
+  return EMAIL_FORMAT_REGEX.test(email.trim())
+}
+
+/** True if password contains any whitespace (spaces, tabs, newlines). */
+export function passwordContainsWhitespace(password: string): boolean {
+  return /\s/.test(password)
 }
 

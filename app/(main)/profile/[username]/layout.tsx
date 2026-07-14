@@ -1,10 +1,10 @@
 import type { ReactNode } from "react"
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
-import { fetchProfileVideosForSeo, fetchUserForSeo } from "@/lib/seo/fetch-public"
+import { fetchUserForSeo } from "@/lib/seo/fetch-public"
 import { truncateMetaDescription } from "@/lib/seo/meta"
-import { buildProfileJsonLd, buildProfileVideoCollectionJsonLd } from "@/lib/seo/schema"
-import { absoluteUrl } from "@/lib/seo/site"
+import { buildProfileJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/schema"
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 type RouteParams = { username: string }
 
@@ -24,10 +24,11 @@ export async function generateMetadata({
   const handle = (profile?.username || username).trim()
   const display = (profile?.name || handle).trim() || handle
 
-  const title = `@${handle} — ${display} | Hiffi`
+  // Root layout title.template is `%s | Hiffi` — do not append `| Hiffi` here.
+  const title = `@${handle} — ${display}`
   const description = profile?.bio?.length
     ? truncateMetaDescription(profile.bio)
-    : `Videos and profile of @${handle} on Hiffi.`
+    : `Hip-hop music videos and profile of @${handle} on Hiffi — independent rap artist streaming platform.`
 
   const canonical = absoluteUrl(`/profile/${encodeURIComponent(handle)}`)
 
@@ -62,17 +63,19 @@ export default async function ProfileSegmentLayout({
 }) {
   const { username: rawUsername } = await resolvedParams(params)
   const username = rawUsername.trim()
-  const [profile, videos] = await Promise.all([
-    fetchUserForSeo(username),
-    fetchProfileVideosForSeo(username),
+  const profile = await fetchUserForSeo(username)
+
+  const displayName = (profile?.name || username).trim() || username
+  const breadcrumb = buildBreadcrumbJsonLd([
+    { name: "Hiffi", url: getSiteOrigin() },
+    { name: "Creators", url: absoluteUrl("/") },
+    { name: displayName, url: absoluteUrl(`/profile/${encodeURIComponent(username)}`) },
   ])
 
   return (
     <>
       <JsonLd data={buildProfileJsonLd(username, profile)} />
-      {videos.length > 0 ? (
-        <JsonLd data={buildProfileVideoCollectionJsonLd(profile?.username || username, videos)} />
-      ) : null}
+      <JsonLd data={breadcrumb} />
       {children}
     </>
   )

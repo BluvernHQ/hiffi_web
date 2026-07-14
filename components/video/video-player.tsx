@@ -18,10 +18,31 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
-import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, WORKERS_BASE_URL } from "@/lib/storage"
+import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, getWorkersBaseUrl } from "@/lib/storage"
 import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
+import {
+  buildFallbackUrls,
+  buildProfileMenu,
+  getPrimaryProfileKey,
+  isLogicalOriginalStoragePath,
+  profileKeyFromPlaybackUrl,
+  profileToPlaybackUrl,
+} from "@/lib/video-profiles"
+import { captureConversionEvent, capturePlaybackStarted } from "@/lib/conversion-tracking"
+import {
+  PAUSED_VIDEO,
+  PLAYED_VIDEO_CLICK,
+  PLAYER_NEXT_RECOMMENDED,
+  PLAYER_PREVIOUS,
+} from "@/lib/analytics/video-analytics-names"
+import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
+import { recordGuestVideoPlay } from "@/lib/guest-conversion/session"
+import { NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
+import { OfflineState } from "@/components/network/offline-state"
 import { NextUpOverlay } from "./next-up-overlay"
 import { AuthenticatedImage } from "./authenticated-image"
+import { usePlayerAudioSettings } from "@/components/video/hooks/use-player-audio-settings"
+import { generateSessionId, getResolutionProfile } from "@/components/video/video-player-utils"
 
 // Add declaration for videojs since we're loading it from CDN
 declare global {
@@ -41,25 +62,55 @@ interface VideoPlayerProps {
   onVideoEnd?: () => void
   onMediaReady?: (videoId: string) => void
   availableProfiles?: string[] // Profiles from API response (e.g., ["original", "720p", "480p"])
+  /** Primary encoded profile from API (e.g. "720p", "original"). */
+  originalProfile?: string
+  /** Storage path from API (e.g. videos/{id}/original.mp4) when videoUrl is the gateway base. */
+  storageVideoPath?: string
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
   /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
   onNext?: (nextId: string) => void
-  /** Called when the player's Previous button is pressed. When provided, no route navigation occurs. */
+  /**
+   * Watch page: previous video / in-player history. When omitted, SkipBack seeks back 10s in the
+   * current video (never browser history) so floating/mini players do not hijack the back stack.
+   */
   onPrevious?: () => void
+  /** When `onPrevious` is set, disables SkipBack if there is no prior video (first in playlist and empty session stack). */
+  previousVideoDisabled?: boolean
+  /**
+   * If set, the player seeks to this position (in seconds) once the video metadata is loaded.
+   * Used to honour the `?t=` URL parameter from Google SeekToAction deep-links.
+   */
+  initialSeekSeconds?: number
 }
 
 const STORAGE_KEYS = {
-  VOLUME: 'hiffi_player_volume',
-  MUTED: 'hiffi_player_muted',
-}
+  VOLUME: "hiffi_player_volume",
+  MUTED: "hiffi_player_muted",
+  WATCH_DEVICE_ID: "hiffi_watch_device_id",
+} as const
+const WATCH_REPORT_INTERVAL_SECONDS = 10
+const EMPTY_PROFILES: string[] = []
 
-const STANDARD_PROFILES = [2160, 1440, 1080, 720, 480, 360] as const
+type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
 
-function getResolutionProfile(height: number): string {
-  for (const p of STANDARD_PROFILES) {
-    if (height >= p * 0.9) return `${p}p`
+/** Video.js throws if tech is torn down during navigation — never call player methods bare. */
+function readPlayerNumber(player: unknown, method: PlayerNumberMethod, fallback: number): number {
+  if (!player || typeof player !== "object") return fallback
+  const p = player as {
+    isDisposed?: () => boolean
+    currentTime?: () => number
+    duration?: () => number
+    playbackRate?: () => number
   }
-  return `${height}p`
+  if (typeof p.isDisposed === "function" && p.isDisposed()) return fallback
+  try {
+    const fn = p[method]
+    if (typeof fn !== "function") return fallback
+    const value = fn.call(p)
+    return typeof value === "number" && Number.isFinite(value) ? value : fallback
+  } catch {
+    return fallback
+  }
 }
 
 export function VideoPlayer({ 
@@ -72,12 +123,18 @@ export function VideoPlayer({
   suggestedVideos, 
   onVideoEnd,
   onMediaReady,
-  availableProfiles = ["original"],
+  availableProfiles,
+  originalProfile,
+  storageVideoPath,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
   onPrevious,
+  previousVideoDisabled = false,
+  initialSeekSeconds,
 }: VideoPlayerProps) {
+  const resolvedProfiles = availableProfiles ?? EMPTY_PROFILES
+  const availableProfilesKey = JSON.stringify(resolvedProfiles)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
@@ -88,48 +145,10 @@ export function VideoPlayer({
   const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
   
-  // Initialize state from localStorage immediately to avoid flash of muted/unmuted
-  const [volume, setVolume] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(STORAGE_KEYS.VOLUME)
-      return saved !== null ? parseFloat(saved) : 1
-    }
-    return 1
-  })
-  
-  const [isMuted, setIsMuted] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(STORAGE_KEYS.MUTED)
-      // Default to unmuted (false) to ensure sound is present by default
-      return saved !== null ? saved === 'true' : false
-    }
-    return false
-  })
-
-  // Use refs to keep state values accessible to event listeners without stale closures
-  const volumeRef = useRef(volume)
-  const isMutedRef = useRef(isMuted)
-
-  useEffect(() => {
-    volumeRef.current = volume
-    isMutedRef.current = isMuted
-  }, [volume, isMuted])
+  const { volume, setVolume, isMuted, setIsMuted, volumeRef, isMutedRef } = usePlayerAudioSettings()
 
   const [currentTime, setCurrentTime] = useState(0)
 
-  // Sync audio state across instances (in case multiple players exist)
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEYS.VOLUME && e.newValue !== null) {
-        setVolume(parseFloat(e.newValue))
-      }
-      if (e.key === STORAGE_KEYS.MUTED && e.newValue !== null) {
-        setIsMuted(e.newValue === 'true')
-      }
-    }
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
   const [duration, setDuration] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
@@ -141,9 +160,100 @@ export function VideoPlayer({
   const videoSourceTypeRef = useRef<VideoSourceType | null>(null)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [profiles, setProfiles] = useState<Record<string, { label: string; path: string }>>({})
-  const [currentProfile, setCurrentProfile] = useState<string>("original")
+  const primaryProfileKey = getPrimaryProfileKey(originalProfile)
+  const [currentProfile, setCurrentProfile] = useState<string>(primaryProfileKey)
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const [urlError, setUrlError] = useState<string>("")
+  const [playbackNetworkBanner, setPlaybackNetworkBanner] = useState("")
+  const connectivityStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const offlineEscalationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resumeAfterReconnectRef = useRef(false)
+  const [connectionNotice, setConnectionNotice] = useState("")
+
+  const clearConnectivityStallTimer = () => {
+    if (connectivityStallTimerRef.current) {
+      clearTimeout(connectivityStallTimerRef.current)
+      connectivityStallTimerRef.current = null
+    }
+  }
+
+  const clearOfflineEscalationTimer = () => {
+    if (offlineEscalationTimerRef.current) {
+      clearTimeout(offlineEscalationTimerRef.current)
+      offlineEscalationTimerRef.current = null
+    }
+  }
+
+  const showPlaybackNetworkBanner = (message: string) => {
+    clearOfflineEscalationTimer()
+    clearConnectivityStallTimer()
+    const player = playerRef.current
+    resumeAfterReconnectRef.current = Boolean(player && !player.paused())
+    setConnectionNotice("")
+    setPlaybackNetworkBanner(message)
+    setIsBuffering(false)
+    setAutoplayInProgress(false)
+    if (player) {
+      try {
+        // Freeze playback while offline/interrupted to avoid endless background buffering.
+        player.pause()
+      } catch {
+        // no-op
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!playbackNetworkBanner) return
+    if (typeof window === "undefined") return
+
+    const handleOnline = () => {
+      const player = playerRef.current
+      setPlaybackNetworkBanner("")
+      setConnectionNotice("")
+      setIsBuffering(false)
+      clearConnectivityStallTimer()
+      clearOfflineEscalationTimer()
+      if (!player) return
+      try {
+        player.error(null)
+        player.load()
+        if (resumeAfterReconnectRef.current) {
+          void player.play().catch(() => {})
+        }
+      } catch {
+        // no-op
+      } finally {
+        resumeAfterReconnectRef.current = false
+      }
+    }
+
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [playbackNetworkBanner])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const handleOffline = () => {
+      if (!playbackNetworkBanner) {
+        setConnectionNotice("Connection lost. Trying to reconnect...")
+      }
+    }
+
+    const handleOnline = () => {
+      setConnectionNotice("")
+      clearOfflineEscalationTimer()
+    }
+
+    window.addEventListener("offline", handleOffline)
+    window.addEventListener("online", handleOnline)
+    return () => {
+      window.removeEventListener("offline", handleOffline)
+      window.removeEventListener("online", handleOnline)
+    }
+  }, [playbackNetworkBanner])
+
   const [isBuffering, setIsBuffering] = useState(false)
   const [bufferPercentage, setBufferPercentage] = useState(0)
 
@@ -168,7 +278,25 @@ export function VideoPlayer({
   const suggestedVideosRef = useRef<any[] | undefined>(suggestedVideos)
   const hasEndedRef = useRef(hasEnded)
   const showNextUpOverlayRef = useRef(showNextUpOverlay)
-  
+  const videoIdRef = useRef(videoId)
+  const watchSessionIdRef = useRef(generateSessionId())
+  const watchDeviceIdRef = useRef("")
+  const lastWatchPositionRef = useRef<number | null>(null)
+  const trackedPlayVideoIdsRef = useRef<Set<string>>(new Set())
+  const userInitiatedPlayRef = useRef(false)
+  const replayAfterEndRef = useRef(false)
+  const accumulatedWatchSecondsRef = useRef(0)
+  const hasSentInitialWatchReportRef = useRef(false)
+  const isReportingWatchRef = useRef(false)
+  const pendingForcedReportRef = useRef(false)
+  const availableProfilesRef = useRef(resolvedProfiles)
+  const originalProfileRef = useRef(originalProfile)
+  /** Tracks attempted MP4 URLs per video to avoid fallback loops / stale errors on skip. */
+  const mp4FallbackAttemptsRef = useRef<Set<string>>(new Set())
+
+  availableProfilesRef.current = resolvedProfiles
+  originalProfileRef.current = originalProfile
+
   // Mobile interaction refs
   const lastTapRef = useRef<number>(0)
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -186,9 +314,122 @@ export function VideoPlayer({
     showNextUpOverlayRef.current = showNextUpOverlay
   }, [hasEnded, showNextUpOverlay])
 
+  useEffect(() => {
+    videoIdRef.current = videoId
+  }, [videoId])
+
   const setAutoplayInProgress = (value: boolean) => {
     isAutoplayInProgressRef.current = value
     setIsAutoplayInProgress(value)
+  }
+
+  const getWatchDeviceId = () => {
+    if (watchDeviceIdRef.current) return watchDeviceIdRef.current
+    if (typeof window === "undefined") return ""
+
+    const existing = localStorage.getItem(STORAGE_KEYS.WATCH_DEVICE_ID)
+    if (existing) {
+      watchDeviceIdRef.current = existing
+      return existing
+    }
+
+    const created = generateSessionId()
+    localStorage.setItem(STORAGE_KEYS.WATCH_DEVICE_ID, created)
+    watchDeviceIdRef.current = created
+    return created
+  }
+
+  const resetWatchAccumulator = () => {
+    lastWatchPositionRef.current = null
+    accumulatedWatchSecondsRef.current = 0
+  }
+
+  const reportWatchProgress = async (force = false) => {
+    const player = playerRef.current
+    const currentVideoId = videoIdRef.current
+    if (!player || !currentVideoId) return
+    if (isReportingWatchRef.current) {
+      // If a best-effort periodic report is in-flight, ensure a forced flush retries
+      // once it finishes so we don't miss the latest playback position on navigation.
+      if (force) pendingForcedReportRef.current = true
+      return
+    }
+
+    const token = apiClient.getAuthToken()
+    if (!token) {
+      if (force) {
+        resetWatchAccumulator()
+      }
+      return
+    }
+
+    const watchedSeconds = accumulatedWatchSecondsRef.current
+    const positionFallback = lastWatchPositionRef.current ?? 0
+    const durationFallback = durationRef.current || 0
+
+    // Snapshot before any await — player may be disposed during source switch / navigation.
+    const currentPositionSeconds = Number(
+      readPlayerNumber(player, "currentTime", positionFallback).toFixed(1),
+    )
+    const totalDurationSeconds = Number(
+      readPlayerNumber(player, "duration", durationFallback).toFixed(1),
+    )
+    const playbackRate = Number(readPlayerNumber(player, "playbackRate", 1).toFixed(2))
+
+    if (!force && watchedSeconds < WATCH_REPORT_INTERVAL_SECONDS) {
+      return
+    }
+    if (!force && watchedSeconds <= 0) {
+      return
+    }
+    // Forced flush should still send current position if we have a valid playhead,
+    // even when the accumulated delta is tiny or zero.
+    if (force && watchedSeconds <= 0 && currentPositionSeconds <= 0) {
+      return
+    }
+
+    isReportingWatchRef.current = true
+    const watchedSecondsChunk = Number(watchedSeconds.toFixed(1))
+
+    try {
+      await apiClient.reportWatchHours({
+        video_id: currentVideoId,
+        position_seconds: currentPositionSeconds,
+        duration_seconds: totalDurationSeconds,
+        playback_rate: playbackRate,
+        client_timestamp: Math.floor(Date.now() / 1000),
+        device_id: getWatchDeviceId() || undefined,
+        session_id: watchSessionIdRef.current,
+        player: "web-videojs",
+      })
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("hiffi:watch-history-updated", {
+            detail: {
+              videoId: currentVideoId,
+              forced: force,
+            },
+          }),
+        )
+      }
+      accumulatedWatchSecondsRef.current = 0
+      if (process.env.NODE_ENV === "development") {
+        console.log("[hiffi] Watchhours reported:", {
+          video_id: currentVideoId,
+          position_seconds: currentPositionSeconds,
+          duration_seconds: totalDurationSeconds,
+          watched_seconds_chunk: watchedSecondsChunk,
+        })
+      }
+    } catch (err) {
+      console.warn("[hiffi] Failed to report watch telemetry:", err)
+    } finally {
+      isReportingWatchRef.current = false
+      if (pendingForcedReportRef.current) {
+        pendingForcedReportRef.current = false
+        void reportWatchProgress(true)
+      }
+    }
   }
 
   const stopOtherMediaElements = () => {
@@ -404,6 +645,7 @@ export function VideoPlayer({
   // Reset state when videoId changes to force loading state
   useEffect(() => {
     if (videoId) {
+      void reportWatchProgress(true)
       stopOtherMediaElements()
       const player = playerRef.current
       if (player) {
@@ -414,11 +656,17 @@ export function VideoPlayer({
           player.muted(true)
           // Explicitly clear source to prevent the old frame from showing
           // when the player is trying to load a new one
-          player.src({ src: '', type: '' })
+          player.src({ src: "", type: "" })
+          player.error(null)
         } catch (err) {
           console.log("[hiffi] Player cleanup failed:", err)
         }
       }
+      mp4FallbackAttemptsRef.current.clear()
+      baseUrlRef.current = ""
+      lastProcessedUrlRef.current = ""
+      signedVideoUrlRef.current = ""
+      setCurrentProfile(getPrimaryProfileKey(originalProfileRef.current))
       setIsPlaying(false)
       setIsBuffering(true)
       setIsLoadingUrl(true)
@@ -426,12 +674,38 @@ export function VideoPlayer({
       setDuration(0)   // Immediate UI reset
       durationRef.current = 0
       setUrlError("")
+      setPlaybackNetworkBanner("")
+      clearConnectivityStallTimer()
       setHasEnded(false)
       setShowNextUpOverlay(false)
       if (autoPlay) setAutoplayInProgress(true)
       unmuteRestoreBlockedRef.current = false
+      watchSessionIdRef.current = generateSessionId()
+      hasSentInitialWatchReportRef.current = false
+      resetWatchAccumulator()
     }
   }, [videoId, autoPlay])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const flushOnBackground = () => {
+      if (document.visibilityState === "hidden") {
+        void reportWatchProgress(true)
+      }
+    }
+
+    const flushOnUnload = () => {
+      void reportWatchProgress(true)
+    }
+
+    document.addEventListener("visibilitychange", flushOnBackground)
+    window.addEventListener("beforeunload", flushOnUnload)
+    return () => {
+      document.removeEventListener("visibilitychange", flushOnBackground)
+      window.removeEventListener("beforeunload", flushOnUnload)
+    }
+  }, [videoId])
 
   useEffect(() => {
     const fetchUrl = async () => {
@@ -458,19 +732,56 @@ export function VideoPlayer({
         console.log("[hiffi] Resolving source for video:", videoUrl)
         
         let targetPath = videoUrl
-        
-        // If it's a video ID and lookup is enabled, resolve to a streaming path.
-        if (!skipVideoLookup && /^[a-f0-9]{64}$/i.test(videoUrl)) {
-          const response = await apiClient.getVideo(videoUrl)
+        let profileForResolve = originalProfile
+        let profilesForFallback = resolvedProfiles
+        let storagePathForResolve = storageVideoPath?.trim() || ""
+
+        const lookupId =
+          (videoId || "").trim() || (/^[a-f0-9]{64}$/i.test(videoUrl) ? videoUrl : "")
+        const shouldLookupVideoMeta =
+          !skipVideoLookup &&
+          Boolean(lookupId) &&
+          (/^[a-f0-9]{64}$/i.test(videoUrl) ||
+            !profileForResolve ||
+            isLogicalOriginalStoragePath(videoUrl))
+
+        if (shouldLookupVideoMeta) {
+          const response = await apiClient.getVideo(lookupId)
           if (requestId !== resolveRequestIdRef.current) return
-          if (response.success && response.video_url) {
+          if (!response.success) {
+            throw new Error("Failed to get video metadata from API")
+          }
+          if (response.video_url) {
             targetPath = response.video_url
-          } else {
+          } else if (/^[a-f0-9]{64}$/i.test(videoUrl)) {
             throw new Error("Failed to get video path from API")
+          }
+
+          const videoMeta = response.video
+          if (videoMeta) {
+            if (!profileForResolve) {
+              profileForResolve =
+                (videoMeta.original_profile as string | undefined) ||
+                (videoMeta.originalProfile as string | undefined)
+            }
+            if (profilesForFallback.length === 0 && Array.isArray(videoMeta.profiles)) {
+              profilesForFallback = videoMeta.profiles
+            }
+            const metaStoragePath = String(videoMeta.video_url || "").trim()
+            if (metaStoragePath) {
+              storagePathForResolve = metaStoragePath
+            }
           }
         }
 
-        const source = await resolveVideoSource(targetPath)
+        originalProfileRef.current = profileForResolve
+        availableProfilesRef.current = profilesForFallback
+
+        const source = await resolveVideoSource(targetPath, {
+          originalProfile: profileForResolve,
+          availableProfiles: profilesForFallback,
+          storagePath: storagePathForResolve || undefined,
+        })
         if (requestId !== resolveRequestIdRef.current) return
         console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
         
@@ -481,6 +792,7 @@ export function VideoPlayer({
         signedVideoUrlRef.current = source.url
         signedUrlVideoIdRef.current = videoId || ""
         baseUrlRef.current = source.baseUrl || ""
+        setCurrentProfile(source.profileKey || getPrimaryProfileKey(profileForResolve))
         setUrlError("")
         setHasResolvedOnce(true)
       } catch (error) {
@@ -494,39 +806,30 @@ export function VideoPlayer({
     }
 
     fetchUrl()
-  }, [videoUrl, videoId, skipVideoLookup])
+  }, [videoUrl, videoId, skipVideoLookup, originalProfile, storageVideoPath, availableProfilesKey])
 
   // Build profiles map from availableProfiles prop when signedVideoUrl is available
   useEffect(() => {
     if (!signedVideoUrl) {
-      setProfiles({})
+      setProfiles((prev) => (Object.keys(prev).length === 0 ? prev : {}))
       return
     }
 
-    const profilesMap: Record<string, { label: string; path: string }> = {}
-    
-    // Default to at least "original" if no profiles provided
-    const profilesList = (availableProfiles && availableProfiles.length > 0) 
-      ? availableProfiles 
-      : ["original"]
+    const profilesMap = buildProfileMenu(originalProfile, resolvedProfiles)
 
-    profilesList.forEach(p => {
-      if (p === 'original') {
-        profilesMap[p] = { label: 'Original', path: 'original.mp4' }
-      } else {
-        profilesMap[p] = { label: p, path: `${p}.mp4` }
-      }
-    })
-    
     // Only update if the map has actually changed to prevent render loops
-    setProfiles(prev => {
-      const isSame = Object.keys(prev).length === Object.keys(profilesMap).length &&
-        Object.keys(profilesMap).every(key => 
-          prev[key] && prev[key].label === profilesMap[key].label && prev[key].path === profilesMap[key].path
+    setProfiles((prev) => {
+      const isSame =
+        Object.keys(prev).length === Object.keys(profilesMap).length &&
+        Object.keys(profilesMap).every(
+          (key) =>
+            prev[key] &&
+            prev[key].label === profilesMap[key].label &&
+            prev[key].path === profilesMap[key].path,
         )
       return isSame ? prev : profilesMap
     })
-  }, [signedVideoUrl, JSON.stringify(availableProfiles)])
+  }, [signedVideoUrl, availableProfilesKey, originalProfile])
 
   const switchQuality = (profile: string) => {
     const player = playerRef.current
@@ -540,9 +843,7 @@ export function VideoPlayer({
     const wasPaused = player.paused()
 
     // Progressive MP4 switching
-    const newSrc = profile === 'original' 
-      ? `${baseUrlRef.current}/original.mp4` 
-      : `${baseUrlRef.current}/${profile}.mp4`
+    const newSrc = profileToPlaybackUrl(baseUrlRef.current, profile)
       
       player.src({
       src: newSrc, 
@@ -581,7 +882,9 @@ export function VideoPlayer({
   // Proper Cleanup on Unmount
   useEffect(() => {
     return () => {
+      void reportWatchProgress(true)
       stopOtherMediaElements()
+      clearConnectivityStallTimer()
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
         autoplayAttemptTimeoutRef.current = null
@@ -595,6 +898,7 @@ export function VideoPlayer({
         playerRef.current.dispose()
         playerRef.current = null
       }
+      resetWatchAccumulator()
     }
   }, [])
 
@@ -656,6 +960,30 @@ export function VideoPlayer({
       console.log("[hiffi] Video playing")
       setIsPlaying(true)
       setAutoplayInProgress(false)
+      lastWatchPositionRef.current = player.currentTime()
+      const currentTrackedVideoId = String(signedUrlVideoIdRef.current || videoId || "").trim()
+      if (currentTrackedVideoId && !trackedPlayVideoIdsRef.current.has(currentTrackedVideoId)) {
+        trackedPlayVideoIdsRef.current.add(currentTrackedVideoId)
+        const playlistId =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("playlist") || undefined
+            : undefined
+        const isUserClick = userInitiatedPlayRef.current
+        const isReplay = replayAfterEndRef.current
+        userInitiatedPlayRef.current = false
+        replayAfterEndRef.current = false
+        capturePlaybackStarted(currentTrackedVideoId, {
+          isAutoplay: !isUserClick && Boolean(autoPlay),
+          playbackStartTrigger: isUserClick
+            ? isReplay
+              ? "replay_after_end_click"
+              : "player_play_click"
+            : "autoplay_page_load",
+          fallbackSource: playlistId ? "playlist" : "recommended",
+          playlistId: playlistId ?? undefined,
+        })
+        recordGuestVideoPlay(currentTrackedVideoId)
+      }
       // Clear any pending autoplay timeout since play succeeded
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
@@ -666,6 +994,7 @@ export function VideoPlayer({
       setIsPlaying(false)
       // If we pause while autoplay is in progress, it means it failed or was stopped
       setAutoplayInProgress(false)
+      void reportWatchProgress(true)
       
       if (autoplayAttemptTimeoutRef.current) {
         console.log("[hiffi] Pause event during autoplay attempt")
@@ -677,6 +1006,28 @@ export function VideoPlayer({
       if (!isSwitchingQualityRef.current) {
         const currentTime = player.currentTime()
         setCurrentTime(currentTime)
+
+        if (!apiClient.getAuthToken()) {
+          lastWatchPositionRef.current = currentTime
+          accumulatedWatchSecondsRef.current = 0
+        } else {
+          if (!hasSentInitialWatchReportRef.current && currentTime >= 1) {
+            hasSentInitialWatchReportRef.current = true
+            void reportWatchProgress(true)
+          }
+          const lastPosition = lastWatchPositionRef.current
+          if (lastPosition !== null && !player.paused() && !player.seeking()) {
+            const delta = currentTime - lastPosition
+            // Ignore seek jumps and noisy deltas; only count real watched progression.
+            if (delta > 0 && delta <= 2.5) {
+              accumulatedWatchSecondsRef.current += delta
+              if (accumulatedWatchSecondsRef.current >= WATCH_REPORT_INTERVAL_SECONDS) {
+                void reportWatchProgress(false)
+              }
+            }
+          }
+          lastWatchPositionRef.current = currentTime
+        }
         
         // Show next up overlay when video is in last 10 seconds
         const currentSuggestedVideos = suggestedVideosRef.current
@@ -699,8 +1050,9 @@ export function VideoPlayer({
         durationRef.current = newDuration
       }
 
-      // Identify "original" profile resolution for MP4
-      if (currentProfile === 'original') {
+      // Enrich source label with detected height for pre-embed originals.
+      const primaryKey = getPrimaryProfileKey(originalProfileRef.current)
+      if (currentProfile === primaryKey && primaryKey === "original") {
         const height = player.videoHeight()
         if (height > 0) {
           const label = getResolutionProfile(height)
@@ -722,6 +1074,7 @@ export function VideoPlayer({
       setIsPlaying(false)
       setHasEnded(true)
       setIsBuffering(false)
+      void reportWatchProgress(true)
       
       // Show next up overlay if not already showing and autoplay wasn't canceled
       const currentSuggestedVideos = suggestedVideosRef.current
@@ -732,21 +1085,79 @@ export function VideoPlayer({
       // Note: onVideoEnd will be called by NextUpOverlay when countdown completes
       // or when user clicks play
     }
-    const handleWaiting = () => setIsBuffering(true)
+    const handleWaiting = () => {
+      setIsBuffering(true)
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setConnectionNotice("Connection lost. Trying to reconnect...")
+        clearOfflineEscalationTimer()
+        // Give playback a short chance to recover before switching to blocking offline state.
+        offlineEscalationTimerRef.current = setTimeout(() => {
+          offlineEscalationTimerRef.current = null
+          if (typeof navigator !== "undefined" && navigator.onLine === false) {
+            showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+          }
+        }, 3500)
+        return
+      }
+      clearConnectivityStallTimer()
+      connectivityStallTimerRef.current = setTimeout(() => {
+        connectivityStallTimerRef.current = null
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+          return
+        }
+        try {
+          if (!player || player.paused()) return
+          const t = player.currentTime()
+          const buf = player.buffered()
+          let ahead = 0
+          for (let i = 0; i < buf.length; i++) {
+            if (t >= buf.start(i) && t <= buf.end(i)) {
+              ahead = buf.end(i) - t
+              break
+            }
+          }
+          if (ahead < 0.35) {
+            showPlaybackNetworkBanner("Connection interrupted. Check your network and try again.")
+          }
+        } catch {
+          // ignore
+        }
+      }, 18000)
+    }
     const handleLoadedMetadata = () => {
+      clearOfflineEscalationTimer()
+      clearConnectivityStallTimer()
+      setPlaybackNetworkBanner("")
+      setConnectionNotice("")
       // Ensure stale "ended" visual state never hides a freshly loaded source.
       setHasEnded(false)
       setShowNextUpOverlay(false)
+      // Honour ?t= deep-link from Google SeekToAction (only on first load of this video).
+      if (initialSeekSeconds && initialSeekSeconds > 0) {
+        const dur = player.duration?.() ?? 0
+        const target = dur > 0 ? Math.min(initialSeekSeconds, dur - 1) : initialSeekSeconds
+        try { player.currentTime(target) } catch {}
+      }
+      lastWatchPositionRef.current = player.currentTime()
       // Keep lifecycle cleanup only; avoid forcing an audio-only overlay here.
     }
     const handleLoadedData = () => {
       // Keep hook for future diagnostics.
     }
     const handleCanPlay = () => {
+      clearOfflineEscalationTimer()
+      clearConnectivityStallTimer()
+      setPlaybackNetworkBanner("")
+      setConnectionNotice("")
       setHasEnded(false)
       notifyMediaReady()
     }
     const handlePlaying = () => {
+      clearOfflineEscalationTimer()
+      clearConnectivityStallTimer()
+      setPlaybackNetworkBanner("")
+      setConnectionNotice("")
       setIsBuffering(false)
       notifyMediaReady()
       
@@ -819,38 +1230,82 @@ export function VideoPlayer({
 
       const code = error.code
       const message = error.message
+      const activeVideoId = videoIdRef.current
+      const currentSrc = (player.currentSrc() || signedVideoUrlRef.current || "").trim()
 
-      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try fallback to original MP4
-      if (code === 4 || code === 3) {
+      const tryMp4Fallback = (errorCode: number): boolean => {
         let baseUrl = baseUrlRef.current
         if (!baseUrl) {
-          const currentSrc = player.currentSrc() || signedVideoUrlRef.current || ""
-          if (currentSrc) {
-            baseUrl = currentSrc.replace(/\/[^/]+$/, "")
-          }
+          baseUrl = currentSrc.replace(/\/[^/]+$/, "")
         }
-        if (baseUrl) {
-          console.warn(`[hiffi] VideoJS Error (Code ${code}), trying MP4 fallback:`, message)
-          const fallbackUrl = `${baseUrl}/original.mp4`
+        if (!baseUrl) {
+          console.error(`[hiffi] VideoJS Error (Code ${errorCode}):`, message)
+          setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
+          return false
+        }
 
-          setVideoSourceType("mp4")
-          videoSourceTypeRef.current = "mp4"
-          baseUrlRef.current = baseUrl
-          setSignedVideoUrl(fallbackUrl)
-          signedVideoUrlRef.current = fallbackUrl
-          setUrlError("")
+        const attemptKey = `${activeVideoId}:${currentSrc}`
+        if (mp4FallbackAttemptsRef.current.has(attemptKey)) {
+          return false
+        }
+        mp4FallbackAttemptsRef.current.add(attemptKey)
 
-          player.error(null)
-          player.src({ src: fallbackUrl, type: "video/mp4" })
-          player.load()
-          player
-            .play()
-            .catch((e: any) => {
-              console.error("[hiffi] Fallback MP4 playback failed:", e)
-              setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
-            })
+        const candidates = buildFallbackUrls(
+          baseUrl,
+          originalProfileRef.current,
+          availableProfilesRef.current,
+          currentSrc,
+        )
+
+        const nextUrl = candidates.find((url) => {
+          if (!url) return false
+          return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${url}`)
+        })
+
+        if (!nextUrl) {
+          return false
+        }
+
+        mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
+        console.warn(`[hiffi] VideoJS Error (Code ${errorCode}), trying MP4 fallback:`, nextUrl)
+
+        const fallbackKey = profileKeyFromPlaybackUrl(nextUrl)
+        if (fallbackKey) {
+          setCurrentProfile(fallbackKey)
+        }
+
+        setVideoSourceType("mp4")
+        videoSourceTypeRef.current = "mp4"
+        baseUrlRef.current = baseUrl
+        player.error(null)
+        setSignedVideoUrl(nextUrl)
+        signedVideoUrlRef.current = nextUrl
+        setUrlError("")
+        return true
+      }
+
+      // Ignore errors from intentional src clears while switching playlist tracks.
+      if (!currentSrc) return
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
+
+      // MEDIA_ERR_NETWORK (2) — often a 404 on a missing profile file
+      if (code === 2) {
+        setIsBuffering(false)
+        if (typeof navigator !== "undefined" && navigator.onLine && tryMp4Fallback(code)) {
           return
         }
+        showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+        return
+      }
+
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
+      if (code === 4 || code === 3) {
+        if (tryMp4Fallback(code)) {
+          return
+        }
+        console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
+        setUrlError(`Playback error: ${message || "The video could not be loaded."}`)
+        return
       }
 
       console.error(`[hiffi] VideoJS Error (Code ${code}):`, message)
@@ -875,6 +1330,8 @@ export function VideoPlayer({
     return () => {
       // Listeners are removed when player is disposed in the separate cleanup effect
       isInitializingRef.current = false
+      clearOfflineEscalationTimer()
+      clearConnectivityStallTimer()
     }
   }, [isReady, autoPlay, signedPosterUrl, poster])
 
@@ -893,6 +1350,8 @@ export function VideoPlayer({
     // Reset state for new source
     setIsPlaying(false)
     setIsBuffering(true)
+    setPlaybackNetworkBanner("")
+    clearConnectivityStallTimer()
     setCurrentTime(0)
     setDuration(0)
     durationRef.current = 0
@@ -904,12 +1363,28 @@ export function VideoPlayer({
     stopOtherMediaElements()
     player.muted(isMutedRef.current)
     player.volume(volumeRef.current)
+    const mimeType = signedVideoUrl.endsWith(".m3u8")
+      ? "application/x-mpegURL"
+      : "video/mp4"
     player.src({
       src: signedVideoUrl,
-      type: "video/mp4"
+      type: mimeType,
     })
     lastReadyNotifiedSourceRef.current = ""
-    
+
+    if (autoPlay) {
+      player.one("loadedmetadata", () => {
+        if (signedUrlVideoIdRef.current !== videoId) return
+        void safePlay(player).catch((err: unknown) => {
+          const errorName =
+            err && typeof err === "object" && "name" in err ? String((err as { name?: string }).name) : ""
+          if (errorName !== "AbortError") {
+            console.error("[hiffi] Autoplay after source change failed:", err)
+          }
+        })
+      })
+    }
+
     // Safety timeout for source changes too
     if (autoPlay) {
       if (autoplayAttemptTimeoutRef.current) clearTimeout(autoplayAttemptTimeoutRef.current)
@@ -971,6 +1446,7 @@ export function VideoPlayer({
     if (hasEnded) {
       setHasEnded(false)
       player.currentTime(0)
+      replayAfterEndRef.current = true
     }
 
     // Check actual player state instead of relying on React state
@@ -980,6 +1456,7 @@ export function VideoPlayer({
     if (isActuallyPlaying) {
       player.pause()
     } else {
+      userInitiatedPlayRef.current = true
       safePlay(player)
     }
   }
@@ -1074,6 +1551,7 @@ export function VideoPlayer({
     setIsBuffering(true)
     setCurrentTime(newTime)
     player.currentTime(newTime)
+    lastWatchPositionRef.current = newTime
     
     // If player was playing, ensure it continues playing after seek
     // Use a small delay to allow the seek to complete
@@ -1254,16 +1732,27 @@ export function VideoPlayer({
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
   }
 
+  const isPreviousVideoNavDisabled = Boolean(onPrevious && previousVideoDisabled)
+
   const handlePrevious = () => {
     if (onPrevious) {
+      if (previousVideoDisabled) return
       onPrevious()
       return
     }
-    // Fallback: standard browser back when no in-place handler is provided
-    router.back()
+    const player = playerRef.current
+    if (player && duration > 0) {
+      const pos = typeof player.currentTime === "function" ? player.currentTime() : currentTime
+      const newTime = Math.max(0, pos - 10)
+      handleSeek([newTime])
+    }
   }
 
   const handleNext = () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+      return
+    }
     const currentSuggestedVideos = suggestedVideosRef.current
     if (!currentSuggestedVideos || currentSuggestedVideos.length === 0) return
     const next = currentSuggestedVideos[0]
@@ -1327,7 +1816,10 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video bg-black rounded-xl overflow-hidden group select-none touch-manipulation"
+      className="relative flex w-full flex-col"
+    >
+    <div
+      className="relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
       tabIndex={0}
@@ -1335,7 +1827,7 @@ export function VideoPlayer({
     >
       {/* Loading Overlay */}
       {isLoadingAny && (
-        <div className="absolute inset-0 bg-[#090C10] rounded-xl overflow-hidden flex items-center justify-center border border-white/5 shadow-2xl z-[45]">
+        <div className="absolute inset-0 bg-[#090C10] rounded-none md:rounded-xl overflow-hidden flex items-center justify-center border border-white/5 shadow-2xl z-[45]">
           {/* Show poster if available for a smoother transition */}
           {signedPosterUrl ? (
             <div className="absolute inset-0 w-full h-full">
@@ -1389,7 +1881,7 @@ export function VideoPlayer({
         />
       </div>
 
-      {/* Center Play/Pause Indicator (Mobile-first UX) */}
+      {/* Center transport controls (Mobile-first UX) */}
       <div 
         className={cn(
           "absolute inset-0 flex items-center justify-center pointer-events-none z-20",
@@ -1398,45 +1890,68 @@ export function VideoPlayer({
       >
         <div 
           className={cn(
-            "h-20 w-20 rounded-full flex items-center justify-center transition-all duration-200 ease-out bg-black/35 backdrop-blur-[2px]",
+            "flex items-center gap-3 transition-all duration-200 ease-out pointer-events-auto",
             isPlayerAwake ? "opacity-100 scale-100" : "opacity-0 scale-90"
           )}
         >
-          {isPlaying ? (
-            <Pause className="h-10 w-10 text-white/85" fill="currentColor" />
-          ) : (
-            <Play className="h-10 w-10 text-white/85 ml-1" fill="currentColor" />
-          )}
+          <button
+            type="button"
+            data-analytics-name={PLAYER_PREVIOUS}
+            onClick={(e) => {
+              e.stopPropagation()
+              handlePrevious()
+            }}
+            disabled={isPreviousVideoNavDisabled}
+            aria-label={
+              onPrevious
+                ? previousVideoDisabled
+                  ? "No previous video in this session"
+                  : "Previous video"
+                : "Seek back 10 seconds"
+            }
+            className={cn(
+              "h-11 w-11 rounded-full bg-black/45 backdrop-blur-[2px] flex items-center justify-center text-white/90",
+              isPreviousVideoNavDisabled && "opacity-40 cursor-not-allowed",
+            )}
+          >
+            <SkipBack className="h-5 w-5" />
+          </button>
+          <button
+            data-analytics-name={isPlaying ? PAUSED_VIDEO : PLAYED_VIDEO_CLICK}
+            onClick={(e) => {
+              e.stopPropagation()
+              togglePlay()
+            }}
+            className="h-14 w-14 rounded-full bg-black/55 backdrop-blur-[2px] flex items-center justify-center text-white"
+          >
+            {isPlaying ? (
+              <Pause className="h-7 w-7" fill="currentColor" />
+            ) : (
+              <Play className="h-7 w-7 ml-0.5" fill="currentColor" />
+            )}
+          </button>
+          <button
+            data-analytics-name={PLAYER_NEXT_RECOMMENDED}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleNext()
+            }}
+            className={cn(
+              "h-11 w-11 rounded-full bg-black/45 backdrop-blur-[2px] flex items-center justify-center text-white/90",
+              (!suggestedVideos || suggestedVideos.length === 0) && "opacity-40 cursor-not-allowed"
+            )}
+            disabled={!suggestedVideos || suggestedVideos.length === 0}
+          >
+            <SkipForward className="h-5 w-5" />
+          </button>
         </div>
       </div>
-
-      {/* Next Up Overlay - Shows when video is ending or has ended */}
-      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
-        <NextUpOverlay
-          nextVideo={suggestedVideos[0]}
-          countdownDuration={5}
-          onPlay={() => {
-            setShowNextUpOverlay(false)
-            autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
-            if (onVideoEnd) {
-              onVideoEnd()
-            }
-          }}
-          onCancel={() => {
-            setShowNextUpOverlay(false)
-            setHasEnded(false)
-            autoplayCanceledRef.current = true // Mark autoplay as canceled
-          }}
-          visible={showNextUpOverlay}
-          isVideoPlaying={isPlaying}
-          hasVideoEnded={hasEnded}
-        />
-      )}
 
       {/* Fade to black overlay when video ends (only if next up overlay not showing) */}
       {hasEnded && !showNextUpOverlay && (
         <div 
           className="absolute inset-0 bg-black animate-in fade-in duration-1000 flex items-center justify-center cursor-pointer z-30"
+          data-analytics-name={PLAYED_VIDEO_CLICK}
           onClick={togglePlay}
         >
           <div className="h-20 w-20 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -1449,6 +1964,7 @@ export function VideoPlayer({
       {!isPlaying && !isBuffering && !hasEnded && !isAutoplayInProgress && (
         <div
           className="absolute inset-0 hidden md:flex items-center justify-center bg-black/20 cursor-pointer z-20"
+          data-analytics-name={PLAYED_VIDEO_CLICK}
           onClick={togglePlay}
         >
           <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center transition-transform hover:scale-110">
@@ -1457,11 +1973,54 @@ export function VideoPlayer({
         </div>
       )}
 
-      {(isBuffering || isAutoplayInProgress) && !hasEnded && (
+      {(isBuffering || isAutoplayInProgress) && !hasEnded && !playbackNetworkBanner && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
         </div>
       )}
+
+      {playbackNetworkBanner ? (
+        <div
+          className="absolute inset-0 z-[45] flex items-center justify-center bg-black px-4 text-center pointer-events-auto animate-in fade-in duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <OfflineState
+            variant="embed"
+            title={
+              playbackNetworkBanner === NO_INTERNET_USER_MESSAGE
+                ? "No internet connection"
+                : "Playback interrupted"
+            }
+            description={playbackNetworkBanner}
+            onRetry={() => {
+              if (typeof navigator !== "undefined" && navigator.onLine === false) {
+                showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+                return
+              }
+              clearConnectivityStallTimer()
+              clearOfflineEscalationTimer()
+              setPlaybackNetworkBanner("")
+              setConnectionNotice("")
+              const p = playerRef.current
+              if (p) {
+                try {
+                  p.error(null)
+                  p.load()
+                  void p.play().catch(() => {})
+                } catch {
+                  // ignore
+                }
+              }
+            }}
+          />
+        </div>
+      ) : null}
+
+      {connectionNotice && !playbackNetworkBanner ? (
+        <div className="absolute top-3 left-1/2 z-[44] -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm pointer-events-none">
+          {connectionNotice}
+        </div>
+      ) : null}
 
       {/* Tap to Unmute Overlay (YouTube style) */}
       {isForcedMute && isPlaying && !isAutoplayInProgress && (
@@ -1469,6 +2028,7 @@ export function VideoPlayer({
           <Button
             variant="secondary"
             size="sm"
+            data-analytics-name="unmuted-video"
             className="rounded-full bg-black/60 hover:bg-black/80 text-white border-white/10 gap-2 backdrop-blur-sm shadow-lg animate-in fade-in zoom-in duration-300"
             onClick={(e) => {
               e.stopPropagation()
@@ -1510,19 +2070,69 @@ export function VideoPlayer({
           />
         </div>
 
-        <div className="flex items-center justify-between text-white gap-3">
+        {/* Mobile controls: cleaner two-row layout */}
+        <div className="md:hidden space-y-2 text-white">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium flex items-center gap-2 whitespace-nowrap">
+              <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+              {isBuffering && (
+                <span className="text-[10px] text-muted-foreground">Buffering...</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                data-analytics-name={isMuted || isForcedMute ? "unmuted_video" : "muted_video"}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleMute()
+                }}
+                className="h-9 w-9 flex items-center justify-center rounded-full hover:text-primary transition-colors"
+              >
+                {getVolumeIcon()}
+              </button>
+              <button
+                data-analytics-name={isFullscreen ? "exited_fullscreen" : "entered_fullscreen"}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleFullscreen()
+                }}
+                className="h-9 w-9 flex items-center justify-center rounded-full hover:text-primary transition-colors"
+              >
+                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Desktop/tablet controls: original full layout */}
+        <div className="hidden md:flex items-center justify-between text-white gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
+              type="button"
+              data-analytics-name={PLAYER_PREVIOUS}
               onClick={(e) => {
                 e.stopPropagation()
                 handlePrevious()
               }}
-              className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
+              disabled={isPreviousVideoNavDisabled}
+              aria-label={
+                onPrevious
+                  ? previousVideoDisabled
+                    ? "No previous video in this session"
+                    : "Previous video"
+                  : "Seek back 10 seconds"
+              }
+              className={cn(
+                "h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors",
+                isPreviousVideoNavDisabled && "opacity-40 cursor-not-allowed",
+              )}
             >
               <SkipBack className="h-5 w-5" />
             </button>
 
             <button
+              data-analytics-name={isPlaying ? PAUSED_VIDEO : PLAYED_VIDEO_CLICK}
               onClick={(e) => {
                 e.stopPropagation()
                 togglePlay()
@@ -1537,6 +2147,7 @@ export function VideoPlayer({
             </button>
 
             <button
+              data-analytics-name={PLAYER_NEXT_RECOMMENDED}
               onClick={(e) => {
                 e.stopPropagation()
                 handleNext()
@@ -1551,20 +2162,17 @@ export function VideoPlayer({
             </button>
 
             <div className="flex items-center gap-2 group/volume shrink-0">
-              <button 
+              <button
+                data-analytics-name={isMuted || isForcedMute ? "unmuted_video" : "muted_video"}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleMute();
-                }} 
+                }}
                 className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors"
               >
                 {getVolumeIcon()}
               </button>
-              <div className={cn(
-                "overflow-hidden transition-all duration-300 ease-in-out",
-                "w-0 md:group-hover/volume:w-24", // Desktop: hover to show
-                isMobile && showControls && "w-24" // Mobile: show when awake
-              )}>
+              <div className="overflow-hidden transition-all duration-300 ease-in-out w-0 md:group-hover/volume:w-24">
                 <Slider
                   value={[isMuted ? 0 : volume]}
                   max={1}
@@ -1588,7 +2196,7 @@ export function VideoPlayer({
             {Object.keys(profiles).length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors focus:outline-none">
+                  <button data-analytics-name="opened-quality-settings" className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors focus:outline-none">
                     <Settings className="h-5 w-5" />
                   </button>
                 </DropdownMenuTrigger>
@@ -1614,7 +2222,7 @@ export function VideoPlayer({
                 <Settings className="h-5 w-5" />
               </button>
             )}
-            <button onClick={toggleFullscreen} className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors">
+            <button data-analytics-name={isFullscreen ? "exited_fullscreen" : "entered_fullscreen"} onClick={toggleFullscreen} className="h-10 w-10 flex items-center justify-center rounded-full hover:text-primary transition-colors">
               {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </button>
           </div>
@@ -1638,6 +2246,46 @@ export function VideoPlayer({
           display: none !important;
         }
       `}</style>
+    </div>
+
+      {/* Next up: below the player on mobile, overlay on desktop (sibling so mobile does not cover video) */}
+      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
+        <NextUpOverlay
+          nextVideo={suggestedVideos[0]}
+          countdownDuration={5}
+          onPlay={(trigger) => {
+            if (typeof navigator !== "undefined" && navigator.onLine === false) {
+              showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+              return
+            }
+            setShowNextUpOverlay(false)
+            autoplayCanceledRef.current = false // Reset cancel flag when user manually plays
+            const next = suggestedVideos[0]
+            const nextId = next?.videoId || next?.video_id
+            if (nextId) {
+              setPendingPlaybackContext({
+                videoId: String(nextId),
+                openSource: "recommended",
+                openUiName: trigger === "click" ? "up-next-overlay-play" : "up-next-overlay-autoplay",
+                navigateTrigger:
+                  trigger === "click" ? "up_next_overlay_click" : "up_next_overlay_autoplay",
+                isAutoplay: trigger === "autoplay",
+              })
+            }
+            if (onVideoEnd) {
+              onVideoEnd()
+            }
+          }}
+          onCancel={() => {
+            setShowNextUpOverlay(false)
+            setHasEnded(false)
+            autoplayCanceledRef.current = true // Mark autoplay as canceled
+          }}
+          visible={showNextUpOverlay}
+          isVideoPlaying={isPlaying}
+          hasVideoEnded={hasEnded}
+        />
+      )}
     </div>
   )
 }

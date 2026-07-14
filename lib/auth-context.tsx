@@ -1,10 +1,24 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { apiClient } from "./api-client"
+import { apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
+import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
+import { trackUmami, setUmamiUser } from "@/lib/umami"
+import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents"
+import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
+import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
+import { isValidEmailFormat, passwordContainsWhitespace, resolvePostAuthDestination, sanitizeInternalPath } from "@/lib/auth-utils"
+import { debugLog, debugWarn } from "@/lib/debug"
+import { normalizeUserProfilePictureFields } from "@/lib/utils"
+import {
+  clearReferralCode,
+  clearReferralRedirectProfile,
+  getReferralCode,
+  getReferralRedirectProfile,
+} from "./referral-cookie"
 
 interface User {
   name: string
@@ -16,11 +30,23 @@ interface AuthContextType {
   user: User | null
   userData: any | null
   loading: boolean
-  login: (identifier: string, password: string, redirectPath?: string | null) => Promise<void>
-  signup: (username: string, password: string, name: string, email: string) => Promise<{ success: boolean; registrationId?: string; error?: string }>
-  verifyOtp: (registrationId: string, otp: string, redirectPath?: string | null) => Promise<void>
+  login: (
+    identifier: string,
+    password: string,
+    redirectPath?: string | null,
+  ) => Promise<void>
+  signup: (
+    username: string,
+    password: string,
+    name: string,
+    email: string,
+    redirectPath?: string | null,
+    referralCodeOverride?: string | null,
+  ) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
+  /** Clear profile photo in auth cache/state immediately (used by navbar). */
+  clearProfilePhoto: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -35,10 +61,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const refreshUserData = async (forceRefresh = false): Promise<any | null> => {
+  const clearProfilePhoto = useCallback(() => {
+    setUserData((prev: Record<string, unknown> | null) => {
+      if (!prev) return prev
+      const next = normalizeUserProfilePictureFields({
+        ...prev,
+        profile_picture: "",
+        image: "",
+      })
+      if (typeof window !== "undefined") {
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(next))
+        localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+      }
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const onProfilePictureUpdated = (event: Event) => {
+      const cleared = (event as CustomEvent<{ cleared?: boolean }>).detail?.cleared
+      if (!cleared) return
+      clearProfilePhoto()
+    }
+    window.addEventListener("profilePictureUpdated", onProfilePictureUpdated)
+    return () => window.removeEventListener("profilePictureUpdated", onProfilePictureUpdated)
+  }, [clearProfilePhoto])
+
+  const identifyAnalyticsUser = (username: string | null) => {
+    if (typeof window === "undefined") return
+
+    const tryIdentify = () => {
+      const analytics = (window as any).HifiAnalytics
+      if (!analytics || typeof analytics.identify !== "function") return false
+      analytics.identify(username)
+      return true
+    }
+
+    if (tryIdentify()) return
+
+    // Tracker can load after auth resolves; retry briefly to avoid losing early identified events.
+    let attempts = 0
+    const maxAttempts = 20
+    const intervalId = window.setInterval(() => {
+      attempts += 1
+      if (tryIdentify() || attempts >= maxAttempts) {
+        window.clearInterval(intervalId)
+      }
+    }, 250)
+  }
+
+  useEffect(() => {
+    identifyAnalyticsUser(user?.username ?? null)
+  }, [user?.username])
+
+  // Mirror user identity into Umami so every event carries user_id / user_name /
+  // user_email / user_username in its Properties (matches BeautyBarn dashboard).
+  useEffect(() => {
+    if (!userData) {
+      setUmamiUser(null)
+      return
+    }
+    setUmamiUser({
+      user_id: userData.uid ?? userData.id ?? null,
+      user_username: userData.username ?? null,
+      user_name: userData.name ?? null,
+      user_email: userData.email ?? null,
+    })
+  }, [userData])
+
+  const refreshUserData = useCallback(async (forceRefresh = false): Promise<any | null> => {
     const token = apiClient.getAuthToken()
     if (!token) {
-      console.log("[hiffi] No auth token, skipping user data refresh")
+      debugLog("[hiffi] No auth token, skipping user data refresh")
       setUser(null)
       setUserData(null)
       // Clear cached data
@@ -57,8 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cachedData && cachedTimestamp) {
         const age = Date.now() - Number.parseInt(cachedTimestamp)
         if (age < USER_DATA_CACHE_DURATION) {
-          console.log("[hiffi] Using cached user data")
-          const cachedUserData = JSON.parse(cachedData)
+          debugLog("[hiffi] Using cached user data")
+          const cachedUserData = normalizeUserProfilePictureFields(JSON.parse(cachedData))
           setUserData(cachedUserData)
           setUser(cachedUserData)
           return cachedUserData
@@ -67,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      console.log("[hiffi] Fetching user data from API")
+      debugLog("[hiffi] Fetching user data from API")
 
       // Get username from cached data or token
       let username: string | null = null
@@ -78,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const parsed = JSON.parse(cachedData)
             username = parsed.username
           } catch (e) {
-            console.warn("[hiffi] Failed to parse cached user data for username")
+            debugWarn("[hiffi] Failed to parse cached user data for username")
           }
         }
       }
@@ -91,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!username) {
-        console.warn("[hiffi] No username available to fetch user data")
+        debugWarn("[hiffi] No username available to fetch user data")
         // If we have a token but no username, we might be in a broken state.
         // Try auto-login to restore credentials and session.
         return null
@@ -100,36 +195,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Use /users/{username} instead of deprecated /users/self
       const response = await apiClient.getUserByUsername(username)
 
-      if (response.success && response.user) {
-        console.log("[hiffi] User data fetched successfully:", response.user.username)
-        console.log("[hiffi] User role:", response.user.role)
-        console.log("[hiffi] Is creator:", response.user.role === "creator")
-        console.log("[hiffi] Profile picture:", response.user.profile_picture || response.user.image)
+      if (response.success && isApiUser(response.user)) {
+        debugLog("[hiffi] User data fetched successfully:", (response.user as any).username)
+        debugLog("[hiffi] User role:", (response.user as any).role)
+        debugLog("[hiffi] Is creator:", (response.user as any).role === "creator")
+        debugLog("[hiffi] Profile picture:", (response.user as any).profile_picture || (response.user as any).image)
         // Force state update by creating new object reference to trigger re-renders
         // This ensures navbar and other components that depend on userData will re-render
-        const newUserData = { ...response.user }
+        const newUserData = normalizeUserProfilePictureFields({ ...response.user })
         setUserData(newUserData)
-        setUser(newUserData)
-        console.log("[hiffi] UserData state updated, should trigger navbar refresh")
+        if (typeof (newUserData as any).name === "string" && typeof (newUserData as any).uid === "string" && typeof (newUserData as any).username === "string") {
+          setUser(newUserData as unknown as User)
+        } else {
+          setUser(null)
+        }
+        debugLog("[hiffi] UserData state updated, should trigger navbar refresh")
 
         // Cache the user data
         if (typeof window !== "undefined") {
-          localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.user))
+          localStorage.setItem(USER_DATA_KEY, JSON.stringify(newUserData))
           localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
         }
-        return response.user
+        return newUserData
       } else {
-        console.warn("[hiffi] API returned unsuccessful response or user not found in backend")
+        debugWarn("[hiffi] API returned unsuccessful response or user not found in backend")
         setUser(null)
         setUserData(null)
         apiClient.clearAuthToken()
         return null
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[hiffi] Failed to fetch user data:", error)
 
       // If unauthorized (401), clear token and sign out
-      if (error?.status === 401 || error?.status === 404) {
+      const err = error as { status?: number } | null
+      if (err?.status === 401 || err?.status === 404) {
         console.warn("[hiffi] Unauthorized or user not found, clearing auth")
         apiClient.clearAuthToken()
         setUser(null)
@@ -149,10 +249,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return null
     }
-  }
+  }, [])
 
   useEffect(() => {
-    console.log("[hiffi] Checking auth state on mount")
+    debugLog("[hiffi] Checking auth state on mount")
 
     // Check if we have a token and fetch user data
     const checkAuth = async () => {
@@ -163,7 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // If refresh failed but we have a token, try to restore session via auto-login
           if (!fetchedUser) {
-            console.log("[hiffi] Refresh failed with token present, attempting auto-login fallback")
+            debugLog("[hiffi] Refresh failed with token present, attempting auto-login fallback")
             // This might happen if localStorage was cleared but cookies remain
             const credentials = apiClient.getCredentials()
             if (credentials.username && credentials.password) {
@@ -189,7 +289,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     checkAuth()
-  }, [])
+  }, [refreshUserData])
 
   // Global cleanup effect: Remove any blocking overlays that might persist after navigation
   useEffect(() => {
@@ -239,15 +339,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (identifier: string, password: string, redirectPath?: string | null) => {
+  const login = async (
+    identifier: string,
+    password: string,
+    redirectPath?: string | null,
+  ) => {
     try {
-      console.log("[hiffi] Attempting login for:", identifier)
+      const trimmedIdentifier = identifier.trim()
+      debugLog("[hiffi] Attempting login for:", trimmedIdentifier)
 
-      // Determine if identifier is an email or username
-      const isEmail = identifier.includes("@") && identifier.includes(".")
-      const loginData = isEmail
-        ? { email: identifier, password }
-        : { username: identifier, password }
+      if (!password) {
+        throw new Error("Enter your password.")
+      }
+      if (passwordContainsWhitespace(password)) {
+        throw new Error("Password cannot contain spaces.")
+      }
+
+      if (trimmedIdentifier.includes("@")) {
+        if (!isValidEmailFormat(trimmedIdentifier)) {
+          throw new Error("Enter a valid email address (include @ and a domain, e.g. name@example.com).")
+        }
+      }
+
+      const loginData = trimmedIdentifier.includes("@")
+        ? { email: trimmedIdentifier, password }
+        : { username: trimmedIdentifier, password }
 
       const response = await apiClient.login(loginData)
 
@@ -255,27 +371,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Login failed. Please check your credentials.")
       }
 
-      console.log("[hiffi] Login successful, user:", response.data.user.username)
+      debugLog("[hiffi] Login successful, user:", response.data.user.username)
 
       // Set initial user data from login response
       setUser(response.data.user)
-      setUserData(response.data.user)
+      setUserData(normalizeUserProfilePictureFields(response.data.user))
+      identifyAnalyticsUser(response.data.user.username || null)
 
       // Cache the user data
       if (typeof window !== "undefined") {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(response.data.user)))
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
       // Check if account is disabled by calling /users/{username}
-      console.log("[hiffi] Checking if account is disabled")
+      debugLog("[hiffi] Checking if account is disabled")
       try {
         const userStatusResponse = await apiClient.getUserByUsername(response.data.user.username)
 
         // Check if user account is disabled
         // API returns { disabled: true, success: false } for disabled accounts
         if (userStatusResponse.disabled === true && userStatusResponse.success === false) {
-          console.warn("[hiffi] Account is disabled, logging out user")
+          debugWarn("[hiffi] Account is disabled, logging out user")
 
           // Clear auth state
           apiClient.clearAuthToken()
@@ -320,37 +437,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
         // Otherwise, log the error but continue with login (might be network issue)
-        console.warn("[hiffi] Failed to check account status, continuing with login:", statusError)
+        debugWarn("[hiffi] Failed to check account status, continuing with login:", statusError)
       }
 
       // Refresh user data from /users/{username} to get latest creator status and all user details
-      console.log("[hiffi] Refreshing user data from /users/{username} to get latest details")
+      debugLog("[hiffi] Refreshing user data from /users/{username} to get latest details")
       let finalUserData: any = response.data.user
       try {
         const refreshedUserData = await refreshUserData(true) // Force refresh to get latest data
         if (refreshedUserData) {
           finalUserData = refreshedUserData
-          console.log("[hiffi] User data refreshed, role:", refreshedUserData.role)
-          console.log("[hiffi] Is creator:", refreshedUserData.role === "creator")
+          debugLog("[hiffi] User data refreshed, role:", refreshedUserData.role)
+          debugLog("[hiffi] Is creator:", refreshedUserData.role === "creator")
         }
       } catch (refreshError) {
-        console.warn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
+        debugWarn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
         // Continue with login response data if refresh fails
       }
 
-      console.log("[hiffi] User data set after login")
+      debugLog("[hiffi] User data set after login")
 
-      // Check if user is admin and redirect to admin dashboard, otherwise use redirect path or home
-      const userRole = String(finalUserData?.role || "").toLowerCase().trim()
-      if (userRole === "admin") {
-        console.log("[hiffi] User is admin, redirecting to admin dashboard")
-        router.replace("/admin/dashboard")
-      } else {
-        // Use redirect path if provided (from query param), otherwise go to home
-        const destination = redirectPath || "/"
-        console.log("[hiffi] Redirecting after login to:", destination)
-        router.replace(destination)
-      }
+      void replayPendingGuestIntents()
+      resetGuestConversionSession()
+      clearGuestHistory()
+
+      // Use redirect path if provided (from query param), otherwise go to home
+      const destination = resolvePostAuthDestination(redirectPath, finalUserData)
+      debugLog("[hiffi] Redirecting after login to:", destination)
+      router.replace(destination)
     } catch (error: any) {
       console.error("[hiffi] Sign in failed:", error)
       const errorMessage = error.message || "Failed to sign in. Please check your credentials."
@@ -358,97 +472,122 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signup = async (username: string, password: string, name: string, email: string) => {
+  const signup = async (
+    username: string,
+    password: string,
+    name: string,
+    email: string,
+    redirectPath?: string | null,
+    referralCodeOverride?: string | null,
+  ) => {
     try {
-      console.log("[hiffi] Attempting signup for:", username)
+      debugLog("[hiffi] Attempting signup for:", username)
 
-      // Register user with backend - returns registration ID for OTP verification
-      const response = await apiClient.register({ username, password, name, email })
+      if (passwordContainsWhitespace(password)) {
+        return { success: false, error: "Password cannot contain spaces." }
+      }
 
-      if (!response.success) {
-        // Handle error response
+      const referralCode =
+        referralCodeOverride?.trim() || getReferralCode() || undefined
+
+      const response = await apiClient.register({
+        username,
+        password,
+        name,
+        email,
+        ...(referralCode ? { referral_code: referralCode } : {}),
+      })
+
+      if (!response.success || !response.data?.token || !response.data.user) {
         const errorMessage = response.error || "Registration failed. Please try again."
         return { success: false, error: errorMessage }
       }
 
-      if (!response.data?.id) {
-        return { success: false, error: "Registration failed. Please try again." }
+      debugLog("[hiffi] Registration successful, user:", response.data.user.username)
+
+      setUser(response.data.user)
+      setUserData(normalizeUserProfilePictureFields(response.data.user))
+      identifyAnalyticsUser(response.data.user.username || null)
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          USER_DATA_KEY,
+          JSON.stringify(normalizeUserProfilePictureFields(response.data.user)),
+        )
+        localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
-      console.log("[hiffi] Registration successful, registration ID:", response.data.id)
-      return { success: true, registrationId: response.data.id }
+      await new Promise((resolve) => setTimeout(resolve, 150))
+
+      let finalUserData: any = response.data.user
+      try {
+        const refreshedUserData = await refreshUserData(true)
+        if (refreshedUserData) {
+          finalUserData = refreshedUserData
+          debugLog("[hiffi] User data refreshed after registration")
+        }
+      } catch (refreshError) {
+        debugWarn(
+          "[hiffi] Failed to refresh user data after registration, using register response data:",
+          refreshError,
+        )
+      }
+
+      clearReferralCode()
+
+      const referralRedirectProfile = getReferralRedirectProfile()
+      clearReferralRedirectProfile()
+
+      const destination = referralRedirectProfile
+        ? `/profile/${encodeURIComponent(referralRedirectProfile)}`
+        : redirectPath || "/"
+      const safeDestination = referralRedirectProfile
+        ? sanitizeInternalPath(destination, "/")
+        : resolvePostAuthDestination(redirectPath, finalUserData)
+      const signupSource = normalizeConversionSource(
+        referralRedirectProfile ? "profile" : redirectPath || "/signup",
+      )
+      captureConversionEvent("conversion_signup_completed", {
+        username: response.data.user.username,
+        source: signupSource,
+        has_referral_code: Boolean(referralCode),
+        redirected_to: safeDestination,
+      })
+      trackUmami("Sign Up Completed", {
+        source: signupSource,
+        has_referral_code: Boolean(referralCode),
+        referral_code: referralCode || null,
+        redirected_to: safeDestination,
+        username: response.data.user.username,
+      })
+      void replayPendingGuestIntents()
+      resetGuestConversionSession()
+      clearGuestHistory()
+      debugLog("[hiffi] Registration complete, redirecting to:", safeDestination)
+      router.replace(safeDestination)
+
+      return { success: true }
     } catch (error: any) {
       console.error("[hiffi] Sign up failed:", error)
+
+      apiClient.clearAuthToken()
+      setUser(null)
+      setUserData(null)
+      identifyAnalyticsUser(null)
+
       const errorMessage = error.message || "Failed to sign up. Please try again."
       return { success: false, error: errorMessage }
     }
   }
 
-  const verifyOtp = async (registrationId: string, otp: string, redirectPath?: string | null) => {
-    try {
-      console.log("[hiffi] Verifying OTP for registration ID:", registrationId)
-
-      // Verify OTP with backend
-      const response = await apiClient.verifyOtp({ id: registrationId, otp })
-
-      if (!response.success || !response.data) {
-        const errorMessage = response.error || "OTP verification failed. Please try again."
-        throw new Error(errorMessage)
-      }
-
-      console.log("[hiffi] OTP verification successful, user:", response.data.user.username)
-
-      // Set user data from response
-      setUser(response.data.user)
-      setUserData(response.data.user)
-
-      // Cache the user data
-      if (typeof window !== "undefined") {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user))
-        localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
-      }
-
-      // Wait a moment for state updates to propagate to all components
-      await new Promise(resolve => setTimeout(resolve, 150))
-
-      // Refresh user data to get full user details
-      try {
-        const refreshedUserData = await refreshUserData(true)
-        if (refreshedUserData) {
-          console.log("[hiffi] User data refreshed after OTP verification")
-        }
-      } catch (refreshError) {
-        console.warn("[hiffi] Failed to refresh user data after OTP verification, using verification response data:", refreshError)
-      }
-
-      // User is authenticated and data is loaded, navigate based on redirect path
-      const destination = redirectPath || "/"
-      console.log("[hiffi] OTP verification complete, redirecting to:", destination)
-      router.replace(destination)
-    } catch (error: any) {
-      console.error("[hiffi] OTP verification failed:", error)
-
-      // Clear any partial state
-      apiClient.clearAuthToken()
-      setUser(null)
-      setUserData(null)
-
-      const errorMessage = error.message || "OTP verification failed. Please try again."
-      throw new Error(errorMessage)
-    }
-  }
-
   const logout = async () => {
     try {
-      console.log("[hiffi] Attempting logout")
+      debugLog("[hiffi] Attempting logout")
 
       // Clear auth token
       apiClient.clearAuthToken()
       // Clear stored credentials
       apiClient.clearCredentials()
-
-      setUser(null)
-      setUserData(null)
 
       // Clear cached data
       if (typeof window !== "undefined") {
@@ -456,7 +595,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
       }
 
-      console.log("[hiffi] Logout successful")
+      debugLog("[hiffi] Logout successful")
+
+      const currentPath =
+        typeof window !== "undefined" ? window.location.pathname : ""
+
+      // Hard-navigate away from Studio before clearing React auth state so StudioShell
+      // does not race to /login?redirect=/studio.
+      if (currentPath.startsWith("/studio")) {
+        window.location.assign("/")
+        return
+      }
+
+      setUser(null)
+      setUserData(null)
 
       // Comprehensive cleanup function
       const cleanupOverlays = () => {
@@ -510,7 +662,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Conditional redirect: Stay on watch page, otherwise go home
         const currentPath = window.location.pathname
         if (currentPath.startsWith("/watch/")) {
-          console.log("[hiffi] User logged out on watch page, staying on current page")
+          debugLog("[hiffi] User logged out on watch page, staying on current page")
           router.refresh()
           // Run cleanup multiple times to catch elements added during navigation
           setTimeout(() => cleanupOverlays(), 50)
@@ -554,11 +706,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return (
-    <AuthContext.Provider value={{ user, userData, loading, login, signup, verifyOtp, logout, refreshUserData }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      userData,
+      loading,
+      login,
+      signup,
+      logout,
+      refreshUserData,
+      clearProfilePhoto,
+    }),
+    [
+      user,
+      userData,
+      loading,
+      login,
+      signup,
+      logout,
+      refreshUserData,
+      clearProfilePhoto,
+    ],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

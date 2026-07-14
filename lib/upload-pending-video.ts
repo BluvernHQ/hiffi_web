@@ -1,5 +1,5 @@
 /**
- * Holds a video File between client navigations (e.g. Hiffi Studio → /upload).
+ * Holds a video File between client navigations (e.g. Hiffi Studio → /studio/tools/upload).
  * Not persisted across full page reloads.
  */
 let pendingVideoFile: File | null = null

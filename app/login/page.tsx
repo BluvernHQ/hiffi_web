@@ -6,7 +6,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { validateRedirect, buildSignupUrl } from "@/lib/auth-utils"
+import { validateRedirect, buildSignupUrl, resolvePostAuthDestination, resolveSkipDestination } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,7 +20,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const { login, user, loading: authLoading } = useAuth()
+  const { login, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -31,11 +31,10 @@ function LoginForm() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      // Use redirect path if valid, otherwise go to home
-      const destination = redirectPath || "/"
+      const destination = resolvePostAuthDestination(redirectPath, userData)
       router.replace(destination)
     }
-  }, [user, authLoading, router, redirectPath])
+  }, [user, userData, authLoading, router, redirectPath])
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -77,9 +76,7 @@ function LoginForm() {
   }
 
   const handleSkip = () => {
-    // If there's a valid redirect, go there; otherwise go home
-    const destination = redirectPath || "/"
-    router.replace(destination)
+    router.replace(resolveSkipDestination(redirectPath))
   }
 
   return (
@@ -91,6 +88,7 @@ function LoginForm() {
               type="button"
               variant="ghost"
               size="sm"
+              data-analytics-name="login-skip-button"
               onClick={handleSkip}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -106,7 +104,12 @@ function LoginForm() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="space-y-2">
-              <Label htmlFor="identifier">Username or Email</Label>
+              <Label htmlFor="identifier">
+                Username or Email{" "}
+                <span className="text-destructive" aria-hidden="true">
+                  *
+                </span>
+              </Label>
               <Input
                 id="identifier"
                 type="text"
@@ -118,11 +121,17 @@ function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">
+                Password{" "}
+                <span className="text-destructive" aria-hidden="true">
+                  *
+                </span>
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="off"
@@ -131,6 +140,7 @@ function LoginForm() {
                 />
                 <button
                   type="button"
+                  data-analytics-name="login-toggle-password-visibility-button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -145,14 +155,14 @@ function LoginForm() {
               <div className="flex justify-end">
                 <Link 
                   href="/forgot-password" 
-                  className="text-xs text-primary hover:underline"
+                  className="text-sm font-medium text-primary hover:underline"
                 >
                   Forgot password?
                 </Link>
               </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading} data-analytics-name="login-submit-button">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

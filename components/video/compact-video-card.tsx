@@ -2,14 +2,17 @@
 
 import type React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 import { useGlobalVideo } from "@/lib/video-context"
-import { getThumbnailUrl, WORKERS_BASE_URL } from "@/lib/storage"
+import { getThumbnailUrl, getWorkersBaseUrl } from "@/lib/storage"
 import { useToast } from "@/hooks/use-toast"
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
-import { ProfilePicture } from "@/components/profile/profile-picture"
-import { AuthenticatedImage } from "./authenticated-image"
+import {
+  mapOpenUiNameToSource,
+  setPendingPlaybackContext,
+} from "@/lib/analytics/video-playback-context"
+import { UP_NEXT_SIDEBAR_CLICK } from "@/lib/analytics/video-analytics-names"
+import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 
 interface CompactVideoCardProps {
   video: {
@@ -29,10 +32,16 @@ interface CompactVideoCardProps {
     created_at?: string
     status?: string
   }
+  openVideoUiName?: string
+  /** When true, omit relative upload time under the title. */
+  hideTimestamp?: boolean
 }
 
-export function CompactVideoCard({ video }: CompactVideoCardProps) {
-  const router = useRouter()
+export function CompactVideoCard({
+  video,
+  openVideoUiName = "opened-video",
+  hideTimestamp = false,
+}: CompactVideoCardProps) {
   const { playVideo } = useGlobalVideo()
   const { toast } = useToast()
   const videoId = video.videoId || video.video_id || ""
@@ -40,47 +49,59 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
   const title = video.videoTitle || video.video_title || ""
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
+  const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
+  const watchPath = `/watch/${videoId}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = isVideoProcessing(video)
 
-  const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true })
+  const timeAgo = hideTimestamp ? "" : formatDistanceToNow(new Date(createdAt), { addSuffix: true })
   
   const thumbnailUrl = thumbnail && thumbnail.length > 0
     ? getThumbnailUrl(thumbnail)
     : (videoId 
-      ? `${WORKERS_BASE_URL}/thumbnails/videos/${videoId}.jpg`
+      ? `${getWorkersBaseUrl()}/thumbnails/videos/${videoId}.jpg`
       : null)
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate to watch page if clicking on profile link
-    if ((e.target as HTMLElement).closest('a[href^="/profile"]')) {
-      return
-    }
-    if (isEncoding) {
-      toast(PROCESSING_VIDEO_TOAST)
-      return
-    }
-    // Set global video context for instant loading on the watch page
-    playVideo(video)
-    router.push(`/watch/${videoId}`)
+  const trackVideoOpen = () => {
+    if (typeof window === "undefined") return
+    const destinationUrl = `${window.location.origin}${watchPath}`
+    setPendingPlaybackContext({
+      videoId,
+      openSource: mapOpenUiNameToSource(openVideoUiName),
+      openUiName: openVideoUiName,
+      navigateTrigger: openVideoUiName === UP_NEXT_SIDEBAR_CLICK ? "up_next_sidebar" : "card_click",
+      isAutoplay: false,
+    })
+    ;(window as any).HifiAnalytics?.capture("opened-video", {
+      element_ui_name: openVideoUiName,
+      video_id: videoId,
+      video_title: title || "Untitled Video",
+      url: destinationUrl,
+      path: watchPath,
+      source_path: window.location.pathname,
+      open_source: mapOpenUiNameToSource(openVideoUiName),
+      navigate_trigger: openVideoUiName === UP_NEXT_SIDEBAR_CLICK ? "up_next_sidebar" : "card_click",
+      is_click: true,
+      is_autoplay: false,
+    })
   }
 
   return (
-    <div 
-      onClick={handleCardClick}
-      className="group cursor-pointer flex gap-2 hover:bg-muted/50 rounded-lg p-1 -mx-1 transition-colors"
-    >
+    <div className="group flex gap-2 hover:bg-muted/50 rounded-lg p-1 -mx-1 transition-colors">
       {/* Thumbnail - YouTube style: smaller, on the left */}
       <Link
-        href={`/watch/${videoId}`}
+        href={watchPath}
         prefetch={!isEncoding}
+        data-analytics-name={openVideoUiName}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
         onClick={(e) => {
-          e.stopPropagation()
           if (isEncoding) {
             e.preventDefault()
             toast(PROCESSING_VIDEO_TOAST)
+            return
           }
+          trackVideoOpen()
+          playVideo(video)
         }}
         aria-disabled={isEncoding}
         tabIndex={isEncoding ? -1 : undefined}
@@ -95,11 +116,7 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
             authenticated={false}
           />
         ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            <svg className="h-6 w-6 text-muted-foreground/50" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </div>
+          <VideoThumbnailPlaceholder fill />
         )}
         {/* Duration overlay - YouTube style (if available) */}
         {(video as any).duration && (
@@ -107,39 +124,46 @@ export function CompactVideoCard({ video }: CompactVideoCardProps) {
             {(video as any).duration}
           </div>
         )}
+        <span className="sr-only">{title || "Untitled Video"}</span>
       </Link>
 
       <div className="flex-1 min-w-0 flex flex-col justify-start py-0.5">
-        <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight mb-1">
-          <Link
-            href={`/watch/${videoId}`}
-            prefetch={!isEncoding}
-            className="hover:underline"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (isEncoding) {
-                e.preventDefault()
-                toast(PROCESSING_VIDEO_TOAST)
-              }
-            }}
-            aria-disabled={isEncoding}
-            tabIndex={isEncoding ? -1 : undefined}
-          >
-            {title || "Untitled Video"}
-          </Link>
-        </h3>
+        <div className="mb-1 flex items-start gap-1.5">
+          <h3 className="min-w-0 flex-1 font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+            <Link
+              href={watchPath}
+              prefetch={!isEncoding}
+              className="hover:underline"
+              onClick={(e) => {
+                if (isEncoding) {
+                  e.preventDefault()
+                  toast(PROCESSING_VIDEO_TOAST)
+                  return
+                }
+                trackVideoOpen()
+                playVideo(video)
+              }}
+              aria-disabled={isEncoding}
+              tabIndex={isEncoding ? -1 : undefined}
+            >
+              {title || "Untitled Video"}
+            </Link>
+          </h3>
+        </div>
         <div className="flex items-center min-w-0 mb-0.5">
           <Link
             href={`/profile/${username}`}
+            data-analytics-name={profileOpenUiName}
             className="text-xs text-muted-foreground hover:text-foreground truncate font-medium min-w-0 flex-shrink"
-            onClick={(e) => e.stopPropagation()}
           >
             @{username || "unknown"}
           </Link>
         </div>
-        <div className="text-xs text-muted-foreground flex items-center min-w-0">
-          <span className="flex-shrink-0">{timeAgo}</span>
-        </div>
+        {timeAgo ? (
+          <div className="text-xs text-muted-foreground flex items-center min-w-0">
+            <span className="flex-shrink-0">{timeAgo}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   )

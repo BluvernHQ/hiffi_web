@@ -15,6 +15,8 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Upload, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
+import { trackUmami } from "@/lib/umami"
 
 export type UploadJobStatus =
   | "preparing"
@@ -30,6 +32,8 @@ export type UploadJob = {
   progress: number
   status: UploadJobStatus
   errorMessage?: string
+  /** Set when upload + ack succeed — same as API `bridge_id` (watch URL). */
+  videoId?: string
 }
 
 type StartUploadParams = {
@@ -139,16 +143,23 @@ function GlobalUploadBar() {
                     Cancel
                   </Button>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0"
-                    onClick={() => dismissJob(job.id)}
-                    aria-label="Dismiss"
-                  >
-                    <X className="size-4" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {job.status === "done" && job.videoId ? (
+                      <Button type="button" variant="default" size="sm" className="h-7 px-2 text-xs" asChild>
+                        <Link href={`/watch/${encodeURIComponent(job.videoId)}`}>Watch Video</Link>
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => dismissJob(job.id)}
+                      aria-label="Dismiss"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -162,7 +173,7 @@ function GlobalUploadBar() {
 function updateJob(
   jobs: UploadJob[],
   id: string,
-  patch: Partial<Pick<UploadJob, "progress" | "status" | "errorMessage">>,
+  patch: Partial<Pick<UploadJob, "progress" | "status" | "errorMessage" | "videoId">>,
 ): UploadJob[] {
   return jobs.map((j) => (j.id === id ? { ...j, ...patch } : j))
 }
@@ -190,7 +201,10 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
 
   const startUpload = useCallback(
     (params: StartUploadParams) => {
-      const id = crypto.randomUUID()
+      const id =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
       const { file, title, description, tags, thumbnail } = params
 
       setJobs((prev) => [
@@ -203,6 +217,21 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
         const clearCancelled = () => {
           cancelledJobIdsRef.current.delete(id)
           activeXhrByJobRef.current.delete(id)
+        }
+
+        let bridgeId: string | undefined
+        let heartbeatTimer: number | undefined
+        const stopHeartbeat = () => {
+          if (heartbeatTimer) window.clearInterval(heartbeatTimer)
+          heartbeatTimer = undefined
+        }
+        const reportFailedBestEffort = async () => {
+          if (!bridgeId) return
+          try {
+            await apiClient.reportUploadFailed(bridgeId)
+          } catch (e) {
+            console.warn("[Upload] Failed to cleanup upload bridge:", e)
+          }
         }
 
         try {
@@ -218,6 +247,8 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
           })
 
           if (isCancelled()) {
+            bridgeId = bridgeResponse.bridge_id?.trim() || undefined
+            await reportFailedBestEffort()
             clearCancelled()
             return
           }
@@ -228,6 +259,43 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
           if (!bridgeResponse.gateway_url?.trim()) {
             throw new Error("Failed to get upload URL from upload response.")
           }
+
+          bridgeId = bridgeResponse.bridge_id.trim()
+
+          const expireUpload = (message: string) => {
+            cancelledJobIdsRef.current.add(id)
+            activeXhrByJobRef.current.get(id)?.abort()
+            activeXhrByJobRef.current.delete(id)
+            stopHeartbeat()
+            setJobs((prev) =>
+              updateJob(prev, id, {
+                status: "error",
+                errorMessage: message,
+                progress: 0,
+              }),
+            )
+          }
+
+          const sendHeartbeatOnce = async () => {
+            if (!bridgeId) return
+            try {
+              await apiClient.uploadHeartbeat(bridgeId)
+            } catch (e) {
+              const raw = e instanceof Error ? e.message : String(e)
+              // 404 should be treated as terminal for this bridge.
+              if (raw.includes("404") || raw.toLowerCase().includes("not found")) {
+                expireUpload("Upload session expired. Please retry uploading.")
+              } else {
+                console.warn("[Upload] Heartbeat failed:", e)
+              }
+            }
+          }
+
+          // Start heartbeat immediately (then every ~10s) while upload is in progress.
+          await sendHeartbeatOnce()
+          heartbeatTimer = window.setInterval(() => {
+            void sendHeartbeatOnce()
+          }, 10_000)
 
           setJobs((prev) =>
             updateJob(prev, id, { status: "uploading", progress: 5 }),
@@ -247,6 +315,8 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
           activeXhrByJobRef.current.delete(id)
 
           if (isCancelled()) {
+            stopHeartbeat()
+            await reportFailedBestEffort()
             clearCancelled()
             return
           }
@@ -269,6 +339,8 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
               )
             } catch (thumbErr) {
               if (isCancelled()) {
+                stopHeartbeat()
+                await reportFailedBestEffort()
                 clearCancelled()
                 return
               }
@@ -283,6 +355,8 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
           }
 
           if (isCancelled()) {
+            stopHeartbeat()
+            await reportFailedBestEffort()
             clearCancelled()
             return
           }
@@ -291,30 +365,50 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
             updateJob(prev, id, { status: "finalizing", progress: 95 }),
           )
 
-          await apiClient.acknowledgeUpload(bridgeResponse.bridge_id)
+          await apiClient.acknowledgeUpload(bridgeId)
+          stopHeartbeat()
 
           if (isCancelled()) {
+            await reportFailedBestEffort()
             clearCancelled()
             return
           }
 
+          const videoId = bridgeId.trim()
+
           setJobs((prev) =>
-            updateJob(prev, id, { status: "done", progress: 100 }),
+            updateJob(prev, id, {
+              status: "done",
+              progress: 100,
+              videoId: videoId || undefined,
+            }),
           )
+
+          trackUmami("Video Uploaded", {
+            video_id: videoId || null,
+            video_title: title,
+            has_custom_thumbnail: Boolean(thumbnail),
+            tag_count: tagsArray.length,
+          })
 
           toast({
             title: "Upload complete",
-            description: "Your video was uploaded and is processing.",
+            description: "Your video is processing. Open it with Watch Video below or on the upload page.",
           })
 
+          // Give time to tap Watch Video before auto-dismiss
           window.setTimeout(() => {
             setJobs((prev) => prev.filter((j) => j.id !== id))
-          }, 8000)
+          }, 60000)
         } catch (error) {
           if (isCancelled()) {
+            stopHeartbeat()
+            await reportFailedBestEffort()
             clearCancelled()
             return
           }
+          stopHeartbeat()
+          await reportFailedBestEffort()
           activeXhrByJobRef.current.delete(id)
           console.error("[hiffi] Background upload failed:", error)
           const errorMessage =

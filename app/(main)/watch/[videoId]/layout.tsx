@@ -3,8 +3,9 @@ import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { fetchVideoForSeo } from "@/lib/seo/fetch-public"
 import { truncateMetaDescription } from "@/lib/seo/meta"
-import { buildVideoJsonLd } from "@/lib/seo/schema"
-import { absoluteUrl } from "@/lib/seo/site"
+import { buildWatchPageJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/schema"
+import { buildWatchPageTitle, buildWatchPageDescription } from "@/lib/seo/watch-meta"
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 type RouteParams = { videoId: string }
 
@@ -20,18 +21,18 @@ export async function generateMetadata({
   const { videoId } = await resolvedParams(params)
   const video = await fetchVideoForSeo(videoId)
 
+  const canonicalPath = `/watch/${encodeURIComponent(videoId)}`
+
   if (!video) {
     return {
-      title: "Video | Hiffi",
-      description: "Watch videos on Hiffi.",
+      title: "Video not found",
+      robots: { index: false, follow: false },
     }
   }
 
-  const title = `${video.title} | Hiffi`
-  const description =
-    video.description.length > 0
-      ? truncateMetaDescription(video.description)
-      : `Watch ${video.title}${video.creatorUsername ? ` by ${video.creatorUsername}` : ""} on Hiffi streaming.`
+  // Root layout title.template is `%s | Hiffi` — do not append `| Hiffi` here.
+  const title = buildWatchPageTitle(video)
+  const description = truncateMetaDescription(buildWatchPageDescription(video))
 
   const canonical = absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`)
 
@@ -39,19 +40,37 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    },
     openGraph: {
       type: "video.other",
       url: canonical,
-      title: video.title,
+      title,
       description,
       siteName: "Hiffi",
       ...(video.thumbnailUrl
-        ? { images: [{ url: video.thumbnailUrl, alt: video.title }] }
+        ? { images: [{ url: video.thumbnailUrl, alt: title, width: 1280, height: 720 }] }
+        : {}),
+      ...(video.contentUrl
+        ? {
+            videos: [
+              {
+                url: video.contentUrl,
+                secureUrl: video.contentUrl,
+                type: "video/mp4",
+                width: 1280,
+                height: 720,
+              },
+            ],
+          }
         : {}),
     },
     twitter: {
       card: "summary_large_image",
-      title: video.title,
+      title,
       description,
       ...(video.thumbnailUrl ? { images: [video.thumbnailUrl] } : {}),
     },
@@ -68,9 +87,26 @@ export default async function WatchSegmentLayout({
   const { videoId } = await resolvedParams(params)
   const video = await fetchVideoForSeo(videoId)
 
+  const breadcrumb = video
+    ? buildBreadcrumbJsonLd([
+        { name: "Hiffi", url: getSiteOrigin() },
+        { name: "Discover", url: absoluteUrl("/") },
+        ...(video.creatorUsername
+          ? [
+              {
+                name: video.creatorDisplayName || video.creatorUsername,
+                url: absoluteUrl(`/profile/${encodeURIComponent(video.creatorUsername)}`),
+              },
+            ]
+          : []),
+        { name: buildWatchPageTitle(video), url: absoluteUrl(`/watch/${encodeURIComponent(video.videoId)}`) },
+      ])
+    : null
+
   return (
     <>
-      {video ? <JsonLd data={buildVideoJsonLd(video)} /> : null}
+      {video ? <JsonLd data={buildWatchPageJsonLd(video)} /> : null}
+      {breadcrumb ? <JsonLd data={breadcrumb} /> : null}
       {children}
     </>
   )

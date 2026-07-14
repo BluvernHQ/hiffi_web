@@ -1,17 +1,24 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, startTransition } from "react"
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { VideoPlayer } from "@/components/video/video-player"
 import { CommentSection } from "@/components/video/comment-section"
-import { VideoCard } from "@/components/video/video-card"
 import { CompactVideoCard } from "@/components/video/compact-video-card"
+import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ThumbsUp, ThumbsDown, MoreVertical, Trash2, Share2 } from "lucide-react"
+import { Drawer, DrawerContent, DrawerDescription, DrawerHandle, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ArrowRight, Bookmark, ChevronRight, Flag, Heart, MessageSquare, MoreHorizontal, SendHorizontal, Share2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAuth } from "@/lib/auth-context"
 import { useGlobalVideo } from "@/lib/video-context"
@@ -20,68 +27,69 @@ import { cn, getColorFromName, getAvatarLetter, getProfilePictureUrl } from "@/l
 import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
-import { useToast } from "@/hooks/use-toast"
-import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from "@/lib/video-utils"
-import { getSeed } from "@/lib/seed-manager"
-import { DeleteVideoDialog } from "@/components/video/delete-video-dialog"
-import { ShareVideoDialog } from "@/components/video/share-video-dialog"
-import { AuthDialog } from "@/components/auth/auth-dialog"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  getPlaylistSession,
+  setPlaylistSession,
+  type PlaylistVideoMeta,
+} from "@/lib/playlist-session"
+import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
+import { useToast } from "@/hooks/use-toast"
+import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
+import { getSeed, resetSeed } from "@/lib/seed-manager"
+import { captureConversionEvent } from "@/lib/conversion-tracking"
+import {
+  captureArtistFollowed,
+  captureVideoLiked,
+  onPlaylistSessionEnded,
+  onPlaylistSessionStarted,
+  onPlaylistTrackAdvanced,
+} from "@/lib/analytics/journey-tracking"
+import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
+import {
+  PLAYLIST_QUEUE_CLICK,
+  UP_NEXT_SIDEBAR_CLICK,
+  WATCH_LIKE_VIDEO,
+  WATCH_MORE_ACTIONS,
+  WATCH_SAVE_TO_PLAYLIST,
+  WATCH_UNLIKE_VIDEO,
+} from "@/lib/analytics/video-analytics-names"
+import { GuestWatchNudge } from "@/components/conversion/guest-watch-nudge"
+import { GuestUpNextNudge } from "@/components/conversion/guest-up-next-nudge"
+import {
+  canShowPassiveNudge,
+  markGuestFollowAttempt,
+  markGuestLikeAttempt,
+  resolvePassiveNudgeTrigger,
+  setGuestRecPicksReady,
+} from "@/lib/guest-conversion/session"
+import { appendGuestHistoryEntry } from "@/lib/guest-conversion/guest-history"
+import {
+  addPendingFollowIntent,
+  addPendingLikeIntent,
+  removePendingFollowIntent,
+  removePendingLikeIntent,
+} from "@/lib/guest-conversion/pending-intents"
+import { AddToPlaylistDialogLazy } from "@/components/watch/add-to-playlist-dialog-lazy"
+import { ShareVideoDialog } from "@/components/video/share-video-dialog"
+import { ContentReportDialog } from "@/components/report/content-report-dialog"
+import { buildVideoReportMetadata } from "@/lib/report/build-metadata"
+import { canReportContentTarget } from "@/lib/report/ownership"
+import { AuthDialog, AUTH_DIALOG_COPY, type AuthDialogCopyKey } from "@/components/auth/auth-dialog"
+import {
+  DescriptionWithLinks,
+  getVideoDescriptionFromRecord,
+  hasDisplayableVideoDescription,
+} from "@/components/watch/description-with-links"
+import { hasVoteMetadata, resolveVoteState, resolveVoteStateForVideo } from "./watch-vote-utils"
+import { debugLog, debugWarn } from "@/lib/debug"
+import { isConnectivityError, NO_INTERNET_USER_MESSAGE } from "@/lib/network-errors"
+import { OfflineState } from "@/components/network/offline-state"
+import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
+import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
+import type { SeoVideo } from "@/lib/seo/fetch-public"
 
 // Mock video data
-const MOCK_VIDEO = {
-  videoId: "1",
-  videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-  videoThumbnail: "/placeholder.svg?key=uvova",
-  videoTitle: "Big Buck Bunny - Official Trailer",
-  videoDescription:
-    "Big Buck Bunny tells the story of a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely harass him, something snaps... and the bunny ain't no bunny anymore! In the typical cartoon tradition he prepares the nasty rodents a comical revenge.\n\nLicensed under the Creative Commons Attribution license\nhttp://www.bigbuckbunny.org",
-  videoViews: 12453,
-  videoLikes: 1240,
-  userUsername: "blender_foundation",
-  userAvatar: "/placeholder.svg?key=blender",
-  userFollowers: 54000,
-  createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  tags: ["animation", "short film", "blender", "3d"],
-}
 
-const RELATED_VIDEOS = [
-  {
-    videoId: "2",
-    videoUrl: "video2.mp4",
-    videoThumbnail: "/placeholder.svg?key=cxy6v",
-    videoTitle: "Epic Gaming Moments - Best Highlights This Week",
-    videoDescription: "Check out the most insane gaming moments from this week",
-    videoViews: 45231,
-    userUsername: "pro_gamer_x",
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    videoId: "3",
-    videoUrl: "video3.mp4",
-    videoThumbnail: "/placeholder.svg?key=p72zr",
-    videoTitle: "Beautiful Beach Sunset | Travel Vlog Day 5",
-    videoDescription: "Exploring the most beautiful beaches in Bali",
-    videoViews: 8934,
-    userUsername: "wanderlust_jen",
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    videoId: "4",
-    videoUrl: "video4.mp4",
-    videoThumbnail: "/placeholder.svg?key=gbfmy",
-    videoTitle: "Music Production 101: Creating Your First Beat",
-    videoDescription: "Complete beginner guide to music production",
-    videoViews: 23467,
-    userUsername: "beat_maker_pro",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
 
 let persistedWatchUiState: {
   video: any
@@ -96,12 +104,13 @@ let persistedWatchUiState: {
 const videoResponseCache = new Map<string, any>()
 const inFlightVideoResponse = new Map<string, Promise<any>>()
 
-async function getVideoResponseOnce(videoId: string) {
-  if (videoResponseCache.has(videoId)) {
+
+async function getVideoResponseOnce(videoId: string, forceFresh = false) {
+  if (!forceFresh && videoResponseCache.has(videoId)) {
     return videoResponseCache.get(videoId)
   }
 
-  const inFlight = inFlightVideoResponse.get(videoId)
+  const inFlight = !forceFresh ? inFlightVideoResponse.get(videoId) : undefined
   if (inFlight) {
     return inFlight
   }
@@ -122,6 +131,7 @@ async function getVideoResponseOnce(videoId: string) {
 
 const relatedVideosCache = new Map<string, any[]>()
 const inFlightRelatedVideos = new Map<string, Promise<any[]>>()
+const RELATED_FETCH_TIMEOUT_MS = 12000
 
 async function getRelatedVideosOnce(videoId: string) {
   if (relatedVideosCache.has(videoId)) {
@@ -135,7 +145,12 @@ async function getRelatedVideosOnce(videoId: string) {
 
   const request = (async () => {
     const seed = getSeed()
-    const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 50, seed })
+    const videosResponse = await Promise.race([
+      apiClient.getVideoList({ offset: 0, limit: 50, seed }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Related videos request timed out")), RELATED_FETCH_TIMEOUT_MS),
+      ),
+    ])
     const videosArray = videosResponse.videos || []
     const filteredVideos = videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId)
 
@@ -158,12 +173,62 @@ async function getRelatedVideosOnce(videoId: string) {
   return request
 }
 
-export default function WatchPage() {
+function mapSeoVideoToClient(seo: SeoVideo) {
+  const artist = (seo.creatorDisplayName || seo.creatorUsername || "").trim()
+  return {
+    video_id: seo.videoId,
+    videoId: seo.videoId,
+    video_title: seo.title,
+    videoTitle: seo.title,
+    video_description: seo.description,
+    videoDescription: seo.description,
+    video_url: seo.contentUrl,
+    streaming_url: seo.contentUrl,
+    user_username: seo.creatorUsername,
+    userUsername: seo.creatorUsername,
+    user_name: artist,
+    userName: artist,
+    video_thumbnail: seo.thumbnailUrl,
+    videoThumbnail: seo.thumbnailUrl,
+  }
+}
+
+type WatchPageProps = {
+  /** Server-fetched video for instant metadata + crawler-visible HTML (no login required). */
+  initialSeoVideo?: SeoVideo | null
+}
+
+export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const params = useParams()
+  const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
+
+  // ?t=<seconds> — populated by Google SeekToAction deep-links in search results.
+  // Only applied on initial mount; stored in a ref so it never re-triggers on re-renders.
+  const _tParam = searchParams.get("t")
+  const _tParsed = _tParam ? parseFloat(_tParam) : NaN
+  const initialSeekSeconds = useRef<number | undefined>(isFinite(_tParsed) && _tParsed > 0 ? _tParsed : undefined)
+
   const { user, userData } = useAuth()
   const { activeVideo } = useGlobalVideo()
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (!user) return
+    prefetchMyPlaylists()
+  }, [user])
+
+  const routeVideoId = useMemo(() => {
+    const p = params.videoId
+    return (Array.isArray(p) ? p[0] : (p as string)) || ""
+  }, [params.videoId])
+
+  const persistedRouteVideoId = persistedWatchUiState?.video
+    ? persistedWatchUiState.video.video_id || persistedWatchUiState.video.videoId
+    : null
+  const shouldUsePersistedUiState = !!persistedRouteVideoId && persistedRouteVideoId === routeVideoId
 
   // Drives all fetches and the player source. Initialized from the URL param but updated
   // in-place on next/previous so the VideoPlayer never unmounts (preserves fullscreen).
@@ -171,6 +236,18 @@ export default function WatchPage() {
     const p = params.videoId
     return (Array.isArray(p) ? p[0] : p as string) || ""
   })
+
+  // Main feed/content is rendered inside #main-content (custom scroll container),
+  // so we must reset that container when entering or switching videos on watch.
+  useLayoutEffect(() => {
+    const mainContent = document.getElementById("main-content")
+    if (mainContent && mainContent.scrollTop > 0) {
+      mainContent.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }
+  }, [pathname, currentVideoId])
 
   // Sync currentVideoId when the URL param changes via real Next.js navigation
   // (deep links, browser address bar, etc.) so those paths still work correctly.
@@ -180,49 +257,253 @@ export default function WatchPage() {
     if (id && id !== currentVideoId) {
       setCurrentVideoId(id)
       videoHistoryRef.current = [] // External navigation resets internal history
+      setPlayerBackStackEpoch((n) => n + 1)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.videoId])
 
   // Stack of previously played video IDs for in-place back navigation.
   const videoHistoryRef = useRef<string[]>([])
+  /** Bumped whenever the stack is pushed/popped/cleared so we can derive UI from ref length. */
+  const [playerBackStackEpoch, setPlayerBackStackEpoch] = useState(0)
+  const isInPlaceNavigationRef = useRef(false)
+  const [playlistContext, setPlaylistContext] = useState<{
+    playlistId: string
+    title: string
+    videoIds: string[]
+    currentIndex: number
+    autoplay: boolean
+  } | null>(null)
+  const [playlistVideoMeta, setPlaylistVideoMeta] = useState<Record<string, PlaylistVideoMeta>>({})
+  const playlistJourneyIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!playlistContext) {
+      if (playlistJourneyIdRef.current) {
+        onPlaylistSessionEnded("left_watch")
+        playlistJourneyIdRef.current = null
+      }
+      return
+    }
+
+    if (playlistJourneyIdRef.current === playlistContext.playlistId) return
+
+    if (playlistJourneyIdRef.current) {
+      onPlaylistSessionEnded("left_watch")
+    }
+
+    const entryVideoId =
+      playlistContext.videoIds[playlistContext.currentIndex] || currentVideoId
+    onPlaylistSessionStarted({
+      playlistId: playlistContext.playlistId,
+      queueLength: playlistContext.videoIds.length,
+      entryTrackIndex: playlistContext.currentIndex,
+      entryVideoId,
+    })
+    playlistJourneyIdRef.current = playlistContext.playlistId
+  }, [playlistContext, currentVideoId])
+
+  useEffect(() => {
+    return () => {
+      if (playlistJourneyIdRef.current) {
+        onPlaylistSessionEnded("left_watch")
+        playlistJourneyIdRef.current = null
+      }
+    }
+  }, [])
+
+  const hydratePlaylistVideoMeta = useCallback((meta?: Record<string, PlaylistVideoMeta>) => {
+    if (!meta || Object.keys(meta).length === 0) return
+    setPlaylistVideoMeta((prev) => ({ ...meta, ...prev }))
+  }, [])
+  const canNavigateToPreviousVideo = useMemo(() => {
+    if (playlistContext && playlistContext.currentIndex > 0) return true
+    return videoHistoryRef.current.length > 0
+  }, [playlistContext, playerBackStackEpoch])
+
+  const navigateToVideo = (nextId: string, nextIndex?: number, pushHistory = true) => {
+    if (!nextId || nextId === currentVideoId) return
+    isInPlaceNavigationRef.current = true
+    if (pushHistory) {
+      videoHistoryRef.current.push(currentVideoId)
+      setPlayerBackStackEpoch((n) => n + 1)
+    }
+    setCurrentVideoId(nextId)
+    if (typeof window !== "undefined") {
+      const url = nextIndex !== undefined && playlistContext
+        ? `/watch/${nextId}?playlist=${encodeURIComponent(playlistContext.playlistId)}&pindex=${nextIndex}`
+        : `/watch/${nextId}`
+      window.history.pushState({}, "", url)
+    }
+  }
 
   // Called by VideoPlayer's Next button. Swaps source in-place → player stays mounted.
   const handlePlayerNext = (nextId: string) => {
-    if (!nextId || nextId === currentVideoId) return
-    videoHistoryRef.current.push(currentVideoId)
-    setCurrentVideoId(nextId)
-    if (typeof window !== "undefined") {
-      window.history.pushState({}, "", `/watch/${nextId}`)
+    // Use a fresh recommendation seed whenever the user advances to next.
+    resetSeed()
+    if (playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
+      const nextIndex = playlistContext.currentIndex + 1
+      const playlistNextId = playlistContext.videoIds[nextIndex]
+      if (playlistNextId) {
+        setPendingPlaybackContext({
+          videoId: playlistNextId,
+          openSource: "playlist",
+          openUiName: "player-next-playlist",
+          navigateTrigger: "player_next",
+          isAutoplay: true,
+          playlistId: playlistContext.playlistId,
+          playlistTrackIndex: nextIndex,
+        })
+        captureConversionEvent("conversion_next_clicked", {
+          video_id: currentVideoId,
+          next_video_id: playlistNextId,
+          source: "playlist",
+          playlist_id: playlistContext.playlistId,
+          is_autoplay: false,
+        })
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: nextIndex,
+          reason: "next_button",
+          videoId: playlistNextId,
+        })
+        const nextSession = { ...playlistContext, currentIndex: nextIndex }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+        navigateToVideo(playlistNextId, nextIndex)
+        return
+      }
     }
+    setPendingPlaybackContext({
+      videoId: nextId,
+      openSource: "recommended",
+      openUiName: "player-next-recommended",
+      navigateTrigger: "player_next",
+      isAutoplay: true,
+    })
+    captureConversionEvent("conversion_next_clicked", {
+      video_id: currentVideoId,
+      next_video_id: nextId,
+      source: "recommended",
+      is_autoplay: false,
+    })
+    navigateToVideo(nextId)
   }
 
   // Called by VideoPlayer's Previous button. Pops internal history stack first;
   // falls back to browser history when stack is empty.
   const handlePlayerPrevious = () => {
+    if (playlistContext && playlistContext.currentIndex > 0) {
+      const prevIndex = playlistContext.currentIndex - 1
+      const prevId = playlistContext.videoIds[prevIndex]
+      if (prevId) {
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: prevIndex,
+          reason: "prev_button",
+          videoId: prevId,
+        })
+        const nextSession = { ...playlistContext, currentIndex: prevIndex }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+        navigateToVideo(prevId, prevIndex, false)
+        return
+      }
+    }
     const prevId = videoHistoryRef.current.pop()
     if (prevId) {
+      isInPlaceNavigationRef.current = true
       setCurrentVideoId(prevId)
       if (typeof window !== "undefined") {
-        window.history.pushState({}, "", `/watch/${prevId}`)
+        const stored = getPlaylistSession()
+        let url = `/watch/${prevId}`
+        if (stored?.playlistId && Array.isArray(stored.videoIds) && stored.videoIds.includes(prevId)) {
+          const prevIndex = stored.videoIds.indexOf(prevId)
+          url = `/watch/${encodeURIComponent(prevId)}?playlist=${encodeURIComponent(stored.playlistId)}&pindex=${prevIndex}`
+          setPlaylistContext((prev) => {
+            if (!prev || prev.playlistId !== stored.playlistId) return prev
+            if (prevIndex === prev.currentIndex) return prev
+            const next = { ...prev, currentIndex: prevIndex }
+            setPlaylistSession(next)
+            return next
+          })
+        }
+        window.history.pushState({}, "", url)
+        setPlayerBackStackEpoch((n) => n + 1)
       }
     } else {
       router.back()
     }
   }
 
-  const [isFollowing, setIsFollowing] = useState(() => persistedWatchUiState?.isFollowing ?? false)
+  // In-watch navigation uses history.pushState so the player stays mounted. The App Router
+  // does not observe that stack, so browser Back/Forward must sync React state from the URL.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const readWatchIdFromLocation = () => {
+      const m = window.location.pathname.match(/^\/watch\/([^/]+)/)
+      return m ? decodeURIComponent(m[1]) : ""
+    }
+
+    const onPopState = () => {
+      const newId = readWatchIdFromLocation()
+      if (!newId) return
+
+      if (videoHistoryRef.current.length > 0) {
+        const top = videoHistoryRef.current[videoHistoryRef.current.length - 1]
+        if (top === newId) {
+          videoHistoryRef.current.pop()
+        } else {
+          videoHistoryRef.current = []
+        }
+        setPlayerBackStackEpoch((n) => n + 1)
+      }
+
+      isInPlaceNavigationRef.current = true
+      setCurrentVideoId(newId)
+
+      const pathWithSearch = window.location.pathname + window.location.search
+      startTransition(() => {
+        router.replace(pathWithSearch)
+      })
+    }
+
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [router])
+
+  const activeVideoMatchesRoute = !!activeVideo && (activeVideo.videoId || activeVideo.video_id) === routeVideoId
+  const activeVideoInitialVoteState = activeVideoMatchesRoute
+    ? resolveVoteState(activeVideo)
+    : { upvoted: false, downvoted: false }
+  const [isFollowing, setIsFollowing] = useState(() =>
+    shouldUsePersistedUiState ? (persistedWatchUiState?.isFollowing ?? false) : false,
+  )
   const [isCheckingFollow, setIsCheckingFollow] = useState(false)
   const [isFollowingAction, setIsFollowingAction] = useState(false)
   const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null)
-  const [isLiked, setIsLiked] = useState(() => persistedWatchUiState?.isLiked ?? false)
-  const [isDisliked, setIsDisliked] = useState(() => persistedWatchUiState?.isDisliked ?? false)
+  const [isLiked, setIsLiked] = useState(
+    () => (shouldUsePersistedUiState ? persistedWatchUiState?.isLiked : undefined) ?? activeVideoInitialVoteState.upvoted,
+  )
+  const [isDisliked, setIsDisliked] = useState(
+    () =>
+      (shouldUsePersistedUiState ? persistedWatchUiState?.isDisliked : undefined) ?? activeVideoInitialVoteState.downvoted,
+  )
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [isDescriptionTruncated, setIsDescriptionTruncated] = useState(false)
+  const descriptionRef = useRef<HTMLDivElement>(null)
   
   // currentVideo: what is currently rendered in title/description/channel UI.
   const [video, setVideo] = useState<any>(() => {
-    if (persistedWatchUiState?.video) {
-      return persistedWatchUiState.video
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
+    const persistedVideo = persistedWatchUiState?.video
+    if (persistedVideo) {
+      const persistedId = persistedVideo.video_id || persistedVideo.videoId
+      if (persistedId && routeId && persistedId === routeId) return persistedVideo
+    }
+    if (initialSeoVideo?.videoId && initialSeoVideo.videoId === routeId) {
+      return mapSeoVideoToClient(initialSeoVideo)
     }
     return null
   })
@@ -233,17 +514,62 @@ export default function WatchPage() {
     return null
   })
   
-  const [videoCreator, setVideoCreator] = useState<any>(() => persistedWatchUiState?.videoCreator ?? null)
-  const [relatedVideos, setRelatedVideos] = useState<any[]>(() => persistedWatchUiState?.relatedVideos ?? [])
+  const [videoCreator, setVideoCreator] = useState<any>(() => {
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (persistedId && persistedId === routeId && persistedWatchUiState?.videoCreator) {
+      return persistedWatchUiState.videoCreator
+    }
+    if (initialSeoVideo?.videoId === routeId && initialSeoVideo.creatorUsername) {
+      return {
+        username: initialSeoVideo.creatorUsername,
+        name: initialSeoVideo.creatorDisplayName || initialSeoVideo.creatorUsername,
+        profile_picture: "",
+      }
+    }
+    return null
+  })
+  const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (!persistedId || persistedId !== routeVideoId) return []
+    return persistedWatchUiState?.relatedVideos ?? []
+  })
   
-  // Only show initial loading spinner if we don't even have context data
-  const [isLoading, setIsLoading] = useState(!video)
+  // Only show initial loading spinner if we don't have SSR seed or persisted context
+  const [isLoading, setIsLoading] = useState(() => {
+    const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
+    if (initialSeoVideo?.videoId === routeId) return false
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (persistedId && persistedId === routeId) return false
+    return true
+  })
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [isRelatedLoading, setIsRelatedLoading] = useState(false)
-  const [urlError, setUrlError] = useState<string | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [relatedRetryNonce, setRelatedRetryNonce] = useState(0)
+  const [pageGateError, setPageGateError] = useState<{ headline: string; detail: string } | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [authDialogCopyKey, setAuthDialogCopyKey] = useState<AuthDialogCopyKey>("follow")
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
+  const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
+  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false)
+  const [commentsSheetFocusInput, setCommentsSheetFocusInput] = useState(false)
+  const [commentsPreviewLoading, setCommentsPreviewLoading] = useState(false)
+  const [commentsCount, setCommentsCount] = useState(0)
+  const [commentsPreviewProfiles, setCommentsPreviewProfiles] = useState<Record<string, any>>({})
+  const [latestComment, setLatestComment] = useState<{
+    comment_id: string
+    comment_by_username: string
+    comment: string
+    commented_at: string
+    comment_by_avatar?: string
+    profile_picture?: string
+    comment_by_name?: string
+  } | null>(null)
+  const [guestCommentPromptOpen, setGuestCommentPromptOpen] = useState(false)
   const lastFetchedRelatedIdRef = useRef<string | null | undefined>(null)
   const [pendingVideo, setPendingVideo] = useState<{
     videoId: string
@@ -255,12 +581,10 @@ export default function WatchPage() {
   } | null>(null)
   const [isPlayerReadyForPending, setIsPlayerReadyForPending] = useState(false)
   const [upvoteState, setUpvoteState] = useState<{ upvoted: boolean; downvoted: boolean }>(
-    () =>
-      persistedWatchUiState?.upvoteState ?? {
-        upvoted: false,
-        downvoted: false,
-      },
+    () => (shouldUsePersistedUiState ? persistedWatchUiState?.upvoteState : undefined) ?? activeVideoInitialVoteState,
   )
+  const isLikeActionInFlightRef = useRef(false)
+  const isDislikeActionInFlightRef = useRef(false)
   const hasFetchedVideoRef = useRef<string | null>(null)
   const isFetchingRef = useRef<boolean>(false)
   const latestVideoRequestIdRef = useRef<string | null>(null)
@@ -275,7 +599,27 @@ export default function WatchPage() {
   // when toggling description or other UI states.
   // Show more videos in YouTube-style compact layout
   const sidebarSuggestedVideos = useMemo(() => visibleRelatedVideos.slice(0, 20), [visibleRelatedVideos])
-  const playerSuggestedVideos = useMemo(() => visibleRelatedVideos.slice(0, 8), [visibleRelatedVideos])
+  const playerSuggestedVideos = useMemo(() => {
+    const playlistQueue =
+      playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1
+        ? playlistContext.videoIds
+            .slice(playlistContext.currentIndex + 1)
+            .map((id, idx) => ({
+              videoId: id,
+              video_id: id,
+              videoTitle: playlistVideoMeta[id]?.title || `Video ${playlistContext.currentIndex + idx + 2}`,
+              video_title: playlistVideoMeta[id]?.title || `Video ${playlistContext.currentIndex + idx + 2}`,
+              videoThumbnail: playlistVideoMeta[id]?.thumbnail || "",
+              video_thumbnail: playlistVideoMeta[id]?.thumbnail || "",
+            }))
+        : []
+
+    if (playlistQueue.length > 0) {
+      return playlistQueue
+    }
+
+    return visibleRelatedVideos.slice(0, 8)
+  }, [playlistContext, playlistVideoMeta, visibleRelatedVideos])
 
   useEffect(() => {
     currentVideoIdRef.current = video ? (video.video_id || video.videoId) : null
@@ -287,6 +631,13 @@ export default function WatchPage() {
 
   useEffect(() => {
     if (!video) return
+    // Only persist when this page is showing the route's initial video.
+    // In-place navigation (Next/Previous/suggestions) should not overwrite persisted state,
+    // so returning to Home/History and opening a new video starts from a fresh state.
+    const currentId = video.video_id || video.videoId
+    if (!currentId || currentId !== routeVideoId) return
+    if (isInPlaceNavigationRef.current) return
+
     persistedWatchUiState = {
       video,
       videoCreator,
@@ -298,6 +649,302 @@ export default function WatchPage() {
     }
   }, [video, videoCreator, relatedVideos, isFollowing, isLiked, isDisliked, upvoteState])
 
+  useEffect(() => {
+    // Route changes (real Next navigation) are considered "fresh" for persistence.
+    isInPlaceNavigationRef.current = false
+  }, [routeVideoId])
+
+  useEffect(() => {
+    // When opening from lists (e.g. Liked Videos), apply immediate vote hint from activeVideo
+    // so the heart state doesn't wait for a later API refresh cycle.
+    if (!routeVideoId) return
+    if (!activeVideo) return
+    const activeId = activeVideo.videoId || activeVideo.video_id
+    if (!activeId || activeId !== routeVideoId) return
+    if (!hasVoteMetadata(activeVideo)) return
+
+    const hintedVote = resolveVoteState(activeVideo)
+    setUpvoteState(hintedVote)
+    setIsLiked(hintedVote.upvoted)
+    setIsDisliked(hintedVote.downvoted)
+  }, [routeVideoId, activeVideo])
+
+  useEffect(() => {
+    const playlistId = searchParams.get("playlist")
+    const pIndex = Number(searchParams.get("pindex") || "0")
+    if (!playlistId) {
+      setPlaylistContext(null)
+      return
+    }
+
+    const stored = getPlaylistSession()
+    if (stored && stored.playlistId === playlistId && stored.videoIds.length > 0) {
+      const indexFromVideo = stored.videoIds.indexOf(currentVideoId)
+      const resolvedIndex = indexFromVideo >= 0 ? indexFromVideo : Math.max(0, Math.min(stored.videoIds.length - 1, pIndex))
+      const nextSession = {
+        playlistId,
+        title: stored.title || "Playlist",
+        videoIds: stored.videoIds,
+        currentIndex: resolvedIndex,
+        autoplay: stored.autoplay !== false,
+      }
+      setPlaylistContext(nextSession)
+      setPlaylistSession({ ...nextSession, videoMeta: stored.videoMeta })
+      hydratePlaylistVideoMeta(stored.videoMeta)
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      const buildSession = (res: {
+        success: boolean
+        playlist?: { title?: string }
+        items?: Array<{ position: number; video_id: string }>
+      }) => {
+        if (cancelled || !res.success || !res.playlist || !Array.isArray(res.items)) return null
+        const ordered = [...res.items]
+          .sort((a, b) => a.position - b.position)
+          .map((it) => it.video_id)
+          .filter(Boolean)
+        if (!ordered.length) return null
+
+        const indexFromVideo = ordered.indexOf(currentVideoId)
+        const resolvedIndex = indexFromVideo >= 0 ? indexFromVideo : Math.max(0, Math.min(ordered.length - 1, pIndex))
+        return {
+          playlistId,
+          title: res.playlist.title || "Playlist",
+          videoIds: ordered,
+          currentIndex: resolvedIndex,
+          autoplay: true,
+        }
+      }
+
+      try {
+        const res = await apiClient.getPlaylist(playlistId)
+        const nextSession = buildSession(res as any)
+        if (nextSession) {
+          setPlaylistContext(nextSession)
+          setPlaylistSession(nextSession)
+          return
+        }
+      } catch {
+        // fall through to curated playlist fallback
+      }
+
+      try {
+        const curated = await apiClient.getCuratedPlaylist(playlistId, { limit: 100, offset: 0 })
+        const nextSession = buildSession(curated as any)
+        if (nextSession) {
+          setPlaylistContext(nextSession)
+          setPlaylistSession(nextSession)
+          return
+        }
+      } catch {
+        // fall through to mood playlist fallback
+      }
+
+      const moodQuery = moodQueryFromPlaylistId(playlistId)
+      if (moodQuery) {
+        try {
+          const moodRes = await apiClient.getMoodPlaylist(moodQuery, { limit: 100, offset: 0 })
+          if (cancelled || !moodRes.success || moodRes.items.length === 0) return
+          const sortedItems = [...moodRes.items].sort((a, b) => a.position - b.position)
+          const videoMeta: Record<string, PlaylistVideoMeta> = {}
+          const ordered = sortedItems
+            .map((it) => {
+              const v = it.video as {
+                video_id?: string
+                videoId?: string
+                video_title?: string
+                videoTitle?: string
+                video_thumbnail?: string
+                videoThumbnail?: string
+              }
+              const id = v.video_id || v.videoId || ""
+              if (id) {
+                const rawThumb = (v.video_thumbnail || v.videoThumbnail || "").trim()
+                videoMeta[id] = {
+                  title: v.video_title || v.videoTitle,
+                  thumbnail: rawThumb ? getThumbnailUrl(rawThumb) : undefined,
+                }
+              }
+              return id
+            })
+            .filter(Boolean)
+          if (!ordered.length) return
+
+          const indexFromVideo = ordered.indexOf(currentVideoId)
+          const resolvedIndex =
+            indexFromVideo >= 0 ? indexFromVideo : Math.max(0, Math.min(ordered.length - 1, pIndex))
+          const nextSession = {
+            playlistId,
+            title: moodRes.playlist?.title || moodQuery,
+            videoIds: ordered,
+            currentIndex: resolvedIndex,
+            autoplay: true,
+            videoMeta,
+          }
+          setPlaylistContext(nextSession)
+          setPlaylistSession(nextSession)
+          hydratePlaylistVideoMeta(videoMeta)
+        } catch {
+          // no-op; keep watch page usable without playlist context
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, currentVideoId])
+
+  useEffect(() => {
+    if (!playlistContext) return
+    const indexFromCurrent = playlistContext.videoIds.indexOf(currentVideoId)
+    if (indexFromCurrent < 0 || indexFromCurrent === playlistContext.currentIndex) return
+    const nextSession = { ...playlistContext, currentIndex: indexFromCurrent }
+    setPlaylistContext(nextSession)
+    setPlaylistSession(nextSession)
+  }, [currentVideoId, playlistContext])
+
+  useEffect(() => {
+    if (!playlistContext?.videoIds?.length) return
+    const missing = playlistContext.videoIds.filter((id) => !playlistVideoMeta[id])
+    if (!missing.length) return
+
+    const currentId = playlistContext.videoIds[playlistContext.currentIndex]
+    const idsToFetch = currentId && missing.includes(currentId)
+      ? [currentId, ...missing.filter((id) => id !== currentId)]
+      : missing
+
+    let cancelled = false
+    const fetchMetaEntries = async (ids: string[]) =>
+      Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await apiClient.getVideo(id)
+            if (!res.success) return [id, {}] as const
+            return [
+              id,
+              {
+                title: res.video?.video_title || res.video?.videoTitle,
+                thumbnail: getThumbnailUrl(res.video?.video_thumbnail || res.video?.videoThumbnail || ""),
+              },
+            ] as const
+          } catch {
+            return [id, {}] as const
+          }
+        }),
+      )
+
+    ;(async () => {
+      // Hydrate the full queue (including tracks before currentIndex), current track first.
+      const immediateIds = idsToFetch.slice(0, 8)
+      const remainingIds = idsToFetch.slice(8)
+
+      const pushEntries = (entries: Array<readonly [string, { title?: string; thumbnail?: string }]>) => {
+        if (cancelled || entries.length === 0) return
+        setPlaylistVideoMeta((prev) => {
+          const next = { ...prev }
+          for (const [id, meta] of entries) next[id] = meta
+          return next
+        })
+      }
+
+      const immediateEntries = await fetchMetaEntries(immediateIds)
+      pushEntries(immediateEntries)
+
+      const batchSize = 4
+      for (let i = 0; i < remainingIds.length && !cancelled; i += batchSize) {
+        const batch = remainingIds.slice(i, i + batchSize)
+        const batchEntries = await fetchMetaEntries(batch)
+        pushEntries(batchEntries)
+        if (!cancelled && i + batchSize < remainingIds.length) {
+          await new Promise((resolve) => setTimeout(resolve, 120))
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [playlistContext, playlistVideoMeta])
+
+  useEffect(() => {
+    if (!currentVideoId) {
+      setCommentsCount(0)
+      setLatestComment(null)
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        setCommentsPreviewLoading(true)
+        const response = await apiClient.getComments(currentVideoId, 1, 1)
+        if (cancelled) return
+        if (!response.success) {
+          setCommentsCount(0)
+          setLatestComment(null)
+          return
+        }
+
+        const fetched = response.comments || []
+        setCommentsCount(typeof response.count === "number" ? response.count : fetched.length)
+        setLatestComment(fetched[0] || null)
+      } catch {
+        if (cancelled) return
+        setCommentsCount(0)
+        setLatestComment(null)
+      } finally {
+        if (!cancelled) {
+          setCommentsPreviewLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentVideoId, commentsSheetOpen])
+
+  useEffect(() => {
+    if (!latestComment?.comment_by_username) return
+    const username = latestComment.comment_by_username
+    if (commentsPreviewProfiles[username]) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const response = await apiClient.getUserByUsername(username)
+        if (cancelled || !response.success || !response.user) return
+        setCommentsPreviewProfiles((prev) => ({ ...prev, [username]: response.user }))
+      } catch {
+        // no-op: fallback avatar/initials will render
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [latestComment?.comment_by_username, commentsPreviewProfiles])
+
+  useEffect(() => {
+    setGuestCommentPromptOpen(false)
+  }, [currentVideoId])
+
+  const openCommentsSheet = (focusInput = false) => {
+    setCommentsSheetFocusInput(focusInput)
+    setCommentsSheetOpen(true)
+  }
+
+  const handleCommentsSheetOpenChange = (open: boolean) => {
+    setCommentsSheetOpen(open)
+    if (!open) {
+      setCommentsSheetFocusInput(false)
+    }
+  }
+
   const handlePlayerMediaReady = (readyVideoId: string) => {
     setPendingVideo((pending) => {
       if (!pending || pending.videoId !== readyVideoId) return pending
@@ -305,6 +952,31 @@ export default function WatchPage() {
       return pending
     })
   }
+
+  const watchPassiveNudge = useMemo(() => {
+    if (user) return null
+    return resolvePassiveNudgeTrigger(["watch_60s", "rec_ready"])
+  }, [user, sidebarSuggestedVideos.length, currentVideoId])
+
+  useEffect(() => {
+    if (user || !video) return
+    const id = video.video_id || video.videoId
+    if (!id) return
+    appendGuestHistoryEntry({
+      videoId: id,
+      title: video.videoTitle || video.video_title,
+      thumbnail: video.videoThumbnail || video.video_thumbnail,
+      artistUsername: video.userUsername || video.user_username,
+    })
+  }, [user, video?.video_id, video?.videoId, video?.videoTitle, video?.video_title])
+
+  useEffect(() => {
+    if (user) return
+    const count = sidebarSuggestedVideos.length
+    if (count >= 5) {
+      setGuestRecPicksReady(count)
+    }
+  }, [user, sidebarSuggestedVideos.length])
 
   useEffect(() => {
     if (!pendingVideo || !isPlayerReadyForPending) return
@@ -335,7 +1007,7 @@ export default function WatchPage() {
 
       // Prevent duplicate calls - check synchronously before any async operations
       if (hasFetchedVideoRef.current === videoId || isFetchingRef.current) {
-        console.log("[hiffi] Video already fetched or currently fetching, skipping duplicate call")
+        debugLog("[hiffi] Video already fetched or currently fetching, skipping duplicate call")
         return
       }
 
@@ -343,6 +1015,7 @@ export default function WatchPage() {
       isFetchingRef.current = true
       hasFetchedVideoRef.current = videoId
       latestVideoRequestIdRef.current = videoId
+      setPageGateError(null)
       const currentDisplayedVideoId = video ? (video.video_id || video.videoId) : null
       const isVideoSwitch = !!currentDisplayedVideoId && currentDisplayedVideoId !== videoId
       const isInitialVideoLoad = !video || !isVideoSwitch
@@ -365,14 +1038,27 @@ export default function WatchPage() {
           setIsLoading(true)
         }
         
-        console.log("[hiffi] Fetching video data for:", videoId)
+        debugLog("[hiffi] Fetching video data for:", videoId)
 
         // Call GET /videos/{videoID} directly - this returns full video object with metadata
         let videoResponse: any
         try {
-          videoResponse = await getVideoResponseOnce(videoId)
+          const activeVoteHint =
+            activeVideoMatchesRoute && hasVoteMetadata(activeVideo) ? resolveVoteState(activeVideo) : null
+          const cachedVote = videoResponseCache.get(videoId)
+          const cachedVoteMismatch =
+            !!activeVoteHint &&
+            !!cachedVote &&
+            hasVoteMetadata(cachedVote) &&
+            (resolveVoteState(cachedVote).upvoted !== activeVoteHint.upvoted ||
+              resolveVoteState(cachedVote).downvoted !== activeVoteHint.downvoted)
+          const shouldForceFreshVoteFetch =
+            !!user ||
+            (activeVideoMatchesRoute && hasVoteMetadata(activeVideo) && !hasVoteMetadata(videoResponseCache.get(videoId))) ||
+            cachedVoteMismatch
+          videoResponse = await getVideoResponseOnce(videoId, shouldForceFreshVoteFetch)
           if (latestVideoRequestIdRef.current !== videoId) return
-          console.log("[hiffi] Video response from API:", videoResponse)
+          debugLog("[hiffi] Video response from API:", videoResponse)
           
           // Use video object directly from API response (no need to search through lists)
           const videoData = videoResponse.video
@@ -397,17 +1083,34 @@ export default function WatchPage() {
           }
 
           // Build complete video object with streaming URL and all metadata
+          const gatewayUrl = String(videoResponse.video_url || "").trim()
+          const storagePath = String(videoData.video_url || "").trim()
+          const streamingBase = gatewayUrl || storagePath
+
           const completeVideo = {
             ...videoData,
-            video_url: videoResponse.video_url, // Streaming URL from API
-            streaming_url: videoResponse.video_url, // Alias for compatibility
+            video_url: streamingBase,
+            streaming_url: streamingBase,
+            storage_video_url: storagePath,
             userUsername: videoData.user_username, // Alias for compatibility
             user_profile_picture: videoResponse.profile_picture, // Latest profile picture from API
           }
-          const nextVoteState = {
-            upvoted: videoResponse.upvoted || false,
-            downvoted: videoResponse.downvoted || false,
-          }
+          const voteFallbackFromCurrentContext = resolveVoteStateForVideo(
+            activeVideo,
+            videoId,
+            resolveVoteStateForVideo(
+              playerVideo,
+              videoId,
+              resolveVoteStateForVideo(video, videoId, upvoteState),
+            ),
+          )
+          const nextVoteState = resolveVoteState(
+            videoResponse,
+            resolveVoteState(
+              videoData,
+              voteFallbackFromCurrentContext,
+            ),
+          )
           const followingStatus = videoResponse.following || false
           const videoCreatorUsername = videoData.user_username
           const creatorFallback = videoCreatorUsername
@@ -444,9 +1147,48 @@ export default function WatchPage() {
             })
           }
 
-          // Logged-out: keep username + avatar only (no followers). Logged-in enrichment runs in a
-          // separate effect so it still runs when auth hydrates after the first fetch.
-          if (videoCreatorUsername && !user) {
+          // Fetch video creator data in parallel
+          if (videoCreatorUsername && user) {
+            apiClient.getUserByUsername(videoCreatorUsername).then(creatorResponse => {
+              const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse)
+              if (isInitialVideoLoad) {
+                setVideoCreator(creatorProfile)
+                if (creatorResponse?.following !== undefined) {
+                  setIsFollowing(creatorResponse.following)
+                }
+                return
+              }
+
+              setPendingVideo((pending) => {
+                if (!pending || pending.videoId !== videoId) return pending
+                return {
+                  ...pending,
+                  creator: creatorProfile,
+                  following: creatorResponse?.following !== undefined ? creatorResponse.following : pending.following,
+                }
+              })
+            }).catch(creatorError => {
+            if ((creatorError as any)?.status !== 401) debugWarn("[hiffi] Failed to fetch creator data:", creatorError)
+              const fallbackProfile = {
+                username: videoCreatorUsername,
+                name: videoCreatorUsername,
+                profile_picture: videoResponse.profile_picture || "",
+              }
+
+              if (isInitialVideoLoad) {
+                setVideoCreator(fallbackProfile)
+                return
+              }
+
+              setPendingVideo((pending) => {
+                if (!pending || pending.videoId !== videoId) return pending
+                return {
+                  ...pending,
+                  creator: fallbackProfile,
+                }
+              })
+            })
+          } else if (videoCreatorUsername) {
             if (isInitialVideoLoad) {
               setVideoCreator(creatorFallback)
             } else {
@@ -463,7 +1205,17 @@ export default function WatchPage() {
           console.error("[hiffi] Failed to get video:", videoError)
           hasFetchedVideoRef.current = null
           isFetchingRef.current = false
-          setUrlError("Video not found")
+          if (isConnectivityError(videoError)) {
+            setPageGateError({
+              headline: "No internet connection",
+              detail: NO_INTERNET_USER_MESSAGE,
+            })
+          } else {
+            setPageGateError({
+              headline: "Video not found",
+              detail: "This video isn't available or may have been removed.",
+            })
+          }
           setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
           setIsPlayerReadyForPending(false)
           setIsLoading(false)
@@ -474,7 +1226,17 @@ export default function WatchPage() {
         console.error("[hiffi] Failed to fetch video data:", error)
         hasFetchedVideoRef.current = null
         isFetchingRef.current = false
-        setUrlError("Failed to load video")
+        if (isConnectivityError(error)) {
+          setPageGateError({
+            headline: "No internet connection",
+            detail: NO_INTERNET_USER_MESSAGE,
+          })
+        } else {
+          setPageGateError({
+            headline: "Something went wrong",
+            detail: "Could not load this video. Please try again.",
+          })
+        }
         setPendingVideo((pending) => (pending?.videoId === videoId ? null : pending))
         setIsPlayerReadyForPending(false)
       } finally {
@@ -484,52 +1246,6 @@ export default function WatchPage() {
 
     fetchVideoData()
   }, [currentVideoId]) // currentVideoId drives all fetches; synced from params.videoId for external nav
-
-  // Load full creator profile (followers, following) when the viewer is authenticated. The main
-  // fetch only depends on currentVideoId and skips re-entry once cached — if `user` was still null
-  // during that fetch, creator never got enriched. Also wait until `video` matches the URL so we
-  // do not fetch the previous uploader during in-player switches.
-  useEffect(() => {
-    if (!user) return
-    const loadedVideoId = video?.video_id || video?.videoId
-    if (!loadedVideoId || loadedVideoId !== currentVideoId) return
-    const uname = (video?.user_username || video?.userUsername)?.toString().trim()
-    if (!uname) return
-
-    let cancelled = false
-    const requestVideoId = currentVideoId
-
-    apiClient
-      .getUserByUsername(uname)
-      .then((creatorResponse) => {
-        if (cancelled) return
-        if (currentVideoIdRef.current !== requestVideoId) return
-        const creatorProfile =
-          creatorResponse?.success && creatorResponse?.user
-            ? creatorResponse.user
-            : creatorResponse?.user
-        if (!creatorProfile || typeof creatorProfile !== "object") return
-
-        setVideoCreator((prev: any) => {
-          const prevU = (prev?.username || prev?.user_username || "").toString()
-          if (prevU && prevU.toLowerCase() !== uname.toLowerCase()) return prev
-          return { ...(prev || { username: uname }), ...creatorProfile }
-        })
-
-        if (creatorResponse?.following !== undefined) {
-          setIsFollowing(creatorResponse.following)
-        }
-      })
-      .catch((creatorError: any) => {
-        if (cancelled) return
-        if (creatorError?.status === 401) return
-        console.warn("[hiffi] Failed to fetch creator data:", creatorError)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [user, video, currentVideoId])
 
   // Effect for related videos.
   useEffect(() => {
@@ -544,7 +1260,7 @@ export default function WatchPage() {
           setIsRelatedLoading(true)
         }
 
-        console.log("[hiffi] Fetching updated recommendations for:", videoId)
+        debugLog("[hiffi] Fetching updated recommendations for:", videoId)
         const nextRelatedVideos = await getRelatedVideosOnce(videoId)
         if (latestRelatedRequestIdRef.current !== videoId) return
 
@@ -568,7 +1284,11 @@ export default function WatchPage() {
           }
         }
       } catch (suggestionsError) {
-        console.warn("[hiffi] Failed to fetch related videos:", suggestionsError)
+        debugWarn("[hiffi] Failed to fetch related videos:", suggestionsError)
+        // Allow reconnect/refetch attempt for this video.
+        if (lastFetchedRelatedIdRef.current === videoId) {
+          lastFetchedRelatedIdRef.current = null
+        }
       } finally {
         if (isInitialRelatedLoad) {
           setIsRelatedLoading(false)
@@ -577,36 +1297,86 @@ export default function WatchPage() {
     }
 
     fetchRelated()
-  }, [currentVideoId])
+  }, [currentVideoId, relatedRetryNonce])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (!currentVideoId) return
+    if (sidebarSuggestedVideos.length > 0) return
+
+    const handleOnline = () => {
+      lastFetchedRelatedIdRef.current = null
+      setRelatedRetryNonce((n) => n + 1)
+    }
+
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [currentVideoId, sidebarSuggestedVideos.length])
 
   // NOTE: Follow status is now primarily fetched from the getVideo API response
   // which includes the 'following' boolean field. This eliminates the need for 
   // a separate API call to check following status on page load.
 
+  const handleAuthDialogDismiss = () => {
+    if (user) return
+
+    const videoId = video?.video_id || video?.videoId || currentVideoId
+    const creatorUsername = video?.userUsername || video?.user_username
+
+    if (authDialogCopyKey === "like" && videoId) {
+      removePendingLikeIntent(videoId)
+      setIsLiked(false)
+      setUpvoteState({ upvoted: false, downvoted: false })
+    }
+
+    if (authDialogCopyKey === "follow" && creatorUsername) {
+      removePendingFollowIntent(creatorUsername)
+    }
+  }
+
   const handleLike = async () => {
     if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to upvote videos",
-      })
+      const videoId = video?.video_id || video?.videoId || currentVideoId
+      if (videoId) {
+        setIsLiked(true)
+        setUpvoteState({ upvoted: true, downvoted: false })
+        addPendingLikeIntent(
+          videoId,
+          video?.videoTitle || video?.video_title,
+        )
+      }
+      markGuestLikeAttempt()
+      setAuthDialogCopyKey("like")
+      setAuthDialogOpen(true)
       return
     }
 
     if (!video) return
 
-    // Prevent toggling off an existing upvote by clicking twice
-    if (isLiked) return
+    if (isLikeActionInFlightRef.current) return
+    isLikeActionInFlightRef.current = true
 
     try {
       const videoId = video.video_id || video.videoId
-      await apiClient.upvoteVideo(videoId)
+      // Use vote state as source of truth to avoid stale UI state causing inverted events.
+      const wasLiked = upvoteState.upvoted
+      const wasDisliked = isDisliked
+      const isRemovingLike = wasLiked
+      const nextLiked = !isRemovingLike
+
+      if (isRemovingLike) {
+        // Product requirement: heart button must toggle using downvote endpoint when already upvoted.
+        await apiClient.downvoteVideo(videoId)
+      } else {
+        await apiClient.upvoteVideo(videoId)
+      }
+      // Invalidate cached vote payload so subsequent opens don't reuse stale vote state.
+      videoResponseCache.delete(videoId)
       
       // Update state
-      const wasLiked = isLiked
-      const wasDisliked = isDisliked
-      setIsLiked(!wasLiked)
+      setIsLiked(nextLiked)
       setIsDisliked(false)
-      setUpvoteState({ upvoted: !wasLiked, downvoted: false })
+      setUpvoteState({ upvoted: nextLiked, downvoted: false })
       
       // Update video counts optimistically while refreshing
       if (video) {
@@ -615,9 +1385,10 @@ export default function WatchPage() {
         
         setVideo({
           ...video,
-          video_upvotes: wasLiked ? currentUpvotes - 1 : (wasDisliked ? currentUpvotes + 1 : currentUpvotes + 1),
-          video_downvotes: wasDisliked ? currentDownvotes - 1 : currentDownvotes,
-          uservotestatus: wasLiked ? null : "upvoted",
+          video_upvotes: isRemovingLike ? currentUpvotes - 1 : (wasDisliked ? currentUpvotes + 1 : currentUpvotes + 1),
+          // Keep dislike count unchanged for "remove liked" UX even though backend toggle uses downvote endpoint.
+          video_downvotes: isRemovingLike ? currentDownvotes : (wasDisliked ? currentDownvotes - 1 : currentDownvotes),
+          uservotestatus: isRemovingLike ? null : "upvoted",
         })
       }
 
@@ -627,19 +1398,15 @@ export default function WatchPage() {
         const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 6, seed })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
-          console.log("[hiffi] Updated video data after upvote:", updatedVideo);
+          debugLog("[hiffi] Updated video data after upvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
           // So we keep the optimistic state unless the API provides it
-          if (updatedVideo.upvoted !== undefined || updatedVideo.downvoted !== undefined) {
-            setIsLiked(updatedVideo.upvoted || false)
-            setIsDisliked(updatedVideo.downvoted || false)
-            setUpvoteState({
-              upvoted: updatedVideo.upvoted || false,
-              downvoted: updatedVideo.downvoted || false,
-            })
-          }
+          const refreshedVoteState = resolveVoteState(updatedVideo, { upvoted: !isRemovingLike, downvoted: false })
+          setIsLiked(refreshedVoteState.upvoted)
+          setIsDisliked(refreshedVoteState.downvoted)
+          setUpvoteState(refreshedVoteState)
         }
       } catch (refreshError) {
         console.error("[hiffi] Failed to refresh video data:", refreshError)
@@ -647,16 +1414,26 @@ export default function WatchPage() {
       }
 
       toast({
-        title: "Success",
-        description: wasLiked ? "Upvote removed" : "Video upvoted",
+        title: isRemovingLike ? "Removed from Liked" : "Saved to Liked",
+        description: isRemovingLike
+          ? "This video is no longer in your Liked library."
+          : "You can find it anytime under Liked videos.",
       })
+      captureConversionEvent(nextLiked ? "conversion_like_success" : "conversion_unlike_success", {
+        video_id: videoId,
+        source: playlistContext ? "playlist" : "recommended",
+        playlist_id: playlistContext?.playlistId,
+      })
+      captureVideoLiked(videoId, nextLiked ? "like" : "unlike")
     } catch (error) {
-      console.error("[hiffi] Failed to upvote video:", error)
+      console.error("[hiffi] Failed to toggle like for video:", error)
       toast({
         title: "Error",
-        description: "Failed to upvote video",
+        description: "Couldn’t update Liked videos. Try again.",
         variant: "destructive",
       })
+    } finally {
+      isLikeActionInFlightRef.current = false
     }
   }
 
@@ -664,19 +1441,21 @@ export default function WatchPage() {
     if (!user) {
       toast({
         title: "Sign in required",
-        description: "Please sign in to downvote videos",
+        description: "Sign in to give feedback on recommendations.",
       })
       return
     }
 
     if (!video) return
 
-    // Prevent toggling off an existing downvote by clicking twice
-    if (isDisliked) return
+    if (isDislikeActionInFlightRef.current) return
+    isDislikeActionInFlightRef.current = true
 
     try {
       const videoId = video.video_id || video.videoId
       await apiClient.downvoteVideo(videoId)
+      // Invalidate cached vote payload so subsequent opens don't reuse stale vote state.
+      videoResponseCache.delete(videoId)
       
       // Update state
       const wasDisliked = isDisliked
@@ -704,19 +1483,15 @@ export default function WatchPage() {
         const videosResponse = await apiClient.getVideoList({ offset: 0, limit: 6, seed })
         const updatedVideo = videosResponse.videos.find((v: any) => (v.video_id || v.videoId) === videoId)
         if (updatedVideo) {
-          console.log("[hiffi] Updated video data after downvote:", updatedVideo);
+          debugLog("[hiffi] Updated video data after downvote:", updatedVideo);
           setVideo(updatedVideo)
           // Sync vote state with refreshed video data
           // Note: /videos/list endpoint may not include upvoted/downvoted status
           // So we keep the optimistic state unless the API provides it
-          if (updatedVideo.upvoted !== undefined || updatedVideo.downvoted !== undefined) {
-            setIsLiked(updatedVideo.upvoted || false)
-            setIsDisliked(updatedVideo.downvoted || false)
-            setUpvoteState({
-              upvoted: updatedVideo.upvoted || false,
-              downvoted: updatedVideo.downvoted || false,
-            })
-          }
+          const refreshedVoteState = resolveVoteState(updatedVideo, { upvoted: false, downvoted: !wasDisliked })
+          setIsLiked(refreshedVoteState.upvoted)
+          setIsDisliked(refreshedVoteState.downvoted)
+          setUpvoteState(refreshedVoteState)
         }
       } catch (refreshError) {
         console.error("[hiffi] Failed to refresh video data:", refreshError)
@@ -724,28 +1499,58 @@ export default function WatchPage() {
       }
 
       toast({
-        title: "Success",
-        description: wasDisliked ? "Downvote removed" : "Video downvoted",
+        title: wasDisliked ? "Feedback removed" : "Thanks for the feedback",
+        description: wasDisliked
+          ? "We won’t tune recommendations from that signal anymore."
+          : "We’ll show you fewer recommendations like this one.",
+      })
+
+      captureConversionEvent("conversion_dislike_success", {
+        video_id: videoId,
+        source: playlistContext ? "playlist" : "recommended",
+        playlist_id: playlistContext?.playlistId,
+        action: wasDisliked ? "undislike" : "dislike",
       })
     } catch (error) {
       console.error("[hiffi] Failed to downvote video:", error)
       toast({
         title: "Error",
-        description: "Failed to downvote video",
+        description: "Couldn’t save that feedback. Try again.",
         variant: "destructive",
       })
+    } finally {
+      isDislikeActionInFlightRef.current = false
     }
   }
 
+  const openAddToPlaylist = () => {
+    if (!user) {
+      setAuthDialogCopyKey("playlist")
+      setAuthDialogOpen(true)
+      return
+    }
+    setAddToPlaylistOpen(true)
+  }
+
   const handleFollow = async () => {
+    const username = video?.userUsername || video?.user_username
+
     if (!user || !userData) {
+      if (username) {
+        addPendingFollowIntent(
+          username,
+          videoCreator?.name || video?.userName || video?.user_name,
+          getProfilePictureUrl(videoCreator) || undefined,
+        )
+      }
+      markGuestFollowAttempt()
+      setAuthDialogCopyKey("follow")
       setAuthDialogOpen(true)
       return
     }
 
     if (!video) return
 
-    const username = video.userUsername || video.user_username
     if (!username || userData.username === username) return
 
     // Prevent double-clicks
@@ -775,7 +1580,7 @@ export default function WatchPage() {
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
           const creatorResponse = await apiClient.getUserByUsername(username)
-          console.log("[hiffi] Refreshed creator data after unfollow:", creatorResponse);
+          debugLog("[hiffi] Refreshed creator data after unfollow:", creatorResponse);
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
@@ -786,7 +1591,7 @@ export default function WatchPage() {
         } catch (refreshError: any) {
           // Only log as warning if it's not a 401 (expected when not authenticated)
           if (refreshError?.status !== 401) {
-            console.warn("[hiffi] Failed to refresh creator data:", refreshError)
+            debugWarn("[hiffi] Failed to refresh creator data:", refreshError)
           }
           // Update optimistically if refresh fails
           if (videoCreator) {
@@ -801,6 +1606,11 @@ export default function WatchPage() {
           title: "Success",
           description: "Unfollowed user",
         })
+        captureArtistFollowed(
+          video.video_id || video.videoId,
+          username,
+          "unfollow",
+        )
       } else {
         // Following
         const response = await apiClient.followUser(username)
@@ -812,7 +1622,7 @@ export default function WatchPage() {
         // Refresh recipient user's (creator's) profile data to get updated follower count
         try {
           const creatorResponse = await apiClient.getUserByUsername(username)
-          console.log("[hiffi] Refreshed creator data after follow:", creatorResponse);
+          debugLog("[hiffi] Refreshed creator data after follow:", creatorResponse);
           // Handle API response format: { success: true, user: {...}, following?: boolean }
           const creatorProfile = (creatorResponse?.success && creatorResponse?.user) ? creatorResponse.user : (creatorResponse?.user || creatorResponse);
           setVideoCreator(creatorProfile)
@@ -823,7 +1633,7 @@ export default function WatchPage() {
         } catch (refreshError: any) {
           // Only log as warning if it's not a 401 (expected when not authenticated)
           if (refreshError?.status !== 401) {
-            console.warn("[hiffi] Failed to refresh creator data:", refreshError)
+            debugWarn("[hiffi] Failed to refresh creator data:", refreshError)
           }
           // Update optimistically if refresh fails
           if (videoCreator) {
@@ -838,6 +1648,11 @@ export default function WatchPage() {
           title: "Success",
           description: "Following user",
         })
+        captureArtistFollowed(
+          video.video_id || video.videoId,
+          username,
+          "follow",
+        )
       }
       
       // State is already optimistically updated above
@@ -867,7 +1682,29 @@ export default function WatchPage() {
   }
 
   const currentVideo = video || persistedWatchUiState?.video // Alias for readability
+  const descriptionText = getVideoDescriptionFromRecord(currentVideo)
+  const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
+  const videoViewCount = getVideoViewCount(currentVideo)
+  const showVideoViewCount = shouldShowVideoViewCount(videoViewCount)
+  const creatorFollowerCount = getProfileFollowerCount(videoCreator)
+  const showCreatorFollowerCount = shouldShowPublicFollowerCount(creatorFollowerCount)
   const shouldShowMetadataSkeleton = !currentVideo && (isMetadataLoading || isLoading)
+
+  useEffect(() => {
+    setShowFullDescription(false)
+    if (!hasVideoDescription) setIsDescriptionTruncated(false)
+  }, [currentVideoId, descriptionText, hasVideoDescription])
+
+  useLayoutEffect(() => {
+    if (!hasVideoDescription || shouldShowMetadataSkeleton) {
+      setIsDescriptionTruncated(false)
+      return
+    }
+    if (showFullDescription) return
+    const el = descriptionRef.current
+    if (!el) return
+    setIsDescriptionTruncated(el.scrollHeight > el.clientHeight + 1)
+  }, [descriptionText, hasVideoDescription, showFullDescription, shouldShowMetadataSkeleton])
   const shouldShowRelatedSkeleton = sidebarSuggestedVideos.length === 0 && visibleRelatedVideos.length === 0
 
   // Player source is allowed to update before UI metadata to avoid visual flicker.
@@ -876,22 +1713,51 @@ export default function WatchPage() {
   const videoUrl = currentPlayerVideo?.streaming_url || currentPlayerVideo?.video_url || currentPlayerVideo?.videoUrl || ""
   const thumbnailUrl = getThumbnailUrl(currentPlayerVideo?.video_thumbnail || currentPlayerVideo?.videoThumbnail || "")
   
-  // Check if current user owns this video
-  const isOwner = userData?.username === (currentVideo?.userUsername || currentVideo?.user_username)
   const videoId = currentVideo?.video_id || currentVideo?.videoId || currentVideoId || ""
-  
-  const handleVideoDeleted = () => {
-    // Redirect to home after deletion
-    router.push("/")
-  }
 
   const handleVideoEnd = () => {
+    if (playlistContext?.autoplay && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
+      const nextIndex = playlistContext.currentIndex + 1
+      const nextId = playlistContext.videoIds[nextIndex]
+      if (nextId) {
+        resetSeed()
+        setPendingPlaybackContext({
+          videoId: nextId,
+          openSource: "playlist",
+          openUiName: "playlist-autoplay",
+          navigateTrigger: "playlist_autoplay",
+          isAutoplay: true,
+          playlistId: playlistContext.playlistId,
+          playlistTrackIndex: nextIndex,
+        })
+        const nextSession = { ...playlistContext, currentIndex: nextIndex }
+        setPlaylistContext(nextSession)
+        setPlaylistSession(nextSession)
+        onPlaylistTrackAdvanced({
+          fromIndex: playlistContext.currentIndex,
+          toIndex: nextIndex,
+          reason: "autoplay",
+          videoId: nextId,
+        })
+        navigateToVideo(nextId, nextIndex)
+        return
+      }
+    }
+
     // Autoplay next video from suggested videos
     if (sidebarSuggestedVideos && sidebarSuggestedVideos.length > 0) {
       const nextVideo = sidebarSuggestedVideos[0]
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
-        console.log("[hiffi] Autoplaying next video:", nextVideoId)
+        resetSeed()
+        setPendingPlaybackContext({
+          videoId: nextVideoId,
+          openSource: "recommended",
+          openUiName: "video-end-autoplay",
+          navigateTrigger: "video_end_autoplay",
+          isAutoplay: true,
+        })
+        debugLog("[hiffi] Autoplaying next video:", nextVideoId)
         router.push(`/watch/${nextVideoId}`)
       }
     }
@@ -909,27 +1775,40 @@ export default function WatchPage() {
     }
   }, [videoCreator, currentVideo])
 
-  if (urlError && !video) {
+  const reportVideoId = String(
+    playerVideoId || currentVideoId || currentVideo?.video_id || currentVideo?.videoId || "",
+  )
+  const reportViewer = user
+    ? { uid: user.uid, username: userData?.username ?? user.username }
+    : null
+  const canReportVideo =
+    !!currentVideo &&
+    !!reportVideoId &&
+    canReportContentTarget(reportViewer, currentVideo as Record<string, unknown>)
+
+  if (pageGateError && !video) {
+    const isNet =
+      pageGateError.headline === "No internet connection" ||
+      pageGateError.detail === NO_INTERNET_USER_MESSAGE
+
     return (
-      <div className="flex items-center justify-center min-h-full p-4 lg:p-6">
-        <div className="text-center">
-          <div className="text-4xl mb-4">😕</div>
-          <h2 className="text-2xl font-bold mb-2">Video Not Found</h2>
-          <p className="text-muted-foreground mb-6">{urlError}</p>
-          <Button onClick={() => router.push("/")} variant="default">
-            Go to Home
-          </Button>
-        </div>
+      <div className="flex min-h-[55vh] w-full items-center justify-center px-4 py-16 lg:min-h-[60vh] lg:px-8">
+        <OfflineState
+          title={pageGateError.headline}
+          description={pageGateError.detail}
+          onRetry={isNet ? () => window.location.reload() : () => router.push("/")}
+          retryLabel={isNet ? "Try again" : "Go to Home"}
+        />
       </div>
     )
   }
 
   return (
     <>
-      <div className="p-4 lg:p-6 pb-0 lg:pb-6">
+      <div className="px-0 pt-0 pb-0 lg:p-6">
         <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-4 min-w-0">
+            <div className="lg:col-span-2 space-y-3 md:space-y-4 min-w-0">
               <VideoPlayer 
                 videoUrl={videoUrl} 
                 videoId={playerVideoId}
@@ -941,142 +1820,232 @@ export default function WatchPage() {
                 onVideoEnd={handleVideoEnd}
                 onMediaReady={handlePlayerMediaReady}
                 availableProfiles={currentPlayerVideo?.profiles}
+                originalProfile={
+                  currentPlayerVideo?.original_profile || currentPlayerVideo?.originalProfile
+                }
+                storageVideoPath={currentPlayerVideo?.storage_video_url}
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
+                previousVideoDisabled={!canNavigateToPreviousVideo}
+                initialSeekSeconds={initialSeekSeconds.current}
               />
 
-              <div className={cn("space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
-                {shouldShowMetadataSkeleton ? (
-                  <div className="h-8 bg-muted/40 rounded-md w-3/4 animate-pulse" />
-                ) : (
-                  <h1 className="text-xl md:text-2xl font-bold break-words">{currentVideo?.videoTitle || currentVideo?.video_title}</h1>
-                )}
+              {!user && watchPassiveNudge === "watch_60s" ? (
+                <GuestWatchNudge videoId={playerVideoId} className="mx-4 lg:mx-0" />
+              ) : null}
 
-                <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 flex-wrap">
-                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
-                    {user && currentVideo ? (
-                      <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
-                        <ProfilePicture 
-                          user={creatorUser} 
-                          size="md" 
-                        />
-                      </Link>
-                    ) : (
-                      <div className={cn(
-                        "h-10 w-10 rounded-full bg-muted/40",
-                        shouldShowMetadataSkeleton && "animate-pulse"
-                      )}>
-                        {!shouldShowMetadataSkeleton && currentVideo && (
-                          <ProfilePicture 
-                            user={creatorUser} 
-                            size="md" 
-                          />
+              <div className={cn("px-4 lg:px-0 space-y-4 min-w-0 transition-opacity duration-300", shouldShowMetadataSkeleton ? "opacity-50" : "opacity-100")}>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {shouldShowMetadataSkeleton ? (
+                    <div className="h-9 flex-1 bg-muted/40 rounded-md max-w-2xl animate-pulse" />
+                  ) : (
+                    <h1 className="line-clamp-2 text-xl md:text-2xl font-bold break-words min-w-0 flex-1 pr-1">
+                      {currentVideo?.videoTitle || currentVideo?.video_title}
+                    </h1>
+                  )}
+                  {!shouldShowMetadataSkeleton && currentVideo && (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        data-analytics-name={isLiked ? WATCH_UNLIKE_VIDEO : WATCH_LIKE_VIDEO}
+                        className={cn(
+                          "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
+                          isLiked && "text-primary hover:text-primary",
                         )}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      {shouldShowMetadataSkeleton ? (
-                        <div className="space-y-2">
-                          <div className="h-4 bg-muted/40 rounded w-24 animate-pulse" />
-                          <div className="h-3 bg-muted/40 rounded w-16 animate-pulse" />
+                        onClick={handleLike}
+                        aria-pressed={isLiked}
+                        aria-label={isLiked ? "Remove from Liked videos" : "Save to Liked videos"}
+                        title={isLiked ? "Remove from Liked" : "Save to Liked"}
+                      >
+                        <Heart className={cn("h-5 w-5", isLiked && "fill-primary text-primary")} />
+                      </Button>
+                      <AddToPlaylistDialogLazy
+                        open={addToPlaylistOpen}
+                        onOpenChange={setAddToPlaylistOpen}
+                        videoId={String(playerVideoId || currentVideoId || "")}
+                        videoTitle={currentVideo?.videoTitle || currentVideo?.video_title}
+                        artistName={
+                          currentVideo?.userUsername ||
+                          currentVideo?.user_username ||
+                          undefined
+                        }
+                        thumbnailUrl={thumbnailUrl || undefined}
+                        popoverSide="bottom"
+                        popoverAlign="end"
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          data-analytics-name={WATCH_SAVE_TO_PLAYLIST}
+                          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={openAddToPlaylist}
+                          onPointerEnter={prefetchMyPlaylists}
+                          aria-label="Save to playlist"
+                          title="Save to playlist"
+                        >
+                          <Bookmark className="h-5 w-5" />
+                        </Button>
+                      </AddToPlaylistDialogLazy>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            data-analytics-name={WATCH_MORE_ACTIONS}
+                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                            aria-label="More actions"
+                            title="More"
+                          >
+                            <MoreHorizontal className="h-5 w-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            data-analytics-name="shared-video"
+                            onClick={() => setShareDialogOpen(true)}
+                          >
+                            <Share2 className="h-4 w-4" />
+                            Share
+                          </DropdownMenuItem>
+                          {canReportVideo && (
+                            <DropdownMenuItem
+                              data-analytics-name="report-video"
+                              onClick={() => setReportDialogOpen(true)}
+                            >
+                              <Flag className="h-4 w-4" />
+                              Report
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {/* Mobile metadata layout */}
+                  <div className="md:hidden">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {currentVideo ? (
+                          <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
+                            <ProfilePicture user={creatorUser} size="md" />
+                          </Link>
+                        ) : (
+                          <div className={cn(
+                            "h-10 w-10 rounded-full bg-muted/40",
+                            shouldShowMetadataSkeleton && "animate-pulse"
+                          )} />
+                        )}
+                        <div className="min-w-0">
+                          {shouldShowMetadataSkeleton ? (
+                            <div className="space-y-2">
+                              <div className="h-4 bg-muted/40 rounded w-24 animate-pulse" />
+                              <div className="h-3 bg-muted/40 rounded w-16 animate-pulse" />
+                            </div>
+                          ) : (
+                            <>
+                              <Link
+                                href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
+                                className="font-semibold hover:text-primary block truncate"
+                              >
+                                {currentVideo?.userUsername || currentVideo?.user_username}
+                              </Link>
+                              {showCreatorFollowerCount ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {creatorFollowerCount.toLocaleString()} followers
+                                </span>
+                              ) : null}
+                            </>
+                          )}
                         </div>
+                      </div>
+
+                      {!shouldShowMetadataSkeleton &&
+                        currentVideo &&
+                        (userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && (
+                          <Button
+                            variant={isFollowing ? "secondary" : "default"}
+                            size="sm"
+                            data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
+                            className="rounded-full flex-shrink-0 px-4"
+                            onClick={handleFollow}
+                            disabled={isCheckingFollow || isFollowingAction}
+                          >
+                            {isCheckingFollow
+                              ? "Checking..."
+                              : isFollowingAction
+                                ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                                : isFollowing
+                                  ? "Following"
+                                  : "Follow"}
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+
+                  {/* Desktop/tablet metadata layout */}
+                  <div className="hidden md:flex flex-row items-center justify-between gap-2 sm:gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 flex-1">
+                      {currentVideo ? (
+                        <Link href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}>
+                          <ProfilePicture user={creatorUser} size="md" />
+                        </Link>
                       ) : (
-                        <>
-                          {user ? (
+                        <div className={cn(
+                          "h-10 w-10 rounded-full bg-muted/40",
+                          shouldShowMetadataSkeleton && "animate-pulse"
+                        )} />
+                      )}
+                      <div className="min-w-0">
+                        {shouldShowMetadataSkeleton ? (
+                          <div className="space-y-2">
+                            <div className="h-4 bg-muted/40 rounded w-24 animate-pulse" />
+                            <div className="h-3 bg-muted/40 rounded w-16 animate-pulse" />
+                          </div>
+                        ) : (
+                          <>
                             <Link
                               href={`/profile/${currentVideo?.userUsername || currentVideo?.user_username}`}
                               className="font-semibold hover:text-primary block truncate"
                             >
                               {currentVideo?.userUsername || currentVideo?.user_username}
                             </Link>
-                          ) : (
-                            <span className="font-semibold block truncate">
-                              {currentVideo?.userUsername || currentVideo?.user_username}
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {(videoCreator?.followers ?? 0).toLocaleString()} followers
-                          </span>
-                        </>
+                            {showCreatorFollowerCount ? (
+                              <span className="text-xs text-muted-foreground">
+                                {creatorFollowerCount.toLocaleString()} followers
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                      {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && !shouldShowMetadataSkeleton && (
+                        <Button
+                          variant={isFollowing ? "secondary" : "default"}
+                          size="sm"
+                          data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
+                          className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
+                          onClick={handleFollow}
+                          disabled={isCheckingFollow || isFollowingAction}
+                        >
+                          {isCheckingFollow
+                            ? "Checking..."
+                            : isFollowingAction
+                              ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
+                              : isFollowing
+                                ? "Following"
+                                : "Follow"}
+                        </Button>
                       )}
                     </div>
-                    {(userData?.username) !== (currentVideo?.userUsername || currentVideo?.user_username) && !shouldShowMetadataSkeleton && (
-                      <Button
-                        variant={isFollowing ? "secondary" : "default"}
-                        size="sm"
-                        className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
-                        onClick={handleFollow}
-                        disabled={isCheckingFollow || isFollowingAction}
-                      >
-                        {isCheckingFollow
-                          ? "Checking..."
-                          : isFollowingAction
-                            ? (followActionType === "unfollow" ? "Unfollowing..." : "Following...")
-                            : isFollowing
-                              ? "Following"
-                              : "Follow"}
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-auto sm:ml-0">
-                    <div className="flex items-center bg-muted/50 rounded-full p-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("rounded-l-full px-3 hover:bg-muted", isLiked && "text-primary")}
-                        onClick={handleLike}
-                        disabled={shouldShowMetadataSkeleton}
-                      >
-                        <ThumbsUp className={cn("mr-2 h-4 w-4", isLiked && "fill-current")} />
-                        {(currentVideo?.video_upvotes || currentVideo?.videoUpvotes || 0).toLocaleString()}
-                      </Button>
-                      <Separator orientation="vertical" className="h-6" />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("rounded-r-full px-3 hover:bg-muted", isDisliked && "text-destructive")}
-                        onClick={handleDislike}
-                        disabled={shouldShowMetadataSkeleton}
-                      >
-                        <ThumbsDown className={cn("h-4 w-4", isDisliked && "fill-current")} />
-                        {(currentVideo?.video_downvotes || currentVideo?.videoDownvotes || 0).toLocaleString()}
-                      </Button>
-                    </div>
-                    {!shouldShowMetadataSkeleton && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full px-3 hover:bg-muted"
-                        onClick={() => setShareDialogOpen(true)}
-                      >
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                      </Button>
-                    )}
-                    {isOwner && !shouldShowMetadataSkeleton && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="rounded-full">
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Video options</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteDialogOpen(true)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Video
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
                   </div>
                 </div>
 
-                <div className="bg-muted/30 rounded-xl p-3 text-sm">
+                <div className="bg-muted/30 rounded-none sm:rounded-xl p-3 text-sm">
                   {shouldShowMetadataSkeleton ? (
                     <div className="space-y-2">
                       <div className="h-4 bg-muted/40 rounded w-1/3 animate-pulse" />
@@ -1085,22 +2054,32 @@ export default function WatchPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex gap-2 font-medium mb-2">
-                        <span>{(currentVideo?.videoViews || currentVideo?.video_views || 0).toLocaleString()} views</span>
-                        <span>•</span>
-                        <span>
-                          {currentVideo?.createdAt || currentVideo?.created_at ? formatDistanceToNow(new Date(currentVideo.createdAt || currentVideo.created_at), { addSuffix: true }) : ""}
-                        </span>
-                      </div>
-                      <div className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}>
-                        {currentVideo?.videoDescription || currentVideo?.video_description}
-                      </div>
-                      <button
-                        onClick={() => setShowFullDescription(!showFullDescription)}
-                        className="text-primary font-medium mt-1 hover:underline"
-                      >
-                        {showFullDescription ? "Show less" : "Show more"}
-                      </button>
+                      {showVideoViewCount && (
+                        <div className="flex gap-2 font-medium mb-2">
+                          <span>{videoViewCount.toLocaleString()} views</span>
+                        </div>
+                      )}
+                      {hasVideoDescription ? (
+                        <>
+                          <div
+                            ref={descriptionRef}
+                            className={cn("whitespace-pre-wrap", !showFullDescription && "line-clamp-2")}
+                          >
+                            <DescriptionWithLinks text={descriptionText} />
+                          </div>
+                          {hasVideoDescription && (showFullDescription || isDescriptionTruncated) ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowFullDescription(!showFullDescription)}
+                              className="text-primary font-medium mt-1 hover:underline"
+                            >
+                              {showFullDescription ? "Show less" : "Show more"}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">No description available</p>
+                      )}
 
                       {currentVideo?.tags && currentVideo?.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">
@@ -1115,19 +2094,308 @@ export default function WatchPage() {
                   )}
                 </div>
 
+                {playlistContext && (
+                  <div className="md:hidden rounded-xl border border-primary/25 bg-primary/5 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-primary/90">Active playlist</p>
+                        <p className="line-clamp-1 text-xs font-semibold">{playlistContext.title}</p>
+                      </div>
+                      <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">
+                        {playlistContext.currentIndex + 1}/{playlistContext.videoIds.length}
+                      </span>
+                    </div>
+                    <div className="mt-2 max-h-[14.5rem] space-y-1.5 overflow-y-auto pr-1">
+                      {playlistContext.videoIds.map((id, absoluteIndex) => {
+                        const isActive = absoluteIndex === playlistContext.currentIndex
+                        const isPlayed = absoluteIndex < playlistContext.currentIndex
+                        const meta = playlistVideoMeta[id]
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors",
+                              isActive
+                                ? "border-primary/35 bg-primary/10"
+                                : isPlayed
+                                  ? "border-border/45 bg-background/55 hover:bg-accent/30"
+                                  : "border-border/60 bg-background/80 hover:bg-accent/40",
+                            )}
+                            onClick={() => {
+                              if (isActive) return
+                              onPlaylistTrackAdvanced({
+                                fromIndex: playlistContext.currentIndex,
+                                toIndex: absoluteIndex,
+                                reason: "manual_pick",
+                                videoId: id,
+                              })
+                              const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
+                              setPlaylistContext(nextSession)
+                              setPlaylistSession(nextSession)
+                              navigateToVideo(id, absoluteIndex)
+                            }}
+                          >
+                            <div className="relative h-8 w-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                              {meta?.thumbnail ? <AuthenticatedImage src={meta.thumbnail} alt="" fill className="object-cover" /> : null}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={cn("line-clamp-1 text-[11px]", isActive ? "font-semibold" : "text-muted-foreground")}>
+                                {meta?.title || `Video ${absoluteIndex + 1}`}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {isActive ? "Now playing" : absoluteIndex === playlistContext.currentIndex + 1 ? "Up next" : ""}
+                              </p>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <Separator className="my-6" />
 
-                {(videoId || currentVideoId) && <CommentSection videoId={(videoId || currentVideoId) as string} />}
+                {(videoId || currentVideoId) && (
+                  <>
+                    <div className="hidden md:block">
+                      <CommentSection videoId={(videoId || currentVideoId) as string} />
+                    </div>
+                    <div className="md:hidden rounded-2xl border border-border bg-card p-4 shadow-sm">
+                      <button
+                        type="button"
+                        data-analytics-name="opened-comments"
+                        onClick={() => openCommentsSheet(false)}
+                        className="w-full text-left"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                            <h3 className="text-lg font-semibold">Comments</h3>
+                            {commentsCount > 0 && (
+                              <span className="rounded-full border border-border bg-background px-2 py-0.5 text-sm text-muted-foreground">
+                                {commentsCount}
+                              </span>
+                            )}
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {commentsCount > 0
+                            ? "Preview below. Tap to read the full thread."
+                            : "Start the conversation - add a comment below."}
+                        </p>
+
+                        {(commentsPreviewLoading || latestComment) && (
+                          <div className="mt-3 rounded-xl border border-border/60 bg-background p-3">
+                            {commentsPreviewLoading ? (
+                              <div className="space-y-2">
+                                <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+                                <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                              </div>
+                            ) : latestComment ? (
+                              <div className="flex items-start gap-3">
+                                <ProfilePicture
+                                  user={
+                                    commentsPreviewProfiles[latestComment.comment_by_username] || {
+                                      username: latestComment.comment_by_username,
+                                      name: latestComment.comment_by_name,
+                                      profile_picture: latestComment.profile_picture || latestComment.comment_by_avatar,
+                                    }
+                                  }
+                                  size="sm"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="truncate text-base font-semibold">{latestComment.comment_by_username}</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {formatDistanceToNow(new Date(latestComment.commented_at), { addSuffix: true })}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 line-clamp-2 text-base">{latestComment.comment}</p>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+                      </button>
+
+                      {user ? (
+                        <button
+                          type="button"
+                          data-analytics-name="opened-comments"
+                          onClick={() => openCommentsSheet(true)}
+                          className="mt-3 flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background p-3 text-left"
+                        >
+                          <ProfilePicture user={userData} size="sm" />
+                          <div className="flex-1 rounded-full border border-primary/30 px-4 py-2 text-sm text-muted-foreground">
+                            Add a comment...
+                          </div>
+                          <SendHorizontal className="h-5 w-5 shrink-0 text-primary" />
+                        </button>
+                      ) : (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => setGuestCommentPromptOpen(true)}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background p-3 text-left transition-colors",
+                              guestCommentPromptOpen && "border-border",
+                            )}
+                          >
+                            <ProfilePicture user={{ username: "U" }} size="sm" />
+                            <div className="flex-1 rounded-full border border-primary/30 px-4 py-2 text-sm text-muted-foreground">
+                              Add a comment...
+                            </div>
+                            <SendHorizontal className="h-5 w-5 shrink-0 text-primary" />
+                          </button>
+
+                          {guestCommentPromptOpen && (
+                            <div className="mt-2 overflow-hidden rounded-2xl border border-border/50 bg-muted/20 animate-in fade-in slide-in-from-top-1 duration-200">
+                              <div className="border-l-[3px] border-[#DA291C] px-3.5 py-3">
+                                <p className="text-sm font-semibold leading-snug text-foreground">Got something to say?</p>
+                                <p className="mt-0.5 text-sm leading-snug text-muted-foreground">
+                                  Sign up free to drop your take on the track.
+                                </p>
+                                <div className="mt-3 flex flex-col gap-2.5">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-fit rounded-lg border-foreground/20 bg-background/60 px-4 text-[11px] font-semibold uppercase tracking-[0.12em] hover:bg-background"
+                                    asChild
+                                  >
+                                    <Link
+                                      href={buildSignupUrl(pathname, searchParamsString)}
+                                      data-analytics-name="guest-comment-signup-link"
+                                    >
+                                      Sign up
+                                    </Link>
+                                  </Button>
+                                  <Link
+                                    href={buildLoginUrl(pathname, searchParamsString)}
+                                    data-analytics-name="guest-comment-login-link"
+                                    className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                                  >
+                                    Already have an account?
+                                    <span className="inline-flex items-center gap-0.5 font-medium text-foreground/85">
+                                      Log in
+                                      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                                    </span>
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <Drawer open={commentsSheetOpen} onOpenChange={handleCommentsSheetOpenChange}>
+                        <DrawerContent className="max-h-[90dvh]">
+                          <DrawerHandle className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted" />
+                          <DrawerHeader className="px-4 pb-2 pt-3">
+                            <DrawerTitle>Comments</DrawerTitle>
+                            <DrawerDescription>Read the thread and add your comment.</DrawerDescription>
+                          </DrawerHeader>
+                          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+                            <CommentSection
+                              videoId={(videoId || currentVideoId) as string}
+                              autoFocusInput={commentsSheetFocusInput}
+                            />
+                          </div>
+                        </DrawerContent>
+                      </Drawer>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
               {/* Sidebar / Related Videos - YouTube Style */}
-             <div className="space-y-2">
+             <div className="space-y-2 px-4 lg:px-0 pb-4 lg:pb-0">
+               {playlistContext && (
+                 <div className="mb-3 hidden rounded-xl border border-primary/25 bg-primary/5 p-2.5 md:mb-4 md:block md:p-3">
+                   <div className="flex items-center justify-between gap-2">
+                     <div>
+                       <p className="text-[10px] font-semibold uppercase tracking-wide text-primary/90 md:text-[11px]">Active playlist</p>
+                       <p className="line-clamp-1 text-xs font-semibold md:text-sm">{playlistContext.title}</p>
+                     </div>
+                     <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground md:text-xs">
+                       {playlistContext.currentIndex + 1}/{playlistContext.videoIds.length}
+                     </span>
+                   </div>
+                  <div className="mt-2 max-h-[14.5rem] space-y-1.5 overflow-y-auto pr-1 md:mt-2.5 md:max-h-[24rem]">
+                     {playlistContext.videoIds.map((id, absoluteIndex) => {
+                         const isActive = absoluteIndex === playlistContext.currentIndex
+                         const isPlayed = absoluteIndex < playlistContext.currentIndex
+                         const meta = playlistVideoMeta[id]
+                         return (
+                           <button
+                             key={id}
+                             type="button"
+                             data-analytics-name={PLAYLIST_QUEUE_CLICK}
+                             className={cn(
+                               "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors md:px-2 md:py-1.5",
+                               isActive
+                                 ? "border-primary/35 bg-primary/10"
+                                 : isPlayed
+                                   ? "border-border/45 bg-background/55 hover:bg-accent/30"
+                                   : "border-border/60 bg-background/80 hover:bg-accent/40",
+                             )}
+                             onClick={() => {
+                               if (isActive) return
+                               setPendingPlaybackContext({
+                                 videoId: id,
+                                 openSource: "playlist",
+                                 openUiName: PLAYLIST_QUEUE_CLICK,
+                                 navigateTrigger: "playlist_queue",
+                                 isAutoplay: true,
+                                 playlistId: playlistContext.playlistId,
+                                 playlistTrackIndex: absoluteIndex,
+                               })
+                               onPlaylistTrackAdvanced({
+                                 fromIndex: playlistContext.currentIndex,
+                                 toIndex: absoluteIndex,
+                                 reason: "manual_pick",
+                                 videoId: id,
+                               })
+                               const nextSession = { ...playlistContext, currentIndex: absoluteIndex }
+                               setPlaylistContext(nextSession)
+                               setPlaylistSession(nextSession)
+                               navigateToVideo(id, absoluteIndex)
+                             }}
+                           >
+                             <div className="relative h-8 w-12 shrink-0 overflow-hidden rounded-md bg-muted md:h-10 md:w-16">
+                               {meta?.thumbnail ? (
+                                 <AuthenticatedImage src={meta.thumbnail} alt="" fill className="object-cover" />
+                               ) : null}
+                             </div>
+                             <div className="min-w-0 flex-1">
+                               <p className={cn("line-clamp-1 text-[11px] md:text-xs", isActive ? "font-semibold" : "text-muted-foreground")}>
+                                 {meta?.title || `Video ${absoluteIndex + 1}`}
+                               </p>
+                              <p className="text-[10px] text-muted-foreground md:text-[11px]">
+                                {isActive ? "Now playing" : absoluteIndex === playlistContext.currentIndex + 1 ? "Up next" : ""}
+                              </p>
+                             </div>
+                           </button>
+                         )
+                       })}
+                   </div>
+                 </div>
+               )}
                <h3 className="font-semibold text-sm mb-3 px-1">Up Next</h3>
+               {!user && watchPassiveNudge === "rec_ready" && canShowPassiveNudge("rec_ready") ? (
+                 <GuestUpNextNudge pickCount={sidebarSuggestedVideos.length} className="mx-1" />
+               ) : null}
                <div className={cn("flex flex-col gap-1 transition-opacity duration-500", (isRelatedLoading && shouldShowRelatedSkeleton) ? "opacity-100" : (isRelatedLoading ? "opacity-60" : "opacity-100"))}>
                  {sidebarSuggestedVideos.length > 0 ? (
                    sidebarSuggestedVideos.map((v) => (
-                     <CompactVideoCard key={v.videoId || v.video_id} video={v} />
+                    <CompactVideoCard
+                      key={v.videoId || v.video_id}
+                      video={v}
+                      hideTimestamp
+                      openVideoUiName={UP_NEXT_SIDEBAR_CLICK}
+                    />
                    ))
                  ) : (
                    shouldShowRelatedSkeleton ? <div className="space-y-4">
@@ -1147,20 +2415,35 @@ export default function WatchPage() {
           </div>
         </div>
       
-      {currentVideo && (
-        <DeleteVideoDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          videoId={videoId}
-          videoTitle={currentVideo.videoTitle || currentVideo.video_title}
-          onDeleted={handleVideoDeleted}
-        />
-      )}
       <AuthDialog
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
-        title="Sign in to follow creators"
-        description="Create an account or sign in to follow creators and stay updated with their latest videos."
+        onDismiss={handleAuthDialogDismiss}
+        title={AUTH_DIALOG_COPY[authDialogCopyKey].title}
+        description={AUTH_DIALOG_COPY[authDialogCopyKey].description}
+        subdescription={
+          authDialogCopyKey === "like" ? AUTH_DIALOG_COPY.like.subdescription : undefined
+        }
+        signupLabel={AUTH_DIALOG_COPY[authDialogCopyKey].signupLabel}
+        signinLabel={AUTH_DIALOG_COPY[authDialogCopyKey].signinLabel}
+        conversionTrigger={
+          authDialogCopyKey === "like"
+            ? "like_attempt"
+            : authDialogCopyKey === "follow"
+              ? "follow_attempt"
+              : "playlist"
+        }
+        artistUsername={
+          authDialogCopyKey === "follow"
+            ? video?.userUsername || video?.user_username
+            : undefined
+        }
+        artistDisplayName={
+          authDialogCopyKey === "follow"
+            ? videoCreator?.name || video?.userName || video?.user_name
+            : undefined
+        }
+        artistUser={authDialogCopyKey === "follow" ? videoCreator : undefined}
       />
       <ShareVideoDialog
         open={shareDialogOpen}
@@ -1174,6 +2457,17 @@ export default function WatchPage() {
         }
         title={currentVideo?.videoTitle || currentVideo?.video_title || "Video"}
       />
+      {canReportVideo && currentVideo && (
+        <ContentReportDialog
+          open={reportDialogOpen}
+          onOpenChange={setReportDialogOpen}
+          reportType="video"
+          targetId={reportVideoId}
+          targetType="video"
+          metadata={buildVideoReportMetadata(currentVideo as Record<string, unknown>)}
+          contextLabel="Report video"
+        />
+      )}
     </>
   )
 }

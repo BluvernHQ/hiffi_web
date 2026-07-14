@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
+import { requestHomeFullFeed } from "@/lib/mood-session"
 
 /**
  * Persistent app shell (navbar + sidebar + main) for all main routes.
@@ -12,10 +13,28 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname()
   const router = useRouter()
 
-  const currentFilter = pathname === "/following" ? ("following" as const) : ("all" as const)
+  const currentFilter =
+    pathname === "/following"
+      ? ("following" as const)
+      : pathname === "/history"
+        ? ("history" as const)
+      : pathname === "/liked"
+        ? ("liked" as const)
+        : ("all" as const)
 
-  const onFilterChange = (filter: "all" | "following") => {
-    router.push(filter === "following" ? "/following" : "/")
+  const onFilterChange = (filter: "all" | "following" | "liked" | "history") => {
+    if (filter === "all") {
+      requestHomeFullFeed()
+    }
+    router.push(
+      filter === "following"
+        ? "/following"
+        : filter === "liked"
+          ? "/liked"
+          : filter === "history"
+            ? "/history"
+            : "/",
+    )
   }
 
   if (pathname === "/about") {

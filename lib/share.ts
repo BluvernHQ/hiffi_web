@@ -6,7 +6,7 @@
 export type ShareResult =
   | { success: true; method: "share" }
   | { success: true; method: "clipboard" }
-  | { success: false }
+  | { success: false; cancelled?: boolean }
 
 export interface ShareOptions {
   title: string
@@ -41,7 +41,8 @@ export async function shareUrl(options: ShareOptions): Promise<ShareResult> {
     } catch (err: unknown) {
       const name = err && typeof err === "object" && "name" in err ? (err as { name: string }).name : ""
       if (name === "AbortError") {
-        return { success: false }
+        // User dismissed the native share sheet: not an actual error.
+        return { success: false, cancelled: true }
       }
     }
   }

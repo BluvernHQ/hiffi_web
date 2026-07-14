@@ -187,3 +187,63 @@ export const PROCESSING_VIDEO_TOAST = {
   title: "Still processing",
   description: "This video will be playable when processing finishes.",
 } as const
+
+/** Minimum view count before showing publicly in the UI. */
+export const MIN_PUBLIC_VIEW_COUNT = 10_000
+
+/** Minimum follower/following count before showing publicly in the UI. */
+export const MIN_PUBLIC_SOCIAL_COUNT = 10_000
+
+export function getVideoViewCount(
+  video: { videoViews?: number; video_views?: number } | null | undefined,
+): number {
+  return video?.videoViews ?? video?.video_views ?? 0
+}
+
+export function shouldShowVideoViewCount(viewCount: number): boolean {
+  return viewCount >= MIN_PUBLIC_VIEW_COUNT
+}
+
+export function getProfileFollowerCount(
+  user: {
+    followers?: number
+    followers_count?: number
+    followersCount?: number
+    user?: { followers?: number; followers_count?: number }
+  } | null | undefined,
+): number {
+  const count =
+    user?.followers ??
+    user?.followers_count ??
+    user?.followersCount ??
+    user?.user?.followers ??
+    user?.user?.followers_count ??
+    0
+  return typeof count === "number" && !Number.isNaN(count) ? count : 0
+}
+
+export function getProfileFollowingCount(
+  user: {
+    following?: number
+    following_count?: number
+    followingCount?: number
+    user?: { following?: number; following_count?: number }
+  } | null | undefined,
+): number {
+  const count =
+    user?.following ??
+    user?.following_count ??
+    user?.followingCount ??
+    user?.user?.following ??
+    user?.user?.following_count ??
+    0
+  return typeof count === "number" && !Number.isNaN(count) ? count : 0
+}
+
+export function shouldShowPublicFollowerCount(count: number): boolean {
+  return count >= MIN_PUBLIC_SOCIAL_COUNT
+}
+
+export function shouldShowPublicFollowingCount(count: number): boolean {
+  return count >= MIN_PUBLIC_SOCIAL_COUNT
+}

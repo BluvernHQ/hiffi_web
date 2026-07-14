@@ -5,11 +5,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, ChevronLeft, ChevronRight, Trash2, Filter } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { adminApiClient } from "@/lib/admin-api-client"
 import { getProfilePictureUrl, getColorFromName, getAvatarLetter } from "@/lib/utils"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import {
   Dialog,
   DialogContent,
@@ -38,6 +40,7 @@ export function AdminRepliesTable() {
   const [videoNames, setVideoNames] = useState<Record<string, string>>({})
   const [loadingDetails, setLoadingDetails] = useState(false)
   const { toast } = useToast()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const limit = 20
 
   // Load collapsed state from localStorage on mount (shared across all admin pages)
@@ -66,7 +69,7 @@ export function AdminRepliesTable() {
       await Promise.all(
         commentIds.map(async (commentId) => {
           try {
-            const commentResponse = await apiClient.adminListComments({ 
+            const commentResponse = await adminApiClient.adminListComments({ 
               filter: commentId,
               limit: 1 
             })
@@ -119,7 +122,7 @@ export function AdminRepliesTable() {
       await Promise.all(
         videoIds.map(async (videoId) => {
           try {
-            const videoResponse = await apiClient.adminListVideos({ 
+            const videoResponse = await adminApiClient.adminListVideos({ 
               video_id: videoId, 
               limit: 1 
             })
@@ -145,12 +148,19 @@ export function AdminRepliesTable() {
   }
 
   const fetchReplies = async () => {
+    if (guardOfflineBeforeFetch()) {
+      setReplies([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
+      clearNetworkError()
       const offset = (page - 1) * limit
       const params: any = { limit, offset, filter: filter || undefined }
       
-      const response = await apiClient.adminListReplies(params)
+      const response = await adminApiClient.adminListReplies(params)
       let repliesData = response.replies || []
       
       // Client-side sorting
@@ -188,11 +198,11 @@ export function AdminRepliesTable() {
         await fetchCommentDetails(commentsToFetch)
       }
     } catch (error) {
-      console.error("[admin] Failed to fetch replies:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch replies",
-        variant: "destructive",
+      setReplies([])
+      setTotal(0)
+      handleFetchError(error, {
+        genericMessage: "Failed to fetch replies",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setLoading(false)
@@ -209,6 +219,18 @@ export function AdminRepliesTable() {
     setPage(1)
   }
 
+  /** Click @username in the table to set the search filter (same as sidebar / quick search). */
+  const applyUserFilter = (username: string) => {
+    const trimmed = username.trim()
+    if (!trimmed) return
+    setFilter(trimmed)
+    setPage(1)
+    toast({
+      title: "Filter by user",
+      description: `Search is set to “${trimmed}” (matches username, reply text, or comment).`,
+    })
+  }
+
   const totalPages = Math.ceil(total / limit)
 
   const handleDeleteClick = (reply: any) => {
@@ -223,7 +245,7 @@ export function AdminRepliesTable() {
 
     try {
       setDeletingReplyId(replyId)
-      await apiClient.deleteReplyByReplyId(replyId)
+      await adminApiClient.deleteReplyByReplyId(replyId)
       
       toast({
         title: "Success",
@@ -251,6 +273,18 @@ export function AdminRepliesTable() {
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
+
+  if (networkError && replies.length === 0) {
+    return (
+      <AdminOfflineState
+        message={networkError}
+        onRetry={() => {
+          clearNetworkError()
+          void fetchReplies()
+        }}
+      />
     )
   }
 
@@ -376,12 +410,25 @@ export function AdminRepliesTable() {
                           </Avatar>
                           <div>
                             {username ? (
-                              <Link
-                                href={`/profile/${username}`}
-                                className="text-primary hover:underline font-medium"
-                              >
-                                @{username}
-                              </Link>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => applyUserFilter(String(username))}
+                                  className="text-primary hover:text-primary/80 hover:underline font-medium text-left"
+                                  title="Filter replies by this user"
+                                >
+                                  @{username}
+                                </button>
+                                <Link
+                                  href={`/profile/${encodeURIComponent(username)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                                  title="Open profile in new tab"
+                                >
+                                  Profile
+                                </Link>
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">Unknown</span>
                             )}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -98,10 +98,33 @@ export function ShareVideoDialog({
   const { toast } = useToast()
   const [copied, setCopied] = useState(false)
 
+  // Same Radix DropdownMenu→Dialog pointer-events cleanup as DeleteVideoDialog
+  useEffect(() => {
+    if (open) return
+    const restore = () => {
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+      document.body.removeAttribute("data-scroll-locked")
+    }
+    restore()
+    const timer = setTimeout(restore, 300)
+    return () => clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      document.body.style.removeProperty("pointer-events")
+      document.body.style.removeProperty("overflow")
+      document.body.removeAttribute("data-scroll-locked")
+    }
+  }, [])
+
   const shareUrlWithTime =
     startAtSeconds != null && startAtSeconds > 0
       ? `${url}${url.includes("?") ? "&" : "?"}t=${Math.round(startAtSeconds)}`
       : url
+  const canNativeShare =
+    typeof navigator !== "undefined" && typeof (navigator as unknown as { share?: unknown }).share === "function"
 
   const handleCopy = async () => {
     try {
@@ -179,7 +202,7 @@ export function ShareVideoDialog({
                 </a>
               ))}
               {/* Native share (opens system sheet on mobile) */}
-              {typeof navigator !== "undefined" && navigator.share && (
+              {canNativeShare && (
                 <button
                   type="button"
                   onClick={handleNativeShare}

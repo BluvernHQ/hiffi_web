@@ -72,6 +72,7 @@ export function GlobalPersistentPlayer() {
           <Button 
             size="icon" 
             variant="secondary" 
+            data-analytics-name="global-player-expand-button"
             className="h-8 w-8 rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background" 
             onClick={handleExpand}
           >
@@ -90,11 +91,15 @@ export function GlobalPersistentPlayer() {
 
       <div className="w-full h-full">
         <VideoPlayer 
-          videoUrl={activeVideo.videoUrl || activeVideo.video_url} 
+          videoUrl={activeVideo.videoUrl || activeVideo.video_url}
+          videoId={activeVideo.videoId || activeVideo.video_id}
           poster={activeVideo.videoThumbnail || activeVideo.video_thumbnail}
           autoPlay={true}
           isMini={mode === 'mini'}
           suggestedVideos={suggestedVideos}
+          availableProfiles={activeVideo.profiles}
+          originalProfile={activeVideo.original_profile || activeVideo.originalProfile}
+          storageVideoPath={activeVideo.storage_video_url}
           onVideoEnd={() => {
             if (typeof window !== 'undefined' && (window as any).hiffiOnVideoEnd) {
               (window as any).hiffiOnVideoEnd()

@@ -1,12 +1,8 @@
 /**
- * Centralized configuration for API and object storage base URLs
- * Switch between environments using NEXT_PUBLIC_ENV environment variable
- * 
- * Usage:
- *   - Set NEXT_PUBLIC_ENV=dev for development
- *   - Set NEXT_PUBLIC_ENV=beta for beta/staging
- *   - Set NEXT_PUBLIC_ENV=prod for production
- *   - Defaults to 'beta' if not set
+ * Centralized configuration for API and object storage base URLs.
+ * Switch environments with NEXT_PUBLIC_ENV in `.env.local` (dev | beta | prod).
+ *
+ * After changing NEXT_PUBLIC_ENV, restart `npm run dev` so Next.js reloads env vars.
  */
 
 export type Environment = 'dev' | 'beta' | 'prod'
@@ -16,73 +12,55 @@ interface EnvironmentConfig {
   workersBaseUrl: string
 }
 
-const environments: Record<Environment, EnvironmentConfig> = {
+const environmentDefaults: Record<Environment, EnvironmentConfig> = {
   dev: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://prod.hiffi.workers.dev',
+    apiBaseUrl: 'https://api.hiffi.com',
+    workersBaseUrl: 'https://prod.hiffi.workers.dev',
   },
   beta: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.dev.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://dev.hiffi.workers.dev',
+    apiBaseUrl: 'https://api.dev.hiffi.com',
+    workersBaseUrl: 'https://dev.hiffi.workers.dev',
   },
   prod: {
-    apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.hiffi.com',
-    workersBaseUrl: process.env.NEXT_PUBLIC_WORKERS_URL || 'https://prod.hiffi.workers.dev',
+    apiBaseUrl: 'https://api.hiffi.com',
+    workersBaseUrl: 'https://prod.hiffi.workers.dev',
   },
 }
 
-/**
- * Get the current environment from NEXT_PUBLIC_ENV or default to 'beta'
- */
-function getCurrentEnvironment(): Environment {
+/** Read env on each call — avoids stale values cached at module load. */
+export function getEnvironment(): Environment {
   const env = (process.env.NEXT_PUBLIC_ENV || 'beta').toLowerCase() as Environment
-  if (env in environments) {
+  if (env in environmentDefaults) {
     return env
   }
   console.warn(`[config] Invalid environment "${env}", defaulting to "beta"`)
   return 'beta'
 }
 
-const currentEnv = getCurrentEnvironment()
-const config = environments[currentEnv]
-
-/**
- * API Base URL for REST API endpoints
- * Can be overridden with NEXT_PUBLIC_API_URL environment variable
- */
-export const API_BASE_URL = config.apiBaseUrl
-
-/**
- * Workers Base URL for object storage (videos, thumbnails, profile pictures)
- * Can be overridden with NEXT_PUBLIC_WORKERS_URL environment variable
- */
-export const WORKERS_BASE_URL = config.workersBaseUrl
-
-/**
- * Get the current environment name
- */
-export function getEnvironment(): Environment {
-  return currentEnv
+export function getApiBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_API_URL || environmentDefaults[getEnvironment()].apiBaseUrl
 }
 
-/**
- * Check if we're in development mode
- */
+export function getWorkersBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_WORKERS_URL || environmentDefaults[getEnvironment()].workersBaseUrl
+}
+
+/** @deprecated Use getApiBaseUrl() — evaluated once at import time in client bundles. */
+export const API_BASE_URL = getApiBaseUrl()
+
+/** @deprecated Use getWorkersBaseUrl() — evaluated once at import time in client bundles. */
+export const WORKERS_BASE_URL = getWorkersBaseUrl()
+
 export function isDevelopment(): boolean {
-  return currentEnv === 'dev'
+  return getEnvironment() === 'dev'
 }
 
-/**
- * Check if we're in production mode
- */
 export function isProduction(): boolean {
-  return currentEnv === 'prod'
+  return getEnvironment() === 'prod'
 }
 
-// Log configuration on load (only in development)
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log('[config] Environment:', currentEnv)
-  console.log('[config] API Base URL:', API_BASE_URL)
-  console.log('[config] Workers Base URL:', WORKERS_BASE_URL)
+  console.log('[config] Environment:', getEnvironment())
+  console.log('[config] API Base URL:', getApiBaseUrl())
+  console.log('[config] Workers Base URL:', getWorkersBaseUrl())
 }
-

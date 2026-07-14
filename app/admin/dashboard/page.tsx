@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -14,73 +14,94 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Loader2, Shield, LogOut, Menu } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
+import { useRequireAdmin } from "@/hooks/use-require-admin"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
+import { canAdminAccessSection, getFirstAllowedSection } from "@/lib/auth"
 import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
+import { AdminReferralsTable } from "@/components/admin/referrals-table"
+import { AdminFollowersTable } from "@/components/admin/followers-table"
+import { AdminSearchesTable } from "@/components/admin/searches-table"
+import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
+import { AdminCollaborationInquiriesTable } from "@/components/admin/collaboration-inquiries-table"
+import { AdminFlagsTable } from "@/components/admin/flags-table"
+import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
+import { AnalyticsJourneysPanel } from "@/components/admin/analytics-journeys-panel"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-requests-table"
+import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
+import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
+import { AdminsPanel } from "@/components/admin/admins-panel"
+import { InventoryPanel } from "@/components/admin/inventory-panel"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 function AdminDashboardContent() {
-  const { user, userData, loading: authLoading, logout } = useAuth()
+  const { admin, logout } = useAdminAuth()
+  const { verified: isAuthVerified, authLoading } = useRequireAdmin("/admin")
+  const { can } = useAdminPermissions()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [isAuthVerified, setIsAuthVerified] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  
-  const section = searchParams.get("section") || "overview"
 
-  // Redirect to overview if no section is specified
-  useEffect(() => {
-    if (!searchParams.get("section") && !authLoading) {
-      router.replace("/admin/dashboard?section=overview")
-    }
-  }, [searchParams, router, authLoading])
+  const section = searchParams.get("flagId")
+    ? "flags"
+    : searchParams.get("playlistId")
+      ? "curated_playlists"
+      : searchParams.get("sessionId")
+        ? "journeys"
+        : searchParams.get("section") || "overview"
+  const flagId = searchParams.get("flagId")
+  const playlistId = searchParams.get("playlistId")
+  const fallbackSection = admin ? getFirstAllowedSection(admin) : "overview"
+  const normalizedSection = section === "activity" ? "journeys" : section
+  const activeSection = canAdminAccessSection(admin, normalizedSection) ? normalizedSection : fallbackSection
 
-  // Verify auth in background - don't block UI rendering
   useEffect(() => {
-    if (!authLoading) {
-      // If no user data, wait a moment for state to update (might be a race condition after login)
-      if (!user || !userData) {
-        // Give it a moment for state to propagate after redirect
-        const timeoutId = setTimeout(() => {
-          if (!user || !userData) {
-            console.log("[Admin Dashboard] No user data after timeout, redirecting to admin login")
-            router.replace("/admin")
-          } else {
-            // User data appeared, verify role
-            const userRole = String(userData.role || "").toLowerCase().trim()
-            if (userRole !== "admin") {
-              console.log("[Admin Dashboard] User is not admin, redirecting to admin login")
-              router.replace("/admin")
-            } else {
-              setIsAuthVerified(true)
-            }
-          }
-        }, 500) // Reduced timeout since we're showing UI immediately
-        return () => clearTimeout(timeoutId)
-      } else {
-        // User data is available, verify role immediately
-        const userRole = String(userData.role || "").toLowerCase().trim()
-        if (userRole !== "admin") {
-          console.log("[Admin Dashboard] User is not admin, redirecting to admin login")
-          router.replace("/admin")
-        } else {
-          setIsAuthVerified(true)
-        }
-      }
+    if (section === "activity") {
+      const next = new URLSearchParams(searchParams.toString())
+      next.set("section", "journeys")
+      router.replace(`/admin/dashboard?${next.toString()}`)
     }
-  }, [user, userData, authLoading, router])
+  }, [section, searchParams, router])
+
+  useEffect(() => {
+    if (
+      !searchParams.get("section") &&
+      !searchParams.get("flagId") &&
+      !searchParams.get("playlistId") &&
+      !searchParams.get("sessionId") &&
+      !authLoading &&
+      isAuthVerified &&
+      admin
+    ) {
+      router.replace(`/admin/dashboard?section=${getFirstAllowedSection(admin)}`)
+    }
+  }, [searchParams, router, authLoading, isAuthVerified, admin])
+
+  // Redirect if user lacks permission for the requested section
+  useEffect(() => {
+    if (!isAuthVerified || authLoading) return
+    if (section === "activity") return
+    if (normalizedSection !== activeSection) {
+      router.replace(`/admin/dashboard?section=${activeSection}`)
+    }
+  }, [section, normalizedSection, activeSection, isAuthVerified, authLoading, router])
+
+  const homeSection = admin ? getFirstAllowedSection(admin) : "overview"
+
+  const showContent = isAuthVerified
 
   const handleLogoutClick = () => {
     setLogoutDialogOpen(true)
@@ -144,35 +165,31 @@ function AdminDashboardContent() {
     }
   }
 
-  // Show dashboard immediately with shimmer loaders while auth verifies
-  // Only redirect if auth fails after verification
-  const showContent = isAuthVerified || (!authLoading && user && userData)
-
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center">
           <div className="flex items-center gap-2 sm:gap-4 md:gap-6 px-3 sm:px-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="lg:hidden h-9 w-9" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden h-9 w-9"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label="Toggle sidebar"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="hidden lg:flex h-9 w-9" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden lg:flex h-9 w-9"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/admin/dashboard?section=overview" className="flex items-center gap-2">
+            <Link href={`/admin/dashboard?section=${homeSection}`} className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                 <Shield className="h-4 w-4 text-primary-foreground" />
               </div>
@@ -181,8 +198,15 @@ function AdminDashboardContent() {
             </div>
 
           <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4 px-3 sm:px-4">
-            <div className="hidden md:block text-sm text-muted-foreground truncate max-w-[200px]">
-                {showContent && userData ? (userData?.name || userData?.username || "Administrator") : (
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground truncate max-w-[280px]">
+                {showContent && admin ? (
+                  <>
+                    <span className="truncate">{admin.username}</span>
+                    <Badge variant="secondary" className="shrink-0 text-xs capitalize">
+                      {admin.role.replace("_", " ")}
+                    </Badge>
+                  </>
+                ) : (
                   <div className="h-4 w-24 bg-muted rounded animate-shimmer" />
                 )}
           </div>
@@ -202,7 +226,6 @@ function AdminDashboardContent() {
 
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar */}
         <AdminSidebar 
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
@@ -219,7 +242,7 @@ function AdminDashboardContent() {
         )}>
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-full mx-auto">
-              {section === "overview" && (
+              {activeSection === "overview" && can("admin:overview") && (
                 <div className="space-y-4 sm:space-y-6">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -245,7 +268,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "users" && (
+              {activeSection === "users" && can("admin:users") && (
                 <div className="h-full flex flex-col min-h-0">
                   <div className="mb-4 shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
@@ -259,7 +282,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "videos" && (
+              {activeSection === "videos" && can("admin:videos") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Videos</h1>
@@ -271,7 +294,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "comments" && (
+              {activeSection === "comments" && can("admin:comments") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Comments</h1>
@@ -283,7 +306,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {section === "replies" && (
+              {activeSection === "replies" && can("admin:replies") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Replies</h1>
@@ -294,6 +317,174 @@ function AdminDashboardContent() {
                   {showContent ? <AdminRepliesTable /> : <TableSkeleton />}
                 </div>
               )}
+
+              {activeSection === "flags" && can("admin:flags") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  {!flagId && (
+                    <div className="shrink-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Content reports</h1>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Review user-submitted flags and update status or resolution notes
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? (
+                      flagId ? (
+                        <AdminFlagDetail flagId={flagId} />
+                      ) : (
+                        <AdminFlagsTable />
+                      )
+                    ) : (
+                      <TableSkeleton />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "journeys" && can("admin:journeys") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      List sessions first (with IP/geo), then expand one session to see only its events
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AnalyticsJourneysPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "referrals" && can("admin:referrals") && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Referrals</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Track referral codes, referrers, and enrolled users
+                    </p>
+                  </div>
+                  {showContent ? <AdminReferralsTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {activeSection === "followers" && can("admin:followers") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Followers</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      View follower relationships between users
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminFollowersTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "searches" && can("admin:searches") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Recorded Searches</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Server-side search queries from ClickHouse analytics
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminSearchesTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "utm_polls" && can("admin:utm") && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">UTM campaigns</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Marketing landing parameters (raw events and grouped analysis)
+                    </p>
+                  </div>
+                  {showContent ? <AdminUtmPollsPanel /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {activeSection === "collaboration" && can("admin:collaboration") && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Collaboration inquiries</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Brand partnership submissions from the public collaboration form
+                    </p>
+                  </div>
+                  {showContent ? <AdminCollaborationInquiriesTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {activeSection === "migrations" && can("admin:migrations") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Migration Requests</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Review and manage creator content migration requests
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminMigrationRequestsTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "curated_playlists" && can("admin:curated") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  {!playlistId && (
+                    <div className="shrink-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Curated Playlists</h1>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Manage editorial playlists shown in the consumer app
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? (
+                      playlistId ? (
+                        <CuratedPlaylistDetail playlistId={playlistId} />
+                      ) : (
+                        <CuratedPlaylistsPanel />
+                      )
+                    ) : (
+                      <TableSkeleton />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "artist_inventory" && can("admin:inventory") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Artist Inventory</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Browse imported artist profiles, bulk upload CSV/Excel, and review ownership claims
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <InventoryPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "admins" && can("admin:admins") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Accounts</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Invite and manage dashboard administrators
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminsPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
       </main>
@@ -301,7 +492,10 @@ function AdminDashboardContent() {
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent overlayClassName="bg-black/35 backdrop-blur-sm">
+        <DialogContent
+          className="z-[100]"
+          overlayClassName="z-[100] bg-black/35 backdrop-blur-sm"
+        >
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>

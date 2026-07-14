@@ -1,0 +1,347 @@
+"use client"
+
+import { useMemo, useState, type ReactNode } from "react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
+import { CheckCircle2 } from "lucide-react"
+import {
+  submitCollaborationInquiry,
+  validateCollaborationInquiryForm,
+  type CollaborationFormFieldErrors,
+} from "@/lib/api/collaboration"
+import { COLLABORATION_FIELD_LIMITS } from "@/lib/types/collaboration-inquiry"
+
+const fieldClass =
+  "border-0 bg-muted/55 shadow-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:bg-muted/40"
+
+const labelClass = "text-[13px] font-medium text-foreground/85"
+
+const API_FIELD_TO_FORM: Record<string, string> = {
+  brand_name: "brandName",
+  contact_name: "contactName",
+  contact_email: "contactEmail",
+  brand_description: "brandDescription",
+  collaboration_goal: "collaborationGoal",
+  anything_else: "anythingElse",
+  website: "website",
+}
+
+function mapApiErrors(errors: CollaborationFormFieldErrors): Record<string, string> {
+  const mapped: Record<string, string> = {}
+  for (const [key, message] of Object.entries(errors)) {
+    if (!message) continue
+    if (key === "form") {
+      mapped.form = message
+      continue
+    }
+    mapped[API_FIELD_TO_FORM[key] ?? key] = message
+  }
+  return mapped
+}
+
+function CharCount({ value, max }: { value: string; max: number }) {
+  const count = [...value].length
+  return (
+    <p
+      className={cn(
+        "text-right text-[11px] tabular-nums text-muted-foreground",
+        count > max && "text-destructive",
+      )}
+    >
+      {count}/{max}
+    </p>
+  )
+}
+
+function SectionHeader({ number, title }: { number: number; title: string }) {
+  return (
+    <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+      Section {number} — {title}
+    </h2>
+  )
+}
+
+function FieldGroup({
+  id,
+  label,
+  required,
+  error,
+  children,
+}: {
+  id: string
+  label: string
+  required?: boolean
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="space-y-2.5">
+      <Label htmlFor={id} className={labelClass}>
+        {label}
+        {required ? <span className="text-primary"> *</span> : null}
+      </Label>
+      {children}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+    </div>
+  )
+}
+
+export function BrandCollaborationForm() {
+  const searchParams = useSearchParams()
+  const referredArtist = searchParams.get("artist")?.trim() ?? ""
+
+  const [brandName, setBrandName] = useState("")
+  const [website, setWebsite] = useState("")
+  const [contactName, setContactName] = useState("")
+  const [contactEmail, setContactEmail] = useState("")
+  const [brandDescription, setBrandDescription] = useState("")
+  const [collaborationGoal, setCollaborationGoal] = useState("")
+  const [anythingElse, setAnythingElse] = useState(
+    referredArtist ? `Interested in partnering with @${referredArtist.replace(/^@/, "")}.` : "",
+  )
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const artistNote = useMemo(() => {
+    if (!referredArtist) return null
+    return `@${referredArtist.replace(/^@/, "")}`
+  }, [referredArtist])
+
+  const clearError = (key: string) => {
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const buildAnythingElse = () => {
+    const base = anythingElse.trim()
+    if (!referredArtist) return base || undefined
+    const artistLine = `Interested in partnering with @${referredArtist.replace(/^@/, "")}.`
+    if (base.includes(artistLine)) return base || undefined
+    return base ? `${artistLine}\n\n${base}` : artistLine
+  }
+
+  const handleSubmit = async () => {
+    const form = {
+      brand_name: brandName,
+      website: website.trim() || undefined,
+      contact_name: contactName,
+      contact_email: contactEmail,
+      brand_description: brandDescription,
+      collaboration_goal: collaborationGoal,
+      anything_else: buildAnythingElse(),
+    }
+
+    const validationErrors = validateCollaborationInquiryForm(form)
+    const nextErrors = mapApiErrors(validationErrors)
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setIsSubmitting(true)
+    try {
+      await submitCollaborationInquiry(form)
+      setSubmitted(true)
+    } catch (error) {
+      setErrors({
+        form: error instanceof Error ? error.message : "Something went wrong. Please try again.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <section className="py-8 text-center sm:py-12">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-7 w-7" aria-hidden />
+        </div>
+        <h2 className="mt-5 text-xl font-semibold tracking-tight text-foreground">Request received</h2>
+        <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-muted-foreground">
+          Thanks for reaching out. The Hiffi partnerships team will reply to{" "}
+          <span className="font-medium text-foreground">{contactEmail.trim()}</span> within 3–5 business
+          days.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <div className="space-y-12 sm:space-y-14">
+      {artistNote ? (
+        <p className="rounded-lg border border-primary/15 bg-primary/[0.04] px-4 py-3.5 text-center text-[13px] text-muted-foreground">
+          You&apos;re exploring a partnership with{" "}
+          <span className="font-medium text-foreground">{artistNote}</span>. Share your goals below and
+          we&apos;ll follow up.
+        </p>
+      ) : null}
+
+      <section className="space-y-6">
+        <SectionHeader number={1} title="About your brand" />
+
+        <div className="space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FieldGroup id="brand-name" label="Brand name" required error={errors.brandName}>
+              <Input
+                id="brand-name"
+                value={brandName}
+                onChange={(e) => {
+                  setBrandName(e.target.value)
+                  clearError("brandName")
+                }}
+                placeholder="e.g. Acme Studio"
+                maxLength={COLLABORATION_FIELD_LIMITS.brand_name}
+                className={cn("h-11 rounded-lg", fieldClass)}
+              />
+            </FieldGroup>
+
+            <FieldGroup id="brand-website" label="Website" error={errors.website}>
+              <Input
+                id="brand-website"
+                value={website}
+                onChange={(e) => {
+                  setWebsite(e.target.value)
+                  clearError("website")
+                }}
+                placeholder="https://..."
+                autoComplete="url"
+                maxLength={COLLABORATION_FIELD_LIMITS.website}
+                className={cn("h-11 rounded-lg", fieldClass)}
+              />
+            </FieldGroup>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FieldGroup id="contact-name" label="Contact name" required error={errors.contactName}>
+              <Input
+                id="contact-name"
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value)
+                  clearError("contactName")
+                }}
+                placeholder="Full name"
+                autoComplete="name"
+                maxLength={COLLABORATION_FIELD_LIMITS.contact_name}
+                className={cn("h-11 rounded-lg", fieldClass)}
+              />
+            </FieldGroup>
+
+            <FieldGroup id="contact-email" label="Contact email" required error={errors.contactEmail}>
+              <Input
+                id="contact-email"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => {
+                  setContactEmail(e.target.value)
+                  clearError("contactEmail")
+                }}
+                placeholder="email@brand.com"
+                autoComplete="email"
+                maxLength={COLLABORATION_FIELD_LIMITS.contact_email}
+                className={cn("h-11 rounded-lg", fieldClass)}
+              />
+            </FieldGroup>
+          </div>
+
+          <FieldGroup
+            id="brand-description"
+            label="About your brand"
+            required
+            error={errors.brandDescription}
+          >
+            <Textarea
+              id="brand-description"
+              value={brandDescription}
+              onChange={(e) => {
+                setBrandDescription(e.target.value)
+                clearError("brandDescription")
+              }}
+              placeholder="Tell us about your brand's heritage and current focus..."
+              rows={5}
+              className={cn("min-h-[140px] resize-y rounded-lg", fieldClass)}
+            />
+            <CharCount value={brandDescription} max={COLLABORATION_FIELD_LIMITS.brand_description} />
+          </FieldGroup>
+        </div>
+      </section>
+
+      <section className="space-y-6 border-t border-border/40 pt-12 sm:pt-14">
+        <SectionHeader number={2} title="Tell us more" />
+
+        <div className="space-y-5">
+          <FieldGroup
+            id="collaboration-goal"
+            label="What are you looking for?"
+            required
+            error={errors.collaborationGoal}
+          >
+            <Textarea
+              id="collaboration-goal"
+              value={collaborationGoal}
+              onChange={(e) => {
+                setCollaborationGoal(e.target.value)
+                clearError("collaborationGoal")
+              }}
+              placeholder="What does success look like for this partnership?"
+              rows={5}
+              className={cn("min-h-[140px] resize-y rounded-lg", fieldClass)}
+            />
+            <CharCount value={collaborationGoal} max={COLLABORATION_FIELD_LIMITS.collaboration_goal} />
+          </FieldGroup>
+
+          <FieldGroup id="anything-else" label="Anything else?" error={errors.anythingElse}>
+            <Textarea
+              id="anything-else"
+              value={anythingElse}
+              onChange={(e) => {
+                setAnythingElse(e.target.value)
+                clearError("anythingElse")
+              }}
+              placeholder="Additional notes, specific artists of interest, or relevant links..."
+              rows={5}
+              className={cn("min-h-[140px] resize-y rounded-lg", fieldClass)}
+            />
+            <CharCount value={anythingElse} max={COLLABORATION_FIELD_LIMITS.anything_else} />
+          </FieldGroup>
+        </div>
+      </section>
+
+      <div className="border-t border-border/40 pt-10 sm:pt-12">
+        {errors.form ? <p className="mb-4 text-center text-sm text-destructive">{errors.form}</p> : null}
+
+        <Button
+          type="button"
+          size="lg"
+          className="h-12 w-full rounded-lg text-[15px] font-semibold shadow-none"
+          data-analytics-name="brand-collaboration-submit-button"
+          disabled={isSubmitting}
+          onClick={() => void handleSubmit()}
+        >
+          {isSubmitting ? "Submitting…" : "Submit collaboration request"}
+        </Button>
+
+        <p className="mt-5 text-center text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+          By submitting, you agree to Hiffi&apos;s{" "}
+          <Link href="/terms-of-use" className="underline-offset-4 hover:text-foreground hover:underline">
+            Partnership Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy-policy" className="underline-offset-4 hover:text-foreground hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </div>
+    </div>
+  )
+}
