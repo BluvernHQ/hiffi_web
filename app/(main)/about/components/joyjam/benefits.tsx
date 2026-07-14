@@ -6,7 +6,7 @@ import { BenefitsTagIcon } from "./benefits-tag-icon";
 import { useJoyJamSectionInit } from "./use-joyjam-section-init";
 
 const CREATOR_TAGS = ["Visibility", "Amplification", "Community", "Monetization"];
-const FAN_TAGS = ["Discovery", "Connection", "Culture"];
+const FAN_TAGS = ["Discovery", "Community", "Culture"];
 
 function BenefitTag({ label, variant }: { label: string; variant: "blue" | "orange" }) {
   const iconFirst = variant === "orange";
@@ -183,14 +183,14 @@ export default function JoyJamBenefits() {
                       <div className="values-card-content">
                         <div className="values-card-light s2" />
                         <div className="values-card-headline">
-                          <p className="headline-h5">Direct Artist-Fan Connections</p>
+                          <p className="headline-h5">Discover Artists Who Move Culture</p>
                         </div>
                         <div className="values-artist-wrapper">
                           <div className="values-artist">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={joyjamAsset("values-stock-artist-connection.jpg")}
-                              alt="Artists connecting with fans"
+                              alt="Fans discovering artists on Hiffi"
                               className="image-cover"
                             />
                             <div className="values-artist-info">
@@ -205,35 +205,26 @@ export default function JoyJamBenefits() {
                               src={joyjamAsset(
                                 "6821a59ae3bfe30071342525_f8dc020d86a7144c5e8ddd62470509bf_values-artist-tag-1.webp"
                               )}
-                              alt=""
+                              alt="Follow Lily Hayes"
                               className="image-contain"
                             />
                           </div>
                           <div className="values-widget s2">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={joyjamAsset(
-                                "6821a59ae3bfe30071342526_41b0f978da24d295ca87193c05fd1bde_values-artist-tag-2.webp"
-                              )}
-                              alt=""
-                              className="image-contain"
-                            />
+                            <div className="values-engagement-pill" aria-hidden>
+                              <span className="values-engagement-pill-heart">♥</span>
+                              <span>152k</span>
+                            </div>
                           </div>
                           <div className="values-widget s3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={joyjamAsset(
-                                "6821a59ae3bfe30071342519_1b8a83a73017d47924b4a6a510d2702b_values-artist-tag-3.webp"
-                              )}
-                              alt=""
-                              className="image-contain"
-                            />
+                            <div className="values-trending-chip" aria-hidden>
+                              Trending now
+                            </div>
                           </div>
                         </div>
                         <div className="values-card-description">
                           <p className="body-regular-s neutral-300">
-                            Music discovery should feel human. Hiffi focuses on meaningful connections between creators
-                            and listeners who genuinely care about the work.
+                            Follow rising talent, catch freestyles and drops in the feed, and stay close to the culture
+                            shaping today&apos;s sound.
                           </p>
                         </div>
                       </div>

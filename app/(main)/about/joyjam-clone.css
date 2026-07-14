@@ -3,6 +3,117 @@ html {
   font-size: 1vw;
 }
 
+/* Hiffi theme — remap JoyJam blue/orange accents to brand red */
+:root {
+  --jam--orange: #ed1c2f;
+  --jam--blue: #f14d5d;
+  --hiffi-red: #ed1c2f;
+  --hiffi-red-soft: #f14d5d;
+  --hiffi-red-deep: #c41828;
+}
+
+.benefits-tag.blue {
+  background-image: linear-gradient(132deg, var(--hiffi-red), var(--hiffi-red-soft)) !important;
+  color: #fff;
+}
+
+.benefits-tag.orange {
+  background-image: linear-gradient(132deg, var(--hiffi-red-deep), var(--hiffi-red)) !important;
+  color: #fff;
+}
+
+.fans-benefits-slide.s1 {
+  background-image: linear-gradient(140deg, var(--hiffi-red), var(--hiffi-red-soft)) !important;
+}
+
+.fans-benefits-slide.s2 {
+  background-image: linear-gradient(140deg, var(--hiffi-red-deep), var(--hiffi-red)) !important;
+}
+
+.cta-back-card.blue {
+  background-color: var(--hiffi-red-soft) !important;
+}
+
+.cta-back-card.orange {
+  background-color: var(--hiffi-red) !important;
+}
+
+.support-tag.blue,
+._w-tab-slider-tag.blue {
+  background-image: linear-gradient(var(--hiffi-red-soft), var(--hiffi-red)) !important;
+}
+
+.support-tag.orange,
+._w-tab-slider-tag.orange {
+  background-image: linear-gradient(var(--hiffi-red), var(--hiffi-red-deep)) !important;
+}
+
+.blue-span {
+  color: var(--hiffi-red) !important;
+}
+
+/* Values card overlays — Follow / engagement (no messaging) */
+.values-engagement-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgb(28 28 28 / 92%);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 0.35rem 1rem rgb(0 0 0 / 35%);
+}
+
+.values-engagement-pill-heart {
+  color: var(--hiffi-red, #ed1c2f);
+  font-size: 0.85rem;
+}
+
+.values-trending-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  background: linear-gradient(132deg, var(--hiffi-red, #ed1c2f), var(--hiffi-red-soft, #f14d5d));
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 0.4rem 1.1rem rgb(237 28 47 / 35%);
+}
+
+@media screen and (max-width: 991px) {
+  .values-engagement-pill {
+    font-size: 2.4rem;
+    padding: 1.4rem 2.2rem;
+    gap: 1rem;
+  }
+
+  .values-engagement-pill-heart {
+    font-size: 2.8rem;
+  }
+
+  .values-trending-chip {
+    font-size: 2.6rem;
+    padding: 1.6rem 2.8rem;
+  }
+}
+
+.fan-svg-tag.orange,
+.fan-svg-tag.blue {
+  background-image: linear-gradient(132deg, var(--hiffi-red), var(--hiffi-red-soft)) !important;
+}
+
 .image-cover {
   object-fit: cover;
   width: 100%;
@@ -813,6 +924,35 @@ footer.footer .footer-bg {
   touch-action: none;
   cursor: grab;
   user-select: none;
+}
+
+/* Reviews stack — show cards behind, not clipped */
+.container.reviews-s,
+.cs-slider-wrapper.reviews-s,
+.cs-slider.reviews-s {
+  overflow: visible !important;
+}
+
+.container.reviews-s {
+  padding-bottom: 14rem;
+}
+
+.cs-slide.reviews-s .reviews-slide-card {
+  box-shadow:
+    0 0.6rem 1.6rem rgb(0 0 0 / 18%),
+    0 0.15rem 0.4rem rgb(0 0 0 / 10%);
+}
+
+@media screen and (max-width: 991px) {
+  .container.reviews-s {
+    padding-bottom: 28rem;
+  }
+
+  .cs-slide.reviews-s .reviews-slide-card {
+    box-shadow:
+      0 2rem 4.8rem rgb(0 0 0 / 22%),
+      0 0.6rem 1.4rem rgb(0 0 0 / 12%);
+  }
 }
 
 .cs-slider.creators-s:active,

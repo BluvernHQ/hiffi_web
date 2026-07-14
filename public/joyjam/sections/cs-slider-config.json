@@ -19,9 +19,9 @@
   },
   {
     "id": "3",
-     "step": {
-      "min 0": { "x": -4, "y": -2.5, "rotate": -5, "scale": 1 },
-      "min 468": { "x": -4, "y": -5, "rotate": -5, "scale": 1 }
+    "step": {
+      "min 0": { "x": -7, "y": 6, "rotate": -4, "scale": 0.96 },
+      "min 468": { "x": -9, "y": 7, "rotate": -5, "scale": 0.95 }
     },
     "visible": 4
   }  
