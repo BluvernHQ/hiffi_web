@@ -41,6 +41,10 @@ import {
   adminUpdateContentFlag as flagsAdminUpdateContentFlag,
 } from "./api/flags"
 import {
+  adminListFeedback as feedbackAdminList,
+  adminGetFeedback as feedbackAdminGet,
+} from "./api/feedback"
+import {
   adminListMigrationRequests as migrationAdminList,
   adminGetMigrationRequest as migrationAdminGet,
   adminUpdateMigrationRequest as migrationAdminUpdate,
@@ -75,6 +79,11 @@ import type {
   ContentFlagsListResult,
   UpdateContentFlagInput,
 } from "./types/content-flag"
+import type {
+  AdminListFeedbackParams,
+  FeedbackListResult,
+  FeedbackSubmission,
+} from "./types/feedback"
 import {
   adminListCollaborationInquiries as collaborationAdminList,
 } from "./api/collaboration"
@@ -461,6 +470,14 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminUpdateContentFlag(flagId: string, body: UpdateContentFlagInput): Promise<ContentFlag> {
     return flagsAdminUpdateContentFlag(this, flagId, body)
+  }
+
+  async adminListFeedback(params?: AdminListFeedbackParams): Promise<FeedbackListResult> {
+    return feedbackAdminList(this, params)
+  }
+
+  async adminGetFeedback(feedbackId: string): Promise<FeedbackSubmission> {
+    return feedbackAdminGet(this, feedbackId)
   }
 
   async adminListCollaborationInquiries(

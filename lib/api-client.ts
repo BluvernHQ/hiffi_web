@@ -44,6 +44,16 @@ import {
   adminGetContentFlag as flagsAdminGetContentFlag,
   adminUpdateContentFlag as flagsAdminUpdateContentFlag,
 } from "@/lib/api/flags"
+import {
+  requestFeedbackScreenshotUpload as feedbackRequestScreenshotUpload,
+  uploadFeedbackScreenshot as feedbackUploadScreenshot,
+  submitFeedback as feedbackSubmit,
+} from "@/lib/api/feedback"
+import type {
+  ScreenshotUploadTarget,
+  SubmitFeedbackInput,
+  SubmitFeedbackResult,
+} from "@/lib/types/feedback"
 import type {
   AdminListContentFlagsParams,
   ContentFlag,
@@ -1570,6 +1580,21 @@ class ApiClient {
   // PATCH /admin/flags/{flagID} - Update status / resolution notes (admin)
   async adminUpdateContentFlag(flagId: string, body: UpdateContentFlagInput): Promise<ContentFlag> {
     return flagsAdminUpdateContentFlag(this, flagId, body)
+  }
+
+  // POST /feedback/screenshot/upload - Request a presigned screenshot upload URL
+  async requestFeedbackScreenshotUpload(): Promise<ScreenshotUploadTarget> {
+    return feedbackRequestScreenshotUpload(this)
+  }
+
+  // PUT {gateway_url} - Upload screenshot bytes directly to R2 (presigned)
+  async uploadFeedbackScreenshot(gatewayUrl: string, blob: Blob): Promise<void> {
+    return feedbackUploadScreenshot(gatewayUrl, blob)
+  }
+
+  // POST /feedback/ - Submit user feedback
+  async submitFeedback(body: SubmitFeedbackInput): Promise<SubmitFeedbackResult> {
+    return feedbackSubmit(this, body)
   }
 
   // GET /migration-requests/config - Public config (platforms + statuses)
