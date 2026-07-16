@@ -94,7 +94,9 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const router = useRouter()
   const { userData } = useAuth()
   const [videos, setVideos] = useState<any[]>(() => initialVideos)
-  const [loading, setLoading] = useState(false)
+  // Cold mount has no SSR videos now — start in loading so VideoGrid shows
+  // skeletons instead of the “No videos yet” empty state before fetch/restore.
+  const [loading, setLoading] = useState(() => initialVideos.length === 0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(initialVideos.length === VIDEOS_PER_PAGE)
   const [isFetching, setIsFetching] = useState(false)
@@ -792,13 +794,13 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         <FeedVideoPreviewProvider>
           <MoodFeedAnimated
             feedKey={activeMood ?? "all"}
-            loading={loading || loadingMore}
+            loading={loading || loadingMore || (!hydrated && videos.length === 0)}
             videoCount={videos.length}
             isMoodFeed={isMoodFeed}
           >
             <VideoGrid
               videos={videos}
-              loading={loading || loadingMore}
+              loading={loading || loadingMore || (!hydrated && videos.length === 0)}
               hasMore={hasMore}
               hideTimestamp
               metadataFontDmSans={isMoodFeed}
@@ -808,7 +810,11 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
               openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
               playlistNavigation={moodPlaylistNavigation}
               onLoadMore={loadMore}
-              suppressEmptyState={Boolean(feedError && videos.length === 0)}
+              suppressEmptyState={
+                Boolean(feedError && videos.length === 0) ||
+                !hydrated ||
+                (loading && videos.length === 0)
+              }
               emptyTitle={moodEmpty && isMoodFeed ? "No tracks yet" : undefined}
               onVideoDeleted={handleVideoDeleted}
             />
