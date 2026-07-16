@@ -28,6 +28,12 @@ import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import {
+  getCachedRelatedVideos,
+  getInstantRelatedFromHomeFeed,
+  getRelatedVideosOnce,
+  setCachedRelatedVideos,
+} from "@/lib/related-videos"
+import {
   getPlaylistSession,
   setPlaylistSession,
   type PlaylistVideoMeta,
@@ -126,50 +132,6 @@ async function getVideoResponseOnce(videoId: string, forceFresh = false) {
     })
 
   inFlightVideoResponse.set(videoId, request)
-  return request
-}
-
-const relatedVideosCache = new Map<string, any[]>()
-const inFlightRelatedVideos = new Map<string, Promise<any[]>>()
-const RELATED_FETCH_TIMEOUT_MS = 12000
-
-async function getRelatedVideosOnce(videoId: string) {
-  if (relatedVideosCache.has(videoId)) {
-    return relatedVideosCache.get(videoId) || []
-  }
-
-  const inFlight = inFlightRelatedVideos.get(videoId)
-  if (inFlight) {
-    return inFlight
-  }
-
-  const request = (async () => {
-    const seed = getSeed()
-    const videosResponse = await Promise.race([
-      apiClient.getVideoList({ offset: 0, limit: 50, seed }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Related videos request timed out")), RELATED_FETCH_TIMEOUT_MS),
-      ),
-    ])
-    const videosArray = videosResponse.videos || []
-    const filteredVideos = videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId)
-
-    const shuffled = [...filteredVideos]
-    for (let i: number = shuffled.length - 1; i > 0; i--) {
-      const j: number = Math.floor(Math.random() * (i + 1))
-      const temp = shuffled[i]
-      shuffled[i] = shuffled[j]
-      shuffled[j] = temp
-    }
-
-    const nextRelated = shuffled.slice(0, 12)
-    relatedVideosCache.set(videoId, nextRelated)
-    return nextRelated
-  })().finally(() => {
-    inFlightRelatedVideos.delete(videoId)
-  })
-
-  inFlightRelatedVideos.set(videoId, request)
   return request
 }
 
@@ -536,8 +498,14 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
     const persistedVideo = persistedWatchUiState?.video
     const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
-    if (!persistedId || persistedId !== routeVideoId) return []
-    return persistedWatchUiState?.relatedVideos ?? []
+    if (persistedId && persistedId === routeVideoId) {
+      const fromPersist = persistedWatchUiState?.relatedVideos ?? []
+      if (fromPersist.length > 0) return fromPersist
+    }
+    const fromCache = getCachedRelatedVideos(routeVideoId)
+    if (fromCache && fromCache.length > 0) return fromCache
+    // Opening from home: show feed neighbors immediately while the API refresh runs.
+    return getInstantRelatedFromHomeFeed(routeVideoId)
   })
   
   // Only show initial loading spinner if we don't have SSR seed or persisted context
@@ -1255,23 +1223,36 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     if (!currentVideoId || lastFetchedRelatedIdRef.current === currentVideoId) return
     const videoId = currentVideoId
 
+    // Warm cache from home-feed seed so later navigations hit memory.
+    if (relatedVideos.length > 0) {
+      setCachedRelatedVideos(videoId, relatedVideos)
+    }
+
     async function fetchRelated() {
-      const isInitialRelatedLoad = relatedVideos.length === 0
+      const hadInstantRelated = relatedVideos.length > 0
       latestRelatedRequestIdRef.current = videoId
       try {
-        if (isInitialRelatedLoad) {
+        // Only show skeleton when we have nothing to paint yet.
+        if (!hadInstantRelated) {
           setIsRelatedLoading(true)
         }
 
         debugLog("[hiffi] Fetching updated recommendations for:", videoId)
         const nextRelatedVideos = await getRelatedVideosOnce(videoId)
         if (latestRelatedRequestIdRef.current !== videoId) return
+        if (!nextRelatedVideos.length) {
+          // Keep instant home-feed seed if the API returned nothing.
+          if (hadInstantRelated) {
+            lastFetchedRelatedIdRef.current = videoId
+          }
+          return
+        }
 
-        if (isInitialRelatedLoad) {
+        if (!hadInstantRelated) {
           setRelatedVideos(nextRelatedVideos)
           lastFetchedRelatedIdRef.current = videoId
         } else {
-          // Defer recommendation list swap until the newly selected video is playable.
+          // Soft-replace: keep the instant list visible, then swap when fresh data arrives.
           if (pendingVideoIdRef.current === videoId) {
             setPendingVideo((pending) => {
               if (!pending || pending.videoId !== videoId) return pending
@@ -1280,8 +1261,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                 recommendations: nextRelatedVideos,
               }
             })
-          } else if (currentVideoIdRef.current === videoId) {
-            // Pending may already be committed; apply recommendations when they arrive.
+          } else if (currentVideoIdRef.current === videoId || !pendingVideoIdRef.current) {
             setRelatedVideos(nextRelatedVideos)
             lastFetchedRelatedIdRef.current = videoId
           }
@@ -1293,7 +1273,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           lastFetchedRelatedIdRef.current = null
         }
       } finally {
-        if (isInitialRelatedLoad) {
+        if (!hadInstantRelated) {
           setIsRelatedLoading(false)
         }
       }

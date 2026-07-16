@@ -17,6 +17,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 - Home feed scroll and loaded videos are restored when returning from watch (and other routes) instead of resetting to the top
 - Soft navigation back to home no longer shows a blocking “Loading…” state while the SSR feed refetch runs
 - Home scroll no longer gets overwritten when opening watch (shorter page was clamping `#main-content` and saving that lower value)
+- Home feed shows card skeletons while the first page loads instead of flashing “No videos yet”
+- Watch **Up Next** loads faster: smaller related fetch (16 vs 50), instant seed from the home feed when opening a video, and hover prefetch from feed cards
 - Home scroll is captured before the watch page zeroes the shared `#main-content` scroller (fixes Back restoring at top)
 
 ## [2.2.3] — 2026-07-14

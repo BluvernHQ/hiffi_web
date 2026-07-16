@@ -12,6 +12,7 @@ import {
   setPendingPlaybackContext,
 } from "@/lib/analytics/video-playback-context"
 import { UP_NEXT_SIDEBAR_CLICK } from "@/lib/analytics/video-analytics-names"
+import { prefetchRelatedVideos } from "@/lib/related-videos"
 import { AuthenticatedImage, VideoThumbnailPlaceholder } from "./authenticated-image"
 
 interface CompactVideoCardProps {
@@ -94,6 +95,9 @@ export function CompactVideoCard({
         prefetch={!isEncoding}
         data-analytics-name={openVideoUiName}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
+        onPointerEnter={() => {
+          if (!isEncoding && videoId) prefetchRelatedVideos(videoId)
+        }}
         onClick={(e) => {
           if (isEncoding) {
             e.preventDefault()

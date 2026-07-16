@@ -33,6 +33,7 @@ import {
   setPendingPlaybackContext,
 } from "@/lib/analytics/video-playback-context"
 import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
+import { prefetchRelatedVideos } from "@/lib/related-videos"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -352,6 +353,12 @@ export function VideoCard({
                 : "rounded-lg group-hover:rounded-xl group-hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)] group-hover:-translate-y-0.5",
             ].join(" ")}
             onClick={handleVideoOpen}
+            onPointerEnter={() => {
+              if (!isEncoding && videoId) prefetchRelatedVideos(videoId)
+            }}
+            onMouseDown={() => {
+              if (!isEncoding && videoId) prefetchRelatedVideos(videoId)
+            }}
             aria-disabled={isEncoding}
             tabIndex={isEncoding ? -1 : undefined}
           >
