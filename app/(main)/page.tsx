@@ -10,6 +10,8 @@ import { HomeFeedClient } from "./home-feed-client"
 // Always fetch fresh feed from the API (no static / ISR cache for this route).
 export const dynamic = "force-dynamic"
 
+const HOME_SEED = "hiffi_home_v1"
+
 const PAGE_TITLE = "Discover Hip-Hop & Rap — Music Videos from Independent Artists"
 const PAGE_DESCRIPTION =
   "Discover independent hip-hop and rap artists on Hiffi. Watch music videos, stream drill, trap, conscious rap, and boom bap — no algorithms, just creator-first content."
@@ -46,78 +48,81 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootPage() {
-  // Fetch first page server-side so crawlers & LLMs see real content, not "Loading..."
-  const seed = "hiffi_home_v1"
-  const initialVideos = await fetchHomeFeedInitial(10, seed)
-
-  // WebPage + ItemList @graph — ties the discover surface to WebSite/Organization for GEO / AI citations.
+function buildDiscoverGraph(initialVideos: Awaited<ReturnType<typeof fetchHomeFeedInitial>>) {
   const origin = getSiteOrigin()
-  const discoverGraph =
-    initialVideos.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "WebPage",
-              "@id": `${origin}/#discover-page`,
-              url: origin,
-              name: PAGE_TITLE,
-              description: PAGE_DESCRIPTION,
-              inLanguage: "en",
-              isPartOf: { "@id": `${origin}/#website` },
-              about: { "@id": `${origin}/#organization` },
-              mainEntity: { "@id": `${origin}/#discover-feed` },
-            },
-            {
-              "@type": "ItemList",
-              "@id": `${origin}/#discover-feed`,
-              name: "Hiffi Discover Feed",
-              description: "Latest hip-hop and rap music videos from independent artists on Hiffi — drill, trap, conscious rap, boom bap, and more.",
-              url: origin,
-              numberOfItems: initialVideos.length,
-              itemListElement: initialVideos.map((v, i) => ({
-                "@type": "ListItem",
-                position: i + 1,
-                url: absoluteUrl(`/watch/${encodeURIComponent(v.video_id ?? "")}`),
-                name: v.video_title ?? "Video",
-                image: v.video_thumbnail
-                  ? buildSeoImageProxyUrl(getThumbnailUrl(v.video_thumbnail)) || undefined
-                  : undefined,
-              })),
-            },
-          ],
-        }
-      : {
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "WebPage",
-              "@id": `${origin}/#discover-page`,
-              url: origin,
-              name: PAGE_TITLE,
-              description: PAGE_DESCRIPTION,
-              inLanguage: "en",
-              isPartOf: { "@id": `${origin}/#website` },
-              about: { "@id": `${origin}/#organization` },
-            },
-          ],
-        }
+  if (initialVideos.length === 0) {
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebPage",
+          "@id": `${origin}/#discover-page`,
+          url: origin,
+          name: PAGE_TITLE,
+          description: PAGE_DESCRIPTION,
+          inLanguage: "en",
+          isPartOf: { "@id": `${origin}/#website` },
+          about: { "@id": `${origin}/#organization` },
+        },
+      ],
+    }
+  }
 
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": `${origin}/#discover-page`,
+        url: origin,
+        name: PAGE_TITLE,
+        description: PAGE_DESCRIPTION,
+        inLanguage: "en",
+        isPartOf: { "@id": `${origin}/#website` },
+        about: { "@id": `${origin}/#organization` },
+        mainEntity: { "@id": `${origin}/#discover-feed` },
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${origin}/#discover-feed`,
+        name: "Hiffi Discover Feed",
+        description:
+          "Latest hip-hop and rap music videos from independent artists on Hiffi — drill, trap, conscious rap, boom bap, and more.",
+        url: origin,
+        numberOfItems: initialVideos.length,
+        itemListElement: initialVideos.map((v, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: absoluteUrl(`/watch/${encodeURIComponent(v.video_id ?? "")}`),
+          name: v.video_title ?? "Video",
+          image: v.video_thumbnail
+            ? buildSeoImageProxyUrl(getThumbnailUrl(v.video_thumbnail)) || undefined
+            : undefined,
+        })),
+      },
+    ],
+  }
+}
+
+/**
+ * Streams SSR feed + JSON-LD. Soft navigations (e.g. Back from watch) show the
+ * Suspense fallback immediately — a client feed that restores cached state —
+ * instead of a "Loading…" placeholder while this fetch runs.
+ */
+async function HomeFeedWithSsr() {
+  const initialVideos = await fetchHomeFeedInitial(10, HOME_SEED)
   return (
     <>
-      <JsonLd data={discoverGraph} />
-      <Suspense
-        fallback={
-          <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-muted-foreground text-sm">Loading…</div>
-            </div>
-          </div>
-        }
-      >
-        <HomeFeedClient initialVideos={initialVideos} seed={seed} />
-      </Suspense>
+      <JsonLd data={buildDiscoverGraph(initialVideos)} />
+      <HomeFeedClient initialVideos={initialVideos} seed={HOME_SEED} />
     </>
+  )
+}
+
+export default function RootPage() {
+  return (
+    <Suspense fallback={<HomeFeedClient initialVideos={[]} seed={HOME_SEED} />}>
+      <HomeFeedWithSsr />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
@@ -22,6 +22,15 @@ import {
   HOME_FEED_RESET_EVENT,
   setPersistedActiveMood,
 } from "@/lib/mood-session"
+import {
+  HOME_FEED_HARD_RELOAD_EVENT,
+  clearHomeFeedPersistedState,
+  clearHomeScrollPersistence,
+  consumeHomeHardReloadFlag,
+  loadHomeFeedPersistedState,
+  saveHomeFeedPersistedState,
+} from "@/lib/home-feed-session"
+import { resetSeed } from "@/lib/seed-manager"
 import { OPENED_VIDEO_FROM_MOOD } from "@/lib/analytics/mood-mix-analytics"
 import {
   onMoodMixStarted,
@@ -87,6 +96,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const [hasMore, setHasMore] = useState(initialVideos.length === VIDEOS_PER_PAGE)
   const [isFetching, setIsFetching] = useState(false)
   const [feedError, setFeedError] = useState<string | null>(null)
+  const [feedSeed, setFeedSeed] = useState(seed)
 
   const [activeMood, setActiveMood] = useState<string | null>(null)
   const [moodEmpty, setMoodEmpty] = useState(false)
@@ -108,6 +118,8 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const videosRef = useRef(videos)
   const hasMoreRef = useRef(hasMore)
   const activeMoodRef = useRef(activeMood)
+  const feedSeedRef = useRef(feedSeed)
+  const restoredFromSessionRef = useRef(false)
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
 
@@ -122,6 +134,10 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   useEffect(() => {
     activeMoodRef.current = activeMood
   }, [activeMood])
+
+  useEffect(() => {
+    feedSeedRef.current = feedSeed
+  }, [feedSeed])
 
   const restoreScrollPosition = useCallback(() => {
     if (scrollSnapshot.current === null) return
@@ -175,31 +191,6 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     [scheduleScrollRestore],
   )
 
-  // Hydrate picker + persisted mood on client
-  useEffect(() => {
-    const persisted = getPersistedActiveMood()
-    if (persisted && moodByQuery(persisted)) {
-      setActiveMood(persisted)
-      setPendingMoodQuery(persisted)
-      setPickerOpen(false)
-      allFeedCache.current = {
-        videos: initialVideos,
-        offset: initialVideos.length,
-        hasMore: initialVideos.length === VIDEOS_PER_PAGE,
-        scrollTop: 0,
-      }
-      setVideos([])
-      setLoading(true)
-      setHasMore(true)
-      void fetchMoodFeed(persisted, 0, true)
-    } else {
-      setPickerOpen(true)
-    }
-
-    setHydrated(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const fetchDefaultFeed = useCallback(
     async (currentOffset: number, isInitialLoad = false) => {
       if (isFetchingRef.current) return
@@ -224,7 +215,11 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         if (isInitialLoad) setLoading(true)
         else setLoadingMore(true)
 
-        const response = await apiClient.getVideoList({ offset: currentOffset, limit: VIDEOS_PER_PAGE, seed })
+        const response = await apiClient.getVideoList({
+          offset: currentOffset,
+          limit: VIDEOS_PER_PAGE,
+          seed: feedSeedRef.current,
+        })
         if (generation !== fetchGeneration.current) return
 
         const videosArray = response.videos || []
@@ -264,7 +259,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         }
       }
     },
-    [userData, seed, readMainScrollTop, writeCache, restoreScrollPosition],
+    [userData, writeCache, restoreScrollPosition],
   )
 
   const fetchMoodFeed = useCallback(
@@ -410,6 +405,32 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     setPendingMoodQuery(null)
   }, [])
 
+  const hardReloadHomeFeed = useCallback(() => {
+    consumeHomeHardReloadFlag()
+    const nextSeed = resetSeed()
+    setFeedSeed(nextSeed)
+    feedSeedRef.current = nextSeed
+    fetchGeneration.current += 1
+    isFetchingRef.current = false
+
+    setPersistedActiveMood(null)
+    setActiveMood(null)
+    setPendingMoodQuery(null)
+    setPickerOpen(true)
+    setMoodEmpty(false)
+    setFeedError(null)
+    clearHomeFeedPersistedState()
+    clearHomeScrollPersistence()
+    moodFeedCaches.current.clear()
+    allFeedCache.current = { videos: [], offset: 0, hasMore: true, scrollTop: 0 }
+
+    setVideos([])
+    setHasMore(true)
+    setLoading(true)
+    document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "auto" })
+    void fetchDefaultFeed(0, true)
+  }, [fetchDefaultFeed])
+
   const switchToFullFeed = useCallback(() => {
     if (activeMoodRef.current !== null) {
       onPlaylistSessionEnded("mood_dismissed")
@@ -436,20 +457,127 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     }
 
     document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "smooth" })
-  }, [applyCacheToUi, snapshotCurrentFeed, writeCache, readCache, restoreMoodMixUi])
+  }, [applyCacheToUi, snapshotCurrentFeed, writeCache, readCache, restoreMoodMixUi, fetchDefaultFeed])
 
   const handleShowAll = () => {
     switchToFullFeed()
   }
 
+  // Hydrate from session (back-nav), hard-reload flag, or SSR + mood
+  useLayoutEffect(() => {
+    const hardReload = consumeHomeHardReloadFlag()
+    if (hardReload) {
+      hardReloadHomeFeed()
+      setHydrated(true)
+      return
+    }
+
+    const restored = loadHomeFeedPersistedState()
+    if (restored) {
+      restoredFromSessionRef.current = true
+      setFeedSeed(restored.seed)
+      feedSeedRef.current = restored.seed
+      const cache: FeedCache = {
+        videos: restored.videos as any[],
+        offset: restored.videos.length,
+        hasMore: restored.hasMore,
+        scrollTop: 0,
+      }
+
+      if (restored.activeMood && moodByQuery(restored.activeMood)) {
+        setActiveMood(restored.activeMood)
+        setPendingMoodQuery(restored.activeMood)
+        setPickerOpen(false)
+        setPersistedActiveMood(restored.activeMood)
+        moodFeedCaches.current.set(restored.activeMood, cache)
+        allFeedCache.current = {
+          videos: initialVideos,
+          offset: initialVideos.length,
+          hasMore: initialVideos.length === VIDEOS_PER_PAGE,
+          scrollTop: 0,
+        }
+      } else {
+        setActiveMood(null)
+        setPickerOpen(true)
+        setPersistedActiveMood(null)
+        allFeedCache.current = cache
+      }
+
+      setVideos(cache.videos)
+      setHasMore(cache.hasMore)
+      setLoading(false)
+      setHydrated(true)
+      return
+    }
+
+    const persisted = getPersistedActiveMood()
+    if (persisted && moodByQuery(persisted)) {
+      setActiveMood(persisted)
+      setPendingMoodQuery(persisted)
+      setPickerOpen(false)
+      allFeedCache.current = {
+        videos: initialVideos,
+        offset: initialVideos.length,
+        hasMore: initialVideos.length === VIDEOS_PER_PAGE,
+        scrollTop: 0,
+      }
+      setVideos([])
+      setLoading(true)
+      setHasMore(true)
+      void fetchMoodFeed(persisted, 0, true)
+    } else {
+      setPickerOpen(true)
+      try {
+        // Keep SSR seed for this session so pagination matches the hydrated first page.
+        sessionStorage.setItem("hiffi_video_seed", seed)
+        setFeedSeed(seed)
+        feedSeedRef.current = seed
+      } catch {
+        /* ignore */
+      }
+    }
+
+    setHydrated(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     const onHomeReset = () => switchToFullFeed()
+    const onHardReload = () => hardReloadHomeFeed()
     window.addEventListener(HOME_FEED_RESET_EVENT, onHomeReset)
-    return () => window.removeEventListener(HOME_FEED_RESET_EVENT, onHomeReset)
-  }, [switchToFullFeed])
+    window.addEventListener(HOME_FEED_HARD_RELOAD_EVENT, onHardReload)
+    return () => {
+      window.removeEventListener(HOME_FEED_RESET_EVENT, onHomeReset)
+      window.removeEventListener(HOME_FEED_HARD_RELOAD_EVENT, onHardReload)
+    }
+  }, [switchToFullFeed, hardReloadHomeFeed])
+
+  // Persist feed so Back from watch (or other routes) can restore grid + scroll.
+  useEffect(() => {
+    if (!hydrated || videos.length === 0) return
+    saveHomeFeedPersistedState({
+      videos,
+      hasMore,
+      seed: feedSeed,
+      activeMood,
+    })
+  }, [hydrated, videos, hasMore, feedSeed, activeMood])
+
+  useEffect(() => {
+    return () => {
+      if (videosRef.current.length === 0) return
+      saveHomeFeedPersistedState({
+        videos: videosRef.current,
+        hasMore: hasMoreRef.current,
+        seed: feedSeedRef.current,
+        activeMood: activeMoodRef.current,
+      })
+    }
+  }, [])
 
   useEffect(() => {
     if (!hydrated) return
+    if (restoredFromSessionRef.current) return
     if (initialVideos.length === 0 && activeMood === null) {
       void fetchDefaultFeed(0, true)
     }

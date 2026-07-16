@@ -4,6 +4,7 @@ const lastKnownScrollByKey = new Map<string, number>()
 
 /** Routes whose #main-content scroll should persist across client navigations. */
 export const MAIN_CONTENT_SCROLL_PERSIST_PATHS: Record<string, string> = {
+  "/": "/",
   "/hip-hop": "/hip-hop",
 }
 
