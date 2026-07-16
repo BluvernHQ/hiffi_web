@@ -27,8 +27,11 @@ import {
   clearHomeFeedPersistedState,
   clearHomeScrollPersistence,
   consumeHomeHardReloadFlag,
+  getLastKnownHomeScrollTop,
   loadHomeFeedPersistedState,
+  restoreHomeFeedScroll,
   saveHomeFeedPersistedState,
+  setLastKnownHomeScrollTop,
 } from "@/lib/home-feed-session"
 import { resetSeed } from "@/lib/seed-manager"
 import { OPENED_VIDEO_FROM_MOOD } from "@/lib/analytics/mood-mix-analytics"
@@ -120,6 +123,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const activeMoodRef = useRef(activeMood)
   const feedSeedRef = useRef(feedSeed)
   const restoredFromSessionRef = useRef(false)
+  const pendingRestoreScrollRef = useRef<number | null>(null)
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
 
@@ -138,6 +142,43 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   useEffect(() => {
     feedSeedRef.current = feedSeed
   }, [feedSeed])
+
+  // Keep home scroll in memory continuously — watch page zeroes #main-content on enter,
+  // which would otherwise wipe the DOM value before home unmount cleanup runs.
+  useEffect(() => {
+    const mainContent = document.getElementById("main-content")
+    if (!mainContent) return
+
+    const onScroll = () => {
+      setLastKnownHomeScrollTop(mainContent.scrollTop)
+    }
+    const onPointerDown = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const anchor = target.closest("a[href]")
+      if (!anchor) return
+      setLastKnownHomeScrollTop(mainContent.scrollTop)
+      if (videosRef.current.length > 0) {
+        saveHomeFeedPersistedState({
+          videos: videosRef.current,
+          hasMore: hasMoreRef.current,
+          seed: feedSeedRef.current,
+          activeMood: activeMoodRef.current,
+          scrollTop: mainContent.scrollTop,
+        })
+      }
+    }
+
+    onScroll()
+    mainContent.addEventListener("scroll", onScroll, { passive: true })
+    mainContent.addEventListener("mousedown", onPointerDown, { capture: true })
+    mainContent.addEventListener("touchstart", onPointerDown, { passive: true, capture: true })
+    return () => {
+      mainContent.removeEventListener("scroll", onScroll)
+      mainContent.removeEventListener("mousedown", onPointerDown, { capture: true })
+      mainContent.removeEventListener("touchstart", onPointerDown, { capture: true })
+    }
+  }, [])
 
   const restoreScrollPosition = useCallback(() => {
     if (scrollSnapshot.current === null) return
@@ -477,11 +518,13 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
       restoredFromSessionRef.current = true
       setFeedSeed(restored.seed)
       feedSeedRef.current = restored.seed
+      const scrollTop = restored.scrollTop > 0 ? restored.scrollTop : getLastKnownHomeScrollTop()
+      pendingRestoreScrollRef.current = scrollTop > 0 ? scrollTop : null
       const cache: FeedCache = {
         videos: restored.videos as any[],
         offset: restored.videos.length,
         hasMore: restored.hasMore,
-        scrollTop: 0,
+        scrollTop,
       }
 
       if (restored.activeMood && moodByQuery(restored.activeMood)) {
@@ -507,6 +550,9 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
       setHasMore(cache.hasMore)
       setLoading(false)
       setHydrated(true)
+      if (scrollTop > 0) {
+        restoreHomeFeedScroll(scrollTop)
+      }
       return
     }
 
@@ -555,13 +601,53 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   // Persist feed so Back from watch (or other routes) can restore grid + scroll.
   useEffect(() => {
     if (!hydrated || videos.length === 0) return
+    const pendingScroll = pendingRestoreScrollRef.current
     saveHomeFeedPersistedState({
       videos,
       hasMore,
       seed: feedSeed,
       activeMood,
+      scrollTop:
+        pendingScroll != null && pendingScroll > 0
+          ? pendingScroll
+          : getLastKnownHomeScrollTop() || readMainScrollTop(),
     })
   }, [hydrated, videos, hasMore, feedSeed, activeMood])
+
+  // After restored videos paint, re-apply scroll (content height may still be growing).
+  useLayoutEffect(() => {
+    if (!hydrated || !restoredFromSessionRef.current) return
+    const scrollTop = pendingRestoreScrollRef.current
+    if (scrollTop == null || scrollTop <= 0) return
+    restoreHomeFeedScroll(scrollTop)
+  }, [hydrated, videos.length])
+
+  // Once the scroller is near the target, clear the pending restore so later
+  // persist snapshots track live scroll again.
+  useEffect(() => {
+    if (!hydrated || !restoredFromSessionRef.current) return
+    const target = pendingRestoreScrollRef.current
+    if (target == null || target <= 0) return
+
+    const mainContent = document.getElementById("main-content")
+    if (!mainContent) return
+
+    const maybeClear = () => {
+      if (Math.abs(mainContent.scrollTop - target) <= 4) {
+        pendingRestoreScrollRef.current = null
+      }
+    }
+    maybeClear()
+    const id = window.setInterval(maybeClear, 200)
+    const stop = window.setTimeout(() => {
+      window.clearInterval(id)
+      pendingRestoreScrollRef.current = null
+    }, 3500)
+    return () => {
+      window.clearInterval(id)
+      window.clearTimeout(stop)
+    }
+  }, [hydrated, videos.length])
 
   useEffect(() => {
     return () => {
@@ -571,6 +657,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         hasMore: hasMoreRef.current,
         seed: feedSeedRef.current,
         activeMood: activeMoodRef.current,
+        scrollTop: getLastKnownHomeScrollTop(),
       })
     }
   }, [])

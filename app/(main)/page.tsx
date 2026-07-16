@@ -104,25 +104,24 @@ function buildDiscoverGraph(initialVideos: Awaited<ReturnType<typeof fetchHomeFe
   }
 }
 
-/**
- * Streams SSR feed + JSON-LD. Soft navigations (e.g. Back from watch) show the
- * Suspense fallback immediately — a client feed that restores cached state —
- * instead of a "Loading…" placeholder while this fetch runs.
- */
-async function HomeFeedWithSsr() {
+/** SEO JSON-LD only — must not wrap the feed (remounts destroy restored scroll). */
+async function HomeDiscoverJsonLd() {
   const initialVideos = await fetchHomeFeedInitial(10, HOME_SEED)
-  return (
-    <>
-      <JsonLd data={buildDiscoverGraph(initialVideos)} />
-      <HomeFeedClient initialVideos={initialVideos} seed={HOME_SEED} />
-    </>
-  )
+  return <JsonLd data={buildDiscoverGraph(initialVideos)} />
 }
 
+/**
+ * Home feed is a stable client mount (not inside the SSR Suspense).
+ * Soft Back restores cached videos + scroll without waiting on / remounting SSR.
+ * Cold load: empty initialVideos → client fetch (or session restore).
+ */
 export default function RootPage() {
   return (
-    <Suspense fallback={<HomeFeedClient initialVideos={[]} seed={HOME_SEED} />}>
-      <HomeFeedWithSsr />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <HomeDiscoverJsonLd />
+      </Suspense>
+      <HomeFeedClient initialVideos={[]} seed={HOME_SEED} />
+    </>
   )
 }

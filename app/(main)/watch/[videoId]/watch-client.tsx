@@ -239,6 +239,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
 
   // Main feed/content is rendered inside #main-content (custom scroll container),
   // so we must reset that container when entering or switching videos on watch.
+  // Do NOT re-save home scroll from DOM here — by mount time the shorter watch
+  // page has often clamped scrollTop downward and would overwrite the real position
+  // already captured on the home feed link press.
   useLayoutEffect(() => {
     const mainContent = document.getElementById("main-content")
     if (mainContent && mainContent.scrollTop > 0) {

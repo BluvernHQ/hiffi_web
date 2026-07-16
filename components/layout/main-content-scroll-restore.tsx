@@ -27,8 +27,12 @@ function saveScrollBeforeNavigate(storageKey: string, target?: Element | null) {
 }
 
 /**
- * Persists #main-content scroll for configured marketing pages (e.g. /hip-hop).
- * Mounted once in the main layout so save/restore survives route transitions and browser Back.
+ * Persists #main-content scroll for home and marketing pages (e.g. /hip-hop).
+ * Mounted once in the root layout so save/restore survives route transitions and browser Back.
+ *
+ * Important: when leaving a tall page for a shorter one (home → watch), the browser
+ * clamps scrollTop. Saves use preferLastKnown so that clamp does not overwrite the
+ * real home position captured while scrolling / on link press.
  */
 export function MainContentScrollCoordinator() {
   const pathname = usePathname()

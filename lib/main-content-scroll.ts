@@ -32,7 +32,11 @@ export function getLastKnownMainContentScroll(storageKey: string): number | unde
 }
 
 type SaveMainContentScrollOptions = {
-  /** Use in-memory scroll when the DOM was reset to 0 during route transitions. */
+  /**
+   * Prefer in-memory scroll when the DOM value is unreliable.
+   * Common after route changes: the next page is shorter, so the browser clamps
+   * #main-content.scrollTop downward and would overwrite the real position.
+   */
   preferLastKnown?: boolean
   /** Always write sessionStorage, even when replacing a non-zero value with 0. */
   force?: boolean
@@ -47,26 +51,45 @@ export function saveMainContentScroll(
 
   const fromDom = getMainContentScrollTop()
   const fromMemory = getLastKnownMainContentScroll(storageKey)
-  const resolved =
-    scrollTop ??
-    (options?.preferLastKnown && fromMemory !== undefined && fromDom === 0 ? fromMemory : fromDom)
+
+  let resolved: number
+  if (scrollTop !== undefined) {
+    resolved = scrollTop
+  } else if (options?.preferLastKnown && fromMemory !== undefined) {
+    // Keep the higher remembered value when DOM was clamped by a shorter page.
+    resolved = fromMemory > fromDom ? fromMemory : fromDom
+  } else {
+    resolved = fromDom
+  }
 
   if (resolved < 0 || isNaN(resolved)) return
 
   setLastKnownMainContentScroll(storageKey, resolved)
 
   try {
-    if (!options?.force && resolved === 0) {
+    if (!options?.force) {
       const existing = sessionStorage.getItem(storageKey)
-      if (existing) {
-        const existingNum = parseInt(existing, 10)
+      const existingNum = existing ? parseInt(existing, 10) : NaN
+
+      if (resolved === 0) {
         if (!isNaN(existingNum) && existingNum > 0) return
-      }
-      if (fromMemory !== undefined && fromMemory > 0) {
-        sessionStorage.setItem(storageKey, String(fromMemory))
-        if (options?.anchorId) {
-          sessionStorage.setItem(`${storageKey}:anchor`, options.anchorId)
+        if (fromMemory !== undefined && fromMemory > 0) {
+          sessionStorage.setItem(storageKey, String(fromMemory))
+          if (options?.anchorId) {
+            sessionStorage.setItem(`${storageKey}:anchor`, options.anchorId)
+          }
+          return
         }
+      }
+
+      // Don't clobber a higher saved position with a clamped/lower DOM reading
+      // during route teardown (unless caller passed an explicit scrollTop).
+      if (
+        scrollTop === undefined &&
+        options?.preferLastKnown &&
+        !isNaN(existingNum) &&
+        existingNum > resolved + 1
+      ) {
         return
       }
     }
@@ -121,10 +144,14 @@ export function restoreMainContentScroll(storageKey: string): void {
 
   try {
     const savedScroll = sessionStorage.getItem(storageKey)
-    if (!savedScroll) return
-
-    const scrollY = parseInt(savedScroll, 10)
+    const fromMemory = getLastKnownMainContentScroll(storageKey)
+    const scrollY = savedScroll
+      ? parseInt(savedScroll, 10)
+      : fromMemory !== undefined
+        ? fromMemory
+        : NaN
     if (isNaN(scrollY) || scrollY < 0) return
+    if (scrollY === 0) return
 
     const restoreToken = ++activeRestoreToken
     const isCurrent = () => restoreToken === activeRestoreToken
@@ -137,7 +164,7 @@ export function restoreMainContentScroll(storageKey: string): void {
 
     if (tryRestore()) return
 
-    const delays = [0, 0, 10, 50, 100, 150, 300, 500, 800, 1200, 2000]
+    const delays = [0, 0, 10, 50, 100, 150, 300, 500, 800, 1200, 2000, 3000]
     let attempt = 0
 
     const schedule = () => {
@@ -173,7 +200,7 @@ export function restoreMainContentScroll(storageKey: string): void {
       if (isCurrent() && !applyMainContentScroll(scrollY)) {
         restoreMainContentAnchor(storageKey)
       }
-    }, 2500)
+    }, 3500)
   } catch (error) {
     console.error("[hiffi] Failed to restore scroll position:", error)
   }

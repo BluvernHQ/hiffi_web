@@ -24,11 +24,16 @@ export type HomeFeedPersistedState = {
   seed: string
   /** Active mood query, or null for full discover. */
   activeMood: string | null
+  /** #main-content scrollTop when the feed was last saved. */
+  scrollTop: number
   timestamp: number
 }
 
 /** In-memory copy so soft navigations restore without waiting on sessionStorage parse. */
 let memoryFeedState: HomeFeedPersistedState | null = null
+
+/** Last known home scroll — survives watch page zeroing #main-content before home unmounts. */
+let lastKnownHomeScrollTop = 0
 
 function isFresh(state: HomeFeedPersistedState | null): state is HomeFeedPersistedState {
   if (!state) return false
@@ -58,6 +63,7 @@ export function markHomeHardReload(): void {
 
 export function clearHomeFeedPersistedState(): void {
   memoryFeedState = null
+  lastKnownHomeScrollTop = 0
   if (typeof window === "undefined") return
   try {
     sessionStorage.removeItem(FEED_STATE_KEY)
@@ -68,6 +74,7 @@ export function clearHomeFeedPersistedState(): void {
 
 export function clearHomeScrollPersistence(): void {
   if (typeof window === "undefined") return
+  lastKnownHomeScrollTop = 0
   const key = getPersistedScrollStorageKey("/")
   if (!key) return
   try {
@@ -80,21 +87,77 @@ export function clearHomeScrollPersistence(): void {
   saveMainContentScroll(key, 0, { force: true, anchorId: null })
 }
 
-export function saveHomeFeedPersistedState(state: Omit<HomeFeedPersistedState, "timestamp">): void {
+export function setLastKnownHomeScrollTop(scrollTop: number): void {
+  if (scrollTop < 0 || Number.isNaN(scrollTop)) return
+  lastKnownHomeScrollTop = scrollTop
+  const key = getPersistedScrollStorageKey("/")
+  if (key) {
+    setLastKnownMainContentScroll(key, scrollTop)
+    saveMainContentScroll(key, scrollTop)
+  }
+}
+
+export function getLastKnownHomeScrollTop(): number {
+  return lastKnownHomeScrollTop
+}
+
+export function saveHomeFeedPersistedState(
+  state: Omit<HomeFeedPersistedState, "timestamp" | "scrollTop"> & { scrollTop?: number },
+): void {
   if (typeof window === "undefined") return
   if (!Array.isArray(state.videos) || state.videos.length === 0) return
-  const payload: HomeFeedPersistedState = { ...state, timestamp: Date.now() }
+
+  const prevScroll = Math.max(
+    memoryFeedState?.scrollTop ?? 0,
+    lastKnownHomeScrollTop,
+  )
+
+  let scrollTop =
+    state.scrollTop !== undefined && state.scrollTop > 0
+      ? state.scrollTop
+      : lastKnownHomeScrollTop > 0
+        ? lastKnownHomeScrollTop
+        : state.scrollTop ?? 0
+
+  // Never persist a zero/clamped scroll over a known good home position.
+  if (scrollTop <= 0 && prevScroll > 0) {
+    scrollTop = prevScroll
+  }
+
+  if (scrollTop > 0) {
+    lastKnownHomeScrollTop = scrollTop
+  }
+
+  const payload: HomeFeedPersistedState = {
+    videos: state.videos,
+    hasMore: state.hasMore,
+    seed: state.seed,
+    activeMood: state.activeMood,
+    scrollTop,
+    timestamp: Date.now(),
+  }
   memoryFeedState = payload
   try {
     sessionStorage.setItem(FEED_STATE_KEY, JSON.stringify(payload))
   } catch (error) {
     console.error("[hiffi] Failed to save home feed state:", error)
   }
+
+  const key = getPersistedScrollStorageKey("/")
+  if (key && scrollTop > 0) {
+    setLastKnownMainContentScroll(key, scrollTop)
+    saveMainContentScroll(key, scrollTop)
+  }
 }
 
 export function loadHomeFeedPersistedState(): HomeFeedPersistedState | null {
   if (typeof window === "undefined") return null
-  if (isFresh(memoryFeedState)) return memoryFeedState
+  if (isFresh(memoryFeedState)) {
+    if (memoryFeedState.scrollTop > 0) {
+      lastKnownHomeScrollTop = memoryFeedState.scrollTop
+    }
+    return memoryFeedState
+  }
 
   try {
     const raw = sessionStorage.getItem(FEED_STATE_KEY)
@@ -108,12 +171,73 @@ export function loadHomeFeedPersistedState(): HomeFeedPersistedState | null {
       memoryFeedState = null
       return null
     }
-    memoryFeedState = state
-    return state
+    memoryFeedState = {
+      ...state,
+      scrollTop: typeof state.scrollTop === "number" ? state.scrollTop : 0,
+    }
+    if (memoryFeedState.scrollTop > 0) {
+      lastKnownHomeScrollTop = memoryFeedState.scrollTop
+    }
+    return memoryFeedState
   } catch (error) {
     console.error("[hiffi] Failed to load home feed state:", error)
     return null
   }
+}
+
+/**
+ * Apply saved home scroll after the feed DOM is tall enough (retries on layout).
+ */
+export function restoreHomeFeedScroll(scrollTop: number): void {
+  if (typeof window === "undefined" || scrollTop <= 0) return
+
+  const key = getPersistedScrollStorageKey("/")
+  if (key) {
+    setLastKnownMainContentScroll(key, scrollTop)
+    saveMainContentScroll(key, scrollTop, { force: true })
+  }
+  lastKnownHomeScrollTop = scrollTop
+
+  const apply = (): boolean => {
+    const mainContent = document.getElementById("main-content")
+    if (!mainContent) return false
+    const maxScroll = Math.max(0, mainContent.scrollHeight - mainContent.clientHeight)
+    if (scrollTop > 0 && maxScroll + 2 < scrollTop) return false
+    mainContent.scrollTop = scrollTop
+    return Math.abs(mainContent.scrollTop - scrollTop) <= 2
+  }
+
+  if (apply()) return
+
+  const delays = [0, 0, 16, 50, 100, 150, 300, 500, 800, 1200, 2000]
+  let attempt = 0
+  const schedule = () => {
+    if (apply()) return
+    if (attempt >= delays.length) return
+    const delay = delays[attempt++]
+    if (delay === 0) requestAnimationFrame(schedule)
+    else window.setTimeout(schedule, delay)
+  }
+  schedule()
+
+  const mainContent = document.getElementById("main-content")
+  if (!mainContent) return
+
+  const onLayoutChange = () => {
+    if (apply()) {
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+    }
+  }
+  const resizeObserver = new ResizeObserver(onLayoutChange)
+  resizeObserver.observe(mainContent)
+  const mutationObserver = new MutationObserver(onLayoutChange)
+  mutationObserver.observe(mainContent, { childList: true, subtree: true })
+  window.setTimeout(() => {
+    resizeObserver.disconnect()
+    mutationObserver.disconnect()
+    apply()
+  }, 2500)
 }
 
 /**
