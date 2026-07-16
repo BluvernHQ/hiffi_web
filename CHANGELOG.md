@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.2.4] — 2026-07-16
+
+### Added
+
+- YouTube-style home navigation: navbar logo hard-reloads the discover feed (new shuffle seed, scroll to top, mood cleared)
+
+### Fixed
+
+- Home feed scroll and loaded videos are restored when returning from watch (and other routes) instead of resetting to the top
+- Soft navigation back to home no longer shows a blocking “Loading…” state while the SSR feed refetch runs
+
 ## [2.2.3] — 2026-07-14
 
 ### Fixed
