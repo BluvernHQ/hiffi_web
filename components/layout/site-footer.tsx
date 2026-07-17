@@ -65,6 +65,7 @@ const columns: FooterColumn[] = [
     links: [
       { label: "Hip-Hop", href: "/hip-hop" },
       { label: "Artist Index", href: "/artist-index" },
+      { label: "Hiffi 500", href: "/hiffi-500" },
       { label: "Atlanta guide", href: "/atlanta" },
       { label: "Atlanta artists", href: "/artist-index/city/atlanta" },
       { label: "Claim your profile", href: "/artist-index/claim" },

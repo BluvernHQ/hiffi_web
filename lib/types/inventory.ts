@@ -25,12 +25,15 @@ export type InventorySocialLinks = {
   [key: string]: string | undefined
 }
 
+export type PublicInventoryClaimStatus = "unclaimed" | "pending" | "claimed"
+
 export interface PublicInventoryProfile {
   username: string
   artist_name: string
   bio?: string | null
   other_socials?: InventorySocialLinks | null
   location?: string | null
+  claim_status: PublicInventoryClaimStatus
 }
 
 export interface InventoryProfileListResponse {
@@ -70,15 +73,24 @@ export interface InventoryClaim {
   updated_at: string
 }
 
+export interface InventoryClaimApproveResponse {
+  claim: InventoryClaim
+  rejected_count: number
+  user_updated: boolean
+}
+
 export interface InventoryEntry {
   id: number
   username: string
+  artist_key?: string
   artist_name: string
   bio?: string | null
   email?: string | null
   other_socials?: InventorySocialLinks | null
   location?: string | null
   user_uid?: string | null
+  /** Present when backend includes it on admin list (public inventory always has this). */
+  claim_status?: PublicInventoryClaimStatus
   created_at: string
   updated_at: string
 }
@@ -137,16 +149,73 @@ export function normalizeInventorySocials(
   return legacyFlatToSocials(raw)
 }
 
+function normalizePublicClaimStatus(value: unknown): PublicInventoryClaimStatus {
+  const status = String(value ?? "").trim().toLowerCase()
+  if (status === "pending" || status === "claimed") return status
+  return "unclaimed"
+}
+
+function normalizeClaimReviewStatus(value: unknown): InventoryClaimStatus {
+  const status = String(value ?? "").trim().toLowerCase()
+  if (status === "approved" || status === "rejected") return status
+  return "pending"
+}
+
+export function normalizeInventoryClaim(raw: Record<string, unknown>): InventoryClaim {
+  const artistName =
+    raw.artist_name != null && String(raw.artist_name).trim()
+      ? String(raw.artist_name).trim()
+      : undefined
+  const clientIp =
+    raw.client_ip != null && String(raw.client_ip).trim()
+      ? String(raw.client_ip).trim()
+      : undefined
+
+  return {
+    id: String(raw.id ?? "").trim(),
+    username: String(raw.username ?? "").trim().toLowerCase(),
+    artist_name: artistName,
+    name: String(raw.name ?? "").trim(),
+    email: String(raw.email ?? "").trim(),
+    status: normalizeClaimReviewStatus(raw.status),
+    client_ip: clientIp,
+    created_at: String(raw.created_at ?? ""),
+    updated_at: String(raw.updated_at ?? ""),
+  }
+}
+
+export function normalizeInventoryClaimApproveResponse(
+  raw: Record<string, unknown>,
+): InventoryClaimApproveResponse {
+  const claimRaw =
+    raw.claim && typeof raw.claim === "object" && !Array.isArray(raw.claim)
+      ? (raw.claim as Record<string, unknown>)
+      : {}
+
+  return {
+    claim: normalizeInventoryClaim(claimRaw),
+    rejected_count: Number(raw.rejected_count ?? 0),
+    user_updated: Boolean(raw.user_updated),
+  }
+}
+
 export function normalizeInventoryEntry(raw: Record<string, unknown>): InventoryEntry {
+  const artistKey =
+    raw.artist_key != null && String(raw.artist_key).trim()
+      ? String(raw.artist_key).trim()
+      : undefined
+  const hasClaimStatus = raw.claim_status != null && String(raw.claim_status).trim() !== ""
   return {
     id: Number(raw.id ?? 0),
     username: String(raw.username ?? "").trim(),
+    artist_key: artistKey,
     artist_name: String(raw.artist_name ?? "").trim(),
     bio: raw.bio != null && String(raw.bio).trim() ? String(raw.bio).trim() : undefined,
     email: raw.email != null && String(raw.email).trim() ? String(raw.email).trim() : undefined,
     other_socials: normalizeInventorySocials(raw),
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
     user_uid: raw.user_uid != null && String(raw.user_uid).trim() ? String(raw.user_uid).trim() : undefined,
+    claim_status: hasClaimStatus ? normalizePublicClaimStatus(raw.claim_status) : undefined,
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
   }
@@ -159,6 +228,7 @@ export function normalizePublicInventoryProfile(raw: Record<string, unknown>): P
     bio: raw.bio != null && String(raw.bio).trim() ? String(raw.bio).trim() : undefined,
     other_socials: normalizeInventorySocials(raw),
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
+    claim_status: normalizePublicClaimStatus(raw.claim_status),
   }
 }
 

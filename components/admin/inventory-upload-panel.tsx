@@ -199,6 +199,11 @@ export function InventoryUploadPanel({ onBusyChange }: InventoryUploadPanelProps
       setDisplayProgress(100)
       setPhase("complete")
       setResult(data)
+      void fetch("/api/artist-index/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }).catch(() => {})
       toast({
         title: "Import complete",
         description: `${data.created} created, ${data.updated} updated, ${data.deleted} deleted.`,

@@ -27,9 +27,9 @@ function DetailField({ label, value, highlight }: { label: string; value: string
 
 export function ArtistDetailAbout({ artist }: ArtistDetailAboutProps) {
   const profileStatus = artist.verified
-    ? "Verified Team"
+    ? "Verified"
     : artist.claim_status === "pending"
-      ? "Claim Pending"
+      ? "Under Review"
       : "Unclaimed Profile"
 
   const sound = artist.genre.join(" / ")

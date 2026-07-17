@@ -2,15 +2,24 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
 import type { InventoryClaim, InventoryClaimStatus } from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +38,17 @@ function formatTimestamp(value: string): string {
   return format(date, "MMM d, yyyy · h:mm a")
 }
 
+function statusLabel(status: InventoryClaimStatus): string {
+  switch (status) {
+    case "approved":
+      return "Approved"
+    case "rejected":
+      return "Rejected"
+    default:
+      return "Pending"
+  }
+}
+
 function statusBadgeClass(status: InventoryClaimStatus): string {
   switch (status) {
     case "approved":
@@ -42,6 +62,7 @@ function statusBadgeClass(status: InventoryClaimStatus): string {
 
 export function InventoryClaimsTable() {
   const { toast } = useToast()
+  const { canWrite } = useAdminPermissions()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])
   const [hasLoaded, setHasLoaded] = useState(false)
@@ -56,6 +77,8 @@ export function InventoryClaimsTable() {
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [claimToApprove, setClaimToApprove] = useState<InventoryClaim | null>(null)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedUsername(usernameQuery.trim()), 300)
@@ -71,6 +94,7 @@ export function InventoryClaimsTable() {
     if (guardOfflineBeforeFetch()) {
       setRows([])
       setCount(0)
+      setHasMore(false)
       setFetching(false)
       setRefreshing(false)
       return
@@ -110,6 +134,64 @@ export function InventoryClaimsTable() {
     void fetchRows()
   }, [limit, offset, debouncedUsername, debouncedEmail, statusFilter])
 
+  const applyApproveToLocalRows = (approved: InventoryClaim) => {
+    const now = approved.updated_at || new Date().toISOString()
+    setRows((prev) =>
+      prev
+        .map((row) => {
+          if (row.id === approved.id) {
+            return { ...approved, status: "approved" as const, updated_at: now }
+          }
+          if (row.username === approved.username && row.status === "pending") {
+            return { ...row, status: "rejected" as const, updated_at: now }
+          }
+          return row
+        })
+        // When viewing Pending, remove rows that are no longer pending so the queue looks correct.
+        .filter((row) => (statusFilter === "pending" ? row.status === "pending" : true)),
+    )
+  }
+
+  const handleApproveConfirm = async () => {
+    if (!claimToApprove) return
+    setApprovingId(claimToApprove.id)
+    try {
+      const result = await adminApiClient.adminApproveInventoryClaim(claimToApprove.id)
+      const rejectedNote =
+        result.rejected_count > 0
+          ? ` · ${result.rejected_count} other pending claim${result.rejected_count === 1 ? "" : "s"} rejected`
+          : ""
+      const userNote = result.user_updated ? " · linked user updated" : ""
+
+      // Update local badges immediately, then move to Approved so the new status is visible.
+      applyApproveToLocalRows(result.claim)
+      setClaimToApprove(null)
+      setOffset(0)
+      setStatusFilter("approved")
+
+      toast({
+        title: "Claim approved",
+        description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}. Public profile claim_status is claimed.`,
+      })
+
+      // Bust artist-index inventory cache so public pages show verified immediately.
+      void fetch("/api/artist-index/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: result.claim.username }),
+      }).catch(() => {
+        // Non-blocking — approve already succeeded.
+      })
+    } catch (error) {
+      handleFetchError(error, {
+        genericMessage: "Failed to approve claim",
+        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+      })
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
   const canGoPrev = offset > 0
   const canGoNext = hasMore
   const isInitialLoad = !hasLoaded && fetching
@@ -117,6 +199,7 @@ export function InventoryClaimsTable() {
     usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
+  const colSpan = canWrite ? 7 : 6
 
   if (isInitialLoad) {
     return (
@@ -140,13 +223,45 @@ export function InventoryClaimsTable() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">
-        Approve, reject, and claim-completion flows are not available yet. Use this queue for manual
-        review until those endpoints ship.
+      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">Pending</span> → review queue.{" "}
+          <span className="font-medium text-foreground">Approve</span> sets that claim to Approved,
+          rejects other pending claims for the same username, updates the linked creator when
+          present, and sets public inventory <code className="text-xs">claim_status</code> to{" "}
+          <code className="text-xs">claimed</code>.
+        </p>
+        <p className="mt-1">
+          Standalone reject and claim-completion (password / magic link) are not available yet.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg border bg-background p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_OPTIONS.map((option) => {
+            const active = statusFilter === option.value
+            return (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => {
+                  setOffset(0)
+                  setStatusFilter(option.value)
+                }}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  active
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                )}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -180,20 +295,6 @@ export function InventoryClaimsTable() {
             ) : null}
           </div>
           <select
-            value={statusFilter}
-            onChange={(e) => {
-              setOffset(0)
-              setStatusFilter(e.target.value as "" | InventoryClaimStatus)
-            }}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
             value={limit}
             onChange={(e) => {
               setOffset(0)
@@ -212,7 +313,9 @@ export function InventoryClaimsTable() {
           <p className="text-sm text-muted-foreground">
             {fetching || isFilterPending
               ? "Updating claims…"
-              : `${count.toLocaleString()} claim${count === 1 ? "" : "s"} match filters`}
+              : `${count.toLocaleString()} claim${count === 1 ? "" : "s"} · ${
+                  statusFilter ? statusLabel(statusFilter) : "All statuses"
+                }`}
           </p>
           <Button variant="outline" size="sm" onClick={() => void fetchRows(true)} disabled={refreshing || fetching}>
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -231,7 +334,7 @@ export function InventoryClaimsTable() {
         />
       ) : (
         <div className="rounded-lg border bg-background shadow-sm overflow-auto">
-          <table className={cn("w-full min-w-[880px] transition-opacity", fetching && "opacity-60")}>
+          <table className={cn("w-full min-w-[960px] transition-opacity", fetching && "opacity-60")}>
             <thead className="sticky top-0 z-10 bg-muted/50">
               <tr className="border-b">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -249,12 +352,20 @@ export function InventoryClaimsTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Submitted
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Updated
+                </th>
+                {canWrite ? (
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     No claims in this queue.
                   </td>
                 </tr>
@@ -276,13 +387,37 @@ export function InventoryClaimsTable() {
                       {row.email}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <Badge variant="outline" className={cn("capitalize", statusBadgeClass(row.status))}>
-                        {row.status}
+                      <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>
+                        {statusLabel(row.status)}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                       {formatTimestamp(row.created_at)}
                     </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                      {formatTimestamp(row.updated_at)}
+                    </td>
+                    {canWrite ? (
+                      <td className="px-4 py-3 text-right">
+                        {row.status === "pending" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={approvingId === row.id}
+                            onClick={() => setClaimToApprove(row)}
+                          >
+                            {approvingId === row.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4" />
+                            )}
+                            <span className="ml-1">Approve</span>
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}
@@ -314,6 +449,42 @@ export function InventoryClaimsTable() {
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={!!claimToApprove}
+        onOpenChange={(open) => {
+          if (!open && !approvingId) setClaimToApprove(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve profile claim?</DialogTitle>
+            <DialogDescription>
+              {claimToApprove ? (
+                <>
+                  Approve <strong>{claimToApprove.name}</strong> ({claimToApprove.email}) for{" "}
+                  <strong>@{claimToApprove.username}</strong>. Status becomes{" "}
+                  <strong>Approved</strong>; other pending claims for this profile become{" "}
+                  <strong>Rejected</strong>; public inventory moves to <strong>claimed</strong>.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setClaimToApprove(null)}
+              disabled={!!approvingId}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleApproveConfirm()} disabled={!!approvingId}>
+              {approvingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <span className={approvingId ? "ml-2" : undefined}>Approve claim</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

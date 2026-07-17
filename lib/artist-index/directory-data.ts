@@ -7,9 +7,48 @@ import { mapInventoryProfileToArtist } from "@/lib/artist-index/map-inventory-to
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
 import type { Artist, ArtistDirectoryFilter } from "@/lib/artists"
 import { ARTIST_DIRECTORY_PAGE_SIZE } from "@/lib/artist-directory"
+import type { PublicInventoryProfile } from "@/lib/types/inventory"
 
 function compareArtistsByName(a: Artist, b: Artist): number {
   return a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+}
+
+function artistToPublicInventoryProfile(artist: Artist): PublicInventoryProfile {
+  const other_socials: PublicInventoryProfile["other_socials"] = {}
+  if (artist.ig_url) other_socials.instagram = artist.ig_url
+  if (artist.yt_url) other_socials.youtube = artist.yt_url
+  if (artist.tt_url) other_socials.tiktok = artist.tt_url
+  if (artist.fb_url) other_socials.facebook = artist.fb_url
+  if (artist.spotify_url) other_socials.spotify = artist.spotify_url
+
+  return {
+    username: artist.slug,
+    artist_name: artist.name,
+    bio: artist.bio || undefined,
+    location: [artist.city, artist.state].filter(Boolean).join(", ") || undefined,
+    claim_status: artist.claim_status,
+    ...(Object.keys(other_socials).length > 0 ? { other_socials } : {}),
+  }
+}
+
+/**
+ * Attach avatar/stats from GET /users/{username}. Inventory list has no photos —
+ * only enrich the visible page (or a small related set) to avoid N×full-catalog calls.
+ */
+async function enrichArtistsWithLinkedProfiles(artists: Artist[]): Promise<Artist[]> {
+  if (artists.length === 0) return artists
+
+  return Promise.all(
+    artists.map(async (artist) => {
+      try {
+        const linked = await fetchUserProfileInitial(artist.slug)
+        if (!linked) return artist
+        return mapInventoryProfileToArtist(artistToPublicInventoryProfile(artist), linked)
+      } catch {
+        return artist
+      }
+    }),
+  )
 }
 
 export const loadAllArtists = cache(async (): Promise<Artist[]> => {
@@ -221,7 +260,8 @@ export async function resolveArtistDirectoryPageAsync(options: {
   const totalPages = Math.max(1, Math.ceil(filteredArtists.length / ARTIST_DIRECTORY_PAGE_SIZE))
   const currentPage = Math.min(Math.max(1, options.page), totalPages)
   const pageOffset = (currentPage - 1) * ARTIST_DIRECTORY_PAGE_SIZE
-  const pageArtists = filteredArtists.slice(pageOffset, pageOffset + ARTIST_DIRECTORY_PAGE_SIZE)
+  const pageSlice = filteredArtists.slice(pageOffset, pageOffset + ARTIST_DIRECTORY_PAGE_SIZE)
+  const pageArtists = await enrichArtistsWithLinkedProfiles(pageSlice)
   const claimArtist =
     filteredArtists.find((artist) => !artist.verified && artist.claim_status === "unclaimed") ??
     allArtists.find((artist) => !artist.verified && artist.claim_status === "unclaimed")
@@ -267,7 +307,7 @@ export async function getRelatedArtistsAsync(artist: Artist, limit = 6): Promise
     )
 
   if (scored.length >= limit) {
-    return scored.slice(0, limit).map((entry) => entry.artist)
+    return enrichArtistsWithLinkedProfiles(scored.slice(0, limit).map((entry) => entry.artist))
   }
 
   const seen = new Set<string>([artist.slug, ...scored.map((entry) => entry.artist.slug)])
@@ -280,14 +320,14 @@ export async function getRelatedArtistsAsync(artist: Artist, limit = 6): Promise
     .sort(compareArtistsByName)
     .slice(0, limit)
 
-  if (fill.length >= limit) return fill
+  if (fill.length >= limit) return enrichArtistsWithLinkedProfiles(fill)
 
   const remainder = all
     .filter((item) => !seen.has(item.slug) && !fill.some((f) => f.slug === item.slug))
     .sort(compareArtistsByName)
     .slice(0, limit - fill.length)
 
-  return [...fill, ...remainder]
+  return enrichArtistsWithLinkedProfiles([...fill, ...remainder])
 }
 
 /** Alphabetical neighbors — fills in when topical matches are sparse. */

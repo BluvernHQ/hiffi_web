@@ -12,8 +12,15 @@ type ArtistClaimCtaProps = {
 export function ArtistClaimCta({ artist, variant = "sidebar", className }: ArtistClaimCtaProps) {
   const claimHref = `/artist-index/${artist.slug}/claim`
   const isUnclaimed = artist.claim_status === "unclaimed"
+  const isPending = artist.claim_status === "pending"
+  const isClaimed = artist.claim_status === "claimed" || artist.verified
+
+  // Hide claim CTA once the inventory profile is already claimed.
+  if (isClaimed) return null
 
   if (variant === "banner") {
+    if (isPending) return null
+
     return (
       <section
         className={cn(
@@ -28,12 +35,33 @@ export function ArtistClaimCta({ artist, variant = "sidebar", className }: Artis
           your work.
         </p>
         <Link
-          href={isUnclaimed ? claimHref : "/artist-index/claim"}
+          href={claimHref}
           className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#E8192C] transition-colors hover:bg-white/90"
         >
           Claim your profile
         </Link>
       </section>
+    )
+  }
+
+  if (isPending) {
+    return (
+      <aside
+        className={cn(
+          "border border-amber-200/80 bg-amber-50/70 p-6",
+          artistPanelShell,
+          className,
+        )}
+      >
+        <h2 className="text-lg font-semibold text-amber-950">Ownership under review</h2>
+        <p className="mt-2 text-sm leading-relaxed text-amber-950/80">
+          This profile has a pending ownership verification. If you believe you are the rightful
+          owner, you can request ownership — our team will review it alongside the existing claim.
+        </p>
+        <Link href={claimHref} className={cn("mt-5 w-full", artistButtonOutline)}>
+          Request ownership
+        </Link>
+      </aside>
     )
   }
 
@@ -50,11 +78,8 @@ export function ArtistClaimCta({ artist, variant = "sidebar", className }: Artis
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Claim your profile to update your imagery, add social links, and manage your video gallery.
       </p>
-      <Link
-        href={claimHref}
-        className={cn("mt-5 w-full", isUnclaimed ? artistButtonSolid : artistButtonOutline)}
-      >
-        {isUnclaimed ? "Claim or Update Profile" : "Update Profile"}
+      <Link href={claimHref} className={cn("mt-5 w-full", artistButtonSolid)}>
+        Claim or Update Profile
       </Link>
     </aside>
   )
