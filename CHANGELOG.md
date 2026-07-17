@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-07-17
+
+### Added
+
+- Hiffi 500 (`/hiffi-500`) — standalone content page (Artist Index chrome, no app sidebar) ranking rap & hip-hop artists via `GET /inventory/top`: featured #1 banner, interactive top-5 spotlight with detail panel, searchable ranked list with tier badges, social handles, load-more pagination, claim CTA, and ItemList JSON-LD
+- Clear data-source disclosure on the ranking: "Ranked using YouTube public data only" badge plus a "Data as of" date (API `last_updated` timestamp pending backend support)
+- Same-origin proxy `GET /proxy/inventory/top` for client-side pagination
+- Hiffi 500 empty-image polish: brand monogram portraits, Artist Index-style avatars, profile photo enrichment from `/users/{username}`, and spotlight flow that starts at #2 so the hero isn’t repeated
+- Hiffi 500 product family: methodology page, Atlanta city Top 50 (+ 9 city hubs scaffolded), biggest risers/fallers, new entries, Breakout 100, weekly editorial note, score bands + confidence, Δ 7d column, share cards with OG images, subnav, and sitemap/SEO entries
+
+### Notes
+
+- Live ranking remains YouTube-only. Movement lists fill when `rank_delta_7d` / `is_new_entry` ship; score bands are derived from `youtube_score` until full HPS bands exist
+
 ## [2.2.3] — 2026-07-14
 
 ### Fixed

@@ -18,6 +18,7 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
 export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
   { href: "/hip-hop", label: "Hip-Hop" },
   { href: "/artist-index", label: "Artist Index" },
+  { href: "/hiffi-500", label: "Hiffi 500" },
   { href: "/artist-index/claim", label: "Claim your profile" },
 ]
 
@@ -60,6 +61,7 @@ export function isContentPage(pathname: string | null): boolean {
   if (!pathname) return false
   if (CONTENT_PAGE_PATHS.includes(pathname)) return true
   if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
+  if (pathname === "/hiffi-500" || pathname.startsWith("/hiffi-500/")) return true
   return false
 }
 
@@ -80,4 +82,14 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   { path: "/collaborate", changeFrequency: "monthly", priority: 0.7 },
   { path: "/community-guidelines", changeFrequency: "yearly", priority: 0.55 },
   { path: "/copyright", changeFrequency: "yearly", priority: 0.5 },
+  { path: "/hiffi-500", changeFrequency: "weekly", priority: 0.94 },
+  { path: "/hiffi-500/methodology", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/hiffi-500/city/atlanta", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/hiffi-500/city/houston", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/hiffi-500/city/detroit", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/hiffi-500/city/chicago", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/hiffi-500/biggest-risers", changeFrequency: "weekly", priority: 0.86 },
+  { path: "/hiffi-500/biggest-fallers", changeFrequency: "weekly", priority: 0.84 },
+  { path: "/hiffi-500/new-entries", changeFrequency: "weekly", priority: 0.84 },
+  { path: "/hiffi-500/breakout-100", changeFrequency: "weekly", priority: 0.88 },
 ]

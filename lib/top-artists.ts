@@ -1,0 +1,353 @@
+/**
+ * Hiffi 500 — Top artists ranking backed by GET /inventory/top.
+ *
+ * v1 limitations (tracked for backend iteration):
+ * - Movement deltas, weekly snapshots, and multi-source HPS are not in the API yet
+ * - Ranking payload often omits photos — we enrich from /users/{username} when possible
+ * Score is YouTube-only today; the UI must disclose that.
+ */
+
+import { getArtistImageUrl } from "@/lib/artist-directory"
+import { getApiBaseUrl } from "@/lib/config"
+import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
+
+export interface TopArtistSocials {
+  instagram?: string
+  youtube?: string
+  tiktok?: string
+  facebook?: string
+}
+
+export type ScoreConfidence = "high" | "medium" | "low"
+
+export interface TopArtist {
+  rank: number
+  username: string
+  artist_name: string
+  bio?: string
+  other_socials?: TopArtistSocials
+  location?: string
+  banner_image?: string
+  /** Proxied profile photo when available (from ranking payload or /users enrichment). */
+  image?: string | null
+  claim_status: "unclaimed" | "pending" | "claimed"
+  youtube_score: number
+  /** When city charts re-number locally, preserve the global Hiffi 500 rank for share cards. */
+  global_rank?: number
+  /** Optional — present once weekly snapshots ship. */
+  rank_delta_7d?: number | null
+  rank_delta_30d?: number | null
+  previous_rank?: number | null
+  is_new_entry?: boolean
+  last_updated?: string | null
+}
+
+export interface TopArtistsPage {
+  items: TopArtist[]
+  limit: number
+  offset: number
+  count: number
+  has_more: boolean
+  total_ranked: number
+  /** Client-side fetch timestamp (ms). API does not expose a refresh time yet. */
+  fetched_at: number
+}
+
+export const TOP_ARTISTS_PAGE_SIZE = 20
+export const HIFFI_500_PATH = "/hiffi-500"
+export const HIFFI_500_METHODOLOGY_PATH = "/hiffi-500/methodology"
+export const HIFFI_500_RISERS_PATH = "/hiffi-500/biggest-risers"
+export const HIFFI_500_FALLERS_PATH = "/hiffi-500/biggest-fallers"
+export const HIFFI_500_NEW_ENTRIES_PATH = "/hiffi-500/new-entries"
+export const HIFFI_500_BREAKOUT_PATH = "/hiffi-500/breakout-100"
+
+export const HIFFI_500_CITY_CHARTS = [
+  { slug: "atlanta", label: "Atlanta", live: true },
+  { slug: "houston", label: "Houston", live: false },
+  { slug: "detroit", label: "Detroit", live: false },
+  { slug: "chicago", label: "Chicago", live: false },
+  { slug: "miami", label: "Miami", live: false },
+  { slug: "new-york", label: "New York", live: false },
+  { slug: "los-angeles", label: "Los Angeles", live: false },
+  { slug: "memphis", label: "Memphis", live: false },
+  { slug: "dmv", label: "DMV", live: false },
+  { slug: "new-orleans", label: "New Orleans", live: false },
+] as const
+
+export type Hiffi500CitySlug = (typeof HIFFI_500_CITY_CHARTS)[number]["slug"]
+
+export function hiffi500CityPath(slug: string): string {
+  return `/hiffi-500/city/${slug}`
+}
+
+export function hiffi500SharePath(username: string): string {
+  return `/hiffi-500/share/${encodeURIComponent(username)}`
+}
+
+/** Sub-nav links for the ranking family of pages. */
+export const HIFFI_500_NAV_LINKS = [
+  { href: HIFFI_500_PATH, label: "Top 500" },
+  { href: hiffi500CityPath("atlanta"), label: "Atlanta" },
+  { href: HIFFI_500_RISERS_PATH, label: "Biggest risers" },
+  { href: HIFFI_500_FALLERS_PATH, label: "Biggest fallers" },
+  { href: HIFFI_500_NEW_ENTRIES_PATH, label: "New entries" },
+  { href: HIFFI_500_BREAKOUT_PATH, label: "Breakout 100" },
+  { href: HIFFI_500_METHODOLOGY_PATH, label: "Methodology" },
+] as const
+
+type Envelope =
+  | { success: true; data: Omit<TopArtistsPage, "fetched_at"> }
+  | { success: false; error: string }
+
+function normalizeArtist(item: TopArtist): TopArtist {
+  return {
+    ...item,
+    image: item.image ?? getArtistImageUrl(item.banner_image) ?? null,
+    rank_delta_7d: item.rank_delta_7d ?? null,
+    rank_delta_30d: item.rank_delta_30d ?? null,
+    previous_rank: item.previous_rank ?? null,
+    is_new_entry: Boolean(item.is_new_entry),
+  }
+}
+
+function parseEnvelope(body: Envelope): TopArtistsPage {
+  if (!body.success) throw new Error(body.error || "Failed to load top artists")
+  const data = body.data
+  const items = (Array.isArray(data.items) ? data.items : []).map(normalizeArtist)
+  return {
+    items,
+    limit: data.limit ?? TOP_ARTISTS_PAGE_SIZE,
+    offset: data.offset ?? 0,
+    count: data.count ?? items.length,
+    has_more: Boolean(data.has_more),
+    total_ranked: data.total_ranked ?? 0,
+    fetched_at: Date.now(),
+  }
+}
+
+/**
+ * Attach profile photos from GET /users/{username} when the ranking payload has none.
+ * Same pattern as Artist Index — only enrich the current page, not the full catalog.
+ */
+export async function enrichTopArtistsWithImages(artists: TopArtist[]): Promise<TopArtist[]> {
+  if (artists.length === 0) return artists
+
+  return Promise.all(
+    artists.map(async (artist) => {
+      if (artist.image) return artist
+      try {
+        const linked = await fetchUserProfileInitial(artist.username)
+        if (!linked) return artist
+        const raw = String(linked.profile_picture ?? linked.image ?? "").trim()
+        const image = getArtistImageUrl(raw)
+        if (!image) return artist
+        return { ...artist, image }
+      } catch {
+        return artist
+      }
+    }),
+  )
+}
+
+/** Server-side fetch (SSR / route handlers) — hits the API host directly. */
+export async function fetchTopArtistsServer(
+  limit = TOP_ARTISTS_PAGE_SIZE,
+  offset = 0,
+  options?: { enrichImages?: boolean },
+): Promise<TopArtistsPage | null> {
+  try {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    const page = parseEnvelope((await res.json()) as Envelope)
+    if (options?.enrichImages === false) return page
+    return { ...page, items: await enrichTopArtistsWithImages(page.items) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Paginate server-side until `max` artists or the ranking ends.
+ * Skips per-page image enrichment for speed; enrich the final slice at the call site if needed.
+ */
+export async function fetchTopArtistsUpTo(
+  max = 100,
+  pageSize = 50,
+): Promise<{ items: TopArtist[]; total_ranked: number; fetched_at: number }> {
+  const items: TopArtist[] = []
+  let offset = 0
+  let totalRanked = 0
+  let fetchedAt = Date.now()
+  let hasMore = true
+
+  while (hasMore && items.length < max) {
+    const limit = Math.min(pageSize, max - items.length)
+    const page = await fetchTopArtistsServer(limit, offset, { enrichImages: false })
+    if (!page) break
+    items.push(...page.items)
+    totalRanked = page.total_ranked
+    fetchedAt = page.fetched_at
+    hasMore = page.has_more
+    offset += page.items.length
+    if (page.items.length === 0) break
+  }
+
+  return { items, total_ranked: totalRanked, fetched_at: fetchedAt }
+}
+
+/** Client-side fetch through the same-origin proxy (avoids CORS). */
+export async function fetchTopArtistsClient(
+  limit = TOP_ARTISTS_PAGE_SIZE,
+  offset = 0,
+): Promise<TopArtistsPage> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  const res = await fetch(`/proxy/inventory/top?${params}`, {
+    headers: { Accept: "application/json" },
+  })
+  const body = (await res.json()) as Envelope
+  return parseEnvelope(body)
+}
+
+/**
+ * Rank-derived tier badge. The raw composite score is intentionally not shown
+ * as a user-facing number (per API guidance) — rank + tier reads better.
+ */
+export function topArtistTier(rank: number): { label: string; highlight: boolean } {
+  if (rank <= 10) return { label: "Global Velocity", highlight: true }
+  if (rank <= 50) return { label: "Hot 50", highlight: false }
+  if (rank <= 150) return { label: "Rising", highlight: false }
+  return { label: "Charting", highlight: false }
+}
+
+/**
+ * Public score band from YouTube score (v1) or future HPS.
+ * Advisory: show bands, not raw metrics.
+ */
+export function topArtistScoreBand(artist: TopArtist): {
+  label: string
+  short: string
+  highlight: boolean
+} {
+  const score = artist.youtube_score
+  if (score >= 32) return { label: "Elite band", short: "Elite", highlight: true }
+  if (score >= 28) return { label: "Strong band", short: "Strong", highlight: false }
+  if (score >= 24) return { label: "Building band", short: "Building", highlight: false }
+  return { label: "Emerging band", short: "Emerging", highlight: false }
+}
+
+/** Confidence from data completeness until the score engine ships confidence multipliers. */
+export function topArtistConfidence(artist: TopArtist): {
+  level: ScoreConfidence
+  label: string
+} {
+  const socialCount = topArtistSocialLinks(artist.other_socials).length
+  const hasImage = Boolean(artist.image || artist.banner_image)
+  const claimed = artist.claim_status === "claimed"
+
+  if (claimed || (hasImage && socialCount >= 2)) {
+    return { level: "high", label: "High confidence" }
+  }
+  if (socialCount >= 1 || hasImage) {
+    return { level: "medium", label: "Medium confidence" }
+  }
+  return { level: "low", label: "Low confidence" }
+}
+
+export function hasMovementData(artist: TopArtist): boolean {
+  return (
+    artist.is_new_entry === true ||
+    (artist.rank_delta_7d != null && artist.rank_delta_7d !== 0) ||
+    (artist.rank_delta_30d != null && artist.rank_delta_30d !== 0) ||
+    artist.previous_rank != null
+  )
+}
+
+export function movementDelta7d(artist: TopArtist): number | null {
+  if (artist.rank_delta_7d != null) return artist.rank_delta_7d
+  if (artist.previous_rank != null) return artist.previous_rank - artist.rank
+  return null
+}
+
+export function filterArtistsByCity(artists: TopArtist[], citySlug: string): TopArtist[] {
+  const city = HIFFI_500_CITY_CHARTS.find((c) => c.slug === citySlug)
+  if (!city) return []
+  const needle = city.label.toLowerCase()
+  return artists
+    .filter((a) => (a.location ?? "").toLowerCase().includes(needle))
+    .map((artist, index) => ({
+      ...artist,
+      global_rank: artist.global_rank ?? artist.rank,
+      rank: index + 1,
+    }))
+}
+
+/** Breakout 100 preview: global ranks 51–150 until momentum filters exist. */
+export function breakoutArtists(artists: TopArtist[]): TopArtist[] {
+  return artists.filter((a) => a.rank >= 51 && a.rank <= 150).slice(0, 100)
+}
+
+export function artistsWithMovement(
+  artists: TopArtist[],
+  kind: "risers" | "fallers" | "new",
+): TopArtist[] {
+  if (kind === "new") {
+    return artists.filter((a) => a.is_new_entry).sort((a, b) => a.rank - b.rank)
+  }
+  const withDelta = artists
+    .map((a) => ({ artist: a, delta: movementDelta7d(a) }))
+    .filter((entry) => entry.delta != null) as Array<{ artist: TopArtist; delta: number }>
+
+  if (kind === "risers") {
+    return withDelta
+      .filter((e) => e.delta > 0)
+      .sort((a, b) => b.delta - a.delta)
+      .map((e) => e.artist)
+  }
+  return withDelta
+    .filter((e) => e.delta < 0)
+    .sort((a, b) => a.delta - b.delta)
+    .map((e) => e.artist)
+}
+
+const SOCIAL_LABELS: Array<{ key: keyof TopArtistSocials; label: string }> = [
+  { key: "youtube", label: "YouTube" },
+  { key: "instagram", label: "Instagram" },
+  { key: "tiktok", label: "TikTok" },
+  { key: "facebook", label: "Facebook" },
+]
+
+export interface TopArtistSocialLink {
+  key: keyof TopArtistSocials
+  label: string
+  url: string
+  /** Handle parsed from the URL path (e.g. "@killermike"); falls back to platform label. */
+  handle: string
+}
+
+export function topArtistSocialLinks(socials?: TopArtistSocials): TopArtistSocialLink[] {
+  if (!socials) return []
+  const links: TopArtistSocialLink[] = []
+  for (const { key, label } of SOCIAL_LABELS) {
+    const url = socials[key]?.trim()
+    if (!url) continue
+    links.push({ key, label, url, handle: parseSocialHandle(url) || label })
+  }
+  return links
+}
+
+function parseSocialHandle(url: string): string | null {
+  try {
+    const path = new URL(url).pathname.replace(/\/+$/, "")
+    const last = path.split("/").filter(Boolean).pop()
+    if (!last) return null
+    const cleaned = decodeURIComponent(last)
+    if (/^(channel|user|c|watch|profile\.php)$/i.test(cleaned)) return null
+    return cleaned.startsWith("@") ? cleaned : `@${cleaned}`
+  } catch {
+    return null
+  }
+}

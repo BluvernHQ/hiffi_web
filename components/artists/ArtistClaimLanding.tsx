@@ -1,6 +1,6 @@
 import Image from "next/image"
-import Link from "next/link"
-import { ArrowLeft, BadgeCheck } from "lucide-react"
+import { BadgeCheck } from "lucide-react"
+import { ArtistClaimBackLink } from "@/components/artists/ArtistClaimBackLink"
 import { ArtistClaimSearch } from "@/components/artists/ArtistClaimSearch"
 import {
   ARTIST_CLAIM_FEATURES,
@@ -24,13 +24,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
     <>
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-        <Link
-          href="/artist-index"
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to Artist Index
-        </Link>
+        <ArtistClaimBackLink />
         <div className="mt-6 grid items-center gap-10 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-14">
           <div className="min-w-0">
             <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-[#E8192C] pl-2 pr-3 text-[10px] font-bold uppercase leading-none tracking-[0.18em] text-white">
