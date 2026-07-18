@@ -6,6 +6,10 @@ import type {
   PublicInventoryProfile,
 } from "@/lib/types/inventory"
 import { normalizePublicInventoryProfile } from "@/lib/types/inventory"
+import {
+  ARTIST_INVENTORY_CACHE_TAG,
+  artistInventoryUsernameTag,
+} from "@/lib/artist-index/inventory-cache-tags"
 
 const REVALIDATE_SECONDS = 300
 const MAX_PAGE_SIZE = 100
@@ -37,9 +41,18 @@ export async function fetchInventoryPage(params: {
     sp.set("username", params.username.trim().toLowerCase())
   }
 
+  const usernameTag = params.username?.trim()
+    ? artistInventoryUsernameTag(params.username)
+    : null
+
   const res = await fetch(`${getApiBaseUrl()}/inventory?${sp.toString()}`, {
     headers: { Accept: "application/json" },
-    next: { revalidate: REVALIDATE_SECONDS },
+    next: {
+      revalidate: REVALIDATE_SECONDS,
+      tags: usernameTag
+        ? [ARTIST_INVENTORY_CACHE_TAG, usernameTag]
+        : [ARTIST_INVENTORY_CACHE_TAG],
+    },
   })
 
   if (!res.ok) {

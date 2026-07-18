@@ -16,6 +16,7 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
   const followerCount = getPrimaryFollowerCount(artist)
   const hiffiVideoCount = 0
   const isUnclaimed = !artist.verified && artist.claim_status === "unclaimed"
+  const isPending = !artist.verified && artist.claim_status === "pending"
 
   const bannerSrc = getArtistImageUrl(artist.banner_image)
   const profileSrc = getArtistImageUrl(artist.image)
@@ -37,6 +38,22 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
               Claim your profile
             </Link>{" "}
             to verify links and manage how fans find you on Hiffi.
+          </p>
+        </div>
+      ) : null}
+
+      {isPending ? (
+        <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 sm:px-5">
+          <p className="text-sm text-amber-950">
+            <span className="font-semibold">This profile has a pending ownership verification.</span>{" "}
+            If you believe you are the rightful owner, you can{" "}
+            <Link
+              href={claimHref}
+              className="font-semibold text-amber-950 underline-offset-2 hover:underline"
+            >
+              request ownership
+            </Link>
+            .
           </p>
         </div>
       ) : null}
@@ -63,7 +80,7 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
                 </span>
               ) : (
                 <span className="inline-flex rounded-full bg-white/15 px-3 py-1.5 text-white/90 backdrop-blur-sm">
-                  {artist.claim_status === "pending" ? "Claim Pending" : "Unclaimed Profile"}
+                  {isPending ? "Under Review" : "Unclaimed Profile"}
                 </span>
               )}
               <span className="normal-case text-white/85">{formatCityName(artist.city)}</span>
@@ -112,7 +129,7 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
                 >
                   Claim your profile
                 </Link>
-              ) : (
+              ) : isPending ? (
                 <Link
                   href={claimHref}
                   className={cn(
@@ -120,8 +137,17 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
                     "bg-white/15 hover:bg-white/25",
                   )}
                 >
-                  Manage profile
+                  Request ownership
                 </Link>
+              ) : (
+                <span
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm",
+                    "bg-white/15",
+                  )}
+                >
+                  Claimed
+                </span>
               )}
               <Link
                 href={`/profile/${encodeURIComponent(artist.slug)}`}

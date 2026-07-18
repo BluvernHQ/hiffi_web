@@ -26,8 +26,14 @@ export async function generateMetadata({ params }: ArtistClaimPageProps): Promis
   }
 
   return routeMetadata({
-    title: `Claim ${artist.name}`,
-    description: `Submit a claim for the ${artist.name} artist profile on Hiffi.`,
+    title:
+      artist.claim_status === "pending"
+        ? `Request ownership of ${artist.name}`
+        : `Claim ${artist.name}`,
+    description:
+      artist.claim_status === "pending"
+        ? `Request ownership of the ${artist.name} artist profile on Hiffi.`
+        : `Submit a claim for the ${artist.name} artist profile on Hiffi.`,
     path: `/artist-index/${artist.slug}/claim`,
     index: false,
   })
@@ -59,15 +65,35 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
             Artist verification
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Claim {artist.name}
+            {artist.claim_status === "pending"
+              ? `Request ownership of ${artist.name}`
+              : `Claim ${artist.name}`}
           </h1>
           <p className="text-base text-muted-foreground">
-            Submit your name and email to claim this profile. Our team will review your request
-            within 24–48 hours — no login required.
+            {artist.claim_status === "claimed"
+              ? "This profile has already been claimed."
+              : artist.claim_status === "pending"
+                ? "This profile already has a pending ownership verification. Submit your details to request ownership — it joins the same artist inventory review queue for admins."
+                : "Submit your name and email to claim this profile. Our team will review your request within 24–48 hours — no login required."}
           </p>
         </div>
 
-        <ClaimForm artist={artist} />
+        {artist.claim_status === "claimed" ? (
+          <div className="rounded-2xl border border-border bg-muted/20 p-8 text-center">
+            <p className="text-lg font-semibold text-foreground">Already claimed</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              <strong>{artist.name}</strong> is no longer accepting new claim submissions.
+            </p>
+            <Link
+              href={`/artist-index/${artist.slug}`}
+              className="mt-6 inline-flex text-sm font-medium text-[#E8192C] hover:underline"
+            >
+              View profile
+            </Link>
+          </div>
+        ) : (
+          <ClaimForm artist={artist} />
+        )}
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
           Not {artist.name}?{" "}

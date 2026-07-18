@@ -65,6 +65,7 @@ import {
 import {
   adminListInventory as apiAdminListInventory,
   adminListInventoryClaims as apiAdminListInventoryClaims,
+  adminApproveInventoryClaim as apiAdminApproveInventoryClaim,
   adminUploadInventory as apiAdminUploadInventory,
   adminDownloadInventoryTemplate as apiAdminDownloadInventoryTemplate,
   adminExportInventory as apiAdminExportInventory,
@@ -313,6 +314,10 @@ class AdminApiClient implements AdminApiClientContext {
     return apiAdminListInventoryClaims(this, params)
   }
 
+  async adminApproveInventoryClaim(claimID: string) {
+    return apiAdminApproveInventoryClaim(this, claimID)
+  }
+
   async adminDownloadInventoryTemplate() {
     return apiAdminDownloadInventoryTemplate(this)
   }
@@ -361,12 +366,28 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListUsers(params: Record<string, string | number | undefined> = {}) {
     const res: AdminListResult<AdminUserRow> = await apiAdminListUsers(this, params)
-    return { status: res.status, users: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
+    return {
+      status: res.status,
+      users: res.items,
+      limit: res.limit,
+      offset: res.offset,
+      count: res.count,
+      has_more: res.has_more,
+      filters: res.filters,
+    }
   }
 
   async adminListVideos(params: Record<string, string | number | undefined> = {}) {
     const res: AdminListResult<AdminVideoRow> = await apiAdminListVideos(this, params)
-    return { status: res.status, videos: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
+    return {
+      status: res.status,
+      videos: res.items,
+      limit: res.limit,
+      offset: res.offset,
+      count: res.count,
+      has_more: res.has_more,
+      filters: res.filters,
+    }
   }
 
   async adminListComments(params: { limit?: number; offset?: number; filter?: string } = {}) {
@@ -387,7 +408,15 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListFollowers(params: Record<string, string | number | undefined> = {}) {
     const res: AdminListResult<AdminFollowerRow> = await apiAdminListFollowers(this, params)
-    return { status: res.status, followers: res.items, limit: res.limit, offset: res.offset, count: res.count, filters: res.filters }
+    return {
+      status: res.status,
+      followers: res.items,
+      limit: res.limit,
+      offset: res.offset,
+      count: res.count,
+      has_more: res.has_more,
+      filters: res.filters,
+    }
   }
 
   async adminListSearches(params: Record<string, string | number | undefined> = {}) {

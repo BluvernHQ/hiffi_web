@@ -2,12 +2,17 @@ import { getApiBaseUrl } from "@/lib/config"
 import type { AdminApiClientContext } from "./context"
 import { unwrapSuccessData } from "./envelope"
 import type {
+  InventoryClaimApproveResponse,
   InventoryClaimListResponse,
   InventoryListResponse,
   InventoryUploadResult,
   InventoryClaimStatus,
 } from "@/lib/types/inventory"
-import { normalizeInventoryEntry } from "@/lib/types/inventory"
+import {
+  normalizeInventoryClaim,
+  normalizeInventoryClaimApproveResponse,
+  normalizeInventoryEntry,
+} from "@/lib/types/inventory"
 
 export async function adminListInventory(
   ctx: AdminApiClientContext,
@@ -153,14 +158,34 @@ export async function adminListInventoryClaims(
   const raw = await ctx.request<unknown>(endpoint, { method: "GET" }, true)
   const data = unwrapSuccessData<InventoryClaimListResponse>(raw)
 
+  const items = Array.isArray(data.items)
+    ? data.items.map((item) => normalizeInventoryClaim(item as unknown as Record<string, unknown>))
+    : []
+
   return {
-    items: data.items ?? [],
+    items,
     limit: Number(data.limit ?? params.limit ?? 20),
     offset: Number(data.offset ?? params.offset ?? 0),
     count: Number(data.count ?? 0),
     has_more: Boolean(data.has_more),
     filters: data.filters ?? {},
   }
+}
+
+export async function adminApproveInventoryClaim(
+  ctx: AdminApiClientContext,
+  claimID: string,
+): Promise<InventoryClaimApproveResponse> {
+  const id = claimID.trim()
+  if (!id) throw new Error("claim id is required")
+
+  const raw = await ctx.request<unknown>(
+    `/admin/inventory/claims/${encodeURIComponent(id)}/approve`,
+    { method: "POST" },
+    true,
+  )
+  const data = unwrapSuccessData<Record<string, unknown>>(raw)
+  return normalizeInventoryClaimApproveResponse(data)
 }
 
 function parseContentDispositionFilename(header: string | null, fallback: string): string {

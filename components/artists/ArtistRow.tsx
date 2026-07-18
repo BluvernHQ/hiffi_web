@@ -62,7 +62,7 @@ function ClaimStatusBadge({ artist }: { artist: Artist }) {
   if (artist.claim_status === "pending") {
     return (
       <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-        Pending
+        Under Review
       </span>
     )
   }
@@ -76,6 +76,7 @@ function ClaimStatusBadge({ artist }: { artist: Artist }) {
 
 export function ArtistRow({ artist }: ArtistRowProps) {
   const isMuted = !artist.verified && artist.claim_status === "unclaimed"
+  const isPending = !artist.verified && artist.claim_status === "pending"
   const profileHref = `/artist-index/${artist.slug}`
   const claimHref = `/artist-index/${artist.slug}/claim`
 
@@ -144,6 +145,10 @@ export function ArtistRow({ artist }: ArtistRowProps) {
           <Link href={profileHref} className={artistButtonSolid}>
             View profile
             <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        ) : isPending ? (
+          <Link href={claimHref} className={artistButtonOutline}>
+            Request ownership
           </Link>
         ) : (
           <Link href={claimHref} className={artistButtonOutline}>

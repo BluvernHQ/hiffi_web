@@ -37,6 +37,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     )
   }
 
+  if (pathname === "/about") {
+    return <>{children}</>
+  }
+
   return (
     <AppLayout currentFilter={currentFilter} onFilterChange={onFilterChange}>
       {children}

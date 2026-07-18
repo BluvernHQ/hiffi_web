@@ -1,0 +1,62 @@
+[
+  {
+    "cover": "values-stock-artist-portrait.webp",
+    "flipClass": "s1"
+  },
+  {
+    "cover": "values-stock-live-performance.webp",
+    "flipClass": "s2"
+  },
+  {
+    "cover": "artist5.webp",
+    "flipClass": "s3"
+  },
+  {
+    "cover": "values-stock-studio.webp",
+    "flipClass": "s4"
+  },
+  {
+    "cover": "artst1.webp",
+    "flipClass": "s5"
+  },
+  {
+    "cover": "image6.webp",
+    "flipClass": "s7"
+  },
+  {
+    "cover": "image5.webp",
+    "flipClass": "s8"
+  },
+  {
+    "cover": "image2.webp",
+    "flipClass": "s1"
+  },
+  {
+    "cover": "values-stock-live-performance.webp",
+    "flipClass": "s2"
+  },
+  {
+    "cover": "image5.webp",
+    "flipClass": "s3"
+  },
+  {
+    "cover": "image1.webp",
+    "flipClass": "s4"
+  },
+  {
+    "cover": "image0.webp",
+    "flipClass": "s5"
+  },
+  {
+    "cover": "img8.webp",
+    "flipClass": "s6"
+  },
+  {
+    "cover": "image3.webp",
+    "flipClass": "s7"
+  },
+  {
+    "cover": "values-stock-studio.webp",
+    "flipClass": "s8"
+  }
+]
