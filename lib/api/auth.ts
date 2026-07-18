@@ -10,7 +10,12 @@ export type RegisterResponseData = {
 
 export async function login(
   ctx: ApiClientContext,
-  data: { username?: string; email?: string; password: string },
+  data: {
+    username?: string
+    email?: string
+    password: string
+    turnstile_token?: string
+  },
 ): Promise<{
   success: boolean
   data: { token: string; user: { name: string; uid: string; username: string } }
@@ -43,6 +48,7 @@ export async function register(
     password: string
     email: string
     referral_code?: string
+    turnstile_token?: string
   },
 ): Promise<{
   success: boolean
