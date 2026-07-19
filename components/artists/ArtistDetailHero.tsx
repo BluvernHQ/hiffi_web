@@ -35,9 +35,9 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
             <span className="font-semibold text-[#E8192C]">Unclaimed profile.</span>{" "}
             Is this you?{" "}
             <Link href={claimHref} className="font-semibold text-[#E8192C] underline-offset-2 hover:underline">
-              Claim your profile
+              Claim your Artist profile
             </Link>{" "}
-            to verify links and manage how fans find you on Hiffi.
+            and unlock artist opportunities, tools, and partner offers.
           </p>
         </div>
       ) : null}

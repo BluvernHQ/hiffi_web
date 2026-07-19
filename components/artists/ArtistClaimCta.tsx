@@ -31,8 +31,7 @@ export function ArtistClaimCta({ artist, variant = "sidebar", className }: Artis
       >
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Are You an Artist?</h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-white/90 sm:text-base">
-          Claim your Hiffi Artist Profile. Verify your links, upload videos, and help fans discover
-          your work.
+          Claim your Artist profile and unlock artist opportunities, tools, and partner offers.
         </p>
         <Link
           href={claimHref}
