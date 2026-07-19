@@ -167,7 +167,6 @@ export async function buildArtistDirectoryFiltersAsync(): Promise<ArtistDirector
     label: string
     test: (artist: Artist) => boolean
   }> = [
-    { id: "verified", label: "Verified", test: (artist) => artist.verified },
     { id: "new", label: "New uploads", test: (artist) => isArtistNew(artist) },
     {
       id: "claimable",
