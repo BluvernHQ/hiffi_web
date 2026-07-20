@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080807">
+  <meta name="description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta property="og:title" content="Hip-Hop 500 — Live Signal Index">
+  <meta property="og:description" content="A high-energy, data-first view of the artists moving hip-hop on YouTube.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="preload" href="/top-artist/assets/fonts/NimbusSansNarrow-Bold.otf" as="font" type="font/otf" crossorigin>
+  <link rel="stylesheet" href="/top-artist/css/styles.css">
+  <title>Hiffi Hip-Hop 500 — Live Signal Index</title>
+</head>
+<body>
+  <main>
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="HIFFI Hip-Hop 500 home">HIFFI HIP-HOP <span>500</span></a>
+      <nav class="desktop-nav" id="primaryNav" aria-label="Primary navigation">
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#movers">Movers</a>
+        <a href="#methodology">Methodology</a>
+      </nav>
+      <button class="header-arrow" type="button" data-scroll-target="leaderboard" aria-label="Explore the ranking"><span>↘</span></button>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu"><span></span><span></span></button>
+    </header>
+
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="live-dot"></span> Live YouTube rap index</p>
+        <h1>The 500<br><span>moving</span><br>hip-hop<br>right now</h1>
+        <div class="hero-bottom">
+          <p class="hero-deck">The live movement signals across the artists shaping rap on the world’s biggest video platform.</p>
+          <div class="hero-stats" aria-label="Index facts">
+            <div><b>500</b><span>Tracked</span></div>
+            <div><b>24/7</b><span>Signal<br>view</span></div>
+          </div>
+        </div>
+          <button class="primary-cta" type="button" data-scroll-target="leaderboard">Enter live ranking <span>→</span></button>
+      </div>
+
+      <div class="hero-visual">
+        <div class="signal-terminal" aria-hidden="true">
+          <div class="terminal-bar"><span>HH500 / SIGNAL MAP</span><span>W29.2026</span><span class="signal-online"><i></i> ONLINE</span></div>
+          <div class="terminal-field">
+            <div class="scan-line"></div>
+            <div class="terminal-number">500</div>
+            <div class="signal-axis"><span>100</span><span>75</span><span>50</span><span>25</span><span>00</span></div>
+            <div class="waveform"> <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="fragment-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="terminal-label"><b>YOUTUBE RAP VELOCITY</b><span>GLOBAL / 120 PREVIEW CHANNELS</span></div>
+          </div>
+        </div>
+        <div class="top-three">
+          <div class="top-three-head"><span><i class="live-dot"></i> Live ranking preview</span><small>Movement / 30D</small></div>
+          <div id="topThree"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="index-intro" id="leaderboard">
+      <div>
+        <p class="section-kicker">Updated weekly · Global</p>
+        <h2>The ranking<br>never stands still.</h2>
+      </div>
+      <p>One view of scale and momentum: recent audience growth, view velocity, reach and publishing consistency.</p>
+    </section>
+
+    <section class="ranking-shell" aria-label="Hip-Hop artist ranking">
+      <div class="ranking-controls">
+        <label class="search-box" for="artistSearch"><span>Search artist</span><input id="artistSearch" type="search" placeholder="Type a name..." autocomplete="off"><b aria-hidden="true">⌕</b></label>
+        <div class="filter-group" id="regionFilters" aria-label="Filter by region">
+          <button class="active" type="button" data-region="All">All</button>
+          <button type="button" data-region="USA">USA</button>
+          <button type="button" data-region="UK">UK</button>
+          <button type="button" data-region="Canada">Canada</button>
+          <button type="button" data-region="Global">Global</button>
+        </div>
+        <label class="sort-select" for="rankingSort"><span>Sort</span><select id="rankingSort" aria-label="Sort ranking"><option value="overall">Overall rank</option><option value="rising">Fastest rising</option><option value="views">30-day views</option></select></label>
+      </div>
+
+      <div class="table-head" aria-hidden="true"><span>Rank / Artist</span><span>Region</span><span>Subscribers</span><span>Lifetime views</span><span>30D views</span><span>Score</span><span>Move</span></div>
+      <div class="artist-list" id="artistList"></div>
+      <div class="ranking-footer" role="status" aria-live="polite"><p id="resultsCount"></p><button id="loadMore" type="button">Load more artists <span>↓</span></button></div>
+    </section>
+
+    <section class="movers-section" id="movers">
+      <div class="movers-heading"><p class="section-kicker">Signal / 02</p><h2>Momentum<br><span>right now.</span></h2></div>
+      <div class="mover-grid" id="moverGrid"></div>
+    </section>
+
+    <section class="method-section" id="methodology">
+      <div class="method-heading"><p class="section-kicker">Method / 03</p><h2>Built on signal.<br>Not opinion.</h2><p>The Hiffi Hip-Hop 500 score is designed to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p></div>
+      <div class="weights">
+        <article><span>01</span><b>35%</b><div><h3>Recent momentum</h3><p>30-day view and subscriber growth</p></div></article>
+        <article><span>02</span><b>30%</b><div><h3>View velocity</h3><p>Views earned relative to audience size</p></div></article>
+        <article><span>03</span><b>20%</b><div><h3>Audience reach</h3><p>Verified channel subscriber footprint</p></div></article>
+        <article><span>04</span><b>15%</b><div><h3>Consistency</h3><p>Sustained publishing and performance</p></div></article>
+      </div>
+    </section>
+
+    <section class="closing-band"><p>500 artists. One moving picture of hip-hop on YouTube.</p><button type="button" data-scroll-target="leaderboard">See who’s moving <span>↗</span></button></section>
+
+    <footer>
+      <a class="wordmark" href="#top">HIP-HOP <span>500</span></a>
+      <p>Independent index. Not affiliated with YouTube.<br>Metrics shown for may not be accurate, verify on YT.</p>
+      <div><a href="#leaderboard">Ranking</a><a href="#methodology">Method</a><a href="mailto:hello@hiffi.com">Contact</a></div>
+      <small>© 2026 HIFFI HIP-HOP 500</small>
+    </footer>
+  </main>
+
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden>
+    <aside class="artist-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerArtistName">
+      <button class="drawer-close" id="drawerClose" type="button" aria-label="Close artist profile">×</button>
+      <p class="section-kicker">Artist profile / Preview</p>
+      <div class="drawer-rank" id="drawerRank"></div>
+      <h2 id="drawerArtistName"></h2>
+      <div class="drawer-score"><span>Hip-Hop 500 score</span><b id="drawerScore"></b></div>
+      <div class="drawer-metrics">
+        <div><span>Subscribers</span><b id="drawerSubscribers"></b></div>
+        <div><span>Lifetime views</span><b id="drawerViews"></b></div>
+        <div><span>30-day views</span><b id="drawerMonthly"></b></div>
+        <div><span>30-day growth</span><b id="drawerGrowth"></b></div>
+      </div>
+      <div class="drawer-chart" id="drawerChart" aria-label="Representative eight-week momentum chart"></div>
+      <p class="drawer-note">Representative preview metrics—not official channel analytics. Verified weekly data will replace this layer when the YouTube pipeline is connected.</p>
+      <a class="drawer-link" id="drawerYoutube" href="#" target="_blank" rel="noreferrer">Find official channel <span>↗</span></a>
+    </aside>
+  </div>
+
+  <script src="/top-artist/js/app.js" defer></script>
+</body>
+</html>

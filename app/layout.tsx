@@ -82,8 +82,14 @@ export const metadata: Metadata = {
     images: [absoluteUrl("/hiffi_logo.png")],
   },
   icons: {
-    icon: [{ url: "/hiffi_logo.png", type: "image/png" }],
-    apple: "/hiffi_logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.ico",
   },
 }
 
