@@ -87,7 +87,6 @@ export function hiffi500SharePath(username: string): string {
 /** Sub-nav links for the ranking family of pages. */
 export const HIFFI_500_NAV_LINKS = [
   { href: HIFFI_500_PATH, label: "Top 500" },
-  { href: hiffi500CityPath("atlanta"), label: "Atlanta" },
   { href: HIFFI_500_RISERS_PATH, label: "Biggest risers" },
   { href: HIFFI_500_FALLERS_PATH, label: "Biggest fallers" },
   { href: HIFFI_500_NEW_ENTRIES_PATH, label: "New entries" },
