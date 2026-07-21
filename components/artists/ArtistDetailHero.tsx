@@ -33,11 +33,12 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
         <div className="mb-4 rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 px-4 py-3 sm:px-5">
           <p className="text-sm text-foreground">
             <span className="font-semibold text-[#E8192C]">Unclaimed profile.</span>{" "}
-            Is this you?{" "}
+            Are you {artist.name}?{" "}
             <Link href={claimHref} className="font-semibold text-[#E8192C] underline-offset-2 hover:underline">
-              Claim your profile
+              Claim your account
             </Link>{" "}
-            to verify links and manage how fans find you on Hiffi.
+            to unlock brand sponsorships, paid collaborations, partner offers, and benefits worth up
+            to $10K for select creators.
           </p>
         </div>
       ) : null}
