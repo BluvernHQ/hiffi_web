@@ -29,6 +29,8 @@ import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
 import { AdminCollaborationInquiriesTable } from "@/components/admin/collaboration-inquiries-table"
 import { AdminFlagsTable } from "@/components/admin/flags-table"
 import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
+import { AdminFeedbackTable } from "@/components/admin/feedback-table"
+import { AdminFeedbackDetail } from "@/components/admin/admin-feedback-detail"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsJourneysPanel } from "@/components/admin/analytics-journeys-panel"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
@@ -57,12 +59,15 @@ function AdminDashboardContent() {
 
   const section = searchParams.get("flagId")
     ? "flags"
-    : searchParams.get("playlistId")
-      ? "curated_playlists"
-      : searchParams.get("sessionId")
-        ? "journeys"
-        : searchParams.get("section") || "overview"
+    : searchParams.get("feedbackId")
+      ? "feedback"
+      : searchParams.get("playlistId")
+        ? "curated_playlists"
+        : searchParams.get("sessionId")
+          ? "journeys"
+          : searchParams.get("section") || "overview"
   const flagId = searchParams.get("flagId")
+  const feedbackId = searchParams.get("feedbackId")
   const playlistId = searchParams.get("playlistId")
   const fallbackSection = admin ? getFirstAllowedSection(admin) : "overview"
   const normalizedSection = section === "activity" ? "journeys" : section
@@ -80,6 +85,7 @@ function AdminDashboardContent() {
     if (
       !searchParams.get("section") &&
       !searchParams.get("flagId") &&
+      !searchParams.get("feedbackId") &&
       !searchParams.get("playlistId") &&
       !searchParams.get("sessionId") &&
       !authLoading &&
@@ -334,6 +340,30 @@ function AdminDashboardContent() {
                         <AdminFlagDetail flagId={flagId} />
                       ) : (
                         <AdminFlagsTable />
+                      )
+                    ) : (
+                      <TableSkeleton />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "feedback" && can("admin:feedback") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  {!feedbackId && (
+                    <div className="shrink-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Feedback</h1>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Review in-app feedback submissions from users
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? (
+                      feedbackId ? (
+                        <AdminFeedbackDetail feedbackId={feedbackId} />
+                      ) : (
+                        <AdminFeedbackTable />
                       )
                     ) : (
                       <TableSkeleton />

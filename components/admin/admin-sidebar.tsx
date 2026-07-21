@@ -13,6 +13,7 @@ import {
   Megaphone,
   Handshake,
   Flag,
+  MessageCircle,
   Shield,
   ShieldCheck,
   X,
@@ -77,6 +78,7 @@ const navSections: NavSection[] = [
       { icon: MessageSquare, label: "Comments", value: "comments", permission: "admin:comments" },
       { icon: Reply, label: "Replies", value: "replies", permission: "admin:replies" },
       { icon: Flag, label: "Reports", value: "flags", permission: "admin:flags" },
+      { icon: MessageCircle, label: "Feedback", value: "feedback", permission: "admin:feedback" },
     ],
   },
   {
@@ -138,11 +140,13 @@ export function AdminSidebar({
 
   const section = searchParams.get("flagId")
     ? "flags"
-    : searchParams.get("playlistId")
-      ? "curated_playlists"
-      : searchParams.get("sessionId")
-        ? "journeys"
-        : searchParams.get("section") || "overview"
+    : searchParams.get("feedbackId")
+      ? "feedback"
+      : searchParams.get("playlistId")
+        ? "curated_playlists"
+        : searchParams.get("sessionId")
+          ? "journeys"
+          : searchParams.get("section") || "overview"
 
   const handleSectionChange = (value: string) => {
     router.push(`/admin/dashboard?section=${value}`)
