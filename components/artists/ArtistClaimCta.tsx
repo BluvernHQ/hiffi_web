@@ -29,12 +29,13 @@ export function ArtistClaimCta({ artist, variant = "sidebar", className }: Artis
           className,
         )}
       >
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Are You an Artist?</h2>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Are You an artist?</h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-white/90 sm:text-base">
-          Claim your Artist profile and unlock artist opportunities, tools, and partner offers.
+          Claim your account to unlock brand sponsorships, paid collaborations, partner offers, and
+          other benefits
         </p>
         <Link
-          href={claimHref}
+          href="/artist-index/claim"
           className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#E8192C] transition-colors hover:bg-white/90"
         >
           Claim your profile
