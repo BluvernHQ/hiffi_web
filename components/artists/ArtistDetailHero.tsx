@@ -1,6 +1,6 @@
 import Link from "next/link"
+import { BadgeCheck } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { VerifiedIcon } from "@/components/artists/VerifiedIcon"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { formatCityName, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
@@ -75,8 +75,8 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
           <div className="relative flex items-start justify-between p-5 sm:p-6">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
               {artist.verified ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E8192C] px-3 py-1.5 text-white">
-                  <VerifiedIcon className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-3 py-1.5 text-white">
+                  <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
                   Verified Artist
                 </span>
               ) : (

@@ -1,10 +1,9 @@
 import Link from "next/link"
-import { ArrowRight, MapPin } from "lucide-react"
+import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { formatCityState } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
-import { VerifiedIcon } from "@/components/artists/VerifiedIcon"
 import { cn } from "@/lib/utils"
 
 type ArtistRowProps = {
@@ -53,8 +52,8 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
 function ClaimStatusBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C]/10 px-2.5 py-1 text-xs font-semibold text-[#E8192C]">
-        <VerifiedIcon className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-xs font-semibold text-white">
+        <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>
     )
@@ -101,7 +100,9 @@ export function ArtistRow({ artist }: ArtistRowProps) {
             >
               {artist.name}
             </Link>
-            {artist.verified ? <VerifiedIcon className="h-4 w-4" /> : null}
+            {artist.verified ? (
+              <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
+            ) : null}
           </div>
           <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground sm:hidden">
             <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />

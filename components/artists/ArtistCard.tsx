@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, MapPin } from "lucide-react"
-import { VerifiedIcon } from "@/components/artists/VerifiedIcon"
+import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import {
   artistIndexClaimHref,
@@ -61,8 +60,8 @@ function ArtistCardAvatar({ artist }: { artist: Artist }) {
 function HeaderBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C] px-3 py-1 text-xs font-semibold text-white">
-        <VerifiedIcon className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1] px-3 py-1 text-xs font-semibold text-white">
+        <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>
     )
@@ -154,7 +153,9 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
                 <p className="truncate text-xl font-bold text-foreground transition-colors group-hover:text-[#E8192C] group-focus-within:text-[#E8192C]">
                   {artist.name}
                 </p>
-                {artist.verified ? <VerifiedIcon className="h-4 w-4" /> : null}
+                {artist.verified ? (
+                  <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
+                ) : null}
               </div>
               {isHub ? (
                 <p className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground">
