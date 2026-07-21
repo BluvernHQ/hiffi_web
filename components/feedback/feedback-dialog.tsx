@@ -140,12 +140,12 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className={cn(
-          "sm:max-w-lg transition-opacity",
+          "z-[100] max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg transition-opacity",
           // While capturing, hide the dialog so it doesn't appear in the
           // screenshot of the current tab — only the page underneath is grabbed.
           capturing && "pointer-events-none !opacity-0",
         )}
-        overlayClassName={cn(capturing && "!bg-transparent !backdrop-blur-none")}
+        overlayClassName={cn("z-[100]", capturing && "!bg-transparent !backdrop-blur-none")}
       >
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>
@@ -190,7 +190,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                   width={512}
                   height={288}
                   unoptimized
-                  className="h-auto max-h-56 w-full object-contain"
+                  className="h-auto max-h-36 w-full object-contain sm:max-h-44"
                 />
                 <Button
                   type="button"
@@ -259,7 +259,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || !description.trim()}
             data-analytics-name="feedback-submitted"
           >
             {submitting ? (
