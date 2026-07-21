@@ -32,6 +32,13 @@ export interface TopArtist {
   image?: string | null
   claim_status: "unclaimed" | "pending" | "claimed"
   youtube_score: number
+  youtube_subscriber_count?: number
+  youtube_view_count?: number
+  youtube_video_count?: number
+  youtube_recent_avg_views?: number
+  youtube_upload_velocity?: number
+  youtube_momentum_7d?: number
+  youtube_momentum_30d?: number
   /** When city charts re-number locally, preserve the global Hiffi 500 rank for share cards. */
   global_rank?: number
   /** Optional — present once weekly snapshots ship. */

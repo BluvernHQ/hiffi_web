@@ -60,7 +60,7 @@ function ArtistCardAvatar({ artist }: { artist: Artist }) {
 function HeaderBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C] px-3 py-1 text-xs font-semibold text-white">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1] px-3 py-1 text-xs font-semibold text-white">
         <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>

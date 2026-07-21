@@ -52,7 +52,7 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
 function ClaimStatusBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C]/10 px-2.5 py-1 text-xs font-semibold text-[#E8192C]">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1]/10 px-2.5 py-1 text-xs font-semibold text-[#4F7AE1]">
         <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>

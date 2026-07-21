@@ -72,7 +72,20 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/20 to-transparent" aria-hidden />
 
-          <div className="relative flex items-start justify-end p-5 sm:p-6">
+          <div className="relative flex items-start justify-between p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
+              {artist.verified ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-3 py-1.5 text-white">
+                  <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                  Verified Artist
+                </span>
+              ) : (
+                <span className="inline-flex rounded-full bg-white/15 px-3 py-1.5 text-white/90 backdrop-blur-sm">
+                  {isPending ? "Under Review" : "Unclaimed Profile"}
+                </span>
+              )}
+              <span className="normal-case text-white/85">{formatCityName(artist.city)}</span>
+            </div>
             <ArtistShareButton title={artist.name} path={profilePath} />
           </div>
         </div>
@@ -96,19 +109,6 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
               </div>
 
               <div className="space-y-3 pb-1">
-                <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] sm:text-[11px]">
-                  {artist.verified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C] px-2 py-1 text-white">
-                      <BadgeCheck className="h-3 w-3" aria-hidden />
-                      Verified Artist
-                    </span>
-                  ) : (
-                    <span className="inline-flex rounded-full bg-white/15 px-2 py-1 text-white/90 backdrop-blur-sm">
-                      {isPending ? "Under Review" : "Unclaimed Profile"}
-                    </span>
-                  )}
-                  <span className="text-white/85">{formatCityName(artist.city)}</span>
-                </div>
                 <h1 className="max-w-3xl text-3xl font-bold uppercase leading-none tracking-tight sm:text-4xl lg:text-5xl">
                   {artist.name}
                 </h1>

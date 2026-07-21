@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const limit = request.nextUrl.searchParams.get("limit") ?? "20"
     const offset = request.nextUrl.searchParams.get("offset") ?? "0"
+    const enrichParam = request.nextUrl.searchParams.get("enrich")
+    const enrichImages = enrichParam !== "0" && enrichParam !== "false"
     const params = new URLSearchParams({ limit, offset })
 
     const response = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
@@ -31,7 +33,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (body.success && body.data?.items) {
-      const items = await enrichTopArtistsWithImages(body.data.items as TopArtist[])
+      const items = enrichImages
+        ? await enrichTopArtistsWithImages(body.data.items as TopArtist[])
+        : (body.data.items as TopArtist[])
       return NextResponse.json({
         ...body,
         data: { ...body.data, items },

@@ -55,6 +55,14 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/top-artist",
+        destination: "/top-artist/index.html",
+      },
+      {
+        source: "/top-artist/",
+        destination: "/top-artist/index.html",
+      },
+      {
         source: "/:path*.md",
         destination: "/llms-md/:path*",
       },
