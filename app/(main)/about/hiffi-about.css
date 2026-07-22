@@ -1214,6 +1214,16 @@ footer.footer .footer-bg {
   background-size: contain !important;
 }
 
+/* Own Your Sound — creator-card-3 mock, docked to card bottom */
+.creators-slide-content.s3 {
+  background-color: #4c4d4f !important;
+  background-image: url("/hiffi-about/creator-card-3.webp") !important;
+  background-position: 50% 100% !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  overflow: hidden !important;
+}
+
 /* Creators card stack — fan spread (cs-slider) */
 .cs-slider.creators-s,
 .cs-slider-wrapper.creators-s {
