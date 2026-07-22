@@ -70,6 +70,14 @@ export function initSplitText(root: ParentNode) {
       targetKey === "chars" ? split.chars : targetKey === "lines" ? split.lines : split.words;
     if (!targets?.length) return;
 
+    // SplitType sets overflow:hidden on .line — that clips descenders on tight headlines (HipHop's).
+    if (el.classList.contains("hero-headline-line") || el.closest(".hero-headline")) {
+      split.lines?.forEach((line) => {
+        line.style.overflow = "visible";
+      });
+      el.style.overflow = "visible";
+    }
+
     gsap.set(targets, preset.from);
     gsap.set(el, { visibility: "visible" });
 

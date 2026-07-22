@@ -506,6 +506,9 @@ footer.footer .footer-bg {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  /* background-clip can crop descenders without a little vertical room */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* Creators section — "An Enhanced Fan Experience" */
@@ -929,21 +932,30 @@ footer.footer .footer-bg {
 @media screen and (max-width: 991px) {
   .text-elements.benefits-s {
     top: 14rem;
-    left: 0;
-    right: 0;
-    width: 100%;
-    max-width: none;
-    transform: none;
-    padding-inline: 4vw;
+    left: 50%;
+    right: auto;
+    width: min(92vw, 80rem);
+    max-width: 92vw;
+    transform: translateX(-50%);
+    padding-inline: 0;
     box-sizing: border-box;
     text-align: center !important;
+    align-items: center;
   }
 
-  .text-elements.benefits-s .headline-h1 {
+  .text-elements.benefits-s .headline-wrapper.benefits-s {
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .text-elements.benefits-s .headline-h1.benefits-headline {
     font-size: 12vw !important;
-    line-height: 1.02 !important;
+    line-height: 1.05 !important;
     letter-spacing: -0.03em;
     text-align: center !important;
+    align-items: center;
+    width: 100%;
   }
 
   .text-elements.benefits-s .headline-h1.benefits-headline .char {
@@ -960,7 +972,11 @@ footer.footer .footer-bg {
 @media screen and (max-width: 479px) {
   .text-elements.benefits-s {
     top: 12rem;
-    padding-inline: 5vw;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(94vw, 80rem);
+    max-width: 94vw;
+    padding-inline: 0;
   }
 
   .text-elements.benefits-s .headline-h1 {
@@ -1052,6 +1068,150 @@ footer.footer .footer-bg {
 .fans-benefits-s-cover.light-s {
   background-color: #0f172a !important;
   background-image: none !important;
+}
+
+/* Unlock Exclusive — fill cover edge-to-edge (was 64% inset) */
+.fans-benefits-slide.s1 .fans-benefits-s-cover.black {
+  overflow: hidden;
+}
+
+.fans-benefits-slide.s1 .benefits-figure {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  top: 0 !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1;
+}
+
+.fans-benefits-slide.s1 .benefits-figure > img.image-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* Keep copy above Join Hiffi; scatter avatars across the top */
+.fans-benefits-slide.s1 .fans-benefits-s-cover.black::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 52%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    0deg,
+    rgb(0 0 0 / 78%) 0%,
+    rgb(0 0 0 / 42%) 45%,
+    transparent 100%
+  );
+}
+
+.fans-benefits-slide.s1 .fans-benefits-s-text.s1 {
+  z-index: 3;
+  inset: auto 1.25rem 1.6rem !important;
+  width: auto !important;
+  max-width: calc(100% - 2.5rem);
+  padding: 0 !important;
+  box-sizing: border-box;
+}
+
+.fans-benefits-slide.s1 .fans-benefits-s-text.s1 .body-regular-s {
+  color: #fff !important;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 65%);
+  text-wrap: pretty;
+}
+
+.fans-benefits-slide.s1 .fan-unlock-avatar {
+  z-index: 1;
+  width: 13% !important;
+  border: 2px solid rgb(255 255 255 / 90%);
+  box-shadow: 0 0.4rem 1.1rem rgb(0 0 0 / 40%);
+}
+
+/* Scattered across the upper area of the cover */
+.fans-benefits-slide.s1 .fan-unlock-avatar.s1 {
+  inset: 18% auto auto 6% !important;
+}
+
+.fans-benefits-slide.s1 .fan-unlock-avatar.s2 {
+  inset: 6% auto auto 22% !important;
+}
+
+.fans-benefits-slide.s1 .fan-unlock-avatar.s3 {
+  inset: 28% auto auto 2% !important;
+}
+
+.fans-benefits-slide.s1 .fan-unlock-avatar.s5 {
+  inset: 16% 10% auto auto !important;
+}
+
+.fans-benefits-slide.s1 .fan-unlock-avatar.s6 {
+  inset: 3% -4% auto auto !important;
+}
+
+.fans-benefits-slide.s1 .fan-unlock-avatar.s7 {
+  inset: 30% 6% auto auto !important;
+}
+
+@media screen and (max-width: 991px) {
+  /* Sit just above the absolute Join Hiffi button (fans-be-button) */
+  .fans-benefits-slide.s1 .fans-benefits-s-cover.black::after {
+    height: 46%;
+  }
+
+  .fans-benefits-slide.s1 .fans-benefits-s-text.s1 {
+    /* % of cover height — clears the Join button overlay */
+    inset: auto 5% 20% !important;
+    width: 90% !important;
+    max-width: none;
+    text-align: center;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar {
+    width: 15% !important;
+    display: block !important;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar.s1 {
+    inset: 10% auto auto 8% !important;
+    width: 14% !important;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar.s2 {
+    inset: 4% auto auto 30% !important;
+    width: 12% !important;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar.s3 {
+    inset: 22% auto auto 4% !important;
+    width: 13% !important;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar.s5 {
+    inset: 18% 8% auto auto !important;
+    width: 14% !important;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar.s6 {
+    inset: 2% 2% auto auto !important;
+    width: 12% !important;
+  }
+
+  .fans-benefits-slide.s1 .fan-unlock-avatar.s7 {
+    inset: 26% 14% auto auto !important;
+    width: 13% !important;
+  }
+}
+
+/* Share Your Music — local mock without paid subscriptions */
+.creators-slide-content.s1 {
+  background-image: url("/hiffi-about/creator-card-share-music.png") !important;
+  background-position: 50% 100% !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
 }
 
 /* Creators card stack — fan spread (cs-slider) */
@@ -1367,19 +1527,34 @@ footer.footer .footer-bg {
   width: 100%;
   /* desktop: token; mobile overrides / GSAP may shrink via --hero-headline-size */
   font-size: var(--hero-headline-size, var(--_fonts---headline--h1));
+  /* Keep descenders (p, g, y) visible — tight 0.95 + clip was cutting HipHop's */
+  line-height: 1.08;
+  padding-bottom: 0.08em;
 }
 
 .text-elements.hero-s .headline-h1.hero-headline .hero-headline-line {
   display: block;
   white-space: nowrap;
+  overflow: visible;
+  line-height: 1.08;
+  padding-bottom: 0.12em;
 }
 
 .text-elements.hero-s .headline-h1.hero-headline .line {
   display: block;
-  line-height: 0.95;
+  overflow: visible !important;
+  line-height: 1.08;
   letter-spacing: -0.02em;
   white-space: nowrap;
   text-wrap: nowrap;
+  padding-bottom: 0.12em;
+}
+
+.text-elements.hero-s .headline-h1.hero-headline .char {
+  display: inline-block;
+  overflow: visible !important;
+  padding-bottom: 0.15em;
+  line-height: 1.08;
 }
 
 .text-elements.hero-s .subheadline-m.hero-subline {
@@ -1387,6 +1562,21 @@ footer.footer .footer-bg {
   width: 100%;
   color: #080808;
   text-wrap: pretty;
+}
+
+/* Desktop — larger hero circle images */
+@media screen and (min-width: 992px) {
+  .hero-sc .circle-slider-position {
+    top: 11rem;
+  }
+
+  .hero-sc .circle-slider-container {
+    width: 148rem;
+  }
+
+  .hero-sc .circle-slide {
+    width: 12.5rem;
+  }
 }
 
 @media screen and (max-width: 991px) {
@@ -1411,21 +1601,27 @@ footer.footer .footer-bg {
     min-height: 100svh !important;
     min-height: 100dvh !important;
     max-height: 100dvh !important;
-    padding-top: calc(13.5vw + 4vw) !important;
+    /* Room under sticky nav so the carousel can sit centered, not jammed up */
+    padding-top: calc(max(5.5rem, env(safe-area-inset-top, 0px) + 4.25rem) + 6vw) !important;
     padding-bottom: max(6vw, env(safe-area-inset-bottom, 0px), 1.5rem) !important;
     position: relative;
     gap: 0;
     overflow: visible !important;
   }
 
+  /* Sit above mid-viewport; leave headline + CTA anchored at the bottom */
   .hero-sc .circle-slider-position {
-    top: calc(13.5vw + 9vw) !important;
+    top: 34% !important;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
   }
 
   .hero-sc .circle-slider-container {
-    width: min(280rem, 780vw);
+    width: min(360rem, 980vw);
+  }
+
+  .hero-sc .circle-slide {
+    width: min(52rem, 38vw);
   }
 
   .text-elements.hero-s {
@@ -1461,8 +1657,16 @@ footer.footer .footer-bg {
   /* vw — not 23.4rem token; GSAP may shrink further via --hero-headline-size */
   .text-elements.hero-s .headline-h1.hero-headline {
     font-size: var(--hero-headline-size, 10.5vw) !important;
-    line-height: 0.95 !important;
+    line-height: 1.1 !important;
+    padding-bottom: 0.14em !important;
     filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.9));
+  }
+
+  .text-elements.hero-s .headline-h1.hero-headline .hero-headline-line,
+  .text-elements.hero-s .headline-h1.hero-headline .line {
+    line-height: 1.1 !important;
+    overflow: visible !important;
+    padding-bottom: 0.16em !important;
   }
 
   .description-wrapper.hero-s {
@@ -1484,22 +1688,31 @@ footer.footer .footer-bg {
 
 @media screen and (min-width: 480px) and (max-width: 991px) {
   .hero-sc .circle-slider-position {
-    top: 28vw !important;
+    top: 33% !important;
+  }
+
+  .hero-sc .circle-slider-container {
+    width: min(380rem, 940vw);
   }
 }
 
 @media screen and (max-width: 479px) {
   .hero-sc .circle-slider-position {
-    top: 28vw !important;
+    top: 32% !important;
   }
 
   .hero-sc .circle-slider-container {
-    width: min(240rem, 680vw);
+    width: min(340rem, 920vw);
+  }
+
+  .hero-sc .circle-slide {
+    width: min(50rem, 40vw);
   }
 
   .text-elements.hero-s .headline-h1.hero-headline {
     font-size: var(--hero-headline-size, 10.2vw) !important;
     letter-spacing: -0.04em;
+    line-height: 1.12 !important;
   }
 
   .description-wrapper.hero-s {

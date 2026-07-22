@@ -79,7 +79,9 @@ export default function HiffiAboutBenefits() {
               <div className="text-elements benefits-s">
                 <div className="headline-wrapper benefits-s">
                   <h2 data-split="chars-blur" className="headline-h1 benefits-headline">
-                    The Hiffi
+                    The
+                    <br />
+                    Hiffi
                     <br />
                     Experience
                   </h2>
@@ -119,8 +121,8 @@ export default function HiffiAboutBenefits() {
                         </div>
                         <div className="description-wrapper iphone-pop-s">
                           <p className="iphone-pop-description">
-                            Hiffi goes beyond streaming—we connect rappers, producers, DJs, and fans through authentic
-                            music experiences.
+                            Hiffi is built for hip-hop — follow rappers, producers, and DJs, and discover freestyles,
+                            cyphers, and new music in the feed.
                           </p>
                         </div>
                         <div className="values-headline-mask" />
@@ -154,9 +156,9 @@ export default function HiffiAboutBenefits() {
                         <div className="values-card-light s1" />
                         <div className="values-card-headline">
                           <p className="headline-h5">
-                            Freestyles, Cyphers,
+                            Freestyles, Cyphers
                             <br />
-                            Live Performances
+                            &amp; Music Videos
                           </p>
                         </div>
                         <div className="value-slider">
@@ -166,7 +168,7 @@ export default function HiffiAboutBenefits() {
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={hiffiAboutAsset("values-stock-live-performance.jpg")}
-                                  alt="Live music performance"
+                                  alt="Hip-hop artist performing"
                                   className="image-cover"
                                 />
                               </div>
@@ -196,7 +198,7 @@ export default function HiffiAboutBenefits() {
                           <div className="values-artist">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={hiffiAboutAsset("values-stock-artist-connection.jpg")}
+                              src={hiffiAboutAsset("image5.jpg")}
                               alt="Fans discovering artists on Hiffi"
                               className="image-cover"
                             />
