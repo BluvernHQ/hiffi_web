@@ -73,9 +73,6 @@
     <section class="ranking-shell" aria-label="Hip-Hop artist ranking">
       <div class="ranking-controls">
         <label class="search-box" for="artistSearch"><span>Search artist</span><input id="artistSearch" type="search" placeholder="Type a name..." autocomplete="off"><b aria-hidden="true">⌕</b></label>
-        <div class="filter-group" id="locationFilters" aria-label="Filter by location">
-          <button class="active" type="button" data-location="">All</button>
-        </div>
         <label class="sort-select" for="rankingSort"><span>Sort</span><select id="rankingSort" aria-label="Sort ranking">
           <option value="overall">Overall rank</option>
           <option value="momentum7d">Momentum 7d</option>
@@ -84,6 +81,11 @@
           <option value="views">Recent avg views</option>
           <option value="subscribers">Subscribers</option>
         </select></label>
+      </div>
+      <div class="location-filters-bar" aria-label="City charts">
+        <div class="filter-group" id="locationFilters" aria-label="Filter by location">
+          <button class="active" type="button" data-location="">All</button>
+        </div>
       </div>
 
       <div class="table-head" aria-hidden="true"><span>Rank / Artist</span><span>Region</span><span>Subscribers</span><span>7d mom</span><span>30d mom</span><span>90d mom</span><span>Score</span><span>Move</span></div>
