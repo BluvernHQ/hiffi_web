@@ -1,19 +1,23 @@
 "use strict";
 
 const PAGE_SIZE = 100;
+const CITY_PAGE_SIZE = 50;
 const INITIAL_VISIBLE = 20;
 const LOAD_MORE_STEP = 20;
 const ACCENTS = ["#ff2b2b", "#f4f1ea", "#7e7e83", "#ff2b2b", "#b8b6b1"];
 /** Ranking payload cache — localStorage/sessionStorage (cookies can't hold ~500 artists). */
-const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v3";
-const UI_KEY = "hiffi-top-artist-ui-v2";
+const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v6";
+const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v1";
+const UI_KEY = "hiffi-top-artist-ui-v3";
 /** How old cache can be before we prefer a background refresh (stale cache still paints instantly). */
 const REVALIDATE_MS = 60 * 60 * 1000;
-const LOCATION_FILTERS = ["", "USA", "Atlanta"];
+const CITIES_TTL_MS = 60 * 60 * 1000;
 
 /** @type {ReturnType<typeof mapArtist>[]} */
 let artists = [];
 let totalRanked = 0;
+/** @type {{ location: string, artist_count: number }[]} */
+let bannerCities = [];
 /** Bumps when the active location changes so stale in-flight pages are ignored. */
 let loadGeneration = 0;
 
@@ -101,6 +105,9 @@ function slimInventoryItem(item) {
     youtube_recent_avg_views: item.youtube_recent_avg_views ?? null,
     youtube_upload_velocity: item.youtube_upload_velocity ?? null,
     youtube_score: item.youtube_score ?? null,
+    youtube_momentum_7d: item.youtube_momentum_7d ?? null,
+    youtube_momentum_30d: item.youtube_momentum_30d ?? null,
+    youtube_momentum_90d: item.youtube_momentum_90d ?? null,
     other_socials: youtube ? { youtube } : undefined,
     previous_rank: item.previous_rank ?? null,
     rank_delta_7d: item.rank_delta_7d ?? null,
@@ -163,19 +170,50 @@ function syncLocationFilterButtons() {
   });
 }
 
+function cityChipLabel(location) {
+  const text = String(location || "").trim();
+  if (!text) return "All";
+  const short = text.split(",")[0].trim();
+  return short || text;
+}
+
+function escapeAttr(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderLocationFilters() {
+  const root = $("#locationFilters");
+  if (!root) return;
+  const cityButtons = bannerCities
+    .map((city) => {
+      const label = cityChipLabel(city.location);
+      const count = Number(city.artist_count) || 0;
+      return `<button type="button" data-location="${escapeAttr(city.location)}" title="${escapeAttr(
+        `${city.location} · ${count} ranked`,
+      )}">${escapeAttr(label)}</button>`;
+    })
+    .join("");
+  root.innerHTML = `<button type="button" data-location="">All</button>${cityButtons}`;
+  syncLocationFilterButtons();
+}
+
 function restoreUiState() {
   const saved = readUiState();
   if (!saved) return;
   if (typeof saved.query === "string") state.query = saved.query;
-  if (typeof saved.location === "string" && LOCATION_FILTERS.includes(saved.location)) {
-    state.location = saved.location;
-  } else if (saved.region === "USA") {
-    // Migrate old UI key shape.
-    state.location = "USA";
-  } else if (saved.region === "All") {
-    state.location = "";
-  }
-  if (saved.sort === "overall" || saved.sort === "views" || saved.sort === "subscribers") {
+  if (typeof saved.location === "string") state.location = saved.location;
+  if (
+    saved.sort === "overall" ||
+    saved.sort === "views" ||
+    saved.sort === "subscribers" ||
+    saved.sort === "momentum7d" ||
+    saved.sort === "momentum30d" ||
+    saved.sort === "momentum90d"
+  ) {
     state.sort = saved.sort;
   }
   if (typeof saved.visible === "number" && saved.visible >= INITIAL_VISIBLE) {
@@ -247,6 +285,26 @@ function formatVelocity(value) {
   return `${Number(value).toFixed(1)}/30d`;
 }
 
+/** Fractional growth → percent label (e.g. 0.031 → +3.1%). */
+function formatMomentum(value) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const pct = Number(value) * 100;
+  const sign = pct > 0 ? "+" : "";
+  const abs = Math.abs(pct);
+  const digits = abs >= 10 ? 1 : 2;
+  return `${sign}${pct.toFixed(digits)}%`;
+}
+
+function momentumTone(value) {
+  if (value == null || Number.isNaN(Number(value)) || Number(value) === 0) return "flat";
+  return Number(value) > 0 ? "up" : "down";
+}
+
+function momentumHTML(value, label) {
+  const tone = momentumTone(value);
+  return `<span class="momentum momentum-${tone}" data-label="${label}" aria-label="${label}: ${formatMomentum(value)}">${formatMomentum(value)}</span>`;
+}
+
 function artistIndexHref(username) {
   return `/artist-index/${encodeURIComponent(username)}`;
 }
@@ -287,6 +345,9 @@ function mapArtist(item, index) {
     recentAvgViews: item.youtube_recent_avg_views ?? null,
     uploadVelocity: item.youtube_upload_velocity ?? null,
     score: item.youtube_score ?? null,
+    momentum7d: item.youtube_momentum_7d ?? null,
+    momentum30d: item.youtube_momentum_30d ?? null,
+    momentum90d: item.youtube_momentum_90d ?? null,
     youtubeUrl: item.other_socials?.youtube || null,
     previousRank: item.previous_rank ?? null,
     rankDelta7d: item.rank_delta_7d ?? null,
@@ -319,14 +380,12 @@ function movementHTML(artist, compact = false) {
   return `<span class="movement movement-${move.direction}" aria-label="${move.label}"><span aria-hidden="true">${move.symbol}</span>${amountHtml}</span>`;
 }
 
-async function fetchTopPage(limit, offset, location = state.location) {
+async function fetchTopPage(limit, offset) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
     enrich: "0",
   });
-  const trimmed = String(location || "").trim();
-  if (trimmed) params.set("location", trimmed);
   const res = await fetch(`/proxy/inventory/top?${params}`, {
     headers: { Accept: "application/json" },
   });
@@ -337,18 +396,72 @@ async function fetchTopPage(limit, offset, location = state.location) {
   return body.data;
 }
 
+async function fetchCityPage(limit, offset, location) {
+  const params = new URLSearchParams({
+    location: String(location || "").trim(),
+    limit: String(Math.min(limit, CITY_PAGE_SIZE)),
+    offset: String(offset),
+    enrich: "0",
+  });
+  const res = await fetch(`/proxy/inventory/top/city?${params}`, {
+    headers: { Accept: "application/json" },
+  });
+  const body = await res.json();
+  if (!res.ok || !body.success) {
+    throw new Error(body.error || `Failed to load city ranking (${res.status})`);
+  }
+  return body.data;
+}
+
+async function fetchBannerCities() {
+  const cached = readJsonStorage(CITIES_CACHE_KEY);
+  if (
+    cached &&
+    Array.isArray(cached.items) &&
+    cached.items.length > 0 &&
+    typeof cached.savedAt === "number" &&
+    Date.now() - cached.savedAt < CITIES_TTL_MS
+  ) {
+    bannerCities = cached.items;
+    renderLocationFilters();
+  }
+
+  const res = await fetch(`/proxy/inventory/top/cities`, {
+    headers: { Accept: "application/json" },
+  });
+  const body = await res.json();
+  if (!res.ok || !body.success) {
+    throw new Error(body.error || `Failed to load cities (${res.status})`);
+  }
+  bannerCities = Array.isArray(body.data?.items) ? body.data.items : [];
+  writeJsonStorage(CITIES_CACHE_KEY, { items: bannerCities, savedAt: Date.now() });
+
+  if (state.location && !bannerCities.some((city) => city.location === state.location)) {
+    state.location = "";
+    writeUiState();
+  }
+  renderLocationFilters();
+  return bannerCities;
+}
+
 async function loadAllArtists(onPage, location = state.location) {
   const items = [];
   let offset = 0;
   let hasMore = true;
   let ranked = 0;
   const generation = loadGeneration;
+  const isCity = Boolean(String(location || "").trim());
+  const maxItems = isCity ? CITY_PAGE_SIZE : 500;
+  const pageSize = isCity ? CITY_PAGE_SIZE : PAGE_SIZE;
 
-  while (hasMore && items.length < 500) {
+  while (hasMore && items.length < maxItems) {
     if (generation !== loadGeneration) {
       return { items, totalRanked: ranked || items.length, aborted: true };
     }
-    const page = await fetchTopPage(PAGE_SIZE, offset, location);
+    const limit = Math.min(pageSize, maxItems - items.length);
+    const page = isCity
+      ? await fetchCityPage(limit, offset, location)
+      : await fetchTopPage(limit, offset);
     if (generation !== loadGeneration) {
       return { items, totalRanked: ranked || items.length, aborted: true };
     }
@@ -387,6 +500,9 @@ function filteredArtists() {
         return byRank();
       };
 
+      if (state.sort === "momentum7d") return cmpNullLast(a.momentum7d, b.momentum7d);
+      if (state.sort === "momentum30d") return cmpNullLast(a.momentum30d, b.momentum30d);
+      if (state.sort === "momentum90d") return cmpNullLast(a.momentum90d, b.momentum90d);
       if (state.sort === "views") return cmpNullLast(a.recentAvgViews ?? a.views, b.recentAvgViews ?? b.views);
       if (state.sort === "subscribers") return cmpNullLast(a.subscribers, b.subscribers);
       return byRank();
@@ -409,12 +525,23 @@ function renderError(message) {
 
 function renderHeroStats() {
   const tracked = totalRanked || artists.length;
+  const scope = state.location ? cityChipLabel(state.location).toUpperCase() : "GLOBAL";
   const trackedEl = document.querySelector(".hero-stats div:first-child b");
   if (trackedEl) trackedEl.textContent = String(tracked || "—");
   const terminalNumber = document.querySelector(".terminal-number");
-  if (terminalNumber) terminalNumber.textContent = String(tracked || "500");
-  const terminalLabel = document.querySelector(".terminal-label span");
-  if (terminalLabel) terminalLabel.textContent = `USA / ${tracked || 0} RANKED CHANNELS`;
+  if (terminalNumber) terminalNumber.textContent = String(tracked || (state.location ? "50" : "500"));
+  const terminalLabel = $("#terminalScope") || document.querySelector(".terminal-label span");
+  if (terminalLabel) {
+    terminalLabel.textContent = state.location
+      ? `${scope} / CITY TOP ${Math.min(tracked || 0, CITY_PAGE_SIZE)}`
+      : `${scope} / ${tracked || 0} RANKED CHANNELS`;
+  }
+  const kicker = $("#rankingKicker");
+  if (kicker) {
+    kicker.textContent = state.location
+      ? `Updated weekly · ${cityChipLabel(state.location)} top 50`
+      : "Updated weekly · Global";
+  }
 }
 
 function renderTopThree() {
@@ -439,11 +566,16 @@ function renderRanking() {
         .map(
           (artist, index) => `
     <button type="button" class="artist-row" data-artist-rank="${artist.rank}" style="--delay:${Math.min(index, 12) * 28}ms">
-      <span class="artist-identity"><b>${pad(artist.rank, 3)}</b><i style="background:${artist.accent}">${artist.name.slice(0, 2).toUpperCase()}</i><strong>${artist.name}<small>${artist.location || artist.username}</small></strong></span>
+      <span class="artist-identity"><b>${pad(artist.rank, 3)}</b><i style="background:${artist.accent}">${artist.name.slice(0, 2).toUpperCase()}</i><strong><span class="artist-name">${artist.name}</span>${
+        artist.username
+          ? `<a class="artist-profile-link" href="${artistIndexHref(artist.username)}">Open profile <span aria-hidden="true">↗</span></a>`
+          : ""
+      }</strong></span>
       <span data-label="Region">${artist.location || "—"}</span>
       <span data-label="Subscribers">${formatCount(artist.subscribers)}</span>
-      <span data-label="Lifetime views">${formatCount(artist.views)}</span>
-      <span data-label="Recent avg">${formatCount(artist.recentAvgViews)}</span>
+      ${momentumHTML(artist.momentum7d, "7d mom")}
+      ${momentumHTML(artist.momentum30d, "30d mom")}
+      ${momentumHTML(artist.momentum90d, "90d mom")}
       <span data-label="Score"><em>${formatScore(artist.score)}</em></span>
       ${movementHTML(artist)}
     </button>`,
@@ -451,28 +583,52 @@ function renderRanking() {
         .join("")
     : `<div class="empty-state"><b>No artist found.</b><span>Try another name or region.</span></div>`;
 
+  const locationNote = state.location ? ` · ${cityChipLabel(state.location)} top 50` : "";
   $("#resultsCount").textContent = `Showing ${Math.min(state.visible, filtered.length)} of ${filtered.length} ranked artists${
     totalRanked ? ` · ${totalRanked} total` : ""
-  }${state.location ? ` · ${state.location}` : ""}`;
+  }${locationNote}`;
   $("#loadMore").hidden = state.visible >= filtered.length;
 }
 
 function renderMovers() {
   const chart = [32, 58, 46, 72, 60, 94, 78, 100];
+  const momentumValue = (a) => a.momentum7d ?? a.momentum30d ?? a.momentum90d;
   const movers = [...artists]
-    .filter((a) => a.recentAvgViews != null || a.subscribers != null)
-    .sort((a, b) => (b.recentAvgViews ?? b.subscribers ?? 0) - (a.recentAvgViews ?? a.subscribers ?? 0))
+    .filter((a) => momentumValue(a) != null)
+    .sort((a, b) => {
+      const av = momentumValue(a) ?? Number.NEGATIVE_INFINITY;
+      const bv = momentumValue(b) ?? Number.NEGATIVE_INFINITY;
+      return bv - av;
+    })
     .slice(0, 3);
 
   const fallback = movers.length ? movers : artists.slice(0, 3);
 
   $("#moverGrid").innerHTML = fallback
     .map((artist, index) => {
-      const growthLabel = formatScore(artist.score);
+      const mom7 = formatMomentum(artist.momentum7d);
+      const mom30 = formatMomentum(artist.momentum30d);
+      const mom90 = formatMomentum(artist.momentum90d);
+      const growthLabel =
+        artist.momentum7d != null
+          ? mom7
+          : artist.momentum30d != null
+            ? mom30
+            : artist.momentum90d != null
+              ? mom90
+              : formatScore(artist.score);
+      const growthUnit =
+        artist.momentum7d != null
+          ? "7d momentum"
+          : artist.momentum30d != null
+            ? "30d momentum"
+            : artist.momentum90d != null
+              ? "90d momentum"
+              : "index score";
       const detail = [
+        artist.momentum30d != null ? `30d ${mom30}` : null,
+        artist.momentum90d != null ? `90d ${mom90}` : null,
         artist.subscribers != null ? `${formatCount(artist.subscribers)} subs` : null,
-        artist.recentAvgViews != null ? `${formatCount(artist.recentAvgViews)} recent avg` : null,
-        artist.uploadVelocity != null ? formatVelocity(artist.uploadVelocity) : null,
       ]
         .filter(Boolean)
         .join(" · ");
@@ -480,7 +636,7 @@ function renderMovers() {
     <button type="button" class="mover-card" data-artist-rank="${artist.rank}">
       <div class="mover-card-top"><span>0${index + 1}</span><b>↗</b></div>
       <div class="mini-bars" aria-hidden="true">${chart.map((height) => `<i style="height:${Math.max(12, height - index * 8)}%"></i>`).join("")}</div>
-      <h3>${artist.name}</h3><p><strong>${growthLabel}</strong> index score${detail ? `<br>${detail}` : ""}</p>
+      <h3>${artist.name}</h3><p><strong>${growthLabel}</strong> ${growthUnit}${detail ? `<br>${detail}` : ""}</p>
     </button>`;
     })
     .join("");
@@ -501,6 +657,15 @@ function openDrawer(rank) {
   $("#drawerVideos").textContent = formatCount(artist.videoCount);
   $("#drawerVelocity").textContent = formatVelocity(artist.uploadVelocity);
   $("#drawerLocation").textContent = artist.location || "—";
+  const mom7 = $("#drawerMomentum7d");
+  const mom30 = $("#drawerMomentum30d");
+  mom7.textContent = formatMomentum(artist.momentum7d);
+  mom30.textContent = formatMomentum(artist.momentum30d);
+  const mom90 = $("#drawerMomentum90d");
+  mom90.textContent = formatMomentum(artist.momentum90d);
+  mom7.className = `momentum momentum-${momentumTone(artist.momentum7d)}`;
+  mom30.className = `momentum momentum-${momentumTone(artist.momentum30d)}`;
+  mom90.className = `momentum momentum-${momentumTone(artist.momentum90d)}`;
 
   const profile = $("#drawerProfile");
   if (artist.username) {
@@ -593,6 +758,7 @@ function bindEvents() {
   );
   window.addEventListener("pagehide", writeUiState);
   document.addEventListener("click", (event) => {
+    if (event.target.closest(".artist-profile-link")) return;
     const artistButton = event.target.closest("[data-artist-rank]");
     if (artistButton) openDrawer(artistButton.dataset.artistRank);
     const scrollButton = event.target.closest("[data-scroll-target]");
@@ -622,7 +788,7 @@ function bindEvents() {
 }
 
 /**
- * Paint from cache (if any), then refresh from GET /inventory/top?location=…
+ * Paint from cache (if any), then refresh from global `/top` or city `/top/city`.
  * @param {{ restoreScroll?: boolean }} [options]
  */
 async function loadRanking(options = {}) {
@@ -667,13 +833,23 @@ async function loadRanking(options = {}) {
 async function init() {
   bindEvents();
   restoreUiState();
+  renderLocationFilters();
 
   // Free quota from previous cache formats.
   try {
     localStorage.removeItem("hiffi-top-artist-cache-v1");
     localStorage.removeItem("hiffi-top-artist-cache-v2");
+    localStorage.removeItem("hiffi-top-artist-cache-v3");
+    localStorage.removeItem("hiffi-top-artist-cache-v4");
+    localStorage.removeItem("hiffi-top-artist-cache-v5");
   } catch {
     /* ignore */
+  }
+
+  try {
+    await fetchBannerCities();
+  } catch {
+    renderLocationFilters();
   }
 
   await loadRanking({ restoreScroll: true });

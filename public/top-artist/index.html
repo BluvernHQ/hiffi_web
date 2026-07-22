@@ -22,7 +22,7 @@
       <nav class="desktop-nav" id="primaryNav" aria-label="Primary navigation">
         <a href="#leaderboard">Leaderboard</a>
         <a href="#movers">Movers</a>
-        <a href="#methodology">Methodology</a>
+        <a href="/top-artist/how-it-works">How it works</a>
         <a href="/artist-index/claim">Claim</a>
       </nav>
       <button class="header-arrow" type="button" data-scroll-target="leaderboard" aria-label="Explore the ranking"><span>↘</span></button>
@@ -52,7 +52,7 @@
             <div class="signal-axis"><span>100</span><span>75</span><span>50</span><span>25</span><span>00</span></div>
             <div class="waveform"> <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <div class="fragment-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-            <div class="terminal-label"><b>YOUTUBE RAP VELOCITY</b><span>USA / 120 PREVIEW CHANNELS</span></div>
+            <div class="terminal-label"><b>YOUTUBE RAP VELOCITY</b><span id="terminalScope">GLOBAL / LOADING</span></div>
           </div>
         </div>
         <div class="top-three">
@@ -64,7 +64,7 @@
 
     <section class="index-intro" id="leaderboard">
       <div>
-        <p class="section-kicker">Updated weekly · USA</p>
+        <p class="section-kicker" id="rankingKicker">Updated weekly · Global</p>
         <h2>The ranking<br>never stands still.</h2>
       </div>
       <p>One view of scale and momentum: recent audience growth, view velocity, reach and publishing consistency.</p>
@@ -75,17 +75,18 @@
         <label class="search-box" for="artistSearch"><span>Search artist</span><input id="artistSearch" type="search" placeholder="Type a name..." autocomplete="off"><b aria-hidden="true">⌕</b></label>
         <div class="filter-group" id="locationFilters" aria-label="Filter by location">
           <button class="active" type="button" data-location="">All</button>
-          <button type="button" data-location="USA">USA</button>
-          <button type="button" data-location="Atlanta">Atlanta</button>
         </div>
         <label class="sort-select" for="rankingSort"><span>Sort</span><select id="rankingSort" aria-label="Sort ranking">
           <option value="overall">Overall rank</option>
+          <option value="momentum7d">Momentum 7d</option>
+          <option value="momentum30d">Momentum 30d</option>
+          <option value="momentum90d">Momentum 90d</option>
           <option value="views">Recent avg views</option>
           <option value="subscribers">Subscribers</option>
         </select></label>
       </div>
 
-      <div class="table-head" aria-hidden="true"><span>Rank / Artist</span><span>Region</span><span>Subscribers</span><span>Lifetime views</span><span>Recent avg</span><span>Score</span><span>Move</span></div>
+      <div class="table-head" aria-hidden="true"><span>Rank / Artist</span><span>Region</span><span>Subscribers</span><span>7d mom</span><span>30d mom</span><span>90d mom</span><span>Score</span><span>Move</span></div>
       <div class="artist-list" id="artistList"></div>
       <div class="ranking-footer" role="status" aria-live="polite"><p id="resultsCount"></p><button id="loadMore" type="button">Load more artists <span>↓</span></button></div>
     </section>
@@ -96,7 +97,12 @@
     </section>
 
     <section class="method-section" id="methodology">
-      <div class="method-heading"><p class="section-kicker">Method / 03</p><h2>Built on signal.<br>Not opinion.</h2><p>The Hiffi Hip-Hop 500 score is designed to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p></div>
+      <div class="method-heading">
+        <p class="section-kicker">Method / 03</p>
+        <h2>Built on signal.<br>Not opinion.</h2>
+        <p>The Hiffi Hip-Hop 500 score is designed to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p>
+        <a class="how-inline-link" href="/top-artist/how-it-works">Full how it works <span>↗</span></a>
+      </div>
       <div class="weights">
         <article><span>01</span><b>35%</b><div><h3>Recent momentum</h3><p>30-day view and subscriber growth</p></div></article>
         <article><span>02</span><b>30%</b><div><h3>View velocity</h3><p>Views earned relative to audience size</p></div></article>
@@ -116,7 +122,7 @@
     <footer>
       <a class="wordmark" href="#top">HIP-HOP <span>500</span></a>
       <p>Independent index. Not affiliated with YouTube.<br>Metrics shown for may not be accurate, verify on YT.</p>
-      <div><a href="#leaderboard">Ranking</a><a href="#methodology">Method</a><a href="/artist-index/claim">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
+      <div><a href="#leaderboard">Ranking</a><a href="/top-artist/how-it-works">How it works</a><a href="/artist-index/claim">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
       <small>© 2026 HIFFI HIP-HOP 500</small>
     </footer>
   </main>
@@ -135,6 +141,9 @@
         <div><span>Video count</span><b id="drawerVideos"></b></div>
         <div><span>Upload velocity</span><b id="drawerVelocity"></b></div>
         <div><span>Location</span><b id="drawerLocation"></b></div>
+        <div><span>Momentum 7d</span><b id="drawerMomentum7d"></b></div>
+        <div><span>Momentum 30d</span><b id="drawerMomentum30d"></b></div>
+        <div><span>Momentum 90d</span><b id="drawerMomentum90d"></b></div>
       </div>
       <div class="drawer-chart" id="drawerChart" aria-label="Signal chart"></div>
       <p class="drawer-note">Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.</p>

@@ -1,9 +1,11 @@
 /**
- * Hiffi 500 — Top artists ranking backed by GET /inventory/top.
+ * Hiffi 500 — Top artists ranking backed by GET /inventory/top (+ city endpoints).
  *
- * v1 limitations (tracked for backend iteration):
- * - Movement deltas, weekly snapshots, and multi-source HPS are not in the API yet
- * - Ranking payload often omits photos — we enrich from /users/{username} when possible
+ * - Global: `GET /inventory/top`
+ * - Banner cities (>50 ranked): `GET /inventory/top/cities`
+ * - City top 50 (exact location, local ranks): `GET /inventory/top/city?location=…`
+ *
+ * Ranking payload often omits photos — we enrich from /users/{username} when possible.
  * Score is YouTube-only today; the UI must disclose that.
  */
 
@@ -39,6 +41,7 @@ export interface TopArtist {
   youtube_upload_velocity?: number
   youtube_momentum_7d?: number
   youtube_momentum_30d?: number
+  youtube_momentum_90d?: number
   /** When city charts re-number locally, preserve the global Hiffi 500 rank for share cards. */
   global_rank?: number
   /** Optional — present once weekly snapshots ship. */
@@ -56,13 +59,25 @@ export interface TopArtistsPage {
   count: number
   has_more: boolean
   total_ranked: number
-  /** Echo of `?location=` when the API applied a location filter. */
+  /** Echo of `?location=` when a location filter / city chart is active. */
   location?: string
   /** Client-side fetch timestamp (ms). API does not expose a refresh time yet. */
   fetched_at: number
 }
 
+export interface TopCitySummary {
+  location: string
+  artist_count: number
+}
+
+export interface TopCitiesResponse {
+  items: TopCitySummary[]
+  count: number
+  min_artists: number
+}
+
 export const TOP_ARTISTS_PAGE_SIZE = 20
+export const TOP_CITY_PAGE_SIZE = 50
 export const HIFFI_500_PATH = "/hiffi-500"
 export const HIFFI_500_METHODOLOGY_PATH = "/hiffi-500/methodology"
 export const HIFFI_500_RISERS_PATH = "/hiffi-500/biggest-risers"
@@ -93,6 +108,21 @@ export function hiffi500SharePath(username: string): string {
   return `/hiffi-500/share/${encodeURIComponent(username)}`
 }
 
+/** Prefer exact banner-city location strings from `/inventory/top/cities` when available. */
+export function resolveExactCityLocation(
+  cities: TopCitySummary[],
+  cityLabelOrLocation: string,
+): string | null {
+  const needle = cityLabelOrLocation.trim().toLowerCase()
+  if (!needle) return null
+  const exact = cities.find((c) => c.location.toLowerCase() === needle)
+  if (exact) return exact.location
+  const startsWith = cities.find((c) => c.location.toLowerCase().startsWith(`${needle},`))
+  if (startsWith) return startsWith.location
+  const includes = cities.find((c) => c.location.toLowerCase().includes(needle))
+  return includes?.location ?? null
+}
+
 /** Sub-nav links for the ranking family of pages. */
 export const HIFFI_500_NAV_LINKS = [
   { href: HIFFI_500_PATH, label: "Top 500" },
@@ -105,6 +135,10 @@ export const HIFFI_500_NAV_LINKS = [
 
 type Envelope =
   | { success: true; data: Omit<TopArtistsPage, "fetched_at"> }
+  | { success: false; error: string }
+
+type CitiesEnvelope =
+  | { success: true; data: TopCitiesResponse }
   | { success: false; error: string }
 
 function normalizeArtist(item: TopArtist): TopArtist {
@@ -129,6 +163,7 @@ function parseEnvelope(body: Envelope): TopArtistsPage {
     count: data.count ?? items.length,
     has_more: Boolean(data.has_more),
     total_ranked: data.total_ranked ?? 0,
+    location: data.location,
     fetched_at: Date.now(),
   }
 }
@@ -168,6 +203,54 @@ export async function fetchTopArtistsServer(
     const location = options?.location?.trim()
     if (location) params.set("location", location)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    const page = parseEnvelope((await res.json()) as Envelope)
+    if (options?.enrichImages === false) return page
+    return { ...page, items: await enrichTopArtistsWithImages(page.items) }
+  } catch {
+    return null
+  }
+}
+
+/** Banner cities with more than 50 ranked artists (`GET /inventory/top/cities`). */
+export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top/cities`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    const body = (await res.json()) as CitiesEnvelope
+    if (!body.success) return null
+    return {
+      items: Array.isArray(body.data.items) ? body.data.items : [],
+      count: body.data.count ?? body.data.items?.length ?? 0,
+      min_artists: body.data.min_artists ?? 50,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Exact-location city top 50 (`GET /inventory/top/city`). Local `rank` 1–50. */
+export async function fetchTopArtistsByCityServer(
+  location: string,
+  limit = TOP_CITY_PAGE_SIZE,
+  offset = 0,
+  options?: { enrichImages?: boolean },
+): Promise<TopArtistsPage | null> {
+  const trimmed = location.trim()
+  if (!trimmed) return null
+  try {
+    const params = new URLSearchParams({
+      location: trimmed,
+      limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
+      offset: String(offset),
+    })
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top/city?${params}`, {
       headers: { Accept: "application/json" },
       cache: "no-store",
     })
@@ -225,6 +308,38 @@ export async function fetchTopArtistsClient(
   const location = options?.location?.trim()
   if (location) params.set("location", location)
   const res = await fetch(`/proxy/inventory/top?${params}`, {
+    headers: { Accept: "application/json" },
+  })
+  const body = (await res.json()) as Envelope
+  return parseEnvelope(body)
+}
+
+export async function fetchTopCitiesClient(): Promise<TopCitiesResponse> {
+  const res = await fetch(`/proxy/inventory/top/cities`, {
+    headers: { Accept: "application/json" },
+  })
+  const body = (await res.json()) as CitiesEnvelope
+  if (!body.success) throw new Error(body.error || "Failed to load top cities")
+  return {
+    items: Array.isArray(body.data.items) ? body.data.items : [],
+    count: body.data.count ?? body.data.items?.length ?? 0,
+    min_artists: body.data.min_artists ?? 50,
+  }
+}
+
+export async function fetchTopArtistsByCityClient(
+  location: string,
+  limit = TOP_CITY_PAGE_SIZE,
+  offset = 0,
+): Promise<TopArtistsPage> {
+  const trimmed = location.trim()
+  if (!trimmed) throw new Error("location is required")
+  const params = new URLSearchParams({
+    location: trimmed,
+    limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
+    offset: String(offset),
+  })
+  const res = await fetch(`/proxy/inventory/top/city?${params}`, {
     headers: { Accept: "application/json" },
   })
   const body = (await res.json()) as Envelope

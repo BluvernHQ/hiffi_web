@@ -63,6 +63,14 @@ const nextConfig = {
         destination: "/top-artist/index.html",
       },
       {
+        source: "/top-artist/how-it-works",
+        destination: "/top-artist/how-it-works/index.html",
+      },
+      {
+        source: "/top-artist/how-it-works/",
+        destination: "/top-artist/how-it-works/index.html",
+      },
+      {
         source: "/:path*.md",
         destination: "/llms-md/:path*",
       },
