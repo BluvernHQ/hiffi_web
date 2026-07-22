@@ -1206,9 +1206,9 @@ footer.footer .footer-bg {
   }
 }
 
-/* Share Your Music — local mock without paid subscriptions */
+/* Share Your Music — original creator-card-1 mock */
 .creators-slide-content.s1 {
-  background-image: url("/hiffi-about/creator-card-share-music.png") !important;
+  background-image: url("/hiffi-about/creator-card-1.webp") !important;
   background-position: 50% 100% !important;
   background-repeat: no-repeat !important;
   background-size: contain !important;

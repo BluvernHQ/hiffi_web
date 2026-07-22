@@ -56,6 +56,8 @@ export interface TopArtistsPage {
   count: number
   has_more: boolean
   total_ranked: number
+  /** Echo of `?location=` when the API applied a location filter. */
+  location?: string
   /** Client-side fetch timestamp (ms). API does not expose a refresh time yet. */
   fetched_at: number
 }
@@ -159,10 +161,12 @@ export async function enrichTopArtistsWithImages(artists: TopArtist[]): Promise<
 export async function fetchTopArtistsServer(
   limit = TOP_ARTISTS_PAGE_SIZE,
   offset = 0,
-  options?: { enrichImages?: boolean },
+  options?: { enrichImages?: boolean; location?: string },
 ): Promise<TopArtistsPage | null> {
   try {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    const location = options?.location?.trim()
+    if (location) params.set("location", location)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
       headers: { Accept: "application/json" },
       cache: "no-store",
@@ -183,34 +187,43 @@ export async function fetchTopArtistsServer(
 export async function fetchTopArtistsUpTo(
   max = 100,
   pageSize = 50,
-): Promise<{ items: TopArtist[]; total_ranked: number; fetched_at: number }> {
+  options?: { location?: string },
+): Promise<{ items: TopArtist[]; total_ranked: number; fetched_at: number; location?: string }> {
   const items: TopArtist[] = []
   let offset = 0
   let totalRanked = 0
   let fetchedAt = Date.now()
   let hasMore = true
+  let location: string | undefined
 
   while (hasMore && items.length < max) {
     const limit = Math.min(pageSize, max - items.length)
-    const page = await fetchTopArtistsServer(limit, offset, { enrichImages: false })
+    const page = await fetchTopArtistsServer(limit, offset, {
+      enrichImages: false,
+      location: options?.location,
+    })
     if (!page) break
     items.push(...page.items)
     totalRanked = page.total_ranked
     fetchedAt = page.fetched_at
+    location = page.location
     hasMore = page.has_more
     offset += page.items.length
     if (page.items.length === 0) break
   }
 
-  return { items, total_ranked: totalRanked, fetched_at: fetchedAt }
+  return { items, total_ranked: totalRanked, fetched_at: fetchedAt, location }
 }
 
 /** Client-side fetch through the same-origin proxy (avoids CORS). */
 export async function fetchTopArtistsClient(
   limit = TOP_ARTISTS_PAGE_SIZE,
   offset = 0,
+  options?: { location?: string },
 ): Promise<TopArtistsPage> {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  const location = options?.location?.trim()
+  if (location) params.set("location", location)
   const res = await fetch(`/proxy/inventory/top?${params}`, {
     headers: { Accept: "application/json" },
   })

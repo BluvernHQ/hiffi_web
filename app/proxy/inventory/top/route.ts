@@ -7,9 +7,11 @@ export async function GET(request: NextRequest) {
   try {
     const limit = request.nextUrl.searchParams.get("limit") ?? "20"
     const offset = request.nextUrl.searchParams.get("offset") ?? "0"
+    const location = request.nextUrl.searchParams.get("location")?.trim() || ""
     const enrichParam = request.nextUrl.searchParams.get("enrich")
     const enrichImages = enrichParam !== "0" && enrichParam !== "false"
     const params = new URLSearchParams({ limit, offset })
+    if (location) params.set("location", location)
 
     const response = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
       headers: { Accept: "application/json" },

@@ -23,6 +23,7 @@
         <a href="#leaderboard">Leaderboard</a>
         <a href="#movers">Movers</a>
         <a href="#methodology">Methodology</a>
+        <a href="/artist-index/claim">Claim</a>
       </nav>
       <button class="header-arrow" type="button" data-scroll-target="leaderboard" aria-label="Explore the ranking"><span>↘</span></button>
       <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu"><span></span><span></span></button>
@@ -72,9 +73,10 @@
     <section class="ranking-shell" aria-label="Hip-Hop artist ranking">
       <div class="ranking-controls">
         <label class="search-box" for="artistSearch"><span>Search artist</span><input id="artistSearch" type="search" placeholder="Type a name..." autocomplete="off"><b aria-hidden="true">⌕</b></label>
-        <div class="filter-group" id="regionFilters" aria-label="Filter by region">
-          <button class="active" type="button" data-region="All">All</button>
-          <button type="button" data-region="USA">USA</button>
+        <div class="filter-group" id="locationFilters" aria-label="Filter by location">
+          <button class="active" type="button" data-location="">All</button>
+          <button type="button" data-location="USA">USA</button>
+          <button type="button" data-location="Atlanta">Atlanta</button>
         </div>
         <label class="sort-select" for="rankingSort"><span>Sort</span><select id="rankingSort" aria-label="Sort ranking">
           <option value="overall">Overall rank</option>
@@ -103,12 +105,18 @@
       </div>
     </section>
 
-    <section class="closing-band"><p>500 artists. One moving picture of hip-hop on YouTube.</p><button type="button" data-scroll-target="leaderboard">See who’s moving <span>↗</span></button></section>
+    <section class="closing-band" aria-label="Claim your artist profile">
+      <div class="closing-copy">
+        <p>Are you on the list?</p>
+        <span class="closing-deck">Claim your Hiffi Artist Profile to verify links, upload videos, and get discovered.</span>
+      </div>
+      <a class="closing-cta" href="/artist-index/claim">Claim your profile <span>↗</span></a>
+    </section>
 
     <footer>
       <a class="wordmark" href="#top">HIP-HOP <span>500</span></a>
       <p>Independent index. Not affiliated with YouTube.<br>Metrics shown for may not be accurate, verify on YT.</p>
-      <div><a href="#leaderboard">Ranking</a><a href="#methodology">Method</a><a href="mailto:hello@hiffi.com">Contact</a></div>
+      <div><a href="#leaderboard">Ranking</a><a href="#methodology">Method</a><a href="/artist-index/claim">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
       <small>© 2026 HIFFI HIP-HOP 500</small>
     </footer>
   </main>
@@ -130,7 +138,12 @@
       </div>
       <div class="drawer-chart" id="drawerChart" aria-label="Signal chart"></div>
       <p class="drawer-note">Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.</p>
-      <a class="drawer-link" id="drawerYoutube" href="#" target="_blank" rel="noreferrer">Open YouTube channel <span>↗</span></a>
+      <p class="drawer-claim-note" id="drawerClaimNote" hidden></p>
+      <div class="drawer-actions">
+        <a class="drawer-link drawer-link-claim" id="drawerClaim" href="/artist-index/claim" hidden>Claim this profile <span>↗</span></a>
+        <a class="drawer-link drawer-link-secondary" id="drawerProfile" href="#">View Artist Index profile <span>↗</span></a>
+        <a class="drawer-link drawer-link-outline" id="drawerYoutube" href="#" target="_blank" rel="noreferrer">Open YouTube channel <span>↗</span></a>
+      </div>
     </aside>
   </div>
 
