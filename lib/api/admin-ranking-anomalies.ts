@@ -7,10 +7,12 @@ import type {
   RankingAnomalyIssueType,
   RankingAnomalyListResponse,
   RankingAnomalyScanResult,
+  RankingVersionListResponse,
 } from "@/lib/types/ranking-anomalies"
 import {
   normalizeRankingAnomaly,
   normalizeRankingAnomalyClosure,
+  normalizeRankingVersion,
 } from "@/lib/types/ranking-anomalies"
 
 export type RankingAnomalyListParams = {
@@ -18,16 +20,54 @@ export type RankingAnomalyListParams = {
   offset?: number
   issue_type?: RankingAnomalyIssueType
   username?: string
+  version?: number
 }
 
-function buildQuery(params: RankingAnomalyListParams = {}): string {
+export type RankingVersionListParams = {
+  limit?: number
+  offset?: number
+}
+
+function buildQuery(
+  params: RankingAnomalyListParams | RankingVersionListParams = {},
+): string {
   const sp = new URLSearchParams()
   if (params.limit != null) sp.set("limit", String(params.limit))
   if (params.offset != null) sp.set("offset", String(params.offset))
-  if (params.issue_type) sp.set("issue_type", params.issue_type)
-  if (params.username?.trim()) sp.set("username", params.username.trim())
+  if ("issue_type" in params && params.issue_type) sp.set("issue_type", params.issue_type)
+  if ("username" in params && params.username?.trim()) {
+    sp.set("username", params.username.trim())
+  }
+  if ("version" in params && params.version != null) {
+    sp.set("version", String(params.version))
+  }
   const q = sp.toString()
   return q ? `?${q}` : ""
+}
+
+export async function adminListRankingVersions(
+  ctx: AdminApiClientContext,
+  params: RankingVersionListParams = {},
+): Promise<RankingVersionListResponse> {
+  const raw = await ctx.request<unknown>(
+    `/admin/inventory/ranking-versions${buildQuery(params)}`,
+    { method: "GET" },
+    true,
+  )
+  const data = unwrapSuccessData<RankingVersionListResponse>(raw)
+  const items = Array.isArray(data.items)
+    ? data.items.map((item) =>
+        normalizeRankingVersion(item as unknown as Record<string, unknown>),
+      )
+    : []
+
+  return {
+    items,
+    limit: Number(data.limit ?? params.limit ?? 50),
+    offset: Number(data.offset ?? params.offset ?? 0),
+    count: Number(data.count ?? items.length),
+    has_more: Boolean(data.has_more),
+  }
 }
 
 export async function adminListRankingAnomalies(

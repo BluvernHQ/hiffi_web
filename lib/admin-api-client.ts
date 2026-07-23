@@ -75,6 +75,7 @@ import {
   adminExportInventory as apiAdminExportInventory,
 } from "./api/admin-inventory"
 import {
+  adminListRankingVersions as apiAdminListRankingVersions,
   adminListRankingAnomalies as apiAdminListRankingAnomalies,
   adminListClosedRankingAnomalies as apiAdminListClosedRankingAnomalies,
   adminGetRankingAnomaly as apiAdminGetRankingAnomaly,
@@ -345,6 +346,12 @@ class AdminApiClient implements AdminApiClientContext {
   }
 
   // ─── Hiffi 500 ranking anomalies ────────────────────────────────────────────
+
+  async adminListRankingVersions(
+    params?: Parameters<typeof apiAdminListRankingVersions>[1],
+  ) {
+    return apiAdminListRankingVersions(this, params)
+  }
 
   async adminListRankingAnomalies(
     params?: Parameters<typeof apiAdminListRankingAnomalies>[1],

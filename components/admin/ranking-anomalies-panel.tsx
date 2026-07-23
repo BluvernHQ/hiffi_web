@@ -18,6 +18,7 @@ import type {
   RankingAnomaly,
   RankingAnomalyClosure,
   RankingAnomalyIssueType,
+  RankingVersion,
 } from "@/lib/types/ranking-anomalies"
 import { RANKING_ANOMALY_ISSUE_LABELS } from "@/lib/types/ranking-anomalies"
 import { Button } from "@/components/ui/button"
@@ -88,6 +89,8 @@ export function RankingAnomaliesPanel() {
   const [usernameQuery, setUsernameQuery] = useState("")
   const [debouncedUsername, setDebouncedUsername] = useState("")
   const [issueFilter, setIssueFilter] = useState<"" | RankingAnomalyIssueType>("")
+  const [versionFilter, setVersionFilter] = useState<number | "">("")
+  const [versions, setVersions] = useState<RankingVersion[]>([])
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
@@ -106,7 +109,16 @@ export function RankingAnomaliesPanel() {
 
   useEffect(() => {
     setOffset(0)
-  }, [tab, debouncedUsername, issueFilter])
+  }, [tab, debouncedUsername, issueFilter, versionFilter])
+
+  const fetchVersions = async () => {
+    try {
+      const response = await adminApiClient.adminListRankingVersions({ limit: 50, offset: 0 })
+      setVersions(response.items)
+    } catch {
+      // Versions are optional for the table; anomalies still load independently.
+    }
+  }
 
   const fetchRows = async (isRefresh = false) => {
     if (guardOfflineBeforeFetch()) {
@@ -129,6 +141,11 @@ export function RankingAnomaliesPanel() {
         offset,
         ...(debouncedUsername ? { username: debouncedUsername } : {}),
         ...(issueFilter ? { issue_type: issueFilter } : {}),
+        ...(versionFilter !== "" ? { version: versionFilter } : {}),
+      }
+
+      if (isRefresh || versions.length === 0) {
+        void fetchVersions()
       }
 
       if (tab === "open") {
@@ -163,7 +180,7 @@ export function RankingAnomaliesPanel() {
 
   useEffect(() => {
     void fetchRows()
-  }, [tab, limit, offset, debouncedUsername, issueFilter])
+  }, [tab, limit, offset, debouncedUsername, issueFilter, versionFilter])
 
   const handleCloseConfirm = async () => {
     if (!closeTarget) return
@@ -228,7 +245,7 @@ export function RankingAnomaliesPanel() {
   const isInitialLoad = !hasLoaded && fetching
   const isFilterPending = usernameQuery.trim() !== debouncedUsername
   const rows = tab === "open" ? openRows : closedRows
-  const colSpan = tab === "closed" ? 7 : canWrite ? 7 : 6
+  const colSpan = tab === "closed" ? 8 : canWrite ? 8 : 7
 
   if (isInitialLoad) {
     return (
@@ -279,6 +296,21 @@ export function RankingAnomaliesPanel() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={versionFilter === "" ? "" : String(versionFilter)}
+              onChange={(e) => {
+                const value = e.target.value
+                setVersionFilter(value === "" ? "" : Number(value))
+              }}
+            >
+              <option value="">All versions</option>
+              {versions.map((item) => (
+                <option key={item.id} value={item.version}>
+                  v{item.version} · {formatTimestamp(item.cycle_at)}
+                </option>
+              ))}
+            </select>
             <select
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               value={limit}
@@ -366,13 +398,14 @@ export function RankingAnomaliesPanel() {
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-auto rounded-lg border bg-background shadow-sm">
-          <table className={cn("w-full min-w-[860px] text-left text-sm transition-opacity", fetching && "opacity-60")}>
+          <table className={cn("w-full min-w-[980px] text-left text-sm transition-opacity", fetching && "opacity-60")}>
             <thead className="sticky top-0 z-10 border-b bg-muted/50">
               <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-semibold">Artist</th>
                 <th className="px-4 py-3 font-semibold">Issue</th>
                 <th className="px-4 py-3 font-semibold">Change</th>
                 <th className="px-4 py-3 font-semibold">Score</th>
+                <th className="px-4 py-3 font-semibold">Version</th>
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Detected</th>
                 {tab === "closed" && <th className="px-4 py-3 font-semibold">Notes</th>}
@@ -422,6 +455,18 @@ export function RankingAnomaliesPanel() {
                       </td>
                       <td className="px-4 py-3 tabular-nums">
                         {row.youtube_score != null ? row.youtube_score.toFixed(1) : "—"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                        {row.ranking_version != null ? (
+                          <>
+                            <div className="font-medium text-foreground">v{row.ranking_version}</div>
+                            {row.ranking_cycle_at ? (
+                              <div className="text-xs">{formatTimestamp(row.ranking_cycle_at)}</div>
+                            ) : null}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-4 py-3 capitalize text-muted-foreground">{row.source}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
@@ -537,8 +582,8 @@ export function RankingAnomaliesPanel() {
           <DialogHeader>
             <DialogTitle>Scan ranking anomalies now?</DialogTitle>
             <DialogDescription>
-              Re-evaluates current vs previous YouTube rank/momentum columns on inventory artists.
-              Does not call the YouTube API. New open rows are created when thresholds are crossed.
+              Re-evaluates current vs previous YouTube rank/momentum on inventory artists against
+              the latest ranking version (creates one if none exist). Does not call the YouTube API.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

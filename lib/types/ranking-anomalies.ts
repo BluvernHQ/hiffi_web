@@ -6,6 +6,14 @@ export type RankingAnomalyIssueType =
 
 export type RankingAnomalySource = "refresh" | "scan"
 
+export interface RankingVersion {
+  id: string
+  version: number
+  cycle_at: string
+  ranked_count: number
+  source: RankingAnomalySource
+}
+
 export interface RankingAnomaly {
   id: string
   username: string
@@ -15,6 +23,9 @@ export interface RankingAnomaly {
   delta: number
   youtube_score?: number | null
   source: RankingAnomalySource
+  ranking_version_id?: string
+  ranking_version?: number
+  ranking_cycle_at?: string
   detected_at: string
 }
 
@@ -35,6 +46,14 @@ export interface RankingAnomalyListResponse {
 
 export interface RankingAnomalyClosureListResponse {
   items: RankingAnomalyClosure[]
+  limit: number
+  offset: number
+  count: number
+  has_more: boolean
+}
+
+export interface RankingVersionListResponse {
+  items: RankingVersion[]
   limit: number
   offset: number
   count: number
@@ -73,6 +92,27 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+function toOptionalNumber(value: unknown): number | undefined {
+  if (value == null || value === "") return undefined
+  const n = Number(value)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function toOptionalString(value: unknown): string | undefined {
+  if (value == null || value === "") return undefined
+  return String(value)
+}
+
+export function normalizeRankingVersion(raw: Record<string, unknown>): RankingVersion {
+  return {
+    id: String(raw.id ?? ""),
+    version: toNumber(raw.version),
+    cycle_at: String(raw.cycle_at ?? ""),
+    ranked_count: toNumber(raw.ranked_count),
+    source: raw.source === "scan" ? "scan" : "refresh",
+  }
+}
+
 export function normalizeRankingAnomaly(raw: Record<string, unknown>): RankingAnomaly {
   const issueType = isRankingAnomalyIssueType(raw.issue_type) ? raw.issue_type : "rank_jump"
   const source = raw.source === "scan" ? "scan" : "refresh"
@@ -85,6 +125,9 @@ export function normalizeRankingAnomaly(raw: Record<string, unknown>): RankingAn
     delta: toNumber(raw.delta),
     youtube_score: toNullableNumber(raw.youtube_score),
     source,
+    ranking_version_id: toOptionalString(raw.ranking_version_id),
+    ranking_version: toOptionalNumber(raw.ranking_version),
+    ranking_cycle_at: toOptionalString(raw.ranking_cycle_at),
     detected_at: String(raw.detected_at ?? ""),
   }
 }
