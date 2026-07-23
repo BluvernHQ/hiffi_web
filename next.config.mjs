@@ -55,6 +55,15 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/sitemaps/:id.xml",
+        destination: "/sitemaps/:id",
+      },
+      // Legacy Next generateSitemaps URLs → new chunk routes
+      {
+        source: "/sitemap/:id.xml",
+        destination: "/sitemaps/:id",
+      },
+      {
         source: "/top-artist",
         destination: "/top-artist/index.html",
       },

@@ -8,25 +8,28 @@ import { absoluteUrl } from "@/lib/seo/site"
 import { getAllAtlantaSitemapPaths } from "@/lib/atlanta/registry"
 import { MOODS } from "@/lib/mood-tabs"
 
-export const revalidate = 3600
+export const SITEMAP_REVALIDATE_SECONDS = 3600
 
 const STATIC_LAST_MODIFIED = new Date("2026-06-01T00:00:00.000Z")
 
-function getSitemapMaxVideos(): number {
+export function getSitemapMaxVideos(): number {
   const raw = process.env.SITEMAP_MAX_VIDEOS?.trim()
   const parsed = raw ? Number.parseInt(raw, 10) : 50_000
   if (!Number.isFinite(parsed) || parsed <= 0) return 50_000
   return Math.min(parsed, 50_000)
 }
 
-function getSitemapVideoChunkSize(): number {
+export function getSitemapVideoChunkSize(): number {
   const raw = process.env.SITEMAP_VIDEO_CHUNK_SIZE?.trim()
   const parsed = raw ? Number.parseInt(raw, 10) : 10_000
   if (!Number.isFinite(parsed) || parsed <= 0) return 10_000
   return Math.min(parsed, 50_000)
 }
 
-function buildStaticEntries(cityPages: Awaited<ReturnType<typeof getArtistCityPages>>, genrePages: Awaited<ReturnType<typeof getArtistGenrePages>>): MetadataRoute.Sitemap {
+function buildStaticEntries(
+  cityPages: Awaited<ReturnType<typeof getArtistCityPages>>,
+  genrePages: Awaited<ReturnType<typeof getArtistGenrePages>>,
+): MetadataRoute.Sitemap {
   return [
     {
       url: absoluteUrl("/"),
@@ -82,7 +85,6 @@ function buildStaticEntries(cityPages: Awaited<ReturnType<typeof getArtistCityPa
       changeFrequency: "weekly",
       priority: 0.9,
     },
-    // Hip-hop hub + mood landing pages
     {
       url: absoluteUrl("/hip-hop"),
       lastModified: STATIC_LAST_MODIFIED,
@@ -101,7 +103,6 @@ function buildStaticEntries(cityPages: Awaited<ReturnType<typeof getArtistCityPa
       changeFrequency,
       priority,
     })),
-    // Artist Index hub + SEO landing pages
     {
       url: absoluteUrl("/artist-index"),
       lastModified: STATIC_LAST_MODIFIED,
@@ -134,7 +135,6 @@ function buildStaticEntries(cityPages: Awaited<ReturnType<typeof getArtistCityPa
       changeFrequency: "weekly" as const,
       priority: 0.88,
     })),
-    // Atlanta content cluster (static curated guides)
     ...getAllAtlantaSitemapPaths().map((path) => ({
       url: absoluteUrl(path),
       lastModified: STATIC_LAST_MODIFIED,
@@ -154,9 +154,7 @@ async function buildArtistIndexProfileEntries(): Promise<MetadataRoute.Sitemap> 
   }))
 }
 
-function buildProfileLastModifiedByUsername(
-  entries: SitemapVideoEntry[],
-): Map<string, Date> {
+function buildProfileLastModifiedByUsername(entries: SitemapVideoEntry[]): Map<string, Date> {
   const byUsername = new Map<string, Date>()
   for (const entry of entries) {
     const username = entry.username.trim().toLowerCase()
@@ -169,10 +167,7 @@ function buildProfileLastModifiedByUsername(
   return byUsername
 }
 
-function buildProfileEntries(
-  profileDates: Map<string, Date>,
-  fallback: Date,
-): MetadataRoute.Sitemap {
+function buildProfileEntries(profileDates: Map<string, Date>, fallback: Date): MetadataRoute.Sitemap {
   return [...profileDates.entries()].map(([username, lastModified]) => ({
     url: absoluteUrl(`/profile/${encodeURIComponent(username)}`),
     lastModified,
@@ -181,10 +176,7 @@ function buildProfileEntries(
   }))
 }
 
-function buildVideoEntries(
-  entries: SitemapVideoEntry[],
-  fallback: Date,
-): MetadataRoute.Sitemap {
+function buildVideoEntries(entries: SitemapVideoEntry[], fallback: Date): MetadataRoute.Sitemap {
   return entries.map((entry) => ({
     url: absoluteUrl(`/watch/${encodeURIComponent(entry.videoId)}`),
     lastModified: entry.lastModified ?? fallback,
@@ -195,32 +187,28 @@ function buildVideoEntries(
 
 let cachedVideoEntries: SitemapVideoEntry[] | null = null
 
-async function getAllVideoEntries(): Promise<SitemapVideoEntry[]> {
+export async function getAllVideoEntries(): Promise<SitemapVideoEntry[]> {
   if (!cachedVideoEntries) {
     cachedVideoEntries = await fetchVideoEntriesForSitemap(getSitemapMaxVideos())
   }
   return cachedVideoEntries
 }
 
-/** Splits large video catalogs across /sitemap/[id].xml when count exceeds chunk size. */
-export async function generateSitemaps() {
+/** Chunk ids for /sitemap/{id}.xml — 0 is core pages + profiles (+ videos when they fit). */
+export async function getSitemapChunkIds(): Promise<number[]> {
   const entries = await getAllVideoEntries()
   const chunkSize = getSitemapVideoChunkSize()
-  const videoChunkCount = Math.max(1, Math.ceil(entries.length / chunkSize))
-
-  const ids: Array<{ id: number }> = [{ id: 0 }]
+  const ids = [0]
   if (entries.length > chunkSize) {
+    const videoChunkCount = Math.max(1, Math.ceil(entries.length / chunkSize))
     for (let i = 1; i <= videoChunkCount; i += 1) {
-      ids.push({ id: i })
+      ids.push(i)
     }
   }
   return ids
 }
 
-export default async function sitemap(props: {
-  id: Promise<number>
-}): Promise<MetadataRoute.Sitemap> {
-  const id = await props.id
+export async function buildSitemapEntries(id: number): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
   const entries = await getAllVideoEntries()
   const chunkSize = getSitemapVideoChunkSize()
@@ -233,12 +221,7 @@ export default async function sitemap(props: {
     const artistIndexEntries = await buildArtistIndexProfileEntries()
 
     if (entries.length <= chunkSize) {
-      return [
-        ...staticEntries,
-        ...artistIndexEntries,
-        ...buildVideoEntries(entries, now),
-        ...profileEntries,
-      ]
+      return [...staticEntries, ...artistIndexEntries, ...buildVideoEntries(entries, now), ...profileEntries]
     }
 
     return [...staticEntries, ...artistIndexEntries, ...profileEntries]
@@ -248,4 +231,58 @@ export default async function sitemap(props: {
   const start = chunkIndex * chunkSize
   const chunk = entries.slice(start, start + chunkSize)
   return buildVideoEntries(chunk, now)
+}
+
+export function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+}
+
+function formatLastModified(value: Date | string | undefined): string | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
+export function entriesToUrlsetXml(entries: MetadataRoute.Sitemap): string {
+  const urls = entries
+    .map((entry) => {
+      const lastmod = formatLastModified(entry.lastModified)
+      const changefreq = entry.changeFrequency ? `<changefreq>${entry.changeFrequency}</changefreq>` : ""
+      const priority =
+        typeof entry.priority === "number" && Number.isFinite(entry.priority)
+          ? `<priority>${entry.priority.toFixed(1)}</priority>`
+          : ""
+      const lastmodXml = lastmod ? `<lastmod>${lastmod}</lastmod>` : ""
+      return `<url><loc>${escapeXml(entry.url)}</loc>${lastmodXml}${changefreq}${priority}</url>`
+    })
+    .join("")
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`
+}
+
+export function chunkIdsToSitemapIndexXml(ids: number[], lastModified = new Date()): string {
+  const lastmod = lastModified.toISOString()
+  const items = ids
+    .map((id) => {
+      const loc = absoluteUrl(`/sitemaps/${id}.xml`)
+      return `<sitemap><loc>${escapeXml(loc)}</loc><lastmod>${lastmod}</lastmod></sitemap>`
+    })
+    .join("")
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${items}</sitemapindex>`
+}
+
+export function sitemapXmlResponse(xml: string): Response {
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": `public, s-maxage=${SITEMAP_REVALIDATE_SECONDS}, stale-while-revalidate=86400`,
+    },
+  })
 }

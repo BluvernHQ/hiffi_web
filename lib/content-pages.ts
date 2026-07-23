@@ -14,25 +14,32 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
   { href: "/support", label: "Support" },
 ]
 
-/** Compact discover links for the app sidebar footer (YouTube-style, not the full site footer). */
+/** Compact discover + marketing links for the app sidebar footer (YouTube-style). */
 export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
+  { href: "/about", label: "About" },
+  { href: "/what-is-hiffi", label: "What is Hiffi?" },
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/artists", label: "Artists" },
+  { href: "/press", label: "Press" },
+  { href: "/advertising", label: "Advertising" },
+  { href: "/creators-for-change", label: "Creators for Change" },
+  { href: "/creator-playbook", label: "Creator Playbook" },
   { href: "/hip-hop", label: "Hip-Hop" },
-  { href: "/atlanta", label: "Atlanta guide" },
   { href: "/artist-index", label: "Artist Index" },
-  { href: "/hiffi-500", label: "Hiffi 500" },
-  { href: "/artist-index/claim", label: "Claim your profile" },
+  { href: "/top-artist", label: "Hiffi 500" },
+  { href: "/atlanta", label: "Atlanta" },
 ]
 
 /** Legal + help links shown at the bottom of the left sidebar. */
 export const SIDEBAR_FOOTER_LINKS: ContentPageLink[] = [
-  { href: "/terms-of-use", label: "Terms of Use" },
-  { href: "/privacy-policy", label: "Privacy Policy" },
-  { href: "/payment-terms", label: "Payment Terms" },
+  { href: "/terms-of-use", label: "Terms" },
+  { href: "/privacy-policy", label: "Privacy" },
+  { href: "/payment-terms", label: "Payment" },
   { href: "/copyright", label: "Copyright" },
-  { href: "/community-guidelines", label: "Community Guidelines" },
+  { href: "/community-guidelines", label: "Guidelines" },
   { href: "/faq", label: "FAQ" },
   { href: "/support", label: "Support" },
-  { href: "/app", label: "Download Hiffi App" },
+  { href: "/app", label: "App" },
 ]
 
 /** Marketing / informational pages with the same minimal chrome. */

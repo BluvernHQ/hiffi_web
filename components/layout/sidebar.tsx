@@ -556,13 +556,13 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
             {/* Footer links — scroll to reach (YouTube-style compact wrap) */}
             <div
               className={cn(
-                "mt-auto border-t px-4 py-5",
-                "pb-[calc(1.25rem+env(safe-area-inset-bottom))]",
+                "mt-auto border-t px-4 py-4",
+                "pb-[calc(1rem+env(safe-area-inset-bottom))]",
               )}
             >
               <div
                 className={cn(
-                  "flex flex-wrap gap-x-2 gap-y-2 text-[13px] leading-snug",
+                  "flex flex-wrap gap-x-1.5 gap-y-1 text-[11px] leading-tight",
                   isAppDownloadPage ? "text-black/60" : "text-muted-foreground",
                 )}
               >
@@ -572,7 +572,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
               </div>
               <div
                 className={cn(
-                  "mt-4 flex flex-wrap gap-x-2 gap-y-2 text-[13px] leading-snug",
+                  "mt-2.5 flex flex-wrap gap-x-1.5 gap-y-1 text-[11px] leading-tight",
                   isAppDownloadPage ? "text-black/60" : "text-muted-foreground",
                 )}
               >
@@ -582,7 +582,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
               </div>
               <p
                 className={cn(
-                  "mt-4 text-xs",
+                  "mt-3 text-[10px] leading-tight",
                   isAppDownloadPage ? "text-black/50" : "text-muted-foreground/80",
                 )}
               >

@@ -23,7 +23,6 @@
         <a href="#leaderboard">Leaderboard</a>
         <a href="#movers">Movers</a>
         <a href="/top-artist/how-it-works">How it works</a>
-        <a href="/artist-index/claim">Claim</a>
       </nav>
       <button class="header-arrow" type="button" data-scroll-target="leaderboard" aria-label="Explore the ranking"><span>↘</span></button>
       <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu"><span></span><span></span></button>
@@ -73,6 +72,15 @@
     <section class="ranking-shell" aria-label="Hip-Hop artist ranking">
       <div class="ranking-controls">
         <label class="search-box" for="artistSearch"><span>Search artist</span><input id="artistSearch" type="search" placeholder="Type a name..." autocomplete="off"><b aria-hidden="true">⌕</b></label>
+        <div class="mode-filters-bar" aria-label="Ranking modes">
+          <div class="filter-group" id="modeFilters" aria-label="Filter by ranking mode">
+            <button class="active" type="button" data-mode="overall">Overall</button>
+            <button type="button" data-mode="breakout">Breakout 100</button>
+            <button type="button" data-mode="heat">Underground Heat</button>
+            <button type="button" data-mode="verified">Verified ranking</button>
+          </div>
+          <p class="mode-filters-kicker" id="modeKicker">Full Hip-Hop 500 · scale and momentum</p>
+        </div>
         <label class="sort-select" for="rankingSort"><span>Sort</span><select id="rankingSort" aria-label="Sort ranking">
           <option value="overall">Overall rank</option>
           <option value="momentum7d">Momentum 7d</option>
@@ -131,9 +139,21 @@
 
   <div class="drawer-backdrop" id="drawerBackdrop" hidden>
     <aside class="artist-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerArtistName">
-      <button class="drawer-close" id="drawerClose" type="button" aria-label="Close artist profile">×</button>
+      <div class="drawer-top-actions">
+        <div class="drawer-share-wrap">
+          <button class="drawer-share-btn" id="drawerShareToggle" type="button" aria-expanded="false" aria-controls="drawerSharePanel" aria-label="Share ranking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11A2.99 2.99 0 0 0 18 7.91c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L7.96 9.81A2.99 2.99 0 0 0 6 9.09c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg><span>Share</span></button>
+          <div class="drawer-share-popup" id="drawerSharePanel" hidden role="dialog" aria-label="Share ranking">
+            <p class="drawer-share-preview" id="drawerSharePreview"></p>
+            <p class="drawer-share-label">Share to</p>
+            <div class="drawer-share-apps" id="drawerShareApps" aria-label="Share to social apps"></div>
+            <p class="drawer-share-status" id="drawerShareStatus" hidden></p>
+          </div>
+        </div>
+        <button class="drawer-close" id="drawerClose" type="button" aria-label="Close artist profile">×</button>
+      </div>
       <p class="section-kicker">Artist profile / Preview</p>
       <div class="drawer-rank" id="drawerRank"></div>
+      <p class="drawer-rank-meta" id="drawerRankMeta" hidden></p>
       <h2 id="drawerArtistName"></h2>
       <div class="drawer-score"><span>YouTube composite score</span><b id="drawerScore"></b></div>
       <div class="drawer-metrics">
@@ -151,8 +171,7 @@
       <p class="drawer-note">Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.</p>
       <p class="drawer-claim-note" id="drawerClaimNote" hidden></p>
       <div class="drawer-actions">
-        <a class="drawer-link drawer-link-claim" id="drawerClaim" href="/artist-index/claim" hidden>Claim this profile <span>↗</span></a>
-        <a class="drawer-link drawer-link-secondary" id="drawerProfile" href="#">View Artist Index profile <span>↗</span></a>
+        <a class="drawer-link drawer-link-claim" id="drawerClaim" href="/artist-index" hidden>Claim this profile <span>↗</span></a>
         <a class="drawer-link drawer-link-outline" id="drawerYoutube" href="#" target="_blank" rel="noreferrer">Open YouTube channel <span>↗</span></a>
       </div>
     </aside>
