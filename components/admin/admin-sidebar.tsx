@@ -25,6 +25,7 @@ import {
   ListMusic,
   Mic2,
   Route,
+  Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -63,6 +64,17 @@ const navSections: NavSection[] = [
     title: "Artist Index",
     items: [
       { icon: Mic2, label: "Artist Inventory", value: "artist_inventory", permission: "admin:inventory" },
+    ],
+  },
+  {
+    title: "Hiffi 500",
+    items: [
+      {
+        icon: Activity,
+        label: "Score Anomalies",
+        value: "ranking_anomalies",
+        permission: "admin:inventory",
+      },
     ],
   },
   {

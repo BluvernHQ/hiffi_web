@@ -477,10 +477,9 @@ export function AnalyticsJourneysPanel() {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">1. Sessions</span>
+        <span className="font-medium text-foreground">Sessions</span>
         {" → "}
-        <span className="font-medium text-foreground">2. Events for that session only</span>
-        <span className="ml-1">· IP/geo live on the session, not on event rows.</span>
+        <span className="font-medium text-foreground">Events for that session</span>
       </div>
 
       <div className="rounded-lg border bg-background shadow-sm">

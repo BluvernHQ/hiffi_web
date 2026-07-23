@@ -74,6 +74,13 @@ import {
   adminDownloadInventoryTemplate as apiAdminDownloadInventoryTemplate,
   adminExportInventory as apiAdminExportInventory,
 } from "./api/admin-inventory"
+import {
+  adminListRankingAnomalies as apiAdminListRankingAnomalies,
+  adminListClosedRankingAnomalies as apiAdminListClosedRankingAnomalies,
+  adminGetRankingAnomaly as apiAdminGetRankingAnomaly,
+  adminCloseRankingAnomaly as apiAdminCloseRankingAnomaly,
+  adminScanRankingAnomalies as apiAdminScanRankingAnomalies,
+} from "./api/admin-ranking-anomalies"
 import type {
   AdminListContentFlagsParams,
   ContentFlag,
@@ -335,6 +342,32 @@ class AdminApiClient implements AdminApiClientContext {
     params?: { created_after?: string; created_before?: string; search?: string },
   ) {
     return apiAdminExportInventory(this, params)
+  }
+
+  // ─── Hiffi 500 ranking anomalies ────────────────────────────────────────────
+
+  async adminListRankingAnomalies(
+    params?: Parameters<typeof apiAdminListRankingAnomalies>[1],
+  ) {
+    return apiAdminListRankingAnomalies(this, params)
+  }
+
+  async adminListClosedRankingAnomalies(
+    params?: Parameters<typeof apiAdminListClosedRankingAnomalies>[1],
+  ) {
+    return apiAdminListClosedRankingAnomalies(this, params)
+  }
+
+  async adminGetRankingAnomaly(anomalyId: string) {
+    return apiAdminGetRankingAnomaly(this, anomalyId)
+  }
+
+  async adminCloseRankingAnomaly(anomalyId: string, notes: string) {
+    return apiAdminCloseRankingAnomaly(this, anomalyId, notes)
+  }
+
+  async adminScanRankingAnomalies() {
+    return apiAdminScanRankingAnomalies(this)
   }
 
   // ─── Curated playlists ──────────────────────────────────────────────────────
