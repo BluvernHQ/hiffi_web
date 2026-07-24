@@ -16,6 +16,8 @@ const CITIES_TTL_MS = 60 * 60 * 1000;
 /** @type {ReturnType<typeof mapArtist>[]} */
 let artists = [];
 let totalRanked = 0;
+/** Client timestamp for the active ranking dataset (cache savedAt or fetch time). */
+let rankingTimestamp = Date.now();
 /** @type {{ location: string, artist_count: number }[]} */
 let bannerCities = [];
 /** Bumps when the active location changes so stale in-flight pages are ignored. */
@@ -25,11 +27,17 @@ const state = {
   query: "",
   location: "",
   mode: "overall",
+  /** @type {7 | 30} */
+  risersWindow: 7,
   sort: "overall",
   visible: INITIAL_VISIBLE,
   selected: null,
+  /** @type {null | "riser"} */
+  shareContext: null,
   loading: true,
   error: null,
+  /** When risers API has no snapshot history yet */
+  risersHasHistory: true,
 };
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
@@ -41,6 +49,18 @@ let suppressScrollSave = false;
 function cacheKeyForLocation(location) {
   const key = String(location || "").trim().toLowerCase() || "all";
   return `${CACHE_KEY_PREFIX}:${key}`;
+}
+
+function cacheKeyForRisers(windowDays = state.risersWindow) {
+  return `${CACHE_KEY_PREFIX}:risers:${windowDays === 30 ? 30 : 7}`;
+}
+
+function cacheKeyForUnderground() {
+  return `${CACHE_KEY_PREFIX}:underground`;
+}
+
+function cacheKeyForBreakout() {
+  return `${CACHE_KEY_PREFIX}:breakout`;
 }
 
 function storageGet(key) {
@@ -95,8 +115,11 @@ function slimInventoryItem(item) {
   if (!item || typeof item !== "object") return null;
   const socials = slimSocials(item.other_socials);
   return {
-    rank: item.rank,
-    global_rank: item.global_rank ?? null,
+    rank: item.rank ?? item.current_rank ?? item.underground_rank ?? item.breakout_rank ?? null,
+    global_rank: item.global_rank ?? item.current_rank ?? item.youtube_rank ?? null,
+    underground_rank: item.underground_rank ?? null,
+    breakout_rank: item.breakout_rank ?? null,
+    youtube_rank: item.youtube_rank ?? null,
     username: item.username,
     artist_name: item.artist_name,
     location: item.location || "",
@@ -110,11 +133,20 @@ function slimInventoryItem(item) {
     youtube_momentum_7d: item.youtube_momentum_7d ?? null,
     youtube_momentum_30d: item.youtube_momentum_30d ?? null,
     youtube_momentum_90d: item.youtube_momentum_90d ?? null,
+    heat_score: item.heat_score ?? null,
+    engagement_score: item.engagement_score ?? null,
+    momentum_score: item.momentum_score ?? null,
+    reach_score: item.reach_score ?? null,
     other_socials: socials,
-    previous_rank: item.previous_rank ?? null,
-    rank_delta_7d: item.rank_delta_7d ?? null,
+    previous_rank: item.previous_rank ?? item.prior_rank ?? null,
+    rank_delta_7d: item.rank_delta_7d ?? item.rank_delta ?? null,
     rank_delta_30d: item.rank_delta_30d ?? null,
+    rank_delta: item.rank_delta ?? null,
+    prior_rank: item.prior_rank ?? null,
+    current_rank: item.current_rank ?? null,
     is_new_entry: Boolean(item.is_new_entry),
+    image: typeof item.image === "string" ? item.image : undefined,
+    banner_image: typeof item.banner_image === "string" ? item.banner_image : undefined,
   };
 }
 
@@ -170,6 +202,7 @@ function writeUiState() {
     query: state.query,
     location: state.location,
     mode: state.mode,
+    risersWindow: state.risersWindow,
     sort: state.sort,
     visible: state.visible,
     scrollY: suppressScrollSave ? readUiState()?.scrollY ?? window.scrollY : window.scrollY,
@@ -189,11 +222,52 @@ function syncModeFilterButtons() {
     item.classList.toggle("active", value === state.mode);
   });
   const kicker = $("#modeKicker");
-  if (!kicker) return;
-  kicker.textContent = modeKickerCopy(state.mode);
+  if (kicker) kicker.textContent = modeKickerCopy(state.mode);
+  syncRankingSortSelect();
+}
+
+const DEFAULT_SORT_OPTIONS = [
+  { value: "overall", label: "Overall rank" },
+  { value: "momentum7d", label: "Momentum 7d" },
+  { value: "momentum30d", label: "Momentum 30d" },
+  { value: "momentum90d", label: "Momentum 90d" },
+  { value: "views", label: "Recent avg views" },
+  { value: "subscribers", label: "Subscribers" },
+];
+
+const RISERS_WINDOW_OPTIONS = [
+  { value: "risers7", label: "7 days" },
+  { value: "risers30", label: "30 days" },
+];
+
+function syncRankingSortSelect() {
+  const select = $("#rankingSort");
+  const label = $("#rankingSortLabel");
+  if (!select) return;
+  const risersMode = state.mode === "risers";
+  if (label) label.textContent = risersMode ? "Window" : "Sort";
+  select.setAttribute("aria-label", risersMode ? "Risers lookback window" : "Sort ranking");
+
+  const options = risersMode ? RISERS_WINDOW_OPTIONS : DEFAULT_SORT_OPTIONS;
+  const desired = risersMode
+    ? state.risersWindow === 30
+      ? "risers30"
+      : "risers7"
+    : state.sort;
+  select.innerHTML = options
+    .map(
+      (opt) =>
+        `<option value="${opt.value}"${opt.value === desired ? " selected" : ""}>${opt.label}</option>`,
+    )
+    .join("");
+  if (!risersMode && !DEFAULT_SORT_OPTIONS.some((opt) => opt.value === state.sort)) {
+    state.sort = "overall";
+    select.value = "overall";
+  }
 }
 
 function modeLabel(mode = state.mode) {
+  if (mode === "risers") return "Biggest Risers";
   if (mode === "breakout") return "Breakout 100";
   if (mode === "heat") return "Underground Heat";
   if (mode === "verified") return "Verified ranking";
@@ -201,14 +275,29 @@ function modeLabel(mode = state.mode) {
 }
 
 function modeKickerCopy(mode = state.mode) {
-  if (mode === "breakout") return "Ranks 51–150 · emerging signal preview";
-  if (mode === "heat") return "Momentum heat · outside the absolute top 10";
+  if (mode === "risers") {
+    return state.risersWindow === 30
+      ? "Largest rank climbs · last 30 days"
+      : "Largest rank climbs · last 7 days";
+  }
+  if (mode === "breakout") return "Reach below P70 · sorted by momentum · top 100";
+  if (mode === "heat") return "Mid/small reach · engagement + momentum floors · top 50";
   if (mode === "verified") return "Claimed Artist Index profiles only";
   return "Full Hip-Hop 500 · scale and momentum";
 }
 
 function isValidMode(mode) {
-  return mode === "overall" || mode === "breakout" || mode === "heat" || mode === "verified";
+  return (
+    mode === "overall" ||
+    mode === "risers" ||
+    mode === "breakout" ||
+    mode === "heat" ||
+    mode === "verified"
+  );
+}
+
+function isValidRisersWindow(value) {
+  return value === 7 || value === 30 || value === "7" || value === "30";
 }
 
 function cityChipLabel(location) {
@@ -248,6 +337,9 @@ function restoreUiState() {
   if (typeof saved.query === "string") state.query = saved.query;
   if (typeof saved.location === "string") state.location = saved.location;
   if (isValidMode(saved.mode)) state.mode = saved.mode;
+  if (isValidRisersWindow(saved.risersWindow)) {
+    state.risersWindow = Number(saved.risersWindow) === 30 ? 30 : 7;
+  }
   if (
     saved.sort === "overall" ||
     saved.sort === "views" ||
@@ -264,8 +356,6 @@ function restoreUiState() {
 
   const search = $("#artistSearch");
   if (search) search.value = state.query;
-  const sort = $("#rankingSort");
-  if (sort) sort.value = state.sort;
   syncLocationFilterButtons();
   syncModeFilterButtons();
 }
@@ -298,7 +388,7 @@ function withPreservedScroll(fn) {
   scrollToY(y);
 }
 
-function applyDataset(items, ranked) {
+function applyDataset(items, ranked, timestamp) {
   const globalLookup = buildGlobalRankLookup();
   artists = items.map((item, index) => {
     const mapped = mapArtist(item, index);
@@ -308,6 +398,8 @@ function applyDataset(items, ranked) {
     return mapped;
   });
   totalRanked = ranked;
+  if (typeof timestamp === "number" && timestamp > 0) rankingTimestamp = timestamp;
+  else rankingTimestamp = Date.now();
   state.loading = false;
   state.error = null;
   renderHeroStats();
@@ -396,13 +488,56 @@ function mapArtist(item, index) {
   const name = item.artist_name || item.username || "Unknown";
   const location = item.location || "";
   const socials = slimSocials(item.other_socials) || {};
+  const undergroundRank =
+    item.underground_rank != null && !Number.isNaN(Number(item.underground_rank))
+      ? Number(item.underground_rank)
+      : null;
+  const breakoutRank =
+    item.breakout_rank != null && !Number.isNaN(Number(item.breakout_rank))
+      ? Number(item.breakout_rank)
+      : null;
+  const currentRank =
+    undergroundRank != null
+      ? undergroundRank
+      : breakoutRank != null
+        ? breakoutRank
+        : item.current_rank != null && !Number.isNaN(Number(item.current_rank))
+          ? Number(item.current_rank)
+          : item.rank != null && !Number.isNaN(Number(item.rank))
+            ? Number(item.rank)
+            : index + 1;
+  const priorRank =
+    item.prior_rank != null && !Number.isNaN(Number(item.prior_rank))
+      ? Number(item.prior_rank)
+      : item.previous_rank != null && !Number.isNaN(Number(item.previous_rank))
+        ? Number(item.previous_rank)
+        : null;
+  const rankDelta =
+    item.rank_delta != null && !Number.isNaN(Number(item.rank_delta))
+      ? Number(item.rank_delta)
+      : null;
+  const youtubeRank =
+    item.youtube_rank != null && !Number.isNaN(Number(item.youtube_rank))
+      ? Number(item.youtube_rank)
+      : null;
   const globalRank =
     item.global_rank != null && !Number.isNaN(Number(item.global_rank))
       ? Number(item.global_rank)
+      : youtubeRank != null
+        ? youtubeRank
+        : item.current_rank != null
+          ? Number(item.current_rank)
+          : null;
+  const heatScore =
+    item.heat_score != null && !Number.isNaN(Number(item.heat_score))
+      ? Number(item.heat_score)
       : null;
   return {
-    rank: item.rank,
+    rank: currentRank,
     globalRank,
+    youtubeRank,
+    undergroundRank,
+    breakoutRank,
     username: item.username,
     name,
     location,
@@ -412,23 +547,42 @@ function mapArtist(item, index) {
     videoCount: item.youtube_video_count ?? null,
     recentAvgViews: item.youtube_recent_avg_views ?? null,
     uploadVelocity: item.youtube_upload_velocity ?? null,
-    score: item.youtube_score ?? null,
+    score: heatScore ?? item.momentum_score ?? item.youtube_score ?? null,
+    youtubeScore: item.youtube_score ?? null,
+    heatScore,
+    engagementScore:
+      item.engagement_score != null && !Number.isNaN(Number(item.engagement_score))
+        ? Number(item.engagement_score)
+        : null,
+    momentumScore:
+      item.momentum_score != null && !Number.isNaN(Number(item.momentum_score))
+        ? Number(item.momentum_score)
+        : null,
+    reachScore:
+      item.reach_score != null && !Number.isNaN(Number(item.reach_score))
+        ? Number(item.reach_score)
+        : null,
     momentum7d: item.youtube_momentum_7d ?? null,
     momentum30d: item.youtube_momentum_30d ?? null,
     momentum90d: item.youtube_momentum_90d ?? null,
     socials,
     youtubeUrl: socials.youtube || null,
-    previousRank: item.previous_rank ?? null,
-    rankDelta7d: item.rank_delta_7d ?? null,
+    previousRank: priorRank,
+    priorRank,
+    rankDelta,
+    rankDelta7d: rankDelta ?? item.rank_delta_7d ?? null,
     rankDelta30d: item.rank_delta_30d ?? null,
     isNewEntry: Boolean(item.is_new_entry),
+    image: typeof item.image === "string" ? item.image : null,
+    bannerImage: typeof item.banner_image === "string" ? item.banner_image : null,
     accent: ACCENTS[index % ACCENTS.length],
   };
 }
 
 function movementMeta(artist) {
   let delta = null;
-  if (artist.rankDelta7d != null) delta = artist.rankDelta7d;
+  if (artist.rankDelta != null) delta = artist.rankDelta;
+  else if (artist.rankDelta7d != null) delta = artist.rankDelta7d;
   else if (artist.previousRank != null) delta = artist.previousRank - artist.rank;
 
   if (delta == null) {
@@ -449,6 +603,24 @@ function movementHTML(artist, compact = false) {
   return `<span class="movement movement-${move.direction}" aria-label="${move.label}"><span aria-hidden="true">${move.symbol}</span>${amountHtml}</span>`;
 }
 
+async function readProxyJson(res, fallbackError) {
+  const text = await res.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(
+      res.ok
+        ? `${fallbackError} (invalid JSON response)`
+        : `${fallbackError} (${res.status})`,
+    );
+  }
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error || `${fallbackError} (${res.status})`);
+  }
+  return body.data;
+}
+
 async function fetchTopPage(limit, offset) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -458,11 +630,7 @@ async function fetchTopPage(limit, offset) {
   const res = await fetch(`/proxy/inventory/top?${params}`, {
     headers: { Accept: "application/json" },
   });
-  const body = await res.json();
-  if (!res.ok || !body.success) {
-    throw new Error(body.error || `Failed to load ranking (${res.status})`);
-  }
-  return body.data;
+  return readProxyJson(res, "Failed to load ranking");
 }
 
 async function fetchCityPage(limit, offset, location) {
@@ -475,11 +643,148 @@ async function fetchCityPage(limit, offset, location) {
   const res = await fetch(`/proxy/inventory/top/city?${params}`, {
     headers: { Accept: "application/json" },
   });
-  const body = await res.json();
-  if (!res.ok || !body.success) {
-    throw new Error(body.error || `Failed to load city ranking (${res.status})`);
+  return readProxyJson(res, "Failed to load city ranking");
+}
+
+async function fetchRisersPage(limit, offset, windowDays = state.risersWindow) {
+  const params = new URLSearchParams({
+    window: String(windowDays === 30 ? 30 : 7),
+    limit: String(Math.min(Math.max(limit, 1), 100)),
+    offset: String(offset),
+  });
+  const res = await fetch(`/proxy/inventory/top/risers?${params}`, {
+    headers: { Accept: "application/json" },
+  });
+  return readProxyJson(res, "Failed to load biggest risers");
+}
+
+async function fetchUndergroundPage(limit, offset) {
+  const params = new URLSearchParams({
+    limit: String(Math.min(Math.max(limit, 1), 50)),
+    offset: String(offset),
+  });
+  const res = await fetch(`/proxy/inventory/top/underground?${params}`, {
+    headers: { Accept: "application/json" },
+  });
+  return readProxyJson(res, "Failed to load underground heat");
+}
+
+async function fetchBreakoutPage(limit, offset) {
+  const params = new URLSearchParams({
+    limit: String(Math.min(Math.max(limit, 1), 100)),
+    offset: String(offset),
+  });
+  const res = await fetch(`/proxy/inventory/top/breakout?${params}`, {
+    headers: { Accept: "application/json" },
+  });
+  return readProxyJson(res, "Failed to load breakout");
+}
+
+async function loadAllRisers(onPage, windowDays = state.risersWindow) {
+  const items = [];
+  let offset = 0;
+  let hasMore = true;
+  let hasHistory = true;
+  const generation = loadGeneration;
+  const maxItems = 100;
+  const pageSize = 50;
+
+  while (hasMore && items.length < maxItems) {
+    if (generation !== loadGeneration) {
+      return { items, hasHistory, aborted: true };
+    }
+    const limit = Math.min(pageSize, maxItems - items.length);
+    const page = await fetchRisersPage(limit, offset, windowDays);
+    if (generation !== loadGeneration) {
+      return { items, hasHistory, aborted: true };
+    }
+    hasHistory = page.has_history !== false;
+    const batch = Array.isArray(page.items) ? page.items : [];
+    items.push(...batch);
+    hasMore = Boolean(page.has_more) && batch.length > 0 && hasHistory;
+    offset += batch.length;
+    writeJsonStorage(cacheKeyForRisers(windowDays), {
+      items: slimInventoryItems(items),
+      totalRanked: items.length,
+      hasHistory,
+      windowDays: windowDays === 30 ? 30 : 7,
+      savedAt: Date.now(),
+    });
+    if (typeof onPage === "function") onPage(items, hasHistory);
+    if (batch.length === 0 || !hasHistory) break;
   }
-  return body.data;
+
+  return { items, hasHistory, aborted: false };
+}
+
+async function loadAllUnderground(onPage) {
+  const items = [];
+  let offset = 0;
+  let hasMore = true;
+  let totalUnderground = 0;
+  const generation = loadGeneration;
+  const maxItems = 50;
+  const pageSize = 50;
+
+  while (hasMore && items.length < maxItems) {
+    if (generation !== loadGeneration) {
+      return { items, totalUnderground, aborted: true };
+    }
+    const limit = Math.min(pageSize, maxItems - items.length);
+    const page = await fetchUndergroundPage(limit, offset);
+    if (generation !== loadGeneration) {
+      return { items, totalUnderground, aborted: true };
+    }
+    const batch = Array.isArray(page.items) ? page.items : [];
+    items.push(...batch);
+    totalUnderground = Number(page.total_underground) || items.length;
+    hasMore = Boolean(page.has_more) && batch.length > 0;
+    offset += batch.length;
+    writeJsonStorage(cacheKeyForUnderground(), {
+      items: slimInventoryItems(items),
+      totalRanked: totalUnderground || items.length,
+      savedAt: Date.now(),
+    });
+    if (typeof onPage === "function") onPage(items, totalUnderground || items.length);
+    if (batch.length === 0) break;
+  }
+
+  return { items, totalUnderground: totalUnderground || items.length, aborted: false };
+}
+
+async function loadAllBreakout(onPage) {
+  const items = [];
+  let offset = 0;
+  let hasMore = true;
+  let totalBreakout = 0;
+  const generation = loadGeneration;
+  const maxItems = 100;
+  const pageSize = 50;
+
+  while (hasMore && items.length < maxItems) {
+    if (generation !== loadGeneration) {
+      return { items, totalBreakout, aborted: true };
+    }
+    const limit = Math.min(pageSize, maxItems - items.length);
+    const page = await fetchBreakoutPage(limit, offset);
+    if (generation !== loadGeneration) {
+      return { items, totalBreakout, aborted: true };
+    }
+    const batch = Array.isArray(page.items) ? page.items : [];
+    items.push(...batch);
+    totalBreakout = Number(page.total_breakout) || items.length;
+    hasMore = Boolean(page.has_more) && batch.length > 0;
+    offset += batch.length;
+    writeJsonStorage(cacheKeyForBreakout(), {
+      items: slimInventoryItems(items),
+      totalRanked: totalBreakout || items.length,
+      savedAt: Date.now(),
+    });
+    if (typeof onPage === "function") onPage(items, totalBreakout || items.length);
+    if (batch.length === 0) break;
+  }
+
+  return { items, totalBreakout: totalBreakout || items.length, aborted: false };
 }
 
 async function fetchBannerCities() {
@@ -497,10 +802,16 @@ async function fetchBannerCities() {
   const res = await fetch(`/proxy/inventory/top/cities`, {
     headers: { Accept: "application/json" },
   });
-  const body = await res.json();
+  let body = null;
+  try {
+    body = JSON.parse(await res.text());
+  } catch {
+    if (hasCache) return bannerCities;
+    throw new Error(`Failed to load cities (${res.status})`);
+  }
   if (!res.ok || !body.success) {
     if (hasCache) return bannerCities;
-    throw new Error(body.error || `Failed to load cities (${res.status})`);
+    throw new Error(body?.error || `Failed to load cities (${res.status})`);
   }
   bannerCities = Array.isArray(body.data?.items) ? body.data.items : [];
   writeJsonStorage(CITIES_CACHE_KEY, { items: bannerCities, savedAt: Date.now() });
@@ -557,12 +868,30 @@ function filteredArtists() {
       artist.username.toLowerCase().includes(query),
   );
 
+  if (state.mode === "risers" && state.sort === "overall") {
+    return list.sort((a, b) => {
+      const ad = a.rankDelta ?? a.rankDelta7d ?? Number.NEGATIVE_INFINITY;
+      const bd = b.rankDelta ?? b.rankDelta7d ?? Number.NEGATIVE_INFINITY;
+      if (bd !== ad) return bd - ad;
+      return a.rank - b.rank;
+    });
+  }
+
   if (state.mode === "heat" && state.sort === "overall") {
     return list.sort((a, b) => {
-      const am = heatMomentum(a) ?? Number.NEGATIVE_INFINITY;
-      const bm = heatMomentum(b) ?? Number.NEGATIVE_INFINITY;
+      const ah = a.heatScore ?? Number.NEGATIVE_INFINITY;
+      const bh = b.heatScore ?? Number.NEGATIVE_INFINITY;
+      if (bh !== ah) return bh - ah;
+      return String(a.username || "").localeCompare(String(b.username || ""));
+    });
+  }
+
+  if (state.mode === "breakout" && state.sort === "overall") {
+    return list.sort((a, b) => {
+      const am = a.momentumScore ?? Number.NEGATIVE_INFINITY;
+      const bm = b.momentumScore ?? Number.NEGATIVE_INFINITY;
       if (bm !== am) return bm - am;
-      return a.rank - b.rank;
+      return String(a.username || "").localeCompare(String(b.username || ""));
     });
   }
 
@@ -590,32 +919,18 @@ function filteredArtists() {
 function chartGlobalRank(artist) {
   if (!artist) return null;
   if (artist.globalRank != null) return artist.globalRank;
+  if (artist.youtubeRank != null) return artist.youtubeRank;
   if (!state.location) return artist.rank;
   return null;
 }
 
-function heatMomentum(artist) {
-  const value = artist.momentum7d ?? artist.momentum30d ?? artist.momentum90d;
-  if (value == null || Number.isNaN(Number(value))) return null;
-  return Number(value);
+function modeUsesDedicatedFetch(mode = state.mode) {
+  return mode === "risers" || mode === "heat" || mode === "breakout";
 }
 
 /** Mode filters on the current chart payload (city chips still apply via loaded dataset). */
 function filterByMode(list) {
-  if (state.mode === "breakout") {
-    return list
-      .filter((artist) => {
-        const rank = chartGlobalRank(artist);
-        return rank != null && rank >= 51 && rank <= 150;
-      })
-      .slice(0, 100);
-  }
-  if (state.mode === "heat") {
-    return list.filter((artist) => {
-      const rank = chartGlobalRank(artist) ?? artist.rank;
-      return rank > 10 && heatMomentum(artist) != null;
-    });
-  }
+  // breakout / heat / risers load their own dedicated datasets
   if (state.mode === "verified") {
     return list.filter((artist) => artist.claimStatus === "claimed");
   }
@@ -626,11 +941,17 @@ function emptyRankingHTML() {
   if (state.query.trim()) {
     return `<div class="empty-state"><b>No artist found.</b><span>Try another name or region.</span></div>`;
   }
+  if (state.mode === "risers") {
+    if (!state.risersHasHistory) {
+      return `<div class="empty-state"><b>Not enough ranking history yet.</b><span>Biggest Risers needs at least ${state.risersWindow} days of ranking snapshots. Check back after the next cycles.</span></div>`;
+    }
+    return `<div class="empty-state"><b>No risers in this window.</b><span>Nobody climbed ranks over the last ${state.risersWindow} days in the current snapshots.</span></div>`;
+  }
   if (state.mode === "breakout") {
-    return `<div class="empty-state"><b>No breakout artists in this chart yet.</b><span>Breakout 100 watches global ranks 51–150.</span></div>`;
+    return `<div class="empty-state"><b>No breakout artists yet.</b><span>Breakout 100 needs mid/small reach with the strongest momentum pillar scores.</span></div>`;
   }
   if (state.mode === "heat") {
-    return `<div class="empty-state"><b>Heat signals loading — check back soon.</b><span>Underground Heat needs momentum outside the absolute top 10.</span></div>`;
+    return `<div class="empty-state"><b>No underground heat signals yet.</b><span>Underground Heat needs mid/small reach with engagement and momentum both clearing their floors.</span></div>`;
   }
   if (state.mode === "verified") {
     return `<div class="empty-state"><b>No verified profiles here yet.</b><span>Only claimed Artist Index profiles appear in this mode.</span><a class="empty-state-link" href="/artist-index/claim">Claim your profile <span aria-hidden="true">↗</span></a></div>`;
@@ -715,9 +1036,11 @@ function renderRanking() {
 
   const locationNote = state.location ? ` · ${cityChipLabel(state.location)} top 50` : "";
   const modeNote = state.mode !== "overall" ? ` · ${modeLabel()}` : "";
+  const windowNote =
+    state.mode === "risers" ? ` · ${state.risersWindow}d` : "";
   $("#resultsCount").textContent = `Showing ${Math.min(state.visible, filtered.length)} of ${filtered.length} ranked artists${
     totalRanked ? ` · ${totalRanked} total` : ""
-  }${locationNote}${modeNote}`;
+  }${locationNote}${modeNote}${windowNote}`;
   $("#loadMore").hidden = state.visible >= filtered.length;
 }
 
@@ -784,8 +1107,9 @@ function chartScopeLabel(location = state.location) {
 
 function resolveGlobalRank(artist) {
   if (!artist) return null;
-  if (!state.location) return artist.rank;
   if (artist.globalRank != null) return artist.globalRank;
+  if (artist.youtubeRank != null) return artist.youtubeRank;
+  if (!state.location) return artist.rank;
   const cached = readRankingCache("");
   if (!cached || !artist.username) return null;
   const match = cached.items.find(
@@ -813,12 +1137,20 @@ function buildSharePayload(artist) {
         : "the Hiffi Hip-Hop 500"
       : modeLabel();
   const headline = `${artist.name} is ${place} on ${board}`;
+  // Deep link into the live ranking UI
   const path = buildRankingPath({
     artist: artist.username,
     location: state.location,
   });
-  const url = `${window.location.origin}${path}`;
-  return { headline, text: `${headline}\n\n${url}`, url, path };
+  // OG-friendly share URL (WhatsApp/iMessage scrape this for preview image + title)
+  const shareParams = new URLSearchParams();
+  if (state.location) shareParams.set("city", citySlug(state.location));
+  if (isValidMode(state.mode) && state.mode !== "overall") shareParams.set("mode", state.mode);
+  const shareQuery = shareParams.toString();
+  const handle = normalizeUsername(artist.username);
+  const sharePath = `/top-artist/share/${encodeURIComponent(handle)}${shareQuery ? `?${shareQuery}` : ""}`;
+  const url = `${window.location.origin}${sharePath}`;
+  return { headline, text: `${headline}\n\n${url}`, url, path, sharePath };
 }
 
 /** Short city token for clean URLs: "Atlanta, GA" → "atlanta". */
@@ -1088,13 +1420,50 @@ function renderShareApps(payload) {
     .join("");
 }
 
+function setShareSheetOpen(open) {
+  const overlay = $("#drawerShareSheetOverlay");
+  const sheet = $("#drawerShareSheet");
+  const toggle = document.querySelector('[data-share-action="share-card"]');
+  if (!overlay || !sheet) return;
+  overlay.hidden = !open;
+  if (toggle) toggle.setAttribute("aria-expanded", String(open));
+  if (!open) return;
+
+  const prepared = window.HiffiShareCards?.getPreparedCard?.();
+  const thumb = $("#drawerShareSheetThumb");
+  const title = $("#drawerShareSheetTitle");
+  const sub = $("#drawerShareSheetSub");
+  if (title) title.textContent = prepared?.filename || "Share card";
+  if (sub) {
+    const format = window.HiffiShareCards?.getFormat?.() === "story" ? "Story" : "Square";
+    const kb = prepared?.blob ? Math.max(1, Math.round(prepared.blob.size / 1024)) : null;
+    sub.textContent = kb ? `PNG · ${format} · ${kb} KB` : `PNG · ${format}`;
+  }
+  if (thumb) {
+    thumb.innerHTML = "";
+    if (prepared?.url) {
+      const img = document.createElement("img");
+      img.src = prepared.url;
+      img.alt = "";
+      thumb.appendChild(img);
+    }
+  }
+  requestAnimationFrame(() => {
+    $("#drawerShareSheetClose")?.focus();
+  });
+}
+
 function setSharePanelOpen(open) {
   const panel = $("#drawerSharePanel");
   const toggle = $("#drawerShareToggle");
   if (!panel || !toggle) return;
   panel.hidden = !open;
   toggle.setAttribute("aria-expanded", String(open));
-  if (!open) setShareStatus("");
+  if (!open) {
+    setShareStatus("");
+    setShareSheetOpen(false);
+    window.HiffiShareCards?.clearPreparedCard?.();
+  }
 }
 
 function syncSharePanel(artist) {
@@ -1102,66 +1471,65 @@ function syncSharePanel(artist) {
   const payload = buildSharePayload(artist);
   $("#drawerSharePreview").textContent = `${payload.headline}\n\n${payload.url}`;
   renderShareApps(payload);
+  setShareSheetOpen(false);
+  window.HiffiShareCards?.resetShareCardSelection?.(artist);
+  void window.HiffiShareCards?.syncShareCardPanel?.(artist);
 }
 
 async function handleShareAction(action, artist) {
   if (!artist) return;
   const payload = buildSharePayload(artist);
   if (action === "copy") {
-    const ok = await copyText(payload.text);
+    const prepared = window.HiffiShareCards?.getPreparedCard?.();
+    const text = prepared?.caption || payload.text;
+    const ok = await copyText(text);
     setShareStatus(ok ? "Copied ranking + link" : "Could not copy — try again");
     return;
   }
-  if (action === "whatsapp") {
-    // WhatsApp Web drops custom copy when `#` appears in the draft (treats it like a fragment).
-    // Avoid `#rank` and open via wa.me with a fully encoded text payload.
-    const safeHeadline = String(payload.headline || "").replace(/#(\d+)/g, "No. $1").replace(/#/g, "");
-    const message = `${safeHeadline}\n${payload.url}`;
-    const href = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(href, "_blank", "noopener,noreferrer");
-    setShareStatus("Opening WhatsApp…");
+  if (action === "download-card") {
+    setShareSheetOpen(false);
+    setShareStatus("Creating card…");
+    await window.HiffiShareCards?.exportShareCard?.(artist, "download");
     return;
   }
-  if (action === "instagram") {
-    const ok = await copyText(payload.text);
-    setShareStatus(ok ? "Copied — paste in Instagram" : "Could not copy");
-    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
-    return;
-  }
-  if (action === "snapchat") {
-    const ok = await copyText(payload.text);
-    setShareStatus(ok ? "Copied — paste in Snapchat" : "Could not copy");
-    window.open(
-      `https://www.snapchat.com/scan?attachmentUrl=${encodeURIComponent(payload.url)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-    return;
-  }
-  if (action === "native") {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: payload.headline,
-          text: payload.headline,
-          url: payload.url,
-        });
-        setShareStatus("Shared");
-        return;
-      } catch (err) {
-        const name = err && typeof err === "object" && "name" in err ? err.name : "";
-        if (name === "AbortError") return;
-      }
+  if (action === "share-card") {
+    const overlay = $("#drawerShareSheetOverlay");
+    if (overlay && !overlay.hidden) {
+      setShareSheetOpen(false);
+      return;
     }
-    const ok = await copyText(payload.text);
-    setShareStatus(ok ? "Copied ranking + link" : "Could not share");
+    setShareStatus("Creating card…");
+    const prepared = await window.HiffiShareCards?.prepareShareCard?.(artist);
+    if (!prepared) return;
+    setShareStatus("");
+    setShareSheetOpen(true);
+    return;
+  }
+  // WhatsApp / Instagram / Snapchat / More: share the PNG via Web Share when possible
+  if (
+    action === "whatsapp" ||
+    action === "instagram" ||
+    action === "snapchat" ||
+    action === "native"
+  ) {
+    let prepared = window.HiffiShareCards?.getPreparedCard?.();
+    if (!prepared?.file) {
+      setShareStatus("Creating card…");
+      prepared = await window.HiffiShareCards?.prepareShareCard?.(artist);
+      if (!prepared) return;
+    }
+    const shareAction = action === "native" ? "share" : action;
+    await window.HiffiShareCards?.sharePreparedCard?.(shareAction);
+    return;
   }
 }
 
-function openDrawer(rank) {
+function openDrawer(rank, options = {}) {
   const artist = artists.find((item) => item.rank === Number(rank));
   if (!artist) return;
   state.selected = artist;
+  state.shareContext =
+    options.shareContext === "riser" || state.mode === "risers" ? "riser" : null;
   lastFocused = document.activeElement;
   const globalRank = resolveGlobalRank(artist);
   const isCity = Boolean(state.location);
@@ -1169,7 +1537,35 @@ function openDrawer(rank) {
     ? `${chartScopeLabel()} #${pad(artist.rank, 2)}`
     : `#${pad(artist.rank, 3)}`;
   const rankMeta = $("#drawerRankMeta");
-  if (isCity && globalRank != null) {
+  if (state.mode === "risers" && (artist.priorRank != null || artist.previousRank != null)) {
+    const prior = artist.priorRank ?? artist.previousRank;
+    const delta = artist.rankDelta ?? artist.rankDelta7d;
+    rankMeta.hidden = false;
+    rankMeta.textContent =
+      delta != null
+        ? `Was #${prior} · +${delta} places · ${state.risersWindow}d`
+        : `Was #${prior} · Biggest Risers`;
+  } else if (state.mode === "heat") {
+    rankMeta.hidden = false;
+    const yt = artist.youtubeRank ?? artist.globalRank;
+    const heat = artist.heatScore != null ? formatScore(artist.heatScore) : null;
+    rankMeta.textContent = [
+      yt != null ? `Hiffi 500 #${pad(yt, 3)}` : null,
+      heat != null ? `Heat ${heat}` : "Underground Heat",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  } else if (state.mode === "breakout") {
+    rankMeta.hidden = false;
+    const yt = artist.youtubeRank ?? artist.globalRank;
+    const mom = artist.momentumScore != null ? formatScore(artist.momentumScore) : null;
+    rankMeta.textContent = [
+      yt != null ? `Hiffi 500 #${pad(yt, 3)}` : null,
+      mom != null ? `Momentum ${mom}` : "Breakout 100",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  } else if (isCity && globalRank != null) {
     rankMeta.hidden = false;
     rankMeta.textContent = `Global #${pad(globalRank, 3)} · Hiffi Hip-Hop 500`;
   } else if (isCity) {
@@ -1236,6 +1632,7 @@ function openDrawer(rank) {
 
 function closeDrawer() {
   state.selected = null;
+  state.shareContext = null;
   setSharePanelOpen(false);
   $("#drawerBackdrop").hidden = true;
   document.body.style.overflow = "";
@@ -1251,8 +1648,19 @@ function bindEvents() {
     writeUiState();
   });
   $("#rankingSort").addEventListener("change", (event) => {
-    state.sort = event.target.value;
+    const value = event.target.value;
     state.visible = INITIAL_VISIBLE;
+    if (state.mode === "risers") {
+      const next = value === "risers30" ? 30 : 7;
+      if (next === state.risersWindow) return;
+      state.risersWindow = next;
+      const kicker = $("#modeKicker");
+      if (kicker) kicker.textContent = modeKickerCopy("risers");
+      writeUiState();
+      void loadRisers({ restoreScroll: false });
+      return;
+    }
+    state.sort = value;
     renderRanking();
     writeUiState();
   });
@@ -1260,12 +1668,15 @@ function bindEvents() {
     const button = event.target.closest("button[data-location]");
     if (!button) return;
     const next = button.getAttribute("data-location") ?? "";
-    if (next === state.location) return;
+    if (next === state.location && !modeUsesDedicatedFetch()) return;
     state.location = next;
+    // City charts are separate from dedicated global boards (risers / heat).
+    if (modeUsesDedicatedFetch()) state.mode = "overall";
     state.visible = INITIAL_VISIBLE;
     state.selected = null;
     clearSharedRowHighlight();
     syncLocationFilterButtons();
+    syncModeFilterButtons();
     syncBrowserUrl({ artist: null, replace: true });
     writeUiState();
     void loadRanking({ restoreScroll: false });
@@ -1275,13 +1686,22 @@ function bindEvents() {
     if (!button) return;
     const next = button.getAttribute("data-mode") ?? "overall";
     if (!isValidMode(next) || next === state.mode) return;
+    const prev = state.mode;
     state.mode = next;
     state.visible = INITIAL_VISIBLE;
+    if (modeUsesDedicatedFetch(next)) {
+      state.location = "";
+      syncLocationFilterButtons();
+    }
     syncModeFilterButtons();
     syncBrowserUrl({ artist: state.selected?.username || null, replace: true });
-    renderHeroStats();
-    renderRanking();
     writeUiState();
+    if (modeUsesDedicatedFetch(next) || modeUsesDedicatedFetch(prev)) {
+      void loadActiveDataset({ restoreScroll: false });
+    } else {
+      renderHeroStats();
+      renderRanking();
+    }
   });
   $("#loadMore").addEventListener("click", () => {
     state.visible += LOAD_MORE_STEP;
@@ -1302,7 +1722,12 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest(".artist-profile-link")) return;
     const artistButton = event.target.closest("[data-artist-rank]");
-    if (artistButton) openDrawer(artistButton.dataset.artistRank);
+    if (artistButton) {
+      const fromMovers = Boolean(artistButton.closest(".mover-card") || artistButton.classList.contains("mover-card"));
+      openDrawer(artistButton.dataset.artistRank, {
+        shareContext: fromMovers ? "riser" : null,
+      });
+    }
     const scrollButton = event.target.closest("[data-scroll-target]");
     if (scrollButton) document.getElementById(scrollButton.dataset.scrollTarget)?.scrollIntoView({ behavior: "smooth" });
   });
@@ -1315,20 +1740,40 @@ function bindEvents() {
     const panel = $("#drawerSharePanel");
     if (!panel || !state.selected) return;
     const nextOpen = panel.hidden;
-    if (nextOpen) syncSharePanel(state.selected);
+    // Unhide first so preview has real width before scale is computed
     setSharePanelOpen(nextOpen);
+    if (nextOpen) {
+      syncSharePanel(state.selected);
+      window.HiffiShareCards?.refreshPreviewSize?.();
+    }
   });
   $("#drawerSharePanel").addEventListener("click", (event) => {
+    event.stopPropagation();
+    const formatBtn = event.target.closest("[data-share-format]");
+    if (formatBtn) {
+      event.preventDefault();
+      window.HiffiShareCards?.onFormatClick?.(formatBtn.getAttribute("data-share-format"));
+      return;
+    }
+    const actionButton = event.target.closest("[data-share-action]");
+    if (!actionButton || !state.selected) return;
+    event.preventDefault();
+    void handleShareAction(actionButton.getAttribute("data-share-action"), state.selected);
+  });
+  $("#drawerShareSheet")?.addEventListener("click", (event) => {
     event.stopPropagation();
     const actionButton = event.target.closest("[data-share-action]");
     if (!actionButton || !state.selected) return;
     event.preventDefault();
     void handleShareAction(actionButton.getAttribute("data-share-action"), state.selected);
   });
+  $("#drawerShareSheetScrim")?.addEventListener("click", () => setShareSheetOpen(false));
+  $("#drawerShareSheetClose")?.addEventListener("click", () => setShareSheetOpen(false));
   document.addEventListener("click", (event) => {
     const panel = $("#drawerSharePanel");
     if (!panel || panel.hidden) return;
     if (event.target.closest(".drawer-share-wrap")) return;
+    if (event.target.closest("#drawerShareSheetOverlay")) return;
     setSharePanelOpen(false);
   });
   $("#menuToggle").addEventListener("click", () => {
@@ -1343,6 +1788,11 @@ function bindEvents() {
   );
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      const overlay = $("#drawerShareSheetOverlay");
+      if (overlay && !overlay.hidden) {
+        setShareSheetOpen(false);
+        return;
+      }
       const sharePanel = $("#drawerSharePanel");
       if (sharePanel && !sharePanel.hidden) {
         setSharePanelOpen(false);
@@ -1364,11 +1814,12 @@ async function loadRanking(options = {}) {
   const deepLinkArtist = options.deepLinkArtist ? normalizeUsername(options.deepLinkArtist) : null;
   const location = state.location;
   const generation = ++loadGeneration;
+  state.risersHasHistory = true;
 
   const cached = readRankingCache(location);
   let paintedFromCache = false;
   if (cached) {
-    applyDataset(cached.items, cached.totalRanked);
+    applyDataset(cached.items, cached.totalRanked, cached.savedAt || Date.now());
     if (restoreScroll) restoreScrollPosition();
     paintedFromCache = true;
     if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
@@ -1406,6 +1857,200 @@ async function loadRanking(options = {}) {
     state.error = error instanceof Error ? error.message : "Unknown error";
     if (!paintedFromCache) renderError(state.error);
   }
+}
+
+/**
+ * Load Biggest Risers from `/inventory/top/risers`.
+ * @param {{ restoreScroll?: boolean, deepLinkArtist?: string|null }} [options]
+ */
+async function loadRisers(options = {}) {
+  const restoreScroll = Boolean(options.restoreScroll);
+  const deepLinkArtist = options.deepLinkArtist ? normalizeUsername(options.deepLinkArtist) : null;
+  const windowDays = state.risersWindow === 30 ? 30 : 7;
+  const generation = ++loadGeneration;
+  state.location = "";
+  syncLocationFilterButtons();
+
+  const cached = readJsonStorage(cacheKeyForRisers(windowDays));
+  let paintedFromCache = false;
+  if (cached && Array.isArray(cached.items) && cached.items.length) {
+    state.risersHasHistory = cached.hasHistory !== false;
+    applyDataset(cached.items, cached.items.length, cached.savedAt || Date.now());
+    if (restoreScroll) restoreScrollPosition();
+    paintedFromCache = true;
+    if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+  } else if (cached && cached.hasHistory === false) {
+    state.risersHasHistory = false;
+    applyDataset([], 0, cached.savedAt || Date.now());
+    paintedFromCache = true;
+  } else {
+    renderLoading();
+  }
+
+  try {
+    let paintedProgressively = false;
+    const result = await loadAllRisers((partialItems, hasHistory) => {
+      if (generation !== loadGeneration) return;
+      state.risersHasHistory = hasHistory;
+      const needsArtist =
+        deepLinkArtist && sharedArtistOpenedFor !== deepLinkArtist;
+      const artistInPartial =
+        needsArtist &&
+        partialItems.some((item) => normalizeUsername(item.username) === deepLinkArtist);
+      if (!paintedFromCache || artistInPartial || !hasHistory) {
+        applyDataset(partialItems, partialItems.length);
+        paintedProgressively = true;
+      }
+      if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+    }, windowDays);
+    if (generation !== loadGeneration || result.aborted) return;
+    state.risersHasHistory = result.hasHistory;
+    writeJsonStorage(cacheKeyForRisers(windowDays), {
+      items: slimInventoryItems(result.items),
+      totalRanked: result.items.length,
+      hasHistory: result.hasHistory,
+      windowDays,
+      savedAt: Date.now(),
+    });
+    if (paintedFromCache && !paintedProgressively) {
+      withPreservedScroll(() => applyDataset(result.items, result.items.length));
+    } else {
+      applyDataset(result.items, result.items.length);
+    }
+    if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+  } catch (error) {
+    if (generation !== loadGeneration) return;
+    state.loading = false;
+    state.error = error instanceof Error ? error.message : "Unknown error";
+    if (!paintedFromCache) renderError(state.error);
+  }
+}
+
+/**
+ * Load Underground Heat from `/inventory/top/underground`.
+ * @param {{ restoreScroll?: boolean, deepLinkArtist?: string|null }} [options]
+ */
+async function loadUnderground(options = {}) {
+  const restoreScroll = Boolean(options.restoreScroll);
+  const deepLinkArtist = options.deepLinkArtist ? normalizeUsername(options.deepLinkArtist) : null;
+  const generation = ++loadGeneration;
+  state.location = "";
+  state.risersHasHistory = true;
+  syncLocationFilterButtons();
+
+  const cached = readJsonStorage(cacheKeyForUnderground());
+  let paintedFromCache = false;
+  if (cached && Array.isArray(cached.items) && cached.items.length) {
+    applyDataset(cached.items, cached.totalRanked || cached.items.length, cached.savedAt || Date.now());
+    if (restoreScroll) restoreScrollPosition();
+    paintedFromCache = true;
+    if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+  } else {
+    renderLoading();
+  }
+
+  try {
+    let paintedProgressively = false;
+    const result = await loadAllUnderground((partialItems, total) => {
+      if (generation !== loadGeneration) return;
+      const needsArtist =
+        deepLinkArtist && sharedArtistOpenedFor !== deepLinkArtist;
+      const artistInPartial =
+        needsArtist &&
+        partialItems.some((item) => normalizeUsername(item.username) === deepLinkArtist);
+      if (!paintedFromCache || artistInPartial) {
+        applyDataset(partialItems, total || partialItems.length);
+        paintedProgressively = true;
+      }
+      if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+    });
+    if (generation !== loadGeneration || result.aborted) return;
+    writeJsonStorage(cacheKeyForUnderground(), {
+      items: slimInventoryItems(result.items),
+      totalRanked: result.totalUnderground || result.items.length,
+      savedAt: Date.now(),
+    });
+    if (paintedFromCache && !paintedProgressively) {
+      withPreservedScroll(() =>
+        applyDataset(result.items, result.totalUnderground || result.items.length),
+      );
+    } else {
+      applyDataset(result.items, result.totalUnderground || result.items.length);
+    }
+    if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+  } catch (error) {
+    if (generation !== loadGeneration) return;
+    state.loading = false;
+    state.error = error instanceof Error ? error.message : "Unknown error";
+    if (!paintedFromCache) renderError(state.error);
+  }
+}
+
+/**
+ * Load Breakout 100 from `/inventory/top/breakout`.
+ * @param {{ restoreScroll?: boolean, deepLinkArtist?: string|null }} [options]
+ */
+async function loadBreakout(options = {}) {
+  const restoreScroll = Boolean(options.restoreScroll);
+  const deepLinkArtist = options.deepLinkArtist ? normalizeUsername(options.deepLinkArtist) : null;
+  const generation = ++loadGeneration;
+  state.location = "";
+  state.risersHasHistory = true;
+  syncLocationFilterButtons();
+
+  const cached = readJsonStorage(cacheKeyForBreakout());
+  let paintedFromCache = false;
+  if (cached && Array.isArray(cached.items) && cached.items.length) {
+    applyDataset(cached.items, cached.totalRanked || cached.items.length, cached.savedAt || Date.now());
+    if (restoreScroll) restoreScrollPosition();
+    paintedFromCache = true;
+    if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+  } else {
+    renderLoading();
+  }
+
+  try {
+    let paintedProgressively = false;
+    const result = await loadAllBreakout((partialItems, total) => {
+      if (generation !== loadGeneration) return;
+      const needsArtist =
+        deepLinkArtist && sharedArtistOpenedFor !== deepLinkArtist;
+      const artistInPartial =
+        needsArtist &&
+        partialItems.some((item) => normalizeUsername(item.username) === deepLinkArtist);
+      if (!paintedFromCache || artistInPartial) {
+        applyDataset(partialItems, total || partialItems.length);
+        paintedProgressively = true;
+      }
+      if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+    });
+    if (generation !== loadGeneration || result.aborted) return;
+    writeJsonStorage(cacheKeyForBreakout(), {
+      items: slimInventoryItems(result.items),
+      totalRanked: result.totalBreakout || result.items.length,
+      savedAt: Date.now(),
+    });
+    if (paintedFromCache && !paintedProgressively) {
+      withPreservedScroll(() =>
+        applyDataset(result.items, result.totalBreakout || result.items.length),
+      );
+    } else {
+      applyDataset(result.items, result.totalBreakout || result.items.length);
+    }
+    if (deepLinkArtist) tryOpenDeepLinkArtist(deepLinkArtist);
+  } catch (error) {
+    if (generation !== loadGeneration) return;
+    state.loading = false;
+    state.error = error instanceof Error ? error.message : "Unknown error";
+    if (!paintedFromCache) renderError(state.error);
+  }
+}
+
+async function loadActiveDataset(options = {}) {
+  if (state.mode === "risers") return loadRisers(options);
+  if (state.mode === "heat") return loadUnderground(options);
+  if (state.mode === "breakout") return loadBreakout(options);
+  return loadRanking(options);
 }
 
 function hydrateBannerCitiesFromCache() {
@@ -1480,7 +2125,7 @@ async function init() {
     replace: true,
   });
 
-  await loadRanking({
+  await loadActiveDataset({
     restoreScroll: !deepLink?.artist,
     deepLinkArtist: deepLink?.artist || null,
   });
@@ -1492,11 +2137,32 @@ async function init() {
     syncBrowserUrl({ artist: deepLink.artist, replace: true });
     writeUiState();
     sharedArtistOpenedFor = null;
-    await loadRanking({
+    await loadActiveDataset({
       restoreScroll: false,
       deepLinkArtist: deepLink.artist,
     });
   }
 }
 
+window.HiffiTopArtistShare = {
+  getChartState: () => ({
+    location: state.location,
+    mode: state.mode,
+    risersWindow: state.risersWindow,
+    shareContext: state.shareContext,
+  }),
+  getSelectedArtist: () => state.selected,
+  getRankingTimestamp: () => rankingTimestamp,
+  movementMeta,
+  chartScopeLabel,
+  cityChipLabel,
+  citySlug,
+  resolveGlobalRank,
+  buildSharePayload,
+  setShareStatus,
+  setShareSheetOpen,
+  copyText,
+};
+
+window.HiffiShareCards?.initShareCards?.();
 init();

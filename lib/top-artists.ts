@@ -4,6 +4,9 @@
  * - Global: `GET /inventory/top`
  * - Banner cities (>50 ranked): `GET /inventory/top/cities`
  * - City top 50 (exact location, local ranks): `GET /inventory/top/city?location=…`
+ * - Biggest risers: `GET /inventory/top/risers?window=7|30`
+ * - Underground Heat: `GET /inventory/top/underground`
+ * - Breakout 100: `GET /inventory/top/breakout`
  *
  * Ranking payload often omits photos — we enrich from /users/{username} when possible.
  * Score is YouTube-only today; the UI must disclose that.
@@ -76,7 +79,122 @@ export interface TopCitiesResponse {
   min_artists: number
 }
 
+export type RisersWindow = 7 | 30
+
+export interface RiserArtist {
+  username: string
+  artist_name: string
+  bio?: string
+  other_socials?: TopArtistSocials
+  location?: string
+  banner_image?: string
+  image?: string | null
+  claim_status: "unclaimed" | "pending" | "claimed"
+  current_rank: number
+  prior_rank: number
+  rank_delta: number
+  youtube_score?: number
+  youtube_subscriber_count?: number
+  youtube_view_count?: number
+  youtube_video_count?: number
+  youtube_recent_avg_views?: number
+  youtube_upload_velocity?: number
+  youtube_momentum_7d?: number
+  youtube_momentum_30d?: number
+  youtube_momentum_90d?: number
+  ranking_version: number
+  ranking_cycle_at: string
+  prior_ranking_version: number
+  prior_ranking_cycle_at: string
+}
+
+export interface RisersResponse {
+  items: RiserArtist[]
+  window_days: RisersWindow
+  has_history: boolean
+  limit: number
+  offset: number
+  count: number
+  has_more: boolean
+}
+
+export interface UndergroundArtist {
+  underground_rank: number
+  username: string
+  artist_name: string
+  bio?: string
+  other_socials?: TopArtistSocials
+  location?: string
+  banner_image?: string
+  image?: string | null
+  claim_status: "unclaimed" | "pending" | "claimed"
+  heat_score: number
+  engagement_score: number
+  momentum_score: number
+  reach_score: number
+  youtube_subscriber_count: number
+  youtube_recent_avg_views?: number
+  youtube_upload_velocity?: number
+  youtube_momentum_7d: number
+  youtube_momentum_30d: number
+  youtube_momentum_90d: number
+  youtube_rank?: number
+  youtube_score?: number
+}
+
+export interface UndergroundResponse {
+  items: UndergroundArtist[]
+  limit: number
+  offset: number
+  count: number
+  has_more: boolean
+  total_underground: number
+  reach_ceiling: number
+  engagement_floor: number
+  momentum_floor: number
+  reach_percentile: number
+  engagement_percentile: number
+  momentum_percentile: number
+}
+
+export interface BreakoutArtist {
+  breakout_rank: number
+  username: string
+  artist_name: string
+  bio?: string
+  other_socials?: TopArtistSocials
+  location?: string
+  banner_image?: string
+  image?: string | null
+  claim_status: "unclaimed" | "pending" | "claimed"
+  momentum_score: number
+  reach_score: number
+  youtube_subscriber_count: number
+  youtube_momentum_7d: number
+  youtube_momentum_30d: number
+  youtube_momentum_90d: number
+  youtube_rank?: number
+  youtube_score?: number
+}
+
+export interface BreakoutResponse {
+  items: BreakoutArtist[]
+  limit: number
+  offset: number
+  count: number
+  has_more: boolean
+  total_breakout: number
+  reach_ceiling: number
+  reach_percentile: number
+}
+
 export const TOP_ARTISTS_PAGE_SIZE = 20
+export const TOP_RISERS_PAGE_SIZE = 20
+export const TOP_RISERS_MAX = 100
+export const TOP_UNDERGROUND_PAGE_SIZE = 20
+export const TOP_UNDERGROUND_MAX = 50
+export const TOP_BREAKOUT_PAGE_SIZE = 20
+export const TOP_BREAKOUT_MAX = 100
 export const TOP_CITY_PAGE_SIZE = 50
 export const HIFFI_500_PATH = "/hiffi-500"
 export const HIFFI_500_METHODOLOGY_PATH = "/hiffi-500/methodology"
@@ -141,6 +259,18 @@ type CitiesEnvelope =
   | { success: true; data: TopCitiesResponse }
   | { success: false; error: string }
 
+type RisersEnvelope =
+  | { success: true; data: RisersResponse }
+  | { success: false; error: string }
+
+type UndergroundEnvelope =
+  | { success: true; data: UndergroundResponse }
+  | { success: false; error: string }
+
+type BreakoutEnvelope =
+  | { success: true; data: BreakoutResponse }
+  | { success: false; error: string }
+
 function normalizeArtist(item: TopArtist): TopArtist {
   return {
     ...item,
@@ -149,6 +279,128 @@ function normalizeArtist(item: TopArtist): TopArtist {
     rank_delta_30d: item.rank_delta_30d ?? null,
     previous_rank: item.previous_rank ?? null,
     is_new_entry: Boolean(item.is_new_entry),
+  }
+}
+
+/** Map risers API rows onto TopArtist so shared ranking list components can render them. */
+export function riserToTopArtist(item: RiserArtist): TopArtist {
+  return normalizeArtist({
+    rank: item.current_rank,
+    username: item.username,
+    artist_name: item.artist_name,
+    bio: item.bio,
+    other_socials: item.other_socials,
+    location: item.location,
+    banner_image: item.banner_image,
+    image: item.image,
+    claim_status: item.claim_status,
+    youtube_score: item.youtube_score ?? 0,
+    youtube_subscriber_count: item.youtube_subscriber_count,
+    youtube_view_count: item.youtube_view_count,
+    youtube_video_count: item.youtube_video_count,
+    youtube_recent_avg_views: item.youtube_recent_avg_views,
+    youtube_upload_velocity: item.youtube_upload_velocity,
+    youtube_momentum_7d: item.youtube_momentum_7d,
+    youtube_momentum_30d: item.youtube_momentum_30d,
+    youtube_momentum_90d: item.youtube_momentum_90d,
+    previous_rank: item.prior_rank,
+    rank_delta_7d: item.rank_delta,
+    is_new_entry: false,
+  })
+}
+
+/** Map underground heat rows onto TopArtist for shared list UIs. */
+export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
+  return normalizeArtist({
+    rank: item.underground_rank,
+    username: item.username,
+    artist_name: item.artist_name,
+    bio: item.bio,
+    other_socials: item.other_socials,
+    location: item.location,
+    banner_image: item.banner_image,
+    image: item.image,
+    claim_status: item.claim_status,
+    youtube_score: item.youtube_score ?? item.heat_score,
+    youtube_subscriber_count: item.youtube_subscriber_count,
+    youtube_recent_avg_views: item.youtube_recent_avg_views,
+    youtube_upload_velocity: item.youtube_upload_velocity,
+    youtube_momentum_7d: item.youtube_momentum_7d,
+    youtube_momentum_30d: item.youtube_momentum_30d,
+    youtube_momentum_90d: item.youtube_momentum_90d,
+    global_rank: item.youtube_rank,
+    is_new_entry: false,
+  })
+}
+
+/** Map breakout API rows onto TopArtist for shared list UIs. */
+export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
+  return normalizeArtist({
+    rank: item.breakout_rank,
+    username: item.username,
+    artist_name: item.artist_name,
+    bio: item.bio,
+    other_socials: item.other_socials,
+    location: item.location,
+    banner_image: item.banner_image,
+    image: item.image,
+    claim_status: item.claim_status,
+    youtube_score: item.youtube_score ?? item.momentum_score,
+    youtube_subscriber_count: item.youtube_subscriber_count,
+    youtube_momentum_7d: item.youtube_momentum_7d,
+    youtube_momentum_30d: item.youtube_momentum_30d,
+    youtube_momentum_90d: item.youtube_momentum_90d,
+    global_rank: item.youtube_rank,
+    is_new_entry: false,
+  })
+}
+
+function parseRisersEnvelope(body: RisersEnvelope): RisersResponse {
+  if (!body.success) throw new Error(body.error || "Failed to load biggest risers")
+  const data = body.data
+  const windowDays = data.window_days === 30 ? 30 : 7
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    window_days: windowDays,
+    has_history: Boolean(data.has_history),
+    limit: data.limit ?? TOP_RISERS_PAGE_SIZE,
+    offset: data.offset ?? 0,
+    count: data.count ?? data.items?.length ?? 0,
+    has_more: Boolean(data.has_more),
+  }
+}
+
+function parseUndergroundEnvelope(body: UndergroundEnvelope): UndergroundResponse {
+  if (!body.success) throw new Error(body.error || "Failed to load underground heat")
+  const data = body.data
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    limit: data.limit ?? TOP_UNDERGROUND_PAGE_SIZE,
+    offset: data.offset ?? 0,
+    count: data.count ?? data.items?.length ?? 0,
+    has_more: Boolean(data.has_more),
+    total_underground: data.total_underground ?? data.items?.length ?? 0,
+    reach_ceiling: data.reach_ceiling ?? 0,
+    engagement_floor: data.engagement_floor ?? 0,
+    momentum_floor: data.momentum_floor ?? 0,
+    reach_percentile: data.reach_percentile ?? 0.7,
+    engagement_percentile: data.engagement_percentile ?? 0.4,
+    momentum_percentile: data.momentum_percentile ?? 0.4,
+  }
+}
+
+function parseBreakoutEnvelope(body: BreakoutEnvelope): BreakoutResponse {
+  if (!body.success) throw new Error(body.error || "Failed to load breakout")
+  const data = body.data
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    limit: data.limit ?? TOP_BREAKOUT_PAGE_SIZE,
+    offset: data.offset ?? 0,
+    count: data.count ?? data.items?.length ?? 0,
+    has_more: Boolean(data.has_more),
+    total_breakout: data.total_breakout ?? data.items?.length ?? 0,
+    reach_ceiling: data.reach_ceiling ?? 0,
+    reach_percentile: data.reach_percentile ?? 0.7,
   }
 }
 
@@ -263,6 +515,188 @@ export async function fetchTopArtistsByCityServer(
   }
 }
 
+/** Biggest risers (`GET /inventory/top/risers`). */
+export async function fetchTopRisersServer(
+  options?: { window?: RisersWindow; limit?: number; offset?: number },
+): Promise<RisersResponse | null> {
+  try {
+    const windowDays: RisersWindow = options?.window === 30 ? 30 : 7
+    const limit = Math.min(Math.max(options?.limit ?? TOP_RISERS_PAGE_SIZE, 1), TOP_RISERS_MAX)
+    const offset = Math.max(options?.offset ?? 0, 0)
+    const params = new URLSearchParams({
+      window: String(windowDays),
+      limit: String(limit),
+      offset: String(offset),
+    })
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top/risers?${params}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    return parseRisersEnvelope((await res.json()) as RisersEnvelope)
+  } catch {
+    return null
+  }
+}
+
+/** Paginate risers until `max` or the endpoint ends. */
+export async function fetchTopRisersUpTo(
+  max = 50,
+  options?: { window?: RisersWindow },
+): Promise<RisersResponse> {
+  const windowDays: RisersWindow = options?.window === 30 ? 30 : 7
+  const items: RiserArtist[] = []
+  let offset = 0
+  let hasMore = true
+  let hasHistory = true
+  const pageSize = Math.min(TOP_RISERS_PAGE_SIZE, max)
+
+  while (hasMore && items.length < max) {
+    const limit = Math.min(pageSize, max - items.length)
+    const page = await fetchTopRisersServer({ window: windowDays, limit, offset })
+    if (!page) break
+    hasHistory = page.has_history
+    items.push(...page.items)
+    hasMore = page.has_more && page.items.length > 0
+    offset += page.items.length
+    if (page.items.length === 0) break
+  }
+
+  return {
+    items,
+    window_days: windowDays,
+    has_history: hasHistory,
+    limit: max,
+    offset: 0,
+    count: items.length,
+    has_more: false,
+  }
+}
+
+/** Underground Heat top 50 (`GET /inventory/top/underground`). */
+export async function fetchTopUndergroundServer(
+  options?: { limit?: number; offset?: number },
+): Promise<UndergroundResponse | null> {
+  try {
+    const limit = Math.min(Math.max(options?.limit ?? TOP_UNDERGROUND_PAGE_SIZE, 1), TOP_UNDERGROUND_MAX)
+    const offset = Math.max(options?.offset ?? 0, 0)
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    })
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top/underground?${params}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    return parseUndergroundEnvelope((await res.json()) as UndergroundEnvelope)
+  } catch {
+    return null
+  }
+}
+
+/** Paginate underground heat until `max` (capped at 50) or the endpoint ends. */
+export async function fetchTopUndergroundUpTo(max = TOP_UNDERGROUND_MAX): Promise<UndergroundResponse> {
+  const items: UndergroundArtist[] = []
+  let offset = 0
+  let hasMore = true
+  let meta: Omit<UndergroundResponse, "items" | "count" | "has_more" | "limit" | "offset"> | null = null
+  const pageSize = Math.min(TOP_UNDERGROUND_PAGE_SIZE, max)
+  const capped = Math.min(max, TOP_UNDERGROUND_MAX)
+
+  while (hasMore && items.length < capped) {
+    const limit = Math.min(pageSize, capped - items.length)
+    const page = await fetchTopUndergroundServer({ limit, offset })
+    if (!page) break
+    meta = {
+      total_underground: page.total_underground,
+      reach_ceiling: page.reach_ceiling,
+      engagement_floor: page.engagement_floor,
+      momentum_floor: page.momentum_floor,
+      reach_percentile: page.reach_percentile,
+      engagement_percentile: page.engagement_percentile,
+      momentum_percentile: page.momentum_percentile,
+    }
+    items.push(...page.items)
+    hasMore = page.has_more && page.items.length > 0
+    offset += page.items.length
+    if (page.items.length === 0) break
+  }
+
+  return {
+    items,
+    limit: capped,
+    offset: 0,
+    count: items.length,
+    has_more: false,
+    total_underground: meta?.total_underground ?? items.length,
+    reach_ceiling: meta?.reach_ceiling ?? 0,
+    engagement_floor: meta?.engagement_floor ?? 0,
+    momentum_floor: meta?.momentum_floor ?? 0,
+    reach_percentile: meta?.reach_percentile ?? 0.7,
+    engagement_percentile: meta?.engagement_percentile ?? 0.4,
+    momentum_percentile: meta?.momentum_percentile ?? 0.4,
+  }
+}
+
+/** Breakout 100 (`GET /inventory/top/breakout`). */
+export async function fetchTopBreakoutServer(
+  options?: { limit?: number; offset?: number },
+): Promise<BreakoutResponse | null> {
+  try {
+    const limit = Math.min(Math.max(options?.limit ?? TOP_BREAKOUT_PAGE_SIZE, 1), TOP_BREAKOUT_MAX)
+    const offset = Math.max(options?.offset ?? 0, 0)
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    })
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top/breakout?${params}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    return parseBreakoutEnvelope((await res.json()) as BreakoutEnvelope)
+  } catch {
+    return null
+  }
+}
+
+/** Paginate breakout until `max` (capped at 100) or the endpoint ends. */
+export async function fetchTopBreakoutUpTo(max = TOP_BREAKOUT_MAX): Promise<BreakoutResponse> {
+  const items: BreakoutArtist[] = []
+  let offset = 0
+  let hasMore = true
+  let meta: Omit<BreakoutResponse, "items" | "count" | "has_more" | "limit" | "offset"> | null = null
+  const pageSize = Math.min(TOP_BREAKOUT_PAGE_SIZE, max)
+  const capped = Math.min(max, TOP_BREAKOUT_MAX)
+
+  while (hasMore && items.length < capped) {
+    const limit = Math.min(pageSize, capped - items.length)
+    const page = await fetchTopBreakoutServer({ limit, offset })
+    if (!page) break
+    meta = {
+      total_breakout: page.total_breakout,
+      reach_ceiling: page.reach_ceiling,
+      reach_percentile: page.reach_percentile,
+    }
+    items.push(...page.items)
+    hasMore = page.has_more && page.items.length > 0
+    offset += page.items.length
+    if (page.items.length === 0) break
+  }
+
+  return {
+    items,
+    limit: capped,
+    offset: 0,
+    count: items.length,
+    has_more: false,
+    total_breakout: meta?.total_breakout ?? items.length,
+    reach_ceiling: meta?.reach_ceiling ?? 0,
+    reach_percentile: meta?.reach_percentile ?? 0.7,
+  }
+}
+
 /**
  * Paginate server-side until `max` artists or the ranking ends.
  * Skips per-page image enrichment for speed; enrich the final slice at the call site if needed.
@@ -344,6 +778,56 @@ export async function fetchTopArtistsByCityClient(
   })
   const body = (await res.json()) as Envelope
   return parseEnvelope(body)
+}
+
+export async function fetchTopRisersClient(
+  options?: { window?: RisersWindow; limit?: number; offset?: number },
+): Promise<RisersResponse> {
+  const windowDays: RisersWindow = options?.window === 30 ? 30 : 7
+  const limit = Math.min(Math.max(options?.limit ?? TOP_RISERS_PAGE_SIZE, 1), TOP_RISERS_MAX)
+  const offset = Math.max(options?.offset ?? 0, 0)
+  const params = new URLSearchParams({
+    window: String(windowDays),
+    limit: String(limit),
+    offset: String(offset),
+  })
+  const res = await fetch(`/proxy/inventory/top/risers?${params}`, {
+    headers: { Accept: "application/json" },
+  })
+  const body = (await res.json()) as RisersEnvelope
+  return parseRisersEnvelope(body)
+}
+
+export async function fetchTopUndergroundClient(
+  options?: { limit?: number; offset?: number },
+): Promise<UndergroundResponse> {
+  const limit = Math.min(Math.max(options?.limit ?? TOP_UNDERGROUND_PAGE_SIZE, 1), TOP_UNDERGROUND_MAX)
+  const offset = Math.max(options?.offset ?? 0, 0)
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  })
+  const res = await fetch(`/proxy/inventory/top/underground?${params}`, {
+    headers: { Accept: "application/json" },
+  })
+  const body = (await res.json()) as UndergroundEnvelope
+  return parseUndergroundEnvelope(body)
+}
+
+export async function fetchTopBreakoutClient(
+  options?: { limit?: number; offset?: number },
+): Promise<BreakoutResponse> {
+  const limit = Math.min(Math.max(options?.limit ?? TOP_BREAKOUT_PAGE_SIZE, 1), TOP_BREAKOUT_MAX)
+  const offset = Math.max(options?.offset ?? 0, 0)
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  })
+  const res = await fetch(`/proxy/inventory/top/breakout?${params}`, {
+    headers: { Accept: "application/json" },
+  })
+  const body = (await res.json()) as BreakoutEnvelope
+  return parseBreakoutEnvelope(body)
 }
 
 /**

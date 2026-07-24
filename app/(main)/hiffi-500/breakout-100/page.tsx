@@ -6,8 +6,8 @@ import { Hiffi500Subnav } from "@/components/artists/top500/hiffi500-subnav"
 import { Hiffi500RankingList } from "@/components/artists/top500/hiffi500-ranking-list"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
 import {
-  breakoutArtists,
-  fetchTopArtistsUpTo,
+  breakoutToTopArtist,
+  fetchTopBreakoutUpTo,
   HIFFI_500_BREAKOUT_PATH,
   HIFFI_500_PATH,
 } from "@/lib/top-artists"
@@ -18,13 +18,13 @@ export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Breakout 100 — Hiffi 500",
   description:
-    "Emerging hip-hop and rap artists charting outside the absolute top tier — the Hiffi Breakout 100 preview from ranks 51–150.",
+    "Emerging high-momentum hip-hop and rap artists below the reach P70 ceiling — the Hiffi Breakout 100.",
   alternates: { canonical: absoluteUrl(HIFFI_500_BREAKOUT_PATH) },
 }
 
 export default async function Hiffi500BreakoutPage() {
-  const batch = await fetchTopArtistsUpTo(160)
-  const artists = breakoutArtists(batch.items)
+  const batch = await fetchTopBreakoutUpTo(100)
+  const artists = batch.items.map(breakoutToTopArtist)
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -58,8 +58,8 @@ export default async function Hiffi500BreakoutPage() {
           <span className="text-[#E8192C]">Breakout</span> 100
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Emerging artists with strong chart presence outside the absolute top tier. v1 preview
-          uses global ranks 51–150 until momentum-based breakout filters ship.
+          Emerging artists under the reach ceiling, ranked by momentum pillar — the path-to-visibility
+          board from the Hiffi 500 family of charts.
         </p>
         <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {artists.length} artists · YouTube signals only
@@ -69,7 +69,7 @@ export default async function Hiffi500BreakoutPage() {
       <Hiffi500RankingList
         artists={artists}
         emptyTitle="Breakout list is warming up"
-        emptyBody="Once more than 50 artists are ranked, the Breakout 100 preview will populate from ranks 51–150."
+        emptyBody="Once the breakout ranking has eligible mid-reach artists with momentum, they will list here."
       />
 
       <div className="mt-8 flex flex-wrap gap-3">

@@ -8,10 +8,10 @@ import {
 } from "@/components/artists/top500/hiffi500-ranking-list"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
 import {
-  artistsWithMovement,
-  fetchTopArtistsUpTo,
+  fetchTopRisersUpTo,
   HIFFI_500_PATH,
   HIFFI_500_RISERS_PATH,
+  riserToTopArtist,
 } from "@/lib/top-artists"
 import { absoluteUrl } from "@/lib/seo/site"
 
@@ -25,9 +25,9 @@ export const metadata: Metadata = {
 }
 
 export default async function Hiffi500RisersPage() {
-  const batch = await fetchTopArtistsUpTo(200)
-  const risers = artistsWithMovement(batch.items, "risers").slice(0, 50)
-  const pending = risers.length === 0
+  const batch = await fetchTopRisersUpTo(50, { window: 7 })
+  const risers = batch.items.map(riserToTopArtist)
+  const pending = !batch.has_history
 
   return (
     <ArtistDirectoryShell
@@ -55,8 +55,12 @@ export default async function Hiffi500RisersPage() {
 
       <Hiffi500RankingList
         artists={risers}
-        emptyTitle="Waiting on weekly movement data"
-        emptyBody="When the ranking API includes rank_delta_7d, the fastest climbers will list here automatically."
+        emptyTitle={pending ? "Waiting on ranking history" : "No risers this week"}
+        emptyBody={
+          pending
+            ? "Biggest Risers needs at least 7 days of ranking snapshots before climbers can appear."
+            : "Nobody climbed ranks in the current 7-day window."
+        }
       />
 
       <div className="mt-8 flex flex-wrap gap-3">
