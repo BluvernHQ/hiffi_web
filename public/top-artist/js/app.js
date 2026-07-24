@@ -1057,7 +1057,7 @@ function renderRanking() {
     <button type="button" class="artist-row" data-artist-rank="${artist.rank}" style="--delay:${Math.min(index, 12) * 28}ms">
       <span class="artist-identity"><b>${pad(artist.rank, 3)}</b><i style="background:${artist.accent}">${artist.name.slice(0, 2).toUpperCase()}</i><strong><span class="artist-name">${artist.name}</span>${
         artist.username
-          ? `<a class="artist-profile-link" href="${artistIndexHref(artist.username)}">Open profile <span aria-hidden="true">↗</span></a>`
+          ? `<a class="artist-profile-link" href="${buildRankingPath({ artist: artist.username })}">Open profile <span aria-hidden="true">↗</span></a>`
           : ""
       }</strong></span>
       <span data-label="Region">${artist.location || "—"}</span>
@@ -1762,7 +1762,15 @@ function bindEvents() {
     if (!$("#drawerBackdrop")?.hidden) fitDrawerArtistName();
   });
   document.addEventListener("click", (event) => {
-    if (event.target.closest(".artist-profile-link")) return;
+    const profileLink = event.target.closest(".artist-profile-link");
+    if (profileLink) {
+      const artistButton = profileLink.closest("[data-artist-rank]");
+      if (artistButton && !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) {
+        event.preventDefault();
+        openDrawer(artistButton.dataset.artistRank);
+      }
+      return;
+    }
     const artistButton = event.target.closest("[data-artist-rank]");
     if (artistButton) {
       const fromMovers = Boolean(artistButton.closest(".mover-card") || artistButton.classList.contains("mover-card"));
