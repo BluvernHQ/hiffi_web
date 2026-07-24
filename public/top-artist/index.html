@@ -24,7 +24,7 @@
   <link rel="preload" href="/top-artist/assets/fonts/NimbusSansNarrow-Bold.otf" as="font" type="font/otf" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/top-artist/css/styles.css">
   <link rel="stylesheet" href="/top-artist/css/share-cards.css">
   <title>Hiffi Hip-Hop 500 — Live Signal Index</title>
@@ -163,122 +163,166 @@
               <div class="drawer-share-card-preview" aria-hidden="true">
                 <div class="drawer-share-card-scaler" id="shareCardScaler">
                   <div class="share-card format-square is-active" data-template="global">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
                     <div class="share-card__grain" aria-hidden="true"></div>
-                    <div class="share-card__glow" aria-hidden="true"></div>
-                    <div class="share-card__wave" aria-hidden="true"></div>
-                    <div class="share-card__border" aria-hidden="true"></div>
-                    <div class="share-card__rank" aria-hidden="true">
-                      <div class="share-card__rank-ghost" data-field="rank_display">#—</div>
-                      <div class="share-card__rank-mark">#<span data-field="global_rank">—</span></div>
-                      <div class="share-card__rank-shine"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
                     </div>
-                    <div class="wordmark"><img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" /></div>
-                    <div class="share-card__stamp" data-field="rank_stamp">Global Ranking</div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
                     <div class="share-card__masthead">
                       <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
                       <span class="kicker__title" data-field="award_title">Hiffi 500</span>
                       <span class="kicker__sub" data-field="award_sub">Global Rankings</span>
                     </div>
-                    <div class="citation" data-field="citation">Officially Ranked</div>
-                    <div class="award">
-                      <div class="photo" data-field="artist_photo_url"><span class="photo-initials">?</span></div>
-                      <div class="award__glass">
-                        <div class="artist-name" data-field="artist_name">Artist</div>
-                        <div class="subline" data-field="subline"></div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Officially Ranked #—</div>
                       </div>
                     </div>
                     <div class="footer">
-                      <div class="meta" data-field="week_date"></div>
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
                     </div>
                   </div>
 
                   <div class="share-card format-square" data-template="city">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
                     <div class="share-card__grain" aria-hidden="true"></div>
-                    <div class="share-card__glow" aria-hidden="true"></div>
-                    <div class="share-card__wave" aria-hidden="true"></div>
-                    <div class="share-card__border" aria-hidden="true"></div>
-                    <div class="share-card__rank" aria-hidden="true">
-                      <div class="share-card__rank-ghost" data-field="rank_display">#—</div>
-                      <div class="share-card__rank-mark">#<span data-field="city_rank">—</span></div>
-                      <div class="share-card__rank-shine"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
                     </div>
-                    <div class="wordmark"><img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" /></div>
-                    <div class="share-card__stamp" data-field="rank_stamp">City Ranking</div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
                     <div class="share-card__masthead">
                       <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
-                      <span class="kicker__title" data-field="award_title">Hiffi City Top 50</span>
+                      <span class="kicker__title" data-field="award_title">Atlanta Top 50</span>
                       <span class="kicker__sub" data-field="award_sub">City Rankings</span>
                     </div>
-                    <div class="citation" data-field="citation">Officially Ranked</div>
-                    <div class="award">
-                      <div class="photo" data-field="artist_photo_url"><span class="photo-initials">?</span></div>
-                      <div class="award__glass">
-                        <div class="artist-name" data-field="artist_name">Artist</div>
-                        <div class="subline" data-field="subline"></div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Officially Ranked #—</div>
                       </div>
                     </div>
                     <div class="footer">
-                      <div class="meta" data-field="week_date"></div>
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
                     </div>
                   </div>
 
                   <div class="share-card format-square" data-template="riser">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
                     <div class="share-card__grain" aria-hidden="true"></div>
-                    <div class="share-card__glow" aria-hidden="true"></div>
-                    <div class="share-card__wave" aria-hidden="true"></div>
-                    <div class="share-card__border" aria-hidden="true"></div>
-                    <div class="share-card__rank share-card__rank--delta" aria-hidden="true">
-                      <div class="share-card__rank-ghost" data-field="rank_display">+—</div>
-                      <div class="share-card__rank-mark share-card__rank-mark--delta"><span data-field="delta_signed">+—</span></div>
-                      <div class="share-card__rank-shine"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
                     </div>
-                    <div class="wordmark"><img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" /></div>
-                    <div class="share-card__stamp" data-field="rank_stamp">Biggest Riser</div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
                     <div class="share-card__masthead">
                       <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
                       <span class="kicker__title" data-field="award_title">Biggest Riser</span>
                       <span class="kicker__sub" data-field="award_sub">Hiffi 500 Global</span>
                     </div>
-                    <div class="citation" data-field="citation">Biggest Move</div>
-                    <div class="award">
-                      <div class="photo" data-field="artist_photo_url"><span class="photo-initials">?</span></div>
-                      <div class="award__glass">
-                        <div class="artist-name" data-field="artist_name">Artist</div>
-                        <div class="subline" data-field="subline"></div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Officially Ranked #—</div>
                       </div>
                     </div>
                     <div class="footer">
-                      <div class="meta" data-field="week_date"></div>
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
                     </div>
                   </div>
 
                   <div class="share-card format-square" data-template="verified">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
                     <div class="share-card__grain" aria-hidden="true"></div>
-                    <div class="share-card__glow" aria-hidden="true"></div>
-                    <div class="share-card__wave" aria-hidden="true"></div>
-                    <div class="share-card__border" aria-hidden="true"></div>
-                    <div class="share-card__rank" aria-hidden="true">
-                      <div class="share-card__rank-ghost" data-field="rank_display">#—</div>
-                      <div class="share-card__rank-mark">#<span data-field="global_rank">—</span></div>
-                      <div class="share-card__rank-shine"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
                     </div>
-                    <div class="wordmark"><img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" /></div>
-                    <div class="share-card__stamp" data-field="rank_stamp">Verified</div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
                     <div class="share-card__masthead">
                       <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
                       <span class="kicker__title" data-field="award_title">Hiffi 500</span>
                       <span class="kicker__sub" data-field="award_sub">Verified Artist</span>
                     </div>
-                    <div class="citation" data-field="citation">Officially Ranked</div>
-                    <div class="award">
-                      <div class="photo" data-field="artist_photo_url"><span class="photo-initials">?</span></div>
-                      <div class="award__glass">
-                        <div class="artist-name" data-field="artist_name">Artist</div>
-                        <div class="subline" data-field="subline"></div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Officially Ranked #—</div>
                       </div>
                     </div>
                     <div class="footer">
-                      <div class="meta" data-field="week_date"></div>
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
                     </div>
                   </div>
                 </div>

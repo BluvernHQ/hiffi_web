@@ -117,6 +117,8 @@
   function fitArtistName(card, name) {
     const len = String(name || "").replace(/\s+/g, "").length;
     card.querySelectorAll(".artist-name").forEach((el) => {
+      el.style.fontSize = "";
+      el.classList.remove("is-wrapped");
       el.classList.toggle("is-long", len > 14 && len <= 18);
       el.classList.toggle("is-xl", len > 18);
     });
@@ -130,20 +132,166 @@
 
   function fitRankDigits(card, rankValue) {
     const stack = card.querySelector(".share-card__rank");
-    const mark = card.querySelector(".share-card__rank-mark");
+    if (!stack) return;
+    stack.style.fontSize = "";
     const digits = String(rankValue ?? "")
       .replace(/[^0-9]/g, "")
       .length;
-    const is2 = digits === 2;
-    const is3 = digits >= 3;
-    if (stack) {
-      stack.classList.toggle("is-2digit", is2);
-      stack.classList.toggle("is-3digit", is3);
+    stack.classList.toggle("is-2digit", digits === 2);
+    stack.classList.toggle("is-3digit", digits >= 3);
+  }
+
+  /** Binary-search font size so text never clips the card (preview + PNG capture). */
+  function fitFontToWidth(el, { maxPx, minPx }) {
+    if (!el) return;
+    const limit = Math.max(1, el.clientWidth);
+    el.style.whiteSpace = "nowrap";
+    el.style.fontSize = `${maxPx}px`;
+    if (el.scrollWidth <= limit + 1) {
+      el.style.fontSize = `${Math.floor(maxPx)}px`;
+      return Math.floor(maxPx);
     }
-    if (mark) {
-      mark.classList.toggle("is-2digit", is2);
-      mark.classList.toggle("is-3digit", is3);
+    let lo = minPx;
+    let hi = maxPx;
+    let best = minPx;
+    for (let i = 0; i < 14; i++) {
+      const mid = (lo + hi) / 2;
+      el.style.fontSize = `${mid}px`;
+      if (el.scrollWidth <= limit + 1) {
+        best = mid;
+        lo = mid;
+      } else {
+        hi = mid;
+      }
     }
+    const size = Math.max(minPx, Math.floor(best));
+    el.style.fontSize = `${size}px`;
+    return size;
+  }
+
+  function fitShareCardTypography(card) {
+    if (!card) return;
+    const isStory = card.classList.contains("format-story");
+
+    const rank = card.querySelector(".share-card__rank");
+    if (rank) {
+      const styles = getComputedStyle(rank);
+      const maxPx = parseFloat(styles.fontSize) || (isStory ? 220 : 190);
+      fitFontToWidth(rank, {
+        maxPx,
+        minPx: isStory ? 100 : 84,
+      });
+    }
+
+    const title = card.querySelector(".kicker__title");
+    if (title) {
+      title.style.fontSize = "";
+      const styles = getComputedStyle(title);
+      const maxPx = parseFloat(styles.fontSize) || (isStory ? 64 : 52);
+      fitFontToWidth(title, {
+        maxPx,
+        minPx: isStory ? 28 : 24,
+      });
+    }
+
+    card.querySelectorAll(".artist-name").forEach((el) => {
+      el.classList.remove("is-wrapped");
+      el.style.fontSize = "";
+      const styles = getComputedStyle(el);
+      const maxPx = parseFloat(styles.fontSize) || (isStory ? 124 : 108);
+      const minPx = isStory ? 40 : 36;
+      fitFontToWidth(el, { maxPx, minPx });
+      if (el.scrollWidth > el.clientWidth + 1) {
+        el.classList.add("is-wrapped");
+        el.style.fontSize = `${minPx}px`;
+      }
+    });
+  }
+
+  function buildMovementCaption(artist, move) {
+    if (artist?.isNewEntry || move?.soft || move?.delta == null || move.delta === 0) {
+      return "Debut";
+    }
+    const n = Math.abs(move.amount || move.delta || 0);
+    if (move.direction === "down") return `▼ ${n} This Week`;
+    return `▲ ${n} This Week`;
+  }
+
+  function shareSealAccent(accentHex) {
+    const rgb = hexToRgb(accentHex);
+    if (!rgb) return "#e31e24";
+    const max = Math.max(rgb.r, rgb.g, rgb.b);
+    const min = Math.min(rgb.r, rgb.g, rgb.b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    const lum = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+    // Grey / washed accents read weak on the certificate — use brand crimson.
+    if (sat < 0.28 || lum > 0.72 || lum < 0.12) return "#e31e24";
+    return accentHex;
+  }
+
+  function setMonogram(card, artist) {
+    const accent = shareSealAccent(artist?.accent);
+    const initials = artistInitials(artist?.name || artist?.username);
+    card.querySelectorAll('[data-field="monogram"]').forEach((el) => {
+      el.textContent = initials;
+    });
+    card.querySelectorAll(".share-card__avatar, .monogram").forEach((el) => {
+      // Keep tile in the Hiffi crimson family; artist accent only tints lightly via CSS mix.
+      el.style.setProperty("--mono-accent", accent || "#e31e24");
+    });
+  }
+
+  function setPhoto(card, artist, imageUrl) {
+    const fallback = shareSealAccent(artist?.accent) || "#e31e24";
+    applyCardAccent(card, fallback);
+
+    card.querySelectorAll('[data-field="artist_photo_url"]').forEach((photo) => {
+      const initials = photo.querySelector(".photo-initials");
+      if (initials) initials.textContent = artistInitials(artist?.name || artist?.username);
+      photo.style.setProperty("--mono-accent", fallback);
+      photo.style.background = "";
+
+      let img = photo.querySelector("img");
+      if (imageUrl) {
+        if (!img) {
+          img = document.createElement("img");
+          img.alt = "";
+          img.decoding = "async";
+          img.crossOrigin = "anonymous";
+          photo.appendChild(img);
+        }
+        const onReady = () => {
+          const sampled = extractAccentFromImage(img, fallback);
+          const accent = shareSealAccent(sampled) || fallback;
+          applyCardAccent(card, accent);
+          photo.style.setProperty("--mono-accent", accent);
+        };
+        img.addEventListener("load", onReady, { once: true });
+        if (img.complete && img.naturalWidth > 0) onReady();
+        img.src = imageUrl;
+        photo.classList.add("has-image");
+      } else {
+        if (img) img.remove();
+        photo.classList.remove("has-image");
+      }
+    });
+  }
+
+  function setClaimCta(card, artist) {
+    const unclaimed = artist?.claimStatus !== "claimed";
+    card.querySelectorAll('[data-field="claim_cta"]').forEach((el) => {
+      el.hidden = !unclaimed;
+      el.textContent = unclaimed ? " · Claim your rank →" : "";
+    });
+  }
+
+  function applyCardAccent(card, accentHex) {
+    const base = hexToRgb(accentHex) || { r: 227, g: 30, b: 36 };
+    const soft = mixRgb(base, { r: 10, g: 10, b: 12 }, 0.72);
+    const mid = mixRgb(base, { r: 10, g: 10, b: 12 }, 0.35);
+    card.style.setProperty("--sc-accent", rgbToHex(mid));
+    card.style.setProperty("--sc-accent-soft", rgbToHex(soft));
+    card.style.setProperty("--sc-mono-accent", accentHex || "#e31e24");
   }
 
   function hexToRgb(hex) {
@@ -168,14 +316,6 @@
       g: a.g + (b.g - a.g) * t,
       b: a.b + (b.b - a.b) * t,
     };
-  }
-
-  function applyCardAccent(card, accentHex) {
-    const base = hexToRgb(accentHex) || { r: 227, g: 30, b: 36 };
-    const soft = mixRgb(base, { r: 10, g: 10, b: 12 }, 0.72);
-    const mid = mixRgb(base, { r: 10, g: 10, b: 12 }, 0.35);
-    card.style.setProperty("--sc-accent", rgbToHex(mid));
-    card.style.setProperty("--sc-accent-soft", rgbToHex(soft));
   }
 
   function extractAccentFromImage(img, fallbackHex) {
@@ -213,40 +353,6 @@
     } catch {
       return fallbackHex;
     }
-  }
-
-  function setPhoto(card, artist, imageUrl) {
-    const fallback = artist.accent || "#e31e24";
-    applyCardAccent(card, fallback);
-
-    card.querySelectorAll('[data-field="artist_photo_url"]').forEach((photo) => {
-      const initials = photo.querySelector(".photo-initials");
-      if (initials) initials.textContent = artistInitials(artist.name);
-      photo.style.background = `linear-gradient(160deg, ${fallback}99, #0e0d10)`;
-
-      let img = photo.querySelector("img");
-      if (imageUrl) {
-        if (!img) {
-          img = document.createElement("img");
-          img.alt = "";
-          img.decoding = "async";
-          img.crossOrigin = "anonymous";
-          photo.appendChild(img);
-        }
-        const onReady = () => {
-          const accent = extractAccentFromImage(img, fallback);
-          applyCardAccent(card, accent);
-          photo.style.background = `linear-gradient(160deg, ${accent}99, #0e0d10)`;
-        };
-        img.addEventListener("load", onReady, { once: true });
-        if (img.complete && img.naturalWidth > 0) onReady();
-        img.src = imageUrl;
-        photo.classList.add("has-image");
-      } else {
-        if (img) img.remove();
-        photo.classList.remove("has-image");
-      }
-    });
   }
 
   async function resolveArtistImage(artist) {
@@ -291,8 +397,8 @@
     if (template === "city") {
       return {
         eyebrow: "Official",
-        title: "Hiffi City Top 50",
-        sub: `${city} Rankings`,
+        title: `${city} Top 50`,
+        sub: "City Rankings",
         stamp: "City Ranking",
         citation: `Officially Ranked #${rankNum} in ${city}`,
         rankDisplay: `#${rankNum}`,
@@ -300,16 +406,15 @@
     }
     if (template === "riser") {
       const tag = artist?.isNewEntry ? "New Entry" : "Biggest Riser";
+      const chartRank = artist?.rank ?? rankNum;
       if (isCity) {
         return {
           eyebrow: "Official",
           title: tag,
           sub: `${city} Top 50`,
           stamp: "City Ranking",
-          citation: artist?.isNewEntry
-            ? `New Entry · ${city} Top 50`
-            : `Up ${rankNum} Places · ${city}`,
-          rankDisplay: artist?.isNewEntry ? "NEW" : `+${rankNum}`,
+          citation: `Officially Ranked #${chartRank} in ${city}`,
+          rankDisplay: `#${chartRank}`,
         };
       }
       return {
@@ -317,10 +422,8 @@
         title: tag,
         sub: "Hiffi 500 Global",
         stamp: "Global Ranking",
-        citation: artist?.isNewEntry
-          ? "New Entry · Hiffi 500 Global"
-          : `Up ${rankNum} Places Worldwide`,
-        rankDisplay: artist?.isNewEntry ? "NEW" : `+${rankNum}`,
+        citation: `Officially Ranked #${chartRank}`,
+        rankDisplay: `#${chartRank}`,
       };
     }
     if (template === "verified") {
@@ -339,7 +442,7 @@
         title: "Hiffi 500",
         sub: "Verified Artist",
         stamp: "Verified",
-        citation: `Officially Ranked #${rankNum} Worldwide`,
+        citation: `Officially Ranked #${rankNum}`,
         rankDisplay: `#${rankNum}`,
       };
     }
@@ -348,7 +451,7 @@
       title: "Hiffi 500",
       sub: "Global Rankings",
       stamp: "Global Ranking",
-      citation: `Officially Ranked #${rankNum} Worldwide`,
+      citation: `Officially Ranked #${rankNum}`,
       rankDisplay: `#${rankNum}`,
     };
   }
@@ -384,31 +487,21 @@
     const citySlugVal = api.citySlug?.(chartState.location) || "city";
     const globalRank = api.resolveGlobalRank?.(artist) ?? artist.globalRank ?? artist.rank;
     const weekTs = api.getRankingTimestamp?.() || Date.now();
-    const weekLabel = `Week of ${formatWeekDate(weekTs)}`;
+    const weekLabel = `Week of ${formatWeekDate(weekTs)}`.toUpperCase();
     const releaseLabel = formatReleaseDate(weekTs);
     const slug = artistSlug(artist.username, artist.name);
+    const accent = artist.accent || "#e31e24";
 
-    const movementText =
-      move.soft || move.delta === 0
-        ? "—"
-        : `${move.symbol} ${move.amount}`;
     const heroRank =
-      template === "city"
-        ? artist.rank
-        : template === "riser"
-          ? move.soft
-            ? null
-            : Math.abs(move.delta || 0)
-          : globalRank ?? artist.rank;
+      template === "city" ? artist.rank : globalRank ?? artist.rank;
     const chartLabels = buildChartLabels(template, artist, chartState, cityShort, heroRank);
-    const sublineText = prestigeSubline(artist);
+    const movementCaption = buildMovementCaption(artist, move);
+    const displayName = artist.name || artist.username || "Artist";
 
     setField(card, "global_rank", String(globalRank ?? artist.rank ?? "—"));
-    const displayName = artist.name || artist.username || "Artist";
     setField(card, "artist_name", displayName);
     fitArtistName(card, displayName);
-    setField(card, "movement_7d", movementText);
-    setField(card, "subline", sublineText);
+    setField(card, "subline", prestigeSubline(artist));
     setField(card, "week_date", weekLabel);
     setField(card, "award_eyebrow", chartLabels.eyebrow);
     setField(card, "award_title", chartLabels.title);
@@ -416,31 +509,20 @@
     setField(card, "citation", chartLabels.citation);
     setField(card, "rank_display", chartLabels.rankDisplay);
     setField(card, "rank_stamp", chartLabels.stamp);
-    setField(card, "chart_kicker", `${chartLabels.title} · ${chartLabels.sub}`);
-    setField(card, "footer_meta", weekLabel);
-    setField(card, "score_band", scoreBandLabel(artist.score));
+    setField(card, "movement_caption", movementCaption);
+    setField(card, "site_host", "hiffi.com");
     setField(card, "artist_slug", slug);
     setField(card, "release_date", releaseLabel);
+    setField(card, "score_band", scoreBandLabel(artist.score));
 
     setField(card, "city_name", cityLabel);
     setField(card, "city_name_short", cityShort);
     setField(card, "city_rank", String(artist.rank ?? "—"));
-    setField(card, "city_tag", `${cityShort} City Top 50`);
+    setField(card, "city_tag", `${cityShort} Top 50`);
     setField(card, "city_slug", citySlugVal);
 
-    const fromRank =
-      artist.previousRank != null
-        ? artist.previousRank
-        : move.delta != null && !move.soft
-          ? artist.rank + move.delta
-          : null;
     const deltaAbs = move.soft ? 0 : Math.abs(move.delta || 0);
     const deltaSign = move.direction === "down" ? "−" : "+";
-    setField(
-      card,
-      "movement_eyebrow",
-      artist.isNewEntry ? "Hiffi 500 · New Entry" : "Hiffi 500 · Biggest Risers",
-    );
     setField(card, "delta", String(deltaAbs || "—"));
     setField(
       card,
@@ -448,18 +530,24 @@
       deltaAbs ? `${deltaSign}${deltaAbs}` : artist.isNewEntry ? "NEW" : "—",
     );
     setField(card, "movement_tag", artist.isNewEntry ? "New Entry" : "Biggest Riser");
-    setField(card, "rank_from", fromRank != null ? `#${fromRank}` : "—");
-    setField(card, "rank_to", `#${artist.rank}`);
-
     setField(card, "artist_handle", String(artist.username || "").replace(/^@+/, ""));
-    setField(card, "verified_date", formatVerifiedDate(weekTs));
-    const rankContext = chartState.location
-      ? `Global #${globalRank ?? "—"} · ${cityShort} #${artist.rank}`
-      : `Global #${globalRank ?? artist.rank}`;
-    setField(card, "rank_context", rankContext);
 
+    const moveEl = card.querySelector('[data-field="movement_caption"]');
+    if (moveEl) {
+      moveEl.classList.toggle("is-up", move.direction === "up" && !move.soft && move.delta !== 0);
+      moveEl.classList.toggle("is-down", move.direction === "down" && !move.soft && move.delta !== 0);
+    }
+
+    setMonogram(card, artist);
+    setClaimCta(card, artist);
     fitRankDigits(card, heroRank);
-    applyCardAccent(card, artist.accent || "#e31e24");
+    applyCardAccent(card, accent);
+
+    // Measure after layout — critical for preview/PNG parity.
+    requestAnimationFrame(() => {
+      fitShareCardTypography(card);
+      updateScalerSize();
+    });
 
     updateScalerSize();
     syncChrome();
@@ -467,13 +555,29 @@
     return { template, format, card };
   }
 
+  async function ensureShareFonts() {
+    await document.fonts?.ready;
+    try {
+      await Promise.all([
+        document.fonts?.load?.('400 92px "Archivo Black"'),
+        document.fonts?.load?.('400 420px "Archivo Black"'),
+        document.fonts?.load?.('400 64px "Archivo Black"'),
+        document.fonts?.load?.('700 16px "JetBrains Mono"'),
+        document.fonts?.load?.('500 13px "JetBrains Mono"'),
+      ]);
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function bindShareCardWithPhoto(artist, options = {}) {
     const result = bindShareCard(artist, options);
     if (!result.card) return result;
     const imageUrl = await resolveArtistImage(artist);
     setPhoto(result.card, artist, imageUrl);
+    await ensureShareFonts();
     await waitForImages(result.card);
-    await document.fonts?.ready;
+    fitShareCardTypography(result.card);
     schedulePreviewResize();
     return result;
   }
@@ -572,14 +676,11 @@
     mount.style.left = "-10000px";
 
     try {
-      await document.fonts?.ready;
-      try {
-        await document.fonts?.load?.('900 64px Anton');
-        await document.fonts?.load?.('700 18px "Space Mono"');
-      } catch {
-        /* ignore font load errors */
-      }
+      await ensureShareFonts();
       await waitForImages(card);
+      // Re-measure at full (unscaled) size so PNG matches the preview fit.
+      fitShareCardTypography(card);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const mod = await loadHtmlToImage();
       const blob = await mod.toBlob(card, {
         width: 1080,
