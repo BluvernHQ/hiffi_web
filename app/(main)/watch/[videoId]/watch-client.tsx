@@ -34,7 +34,7 @@ import {
 } from "@/lib/playlist-session"
 import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
 import { useToast } from "@/hooks/use-toast"
-import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
+import { formatCompactCount, getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import {
@@ -2056,7 +2056,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                     <>
                       {showVideoViewCount && (
                         <div className="flex gap-2 font-medium mb-2">
-                          <span>{videoViewCount.toLocaleString()} views</span>
+                          <span>{formatCompactCount(videoViewCount)} views</span>
                         </div>
                       )}
                       {hasVideoDescription ? (

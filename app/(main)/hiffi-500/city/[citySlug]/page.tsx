@@ -190,7 +190,7 @@ export default async function Hiffi500CityPage({ params }: PageProps) {
         </p>
         <Link
           href="/artist-index/claim"
-          className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#E8192C] transition-colors hover:bg-white/90"
+          className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-base font-semibold text-[#E8192C] transition-colors hover:bg-white/90 sm:px-8 sm:py-4 sm:text-lg"
         >
           Claim your profile
         </Link>

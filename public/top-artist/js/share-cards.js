@@ -289,25 +289,46 @@
   function updateScalerSize() {
     const scaler = $("#shareCardScaler");
     const preview = $(".drawer-share-card-preview");
+    const panel = $("#drawerSharePanel");
     if (!scaler || !preview) return;
     const h = shareFormat === "story" ? 1920 : 1080;
-    const pw = preview.clientWidth;
-    const ph = preview.clientHeight;
-    // Hidden / not laid out yet — retry after paint
+
+    // Prefer viewport/panel bounds — an unscaled 1080 child can inflate clientWidth.
+    const viewportCap = Math.max(160, window.innerWidth - 28);
+    const panelBox = panel && !panel.hidden ? panel.getBoundingClientRect() : null;
+    const previewBox = preview.getBoundingClientRect();
+    const pw = Math.max(
+      0,
+      Math.min(
+        previewBox.width || viewportCap,
+        panelBox && panelBox.width > 0 ? panelBox.width - 28 : viewportCap,
+        viewportCap,
+      ),
+    );
     if (pw < 40) {
       schedulePreviewResize();
       return;
     }
-    // Square: fill preview width. Story: also fit height so it stays inside max-height.
-    const maxW = Math.max(120, pw - 20);
-    let scale = maxW / 1080;
-    if (shareFormat === "story" && ph > 40) {
-      scale = Math.min(scale, Math.max(120, ph - 16) / h);
-    }
+
+    const maxH =
+      shareFormat === "story"
+        ? Math.min(window.innerHeight * 0.52, 460)
+        : Math.min(window.innerHeight * 0.42, 340);
+    const maxW = Math.max(120, pw - 12);
+    let scale = Math.min(maxW / 1080, maxH / h);
+    scale = Math.max(0.1, Math.min(scale, 1));
+
+    const layoutW = 1080 * scale;
+    const layoutH = h * scale;
     scaler.style.width = "1080px";
     scaler.style.height = `${h}px`;
+    scaler.style.transformOrigin = "top left";
     scaler.style.transform = `scale(${scale})`;
-    scaler.style.marginBottom = `${h * scale - h}px`;
+    scaler.style.marginLeft = "0";
+    scaler.style.marginRight = `${layoutW - 1080}px`;
+    scaler.style.marginBottom = `${layoutH - h}px`;
+    preview.style.height = `${Math.ceil(layoutH + 16)}px`;
+    preview.style.maxHeight = "none";
   }
 
   function schedulePreviewResize() {
@@ -344,10 +365,14 @@
     mount.appendChild(scaler);
     const prevTransform = scaler.style.transform;
     const prevMargin = scaler.style.marginBottom;
+    const prevMarginRight = scaler.style.marginRight;
+    const prevOrigin = scaler.style.transformOrigin;
     const prevMountOpacity = mount.style.opacity;
     const prevMountLeft = mount.style.left;
     scaler.style.transform = "none";
     scaler.style.marginBottom = "0";
+    scaler.style.marginRight = "0";
+    scaler.style.transformOrigin = "top left";
     scaler.style.width = "1080px";
     scaler.style.height = `${h}px`;
     // Host is normally opacity:0 off-screen; html-to-image needs a real paint.
@@ -380,6 +405,8 @@
     } finally {
       scaler.style.transform = prevTransform;
       scaler.style.marginBottom = prevMargin;
+      scaler.style.marginRight = prevMarginRight;
+      scaler.style.transformOrigin = prevOrigin;
       mount.style.opacity = prevMountOpacity;
       mount.style.left = prevMountLeft;
       placeholder.parentNode?.insertBefore(scaler, placeholder);

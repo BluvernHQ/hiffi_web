@@ -159,13 +159,30 @@
 }
 
 .share-card .hero {
+  /* Isolate from page .hero / mobile @media rules (column flex + width:100%) */
   position: absolute;
   left: 64px;
   bottom: 300px;
   right: 64px;
+  top: auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  max-height: none;
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: flex-end;
+  justify-content: flex-start;
   gap: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  grid-template-columns: unset;
+  grid-template-rows: unset;
 }
 
 .share-card .photo {
@@ -428,6 +445,8 @@
 .drawer-share-card-block {
   display: grid;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .drawer-share-card-preview {
@@ -437,16 +456,50 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 220px;
-  max-height: min(62vh, 480px);
-  padding: 12px 10px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: 10px 8px;
 }
 
 .drawer-share-card-scaler {
-  transform-origin: top center;
+  transform-origin: top left;
   width: 1080px;
   height: 1080px;
   flex-shrink: 0;
+  max-width: none;
+  /* Prevent the unscaled 1080 box from blowing out the popup grid */
+  position: relative;
+}
+
+/* Keep share popup inside the viewport even when the 1080 card is present */
+#drawerSharePanel.drawer-share-popup {
+  max-width: min(360px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 24px));
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  /*
+   * Absolute+near-100vw width, anchored to the Share button, hangs off the
+   * left of the phone and clips photo/name. Pin to the viewport instead.
+   */
+  #drawerSharePanel.drawer-share-popup {
+    position: fixed;
+    top: 70px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-width: none;
+    z-index: 120;
+  }
+
+  .drawer-share-card-preview {
+    padding: 8px 6px;
+  }
 }
 
 .drawer-share-format {

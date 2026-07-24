@@ -433,6 +433,44 @@ function formatCount(value) {
   return String(Math.round(n));
 }
 
+/** Shrink drawer title so long names stay on one line instead of hyphen-wrapping. */
+function fitDrawerArtistName() {
+  const el = $("#drawerArtistName");
+  if (!el || !el.textContent) return;
+
+  el.style.fontSize = "";
+  el.style.lineHeight = "1.05";
+  el.style.whiteSpace = "nowrap";
+  el.classList.remove("is-wrapped");
+
+  const styles = getComputedStyle(el);
+  const maxPx = parseFloat(styles.fontSize) || 112;
+  const narrow = window.matchMedia("(max-width: 720px)").matches;
+  const minPx = narrow ? 28 : 40;
+  let size = maxPx;
+  el.style.fontSize = `${size}px`;
+
+  // Binary search keeps long names readable without mid-word hyphens.
+  let lo = minPx;
+  let hi = maxPx;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    el.style.fontSize = `${mid}px`;
+    if (el.scrollWidth <= el.clientWidth + 1) {
+      lo = mid;
+      size = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  el.style.fontSize = `${Math.max(minPx, Math.floor(size))}px`;
+
+  if (el.scrollWidth > el.clientWidth + 1) {
+    el.style.whiteSpace = "normal";
+    el.classList.add("is-wrapped");
+  }
+}
+
 function formatScore(value) {
   if (value == null || Number.isNaN(Number(value))) return "—";
   return Number(value).toFixed(1);
@@ -1628,6 +1666,7 @@ function openDrawer(rank, options = {}) {
   document.body.style.overflow = "hidden";
   syncBrowserUrl({ artist: artist.username, replace: true });
   $("#drawerClose").focus();
+  requestAnimationFrame(() => fitDrawerArtistName());
 }
 
 function closeDrawer() {
@@ -1719,6 +1758,9 @@ function bindEvents() {
     { passive: true },
   );
   window.addEventListener("pagehide", writeUiState);
+  window.addEventListener("resize", () => {
+    if (!$("#drawerBackdrop")?.hidden) fitDrawerArtistName();
+  });
   document.addEventListener("click", (event) => {
     if (event.target.closest(".artist-profile-link")) return;
     const artistButton = event.target.closest("[data-artist-rank]");
