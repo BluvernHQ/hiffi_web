@@ -522,12 +522,15 @@
 
 .share-card .citation,
 .share-card .movement-tag {
-  max-width: 100%;
+  max-width: none;
+  width: max-content;
   font: 700 16px / 1.3 var(--sc-mono);
-  letter-spacing: 0.28em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: rgba(244, 241, 236, 0.58);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .share-card .movement-tag {
