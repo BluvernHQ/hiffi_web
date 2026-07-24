@@ -183,8 +183,8 @@
       });
     }
 
-    const title = card.querySelector(".kicker__title");
-    if (title) {
+    const title = card.querySelector(".kicker__title-text:not([hidden])") || card.querySelector(".kicker__500");
+    if (title && !card.querySelector(".kicker__title.is-brand")) {
       title.style.fontSize = "";
       const styles = getComputedStyle(title);
       const maxPx = parseFloat(styles.fontSize) || (isStory ? 64 : 52);
@@ -192,6 +192,20 @@
         maxPx,
         minPx: isStory ? 28 : 24,
       });
+    } else if (card.querySelector(".kicker__title.is-brand")) {
+      const brand = card.querySelector(".kicker__brand");
+      const five = card.querySelector(".kicker__500");
+      const logo = brand?.querySelector("img");
+      if (five) five.style.fontSize = "";
+      if (logo) logo.style.height = "";
+      if (brand && five && brand.scrollWidth > brand.clientWidth + 1) {
+        const maxPx = isStory ? 68 : 56;
+        fitFontToWidth(five, { maxPx, minPx: isStory ? 32 : 28 });
+        if (logo) {
+          const scale = Math.max(0.55, (parseFloat(getComputedStyle(five).fontSize) || maxPx) / maxPx);
+          logo.style.height = `${Math.round((isStory ? 62 : 52) * scale)}px`;
+        }
+      }
     }
 
     card.querySelectorAll(".artist-name").forEach((el) => {
@@ -393,14 +407,16 @@
     const isCity = Boolean(String(chartState?.location || "").trim()) || template === "city";
     const city = cityShort || "City";
     const rankNum = heroRank != null && heroRank !== "" ? String(heroRank) : "—";
+    const ranked = "Ranked";
 
     if (template === "city") {
       return {
         eyebrow: "Official",
         title: `${city} Top 50`,
+        useBrandTitle: false,
         sub: "City Rankings",
         stamp: "City Ranking",
-        citation: `Officially Ranked #${rankNum} in ${city}`,
+        citation: ranked,
         rankDisplay: `#${rankNum}`,
       };
     }
@@ -411,18 +427,20 @@
         return {
           eyebrow: "Official",
           title: tag,
+          useBrandTitle: false,
           sub: `${city} Top 50`,
           stamp: "City Ranking",
-          citation: `Officially Ranked #${chartRank} in ${city}`,
+          citation: ranked,
           rankDisplay: `#${chartRank}`,
         };
       }
       return {
         eyebrow: "Official",
         title: tag,
+        useBrandTitle: false,
         sub: "Hiffi 500 Global",
         stamp: "Global Ranking",
-        citation: `Officially Ranked #${chartRank}`,
+        citation: ranked,
         rankDisplay: `#${chartRank}`,
       };
     }
@@ -431,29 +449,47 @@
         return {
           eyebrow: "Official",
           title: "Hiffi 500",
+          useBrandTitle: true,
           sub: `Verified · ${city}`,
           stamp: "Verified",
-          citation: `Officially Ranked #${rankNum} in ${city}`,
+          citation: ranked,
           rankDisplay: `#${rankNum}`,
         };
       }
       return {
         eyebrow: "Official",
         title: "Hiffi 500",
+        useBrandTitle: true,
         sub: "Verified Artist",
         stamp: "Verified",
-        citation: `Officially Ranked #${rankNum}`,
+        citation: ranked,
         rankDisplay: `#${rankNum}`,
       };
     }
     return {
       eyebrow: "Official",
       title: "Hiffi 500",
+      useBrandTitle: true,
       sub: "Global Rankings",
       stamp: "Global Ranking",
-      citation: `Officially Ranked #${rankNum}`,
+      citation: ranked,
       rankDisplay: `#${rankNum}`,
     };
+  }
+
+  function applyAwardTitle(card, chartLabels) {
+    const titleEls = card.querySelectorAll(".kicker__title");
+    titleEls.forEach((wrap) => {
+      const brand = wrap.querySelector(".kicker__brand");
+      const text = wrap.querySelector(".kicker__title-text") || wrap.querySelector('[data-field="award_title"]');
+      const useBrand = Boolean(chartLabels.useBrandTitle);
+      wrap.classList.toggle("is-brand", useBrand);
+      if (brand) brand.hidden = !useBrand;
+      if (text) {
+        text.hidden = useBrand;
+        text.textContent = chartLabels.title || "";
+      }
+    });
   }
 
   function bindShareCard(artist, options = {}) {
@@ -504,7 +540,7 @@
     setField(card, "subline", prestigeSubline(artist));
     setField(card, "week_date", weekLabel);
     setField(card, "award_eyebrow", chartLabels.eyebrow);
-    setField(card, "award_title", chartLabels.title);
+    applyAwardTitle(card, chartLabels);
     setField(card, "award_sub", chartLabels.sub);
     setField(card, "citation", chartLabels.citation);
     setField(card, "rank_display", chartLabels.rankDisplay);
