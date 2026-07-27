@@ -565,6 +565,7 @@ class ApiClient {
     password: string
     email: string
     referral_code?: string
+    turnstile_token?: string
   }) {
     return authRegister(this, data)
   }
@@ -613,7 +614,12 @@ class ApiClient {
     return response
   }
 
-  async login(data: { username?: string; email?: string; password: string }) {
+  async login(data: {
+    username?: string
+    email?: string
+    password: string
+    turnstile_token?: string
+  }) {
     return authLogin(this, data)
   }
 

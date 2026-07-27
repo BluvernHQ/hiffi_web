@@ -34,6 +34,7 @@ interface AuthContextType {
     identifier: string,
     password: string,
     redirectPath?: string | null,
+    turnstileToken?: string | null,
   ) => Promise<void>
   signup: (
     username: string,
@@ -42,6 +43,7 @@ interface AuthContextType {
     email: string,
     redirectPath?: string | null,
     referralCodeOverride?: string | null,
+    turnstileToken?: string | null,
   ) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
@@ -343,6 +345,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     identifier: string,
     password: string,
     redirectPath?: string | null,
+    turnstileToken?: string | null,
   ) => {
     try {
       const trimmedIdentifier = identifier.trim()
@@ -361,9 +364,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const loginData = trimmedIdentifier.includes("@")
-        ? { email: trimmedIdentifier, password }
-        : { username: trimmedIdentifier, password }
+      const loginData = {
+        ...(trimmedIdentifier.includes("@")
+          ? { email: trimmedIdentifier, password }
+          : { username: trimmedIdentifier, password }),
+        ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+      }
 
       const response = await apiClient.login(loginData)
 
@@ -479,6 +485,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     redirectPath?: string | null,
     referralCodeOverride?: string | null,
+    turnstileToken?: string | null,
   ) => {
     try {
       debugLog("[hiffi] Attempting signup for:", username)
@@ -496,6 +503,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name,
         email,
         ...(referralCode ? { referral_code: referralCode } : {}),
+        ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
       })
 
       if (!response.success || !response.data?.token || !response.data.user) {
