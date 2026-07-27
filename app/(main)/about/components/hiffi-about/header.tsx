@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const MOBILE_NAV_MAX_WIDTH = 991;
@@ -67,6 +68,7 @@ function isMobileNav() {
 }
 
 export default function HiffiHeader() {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { navLinksRef, hoverLineRef } = useNavLinkHover(!menuOpen);
   const navContainerRef = useRef<HTMLDivElement>(null);
@@ -180,8 +182,8 @@ export default function HiffiHeader() {
                 </Link>
                 <Link
                   aria-label="For creators"
-                  href="/creator/apply"
-                  className="nav-link w-nav-link"
+                  href="/for-creators"
+                  className={`nav-link w-nav-link${pathname === "/for-creators" ? " w--current" : ""}`}
                   onClick={closeMenu}
                 >
                   For creators
