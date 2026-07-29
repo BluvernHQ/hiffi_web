@@ -33,11 +33,12 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
         <div className="mb-4 rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 px-4 py-3 sm:px-5">
           <p className="text-sm text-foreground">
             <span className="font-semibold text-[#E8192C]">Unclaimed profile.</span>{" "}
-            Is this you?{" "}
+            Are you {artist.name}?{" "}
             <Link href={claimHref} className="font-semibold text-[#E8192C] underline-offset-2 hover:underline">
-              Claim your profile
+              Claim your account
             </Link>{" "}
-            to verify links and manage how fans find you on Hiffi.
+            to unlock brand sponsorships, paid collaborations, partner offers, and benefits worth up
+            to $10K for select creators.
           </p>
         </div>
       ) : null}
@@ -74,7 +75,7 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
           <div className="relative flex items-start justify-between p-5 sm:p-6">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
               {artist.verified ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E8192C] px-3 py-1.5 text-white">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-3 py-1.5 text-white">
                   <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
                   Verified Artist
                 </span>

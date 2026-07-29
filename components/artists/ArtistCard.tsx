@@ -60,7 +60,7 @@ function ArtistCardAvatar({ artist }: { artist: Artist }) {
 function HeaderBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C] px-3 py-1 text-xs font-semibold text-white">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1] px-3 py-1 text-xs font-semibold text-white">
         <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>
@@ -154,7 +154,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
                   {artist.name}
                 </p>
                 {artist.verified ? (
-                  <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
+                  <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
                 ) : null}
               </div>
               {isHub ? (

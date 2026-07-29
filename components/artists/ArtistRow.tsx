@@ -52,7 +52,7 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
 function ClaimStatusBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#E8192C]/10 px-2.5 py-1 text-xs font-semibold text-[#E8192C]">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-xs font-semibold text-white">
         <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>
@@ -101,7 +101,7 @@ export function ArtistRow({ artist }: ArtistRowProps) {
               {artist.name}
             </Link>
             {artist.verified ? (
-              <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
+              <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
             ) : null}
           </div>
           <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground sm:hidden">
