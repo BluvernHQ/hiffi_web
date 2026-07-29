@@ -8,6 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [2.2.4] — 2026-07-16
 
+Release notes: [docs/releases/web-v2.2.4.md](docs/releases/web-v2.2.4.md) (business-friendly summary)
+
 ### Added
 
 - YouTube-style home navigation: navbar logo hard-reloads the discover feed (new shuffle seed, scroll to top, mood cleared)
