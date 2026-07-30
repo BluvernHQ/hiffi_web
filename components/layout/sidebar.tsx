@@ -14,9 +14,11 @@ import {
   ThumbsUp,
   UserCheck,
   Loader2,
+  MessageSquareText,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { FeedbackDialog } from "@/components/feedback/feedback-dialog"
 import { apiClient } from "@/lib/api-client"
 import { setPlaylistSession } from "@/lib/playlist-session"
 import { requestHomeFullFeed } from "@/lib/mood-session"
@@ -44,6 +46,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const isAppDownloadPage = pathname === "/app"
   const router = useRouter()
   const [internalMobileOpen, setInternalMobileOpen] = useState(false)
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
   const isHomePage = pathname === "/"
   const [activeCuratedPlaylistId, setActiveCuratedPlaylistId] = useState<string | null>(null)
 
@@ -560,6 +563,25 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                 "pb-[calc(1rem+env(safe-area-inset-bottom))]",
               )}
             >
+              {/* Available to everyone — signed-out visitors have no account
+                  menu, so this is their only entry point to feedback. */}
+              <button
+                type="button"
+                onClick={() => {
+                  closeSidebar()
+                  setFeedbackDialogOpen(true)
+                }}
+                data-analytics-name="sidebar-send-feedback"
+                className={cn(
+                  "mb-3 flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-colors",
+                  isAppDownloadPage ? "text-black/85" : "text-foreground",
+                  "hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                <MessageSquareText className="h-4 w-4 flex-shrink-0" />
+                <span>Send Feedback</span>
+              </button>
+
               <div
                 className={cn(
                   "flex flex-wrap gap-x-1.5 gap-y-1 text-[11px] leading-tight",
@@ -592,6 +614,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
           </div>
         </div>
       </aside>
+
+      <FeedbackDialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen} />
     </>
   )
 }

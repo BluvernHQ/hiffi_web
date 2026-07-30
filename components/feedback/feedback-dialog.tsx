@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 import { captureScreenshot, dataUrlToBlob, isScreenshotSupported } from "@/lib/feedback/capture-screenshot"
 import { HelpCircle, Loader2, Monitor, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -31,6 +32,10 @@ export interface FeedbackDialogProps {
 
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const { toast } = useToast()
+  const { user } = useAuth()
+  // Anonymous feedback has no account to reply to, so the follow-up consent
+  // (and the matching notice) is only offered to signed-in users.
+  const isSignedIn = Boolean(user)
   const [description, setDescription] = useState("")
   const [descriptionError, setDescriptionError] = useState<string | null>(null)
   const [screenshot, setScreenshot] = useState<string | null>(null)
@@ -104,7 +109,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
       await apiClient.submitFeedback({
         description: trimmed,
-        allow_contact: allowContact,
+        allow_contact: isSignedIn && allowContact,
         ...(screenshotUrl ? { screenshot_url: screenshotUrl } : {}),
         context: {
           page_url: window.location.href,
@@ -228,18 +233,20 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
             )}
           </div>
 
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="feedback-allow-contact"
-              checked={allowContact}
-              onCheckedChange={(checked) => setAllowContact(checked === true)}
-              disabled={submitting}
-              className="mt-0.5"
-            />
-            <Label htmlFor="feedback-allow-contact" className="font-normal leading-snug">
-              We may email you for more information or updates
-            </Label>
-          </div>
+          {isSignedIn && (
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="feedback-allow-contact"
+                checked={allowContact}
+                onCheckedChange={(checked) => setAllowContact(checked === true)}
+                disabled={submitting}
+                className="mt-0.5"
+              />
+              <Label htmlFor="feedback-allow-contact" className="font-normal leading-snug">
+                We may email you for more information or updates
+              </Label>
+            </div>
+          )}
 
           <p className="text-xs leading-relaxed text-muted-foreground">
             Some account and system information may be sent to Hiffi. We will use it to fix problems and improve
@@ -251,7 +258,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
             <Link href="/terms-of-use" className="underline hover:text-foreground">
               Terms of Service
             </Link>
-            . We may email you for more information or updates.
+            .{isSignedIn ? " We may email you for more information or updates." : ""}
           </p>
         </div>
 
