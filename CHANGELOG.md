@@ -6,19 +6,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
-## [2.3.0] — 2026-07-17
+## [2.3.0] — 2026-07-30
+
+Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary)
 
 ### Added
 
-- Hiffi 500 (`/hiffi-500`) — standalone content page (Artist Index chrome, no app sidebar) ranking rap & hip-hop artists via `GET /inventory/top`: featured #1 banner, interactive top-5 spotlight with detail panel, searchable ranked list with tier badges, social handles, load-more pagination, claim CTA, and ItemList JSON-LD
-- Clear data-source disclosure on the ranking: "Ranked using YouTube public data only" badge plus a "Data as of" date (API `last_updated` timestamp pending backend support)
-- Same-origin proxy `GET /proxy/inventory/top` for client-side pagination
-- Hiffi 500 empty-image polish: brand monogram portraits, Artist Index-style avatars, profile photo enrichment from `/users/{username}`, and spotlight flow that starts at #2 so the hero isn’t repeated
-- Hiffi 500 product family: methodology page, Atlanta city Top 50 (+ 9 city hubs scaffolded), biggest risers/fallers, new entries, Breakout 100, weekly editorial note, score bands + confidence, Δ 7d column, share cards with OG images, subnav, and sitemap/SEO entries
+- **Top Artist / Hiffi 500 ranking MVP** — primary UI at **`/top-artists`** (+ `/top-artists/how-it-works`, share routes); Next.js family at **`/hiffi-500`** with methodology, city Top 50, biggest risers/fallers, new entries, Breakout 100, weekly editorial note, score bands + confidence, Δ 7d column, share cards with OG images, subnav, and sitemap/SEO entries
+- Clear data-source disclosure: ranked using YouTube public data only, plus “Data as of” date (API `last_updated` when backend provides it)
+- Same-origin inventory proxies: `/proxy/inventory/top`, risers, cities, breakout, underground
+- Empty-image polish: brand monogram portraits, Artist Index-style avatars, profile photo enrichment, spotlight flow that starts at #2 so the hero isn’t repeated
+- Admin **Score anomalies** panel for ranking QA
+- **Feedback module** — user dialog with screenshot capture (navbar/profile), submit via `/proxy/feedback`; admin Feedback list + detail under `/proxy/admin-feedback`
+- Redesigned **About** page (`/about`) — full marketing experience with hero, benefits, creators/fans, reviews, and motion
+- **Atlanta** editorial hubs: `/atlanta` plus genres, eras, best-of, venues, and studios (list + detail + OG images)
+- Cloudflare **Turnstile** on auth flows (widget + token on auth endpoints)
+- Sitemap routing: `sitemap.xml`, `sitemaps/[id]`, `video-sitemap.xml`, and related `lib/seo` helpers
+- Session analytics proxies under `/proxy/analytics/sessions`
+
+### Changed
+
+- Artist Index: claim CTA / hero copy tweaks; verified badge repositioned on artist detail hero
+- **Share** is a top-level action on home video cards and the watch page (moved out of the ⋯ menu); Report/Delete remain under more-actions
+
+### Fixed
+
+- Additional watch audio mute preference fix beyond the 2.2.3 Next/Previous mute behavior
+- Feedback dialog responsive layout across screen sizes
 
 ### Notes
 
-- Live ranking remains YouTube-only. Movement lists fill when `rank_delta_7d` / `is_new_entry` ship; score bands are derived from `youtube_score` until full HPS bands exist
+- Live ranking remains YouTube-only for this cut (SOW methodology; not full multi-platform HPS)
+- Movement lists fill when `rank_delta_7d` / `is_new_entry` ship; score bands are derived from `youtube_score` until full HPS bands exist
+- Out of scope: multi-platform HPS expansion, API/data licensing, index report, paid analytics
+
+## [2.2.4] — 2026-07-16
+
+Release notes: [docs/releases/web-v2.2.4.md](docs/releases/web-v2.2.4.md) (business-friendly summary)
+
+### Added
+
+- YouTube-style home navigation: navbar logo hard-reloads the discover feed (new shuffle seed, scroll to top, mood cleared)
+
+### Fixed
+
+- Home feed scroll and loaded videos are restored when returning from watch (and other routes) instead of resetting to the top
+- Soft navigation back to home no longer shows a blocking “Loading…” state while the SSR feed refetch runs
+- Home scroll no longer gets overwritten when opening watch (shorter page was clamping `#main-content` and saving that lower value)
+- Home feed shows card skeletons while the first page loads instead of flashing “No videos yet”
+- Watch **Up Next** loads faster: smaller related fetch (16 vs 50), instant seed from the home feed when opening a video, and hover prefetch from feed cards
+- Home scroll is captured before the watch page zeroes the shared `#main-content` scroller (fixes Back restoring at top)
 
 ## [2.2.3] — 2026-07-14
 

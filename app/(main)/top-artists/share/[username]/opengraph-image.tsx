@@ -203,7 +203,7 @@ export default async function TopArtistShareOgImage({ params }: Props) {
             }}
           >
             <div style={{ display: "flex", fontWeight: 800, color: "#F2EFE9" }}>HIFFI 500</div>
-            <div style={{ display: "flex" }}>hiffi.com/top-artist</div>
+            <div style={{ display: "flex" }}>hiffi.com/top-artists</div>
           </div>
         </div>
       </div>

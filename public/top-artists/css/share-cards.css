@@ -524,10 +524,10 @@
 .share-card .movement-tag {
   max-width: none;
   width: max-content;
-  font: 700 16px / 1.3 var(--sc-mono);
-  letter-spacing: 0.22em;
+  font: 700 28px / 1.3 var(--sc-mono);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(244, 241, 236, 0.58);
+  color: rgba(244, 241, 236, 0.72);
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: keep-all;
@@ -576,8 +576,8 @@
 
 .share-card .footer__left,
 .share-card .footer__right {
-  font: 600 20px / 1.4 var(--sc-mono);
-  letter-spacing: 0.12em;
+  font: 600 30px / 1.4 var(--sc-mono);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--sc-steel);
 }
@@ -597,7 +597,7 @@
 .share-card .footer__right {
   flex-shrink: 0;
   text-align: center;
-  color: rgba(244, 241, 236, 0.42);
+  color: rgba(244, 241, 236, 0.62);
 }
 
 /* Story */
@@ -616,7 +616,11 @@
 }
 
 .share-card.format-story .footer__right {
-  font-size: 24px;
+  font-size: 34px;
+}
+
+.share-card.format-story .citation {
+  font-size: 32px;
 }
 
 .share-card.format-story .subline {

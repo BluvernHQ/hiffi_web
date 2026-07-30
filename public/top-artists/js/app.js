@@ -6,9 +6,14 @@ const INITIAL_VISIBLE = 20;
 const LOAD_MORE_STEP = 20;
 const ACCENTS = ["#ff2b2b", "#f4f1ea", "#7e7e83", "#ff2b2b", "#b8b6b1"];
 /** Ranking payload cache — localStorage/sessionStorage (cookies can't hold ~500 artists). */
-const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v7";
+const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v8";
 const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v1";
 const UI_KEY = "hiffi-top-artist-ui-v4";
+/** In-memory profile photo URLs keyed by lowercase username. */
+const photoUrlByUsername = new Map();
+const photoLookupFailed = new Set();
+const photoLookupInflight = new Map();
+let photoHydrateGeneration = 0;
 /** How old cache can be before we prefer a background refresh (stale cache still paints instantly). */
 const REVALIDATE_MS = 60 * 60 * 1000;
 const CITIES_TTL_MS = 60 * 60 * 1000;
@@ -291,8 +296,7 @@ function isValidMode(mode) {
     mode === "overall" ||
     mode === "risers" ||
     mode === "breakout" ||
-    mode === "heat" ||
-    mode === "verified"
+    mode === "heat"
   );
 }
 
@@ -469,6 +473,16 @@ function fitDrawerArtistName() {
     el.style.whiteSpace = "normal";
     el.classList.add("is-wrapped");
   }
+
+  // Keep the photo square height visually aligned to the (possibly resized) artist name.
+  const drawerAvatar = $("#drawerArtistAvatar");
+  if (drawerAvatar) {
+    const rect = el.getBoundingClientRect();
+    const h = Math.round(rect.height);
+    const size = Math.max(40, Math.min(90, h));
+    drawerAvatar.style.width = `${size}px`;
+    drawerAvatar.style.height = `${size}px`;
+  }
 }
 
 function formatScore(value) {
@@ -611,7 +625,17 @@ function mapArtist(item, index) {
     rankDelta7d: rankDelta ?? item.rank_delta_7d ?? null,
     rankDelta30d: item.rank_delta_30d ?? null,
     isNewEntry: Boolean(item.is_new_entry),
-    image: typeof item.image === "string" ? item.image : null,
+    image: (() => {
+      const handle = String(item.username || "")
+        .trim()
+        .replace(/^@+/, "")
+        .toLowerCase();
+      if (handle && photoUrlByUsername.has(handle)) return photoUrlByUsername.get(handle);
+      const raw = typeof item.image === "string" ? item.image : null;
+      const proxied = proxyProfilePictureUrl(raw || (typeof item.banner_image === "string" ? item.banner_image : ""));
+      if (proxied && handle) photoUrlByUsername.set(handle, proxied);
+      return proxied;
+    })(),
     bannerImage: typeof item.banner_image === "string" ? item.banner_image : null,
     accent: ACCENTS[index % ACCENTS.length],
   };
@@ -639,6 +663,241 @@ function movementHTML(artist, compact = false) {
   const move = movementMeta(artist);
   const amountHtml = !compact && !move.soft && move.delta !== 0 ? move.amount : "";
   return `<span class="movement movement-${move.direction}" aria-label="${move.label}"><span aria-hidden="true">${move.symbol}</span>${amountHtml}</span>`;
+}
+
+/** Workers CDN base for direct profile images (no /proxy/profile-picture hop). */
+function workersBaseUrl() {
+  const configured = typeof window !== "undefined" ? window.__HIFFI_WORKERS_URL__ : "";
+  if (configured && typeof configured === "string" && configured.trim()) {
+    return configured.trim().replace(/\/$/, "");
+  }
+  const host = typeof window !== "undefined" ? window.location.hostname : "";
+  // Match lib/config.ts defaults: prod hosts → prod workers; everything else → dev workers.
+  if (host === "www.hiffi.com" || host === "hiffi.com" || host === "preprod.hiffi.com") {
+    return "https://prod.hiffi.workers.dev";
+  }
+  return "https://dev.hiffi.workers.dev";
+}
+
+/**
+ * Resolve a profile/banner path or URL to a direct Workers (or absolute) image URL.
+ * Does not route through /proxy/profile-picture — browser caches the CDN response directly.
+ */
+function resolveArtistImageUrl(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // Legacy cached proxy paths → unwrap to Workers path
+  if (trimmed.startsWith("/proxy/profile-picture/")) {
+    const path = trimmed.slice("/proxy/profile-picture/".length).replace(/^\//, "");
+    return path ? `${workersBaseUrl()}/${path}` : null;
+  }
+  if (trimmed.startsWith("/proxy/")) return null;
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const u = new URL(trimmed, window.location.origin);
+      if (u.origin === window.location.origin && u.pathname.startsWith("/proxy/profile-picture/")) {
+        const path = u.pathname.slice("/proxy/profile-picture/".length).replace(/^\//, "");
+        return path ? `${workersBaseUrl()}/${path}${u.search}` : null;
+      }
+      // Already an absolute CDN/Workers URL — use as-is.
+      return u.href;
+    } catch {
+      return null;
+    }
+  }
+
+  const clean = trimmed.replace(/^\//, "");
+  return clean ? `${workersBaseUrl()}/${clean}` : null;
+}
+
+/** @deprecated Use resolveArtistImageUrl — kept as alias for share-cards bridge. */
+function proxyProfilePictureUrl(raw) {
+  return resolveArtistImageUrl(raw);
+}
+
+function artistPhotoUrl(artist) {
+  if (!artist) return null;
+  const handle = normalizeUsername(artist.username);
+  if (handle && photoUrlByUsername.has(handle)) {
+    return photoUrlByUsername.get(handle);
+  }
+  const fromArtist = resolveArtistImageUrl(artist.image || artist.bannerImage || "");
+  if (fromArtist) {
+    if (handle) photoUrlByUsername.set(handle, fromArtist);
+    return fromArtist;
+  }
+  return null;
+}
+
+function artistAvatarHTML(artist) {
+  const initials = String(artist?.name || artist?.username || "?")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 2)
+    .toUpperCase() || "?";
+  const photo = artistPhotoUrl(artist);
+  const accent = artist?.accent || "var(--red)";
+  if (photo) {
+    return `<i class="artist-avatar has-photo" style="--avatar-accent:${accent}" data-username="${escapeAttr(artist.username || "")}"><img src="${escapeAttr(photo)}" alt="" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.closest('.artist-avatar')?.classList.remove('has-photo');this.remove()"></i>`;
+  }
+  return `<i class="artist-avatar" style="background:${accent}" data-username="${escapeAttr(artist.username || "")}">${initials}</i>`;
+}
+
+function extractProfilePicturePath(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const user =
+    payload.user && typeof payload.user === "object"
+      ? payload.user
+      : payload.data && typeof payload.data === "object" && payload.data.user
+        ? payload.data.user
+        : payload.data && typeof payload.data === "object"
+          ? payload.data
+          : payload;
+  if (!user || typeof user !== "object") return null;
+  const raw = String(user.profile_picture || user.image || "").trim();
+  return raw || null;
+}
+
+async function lookupArtistPhotoUrl(username) {
+  const handle = normalizeUsername(username);
+  if (!handle) return null;
+  if (photoUrlByUsername.has(handle)) return photoUrlByUsername.get(handle);
+  if (photoLookupFailed.has(handle)) return null;
+  if (photoLookupInflight.has(handle)) return photoLookupInflight.get(handle);
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(`/proxy/users/${encodeURIComponent(handle)}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) {
+        photoLookupFailed.add(handle);
+        return null;
+      }
+      const body = await res.json();
+      const path = extractProfilePicturePath(body);
+      const url = proxyProfilePictureUrl(path);
+      if (!url) {
+        photoLookupFailed.add(handle);
+        return null;
+      }
+      photoUrlByUsername.set(handle, url);
+      return url;
+    } catch {
+      photoLookupFailed.add(handle);
+      return null;
+    } finally {
+      photoLookupInflight.delete(handle);
+    }
+  })();
+
+  photoLookupInflight.set(handle, promise);
+  return promise;
+}
+
+function patchArtistAvatarInDom(username, photoUrl) {
+  const handle = normalizeUsername(username);
+  if (!handle || !photoUrl) return;
+  let absolute = photoUrl;
+  try {
+    absolute = new URL(photoUrl, window.location.href).href;
+  } catch {
+    /* keep relative */
+  }
+  document.querySelectorAll(`.artist-avatar[data-username]`).forEach((el) => {
+    if (normalizeUsername(el.getAttribute("data-username")) !== handle) return;
+    const existing = el.querySelector("img");
+    if (el.classList.contains("has-photo") && existing) {
+      // Don't reassign src if already showing this photo — avoids a full image reload.
+      if (existing.src === absolute || existing.getAttribute("src") === photoUrl) return;
+      existing.src = photoUrl;
+      return;
+    }
+    el.classList.add("has-photo");
+    el.textContent = "";
+    const img = document.createElement("img");
+    img.src = photoUrl;
+    img.alt = "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.crossOrigin = "anonymous";
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener(
+      "error",
+      () => {
+        el.classList.remove("has-photo");
+        img.remove();
+      },
+      { once: true },
+    );
+    el.appendChild(img);
+  });
+}
+
+/**
+ * Resolve profile photos for rows missing images (uid.jpg via /users/{username}).
+ * @param {object[]} list
+ * @param {{ cancelPrevious?: boolean }} [options]
+ */
+async function hydrateVisibleArtistPhotos(list, { cancelPrevious = true } = {}) {
+  const generation = cancelPrevious ? ++photoHydrateGeneration : photoHydrateGeneration;
+  const targets = (Array.isArray(list) ? list : []).filter((artist) => {
+    if (!artist?.username) return false;
+    if (artistPhotoUrl(artist)) return false;
+    if (photoLookupFailed.has(normalizeUsername(artist.username))) return false;
+    return true;
+  });
+  if (!targets.length) return;
+
+  const concurrency = 6;
+  let cursor = 0;
+  let changed = false;
+
+  async function worker() {
+    while (cursor < targets.length) {
+      if (cancelPrevious && generation !== photoHydrateGeneration) return;
+      const index = cursor++;
+      const artist = targets[index];
+      const url = await lookupArtistPhotoUrl(artist.username);
+      if (cancelPrevious && generation !== photoHydrateGeneration) return;
+      if (!url) continue;
+      artist.image = url;
+      changed = true;
+      patchArtistAvatarInDom(artist.username, url);
+      // Keep mapped list in sync when hydrate runs against a filtered slice.
+      const live = artists.find(
+        (item) => normalizeUsername(item.username) === normalizeUsername(artist.username),
+      );
+      if (live) live.image = url;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()));
+  if (changed && (!cancelPrevious || generation === photoHydrateGeneration)) {
+    persistHydratedPhotosToCache();
+  }
+}
+
+function persistHydratedPhotosToCache() {
+  const cached = readJsonStorage(cacheKeyForLocation(state.location));
+  if (!cached || !Array.isArray(cached.items) || !cached.items.length) return;
+  let touched = false;
+  const items = cached.items.map((item) => {
+    const handle = normalizeUsername(item?.username);
+    if (!handle || !photoUrlByUsername.has(handle)) return item;
+    const url = photoUrlByUsername.get(handle);
+    if (!url || item.image === url) return item;
+    touched = true;
+    return { ...item, image: url };
+  });
+  if (!touched) return;
+  writeJsonStorage(cacheKeyForLocation(state.location), {
+    ...cached,
+    items,
+    savedAt: Date.now(),
+  });
 }
 
 async function readProxyJson(res, fallbackError) {
@@ -1047,15 +1306,10 @@ function renderTopThree() {
     : "";
 }
 
-function renderRanking() {
-  const filtered = filteredArtists();
-  const shown = filtered.slice(0, state.visible);
-  $("#artistList").innerHTML = shown.length
-    ? shown
-        .map(
-          (artist, index) => `
-    <button type="button" class="artist-row" data-artist-rank="${artist.rank}" style="--delay:${Math.min(index, 12) * 28}ms">
-      <span class="artist-identity"><b>${pad(artist.rank, 3)}</b><i style="background:${artist.accent}">${artist.name.slice(0, 2).toUpperCase()}</i><strong><span class="artist-name">${artist.name}</span>${
+function artistRowHTML(artist, index) {
+  return `
+    <button type="button" class="artist-row" data-artist-rank="${artist.rank}" data-artist-username="${escapeAttr(artist.username || "")}" style="--delay:${Math.min(index, 12) * 28}ms">
+      <span class="artist-identity"><b>${pad(artist.rank, 3)}</b>${artistAvatarHTML(artist)}<strong><span class="artist-name">${artist.name}</span>${
         artist.username
           ? `<a class="artist-profile-link" href="${buildRankingPath({ artist: artist.username })}">Open profile <span aria-hidden="true">↗</span></a>`
           : ""
@@ -1067,19 +1321,57 @@ function renderRanking() {
       ${momentumHTML(artist.momentum90d, "90d mom")}
       <span data-label="Score"><em>${formatScore(artist.score)}</em></span>
       ${movementHTML(artist)}
-    </button>`,
-        )
-        .join("")
-    : emptyRankingHTML();
+    </button>`;
+}
 
+function updateRankingMeta(filtered) {
   const locationNote = state.location ? ` · ${cityChipLabel(state.location)} top 50` : "";
   const modeNote = state.mode !== "overall" ? ` · ${modeLabel()}` : "";
-  const windowNote =
-    state.mode === "risers" ? ` · ${state.risersWindow}d` : "";
+  const windowNote = state.mode === "risers" ? ` · ${state.risersWindow}d` : "";
   $("#resultsCount").textContent = `Showing ${Math.min(state.visible, filtered.length)} of ${filtered.length} ranked artists${
     totalRanked ? ` · ${totalRanked} total` : ""
   }${locationNote}${modeNote}${windowNote}`;
   $("#loadMore").hidden = state.visible >= filtered.length;
+}
+
+/**
+ * Render (or append) ranking rows.
+ * Load More uses appendOnly so existing rows/images stay in the DOM and are not reloaded.
+ */
+function renderRanking({ appendOnly = false } = {}) {
+  const filtered = filteredArtists();
+  const shown = filtered.slice(0, state.visible);
+  const list = $("#artistList");
+  const existingRows = list.querySelectorAll(".artist-row");
+
+  if (
+    appendOnly &&
+    existingRows.length > 0 &&
+    shown.length > existingRows.length &&
+    !list.querySelector(".empty-state")
+  ) {
+    const existingCount = existingRows.length;
+    // Sanity: first visible artist still matches first DOM row (filters didn't change mid-append).
+    const firstShownRank = String(shown[0]?.rank ?? "");
+    const firstDomRank = existingRows[0]?.getAttribute("data-artist-rank") || "";
+    if (firstShownRank && firstShownRank === firstDomRank) {
+      const nextRows = shown.slice(existingCount);
+      list.insertAdjacentHTML(
+        "beforeend",
+        nextRows.map((artist, index) => artistRowHTML(artist, existingCount + index)).join(""),
+      );
+      updateRankingMeta(filtered);
+      void hydrateVisibleArtistPhotos(nextRows, { cancelPrevious: false });
+      return;
+    }
+  }
+
+  list.innerHTML = shown.length
+    ? shown.map((artist, index) => artistRowHTML(artist, index)).join("")
+    : emptyRankingHTML();
+
+  updateRankingMeta(filtered);
+  void hydrateVisibleArtistPhotos(shown, { cancelPrevious: true });
 }
 
 function renderMovers() {
@@ -1186,7 +1478,7 @@ function buildSharePayload(artist) {
   if (isValidMode(state.mode) && state.mode !== "overall") shareParams.set("mode", state.mode);
   const shareQuery = shareParams.toString();
   const handle = normalizeUsername(artist.username);
-  const sharePath = `/top-artist/share/${encodeURIComponent(handle)}${shareQuery ? `?${shareQuery}` : ""}`;
+  const sharePath = `/top-artists/share/${encodeURIComponent(handle)}${shareQuery ? `?${shareQuery}` : ""}`;
   const url = `${window.location.origin}${sharePath}`;
   return { headline, text: `${headline}\n\n${url}`, url, path, sharePath };
 }
@@ -1207,7 +1499,7 @@ function normalizeUsername(username) {
     .replace(/^@+/, "");
 }
 
-/** Canonical ranking URL: /top-artist?mode=breakout&city=atlanta&artist=migos */
+/** Canonical ranking URL: /top-artists?mode=breakout&city=atlanta&artist=migos */
 function buildRankingPath({ artist = null, location = state.location, mode = state.mode } = {}) {
   const params = new URLSearchParams();
   if (isValidMode(mode) && mode !== "overall") params.set("mode", mode);
@@ -1216,7 +1508,7 @@ function buildRankingPath({ artist = null, location = state.location, mode = sta
   const handle = normalizeUsername(artist);
   if (handle) params.set("artist", handle);
   const query = params.toString();
-  return `/top-artist${query ? `?${query}` : ""}`;
+  return `/top-artists${query ? `?${query}` : ""}`;
 }
 
 function syncBrowserUrl({ artist = undefined, replace = true } = {}) {
@@ -1613,6 +1905,20 @@ function openDrawer(rank, options = {}) {
     rankMeta.hidden = true;
     rankMeta.textContent = "";
   }
+  const drawerAvatar = $("#drawerArtistAvatar");
+  if (drawerAvatar) {
+    drawerAvatar.innerHTML = artistAvatarHTML(artist);
+    if (!artistPhotoUrl(artist) && artist.username) {
+      const selectedUsername = artist.username;
+      void lookupArtistPhotoUrl(selectedUsername).then((url) => {
+        if (!url) return;
+        if (!state.selected || state.selected.username !== selectedUsername) return;
+        // Keep the selected object in sync so future renders use the hydrated photo.
+        artist.image = url;
+        drawerAvatar.innerHTML = artistAvatarHTML(artist);
+      });
+    }
+  }
   $("#drawerArtistName").textContent = artist.name;
   $("#drawerScore").textContent = formatScore(artist.score);
   $("#drawerSubscribers").textContent = formatCount(artist.subscribers);
@@ -1637,12 +1943,16 @@ function openDrawer(rank, options = {}) {
   if (claim) {
     claimLink.hidden = false;
     claimLink.href = claim.href;
+    claimLink.target = "_blank";
+    claimLink.rel = "noopener noreferrer";
     claimLink.innerHTML = `${claim.label} <span>↗</span>`;
     claimNote.hidden = false;
     claimNote.textContent = claim.note;
   } else {
     claimLink.hidden = true;
     claimLink.removeAttribute("href");
+    claimLink.removeAttribute("target");
+    claimLink.removeAttribute("rel");
     claimNote.hidden = false;
     claimNote.textContent = artist.claimStatus === "claimed"
       ? "This Artist Index profile is claimed."
@@ -1651,6 +1961,8 @@ function openDrawer(rank, options = {}) {
   }
 
   const yt = $("#drawerYoutube");
+  yt.target = "_blank";
+  yt.rel = "noopener noreferrer";
   if (artist.youtubeUrl) {
     yt.href = artist.youtubeUrl;
     yt.innerHTML = `Open YouTube channel <span>↗</span>`;
@@ -1744,7 +2056,7 @@ function bindEvents() {
   });
   $("#loadMore").addEventListener("click", () => {
     state.visible += LOAD_MORE_STEP;
-    renderRanking();
+    renderRanking({ appendOnly: true });
     writeUiState();
   });
   let scrollSaveTimer = 0;
@@ -2143,6 +2455,8 @@ async function init() {
     localStorage.removeItem("hiffi-top-artist-cache-v3");
     localStorage.removeItem("hiffi-top-artist-cache-v4");
     localStorage.removeItem("hiffi-top-artist-cache-v5");
+    localStorage.removeItem("hiffi-top-artist-cache-v6");
+    localStorage.removeItem("hiffi-top-artist-cache-v7");
   } catch {
     /* ignore */
   }
@@ -2212,6 +2526,11 @@ window.HiffiTopArtistShare = {
   setShareStatus,
   setShareSheetOpen,
   copyText,
+  artistPhotoUrl,
+  lookupArtistPhotoUrl,
+  proxyProfilePictureUrl,
+  resolveArtistImageUrl,
+  workersBaseUrl,
 };
 
 window.HiffiShareCards?.initShareCards?.();

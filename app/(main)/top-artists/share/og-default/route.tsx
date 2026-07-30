@@ -16,7 +16,7 @@ async function loadLogoDataUrl(): Promise<string | null> {
   }
 }
 
-/** Default OG image for /top-artist page shares (no specific artist). */
+/** Default OG image for /top-artists page shares (no specific artist). */
 export async function GET() {
   const logo = await loadLogoDataUrl()
 
@@ -104,7 +104,7 @@ export async function GET() {
             }}
           >
             <div style={{ display: "flex", fontWeight: 800, color: "#F2EFE9" }}>HIFFI 500</div>
-            <div style={{ display: "flex" }}>hiffi.com/top-artist</div>
+            <div style={{ display: "flex" }}>hiffi.com/top-artists</div>
           </div>
         </div>
       </div>

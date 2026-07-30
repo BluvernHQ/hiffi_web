@@ -37,10 +37,14 @@ describe("robots-txt-core", () => {
     assert.ok(DISALLOW_PATHS.includes("/referrar/"))
   })
 
-  it("buildNonProdRobotsBody blocks all crawlers", () => {
+  it("buildNonProdRobotsBody blocks generic crawlers but allows AI bots", () => {
     const txt = buildNonProdRobotsBody()
-    assert.match(txt, /User-agent: \*/)
-    assert.match(txt, /Disallow: \//)
+    assert.match(txt, /User-agent: \*\nDisallow: \//)
+    assert.match(txt, /User-agent: GPTBot\nAllow: \//)
+    assert.match(txt, /User-agent: ClaudeBot\nAllow: \//)
+    assert.match(txt, /User-agent: PerplexityBot\nAllow: \//)
+    assert.match(txt, /User-agent: ChatGPT-User\nAllow: \//)
+    assert.doesNotMatch(txt, /User-agent: Googlebot/)
     assert.doesNotMatch(txt, /Sitemap:/)
   })
 })

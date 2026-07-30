@@ -73,10 +73,15 @@ export function AdminFeedbackDetail({ feedbackId }: { feedbackId: string }) {
     )
   }
 
-  const contextRows: { label: string; value: string }[] = [
+  const contextRows: { label: string; value: string; mailto?: boolean }[] = [
     { label: "Platform", value: feedback.platform },
     { label: "App version", value: feedback.app_version || "—" },
     { label: "User ID", value: feedback.user_id ?? "Anonymous" },
+    {
+      label: "Email",
+      value: feedback.email ?? "—",
+      mailto: Boolean(feedback.email),
+    },
     { label: "Allow contact", value: feedback.allow_contact ? "Yes" : "No" },
     { label: "Client IP", value: feedback.client_ip ?? "—" },
     { label: "Email sent", value: feedback.email_sent ? "Yes" : "No" },
@@ -191,8 +196,19 @@ export function AdminFeedbackDetail({ feedbackId }: { feedbackId: string }) {
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
                       {row.label}
                     </dt>
-                    <dd className="min-w-0 break-words [overflow-wrap:anywhere] font-medium capitalize">
-                      {row.value}
+                    <dd
+                      className={cn(
+                        "min-w-0 break-words [overflow-wrap:anywhere] font-medium",
+                        row.label !== "Email" && "capitalize",
+                      )}
+                    >
+                      {row.mailto ? (
+                        <a href={`mailto:${row.value}`} className="text-primary hover:underline">
+                          {row.value}
+                        </a>
+                      ) : (
+                        row.value
+                      )}
                     </dd>
                   </div>
                 ))}

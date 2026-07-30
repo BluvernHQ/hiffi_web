@@ -368,7 +368,7 @@ export function buildArtistProfileFallbackBio(artist: Artist): string {
   const genres =
     artist.genre.length > 0 ? artist.genre.join(", ").toLowerCase() : "hip-hop"
 
-  return `${artist.name} is an emerging ${genres} artist from ${cityLabel} indexed on Hiffi. Browse official links, claim this profile, and watch music videos on Hiffi.`
+  return `${artist.name} is a ${genres} artist from ${cityLabel} on the Hiffi Artist Index. Browse official links, claim this profile, and watch music videos on Hiffi.`
 }
 
 export function getArtistDisplayBio(artist: Artist): string {

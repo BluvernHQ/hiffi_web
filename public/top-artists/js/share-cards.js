@@ -72,24 +72,19 @@
   }
 
   function proxyImageUrl(raw) {
+    // Prefer direct Workers/CDN URLs from the ranking page bridge (no profile-picture proxy).
+    const resolve = bridge().resolveArtistImageUrl || bridge().proxyProfilePictureUrl;
+    if (typeof resolve === "function") return resolve(raw);
     if (!raw || typeof raw !== "string") return null;
     const trimmed = raw.trim();
     if (!trimmed) return null;
-    if (trimmed.startsWith("/proxy/")) return trimmed;
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-      // External absolute URLs risk tainting canvas — skip unless same-origin proxy path.
-      try {
-        const u = new URL(trimmed, window.location.origin);
-        if (u.origin === window.location.origin && u.pathname.startsWith("/proxy/")) {
-          return u.pathname + u.search;
-        }
-      } catch {
-        /* ignore */
-      }
-      return null;
-    }
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+    if (trimmed.startsWith("/proxy/")) return null;
+    const base =
+      (typeof global.__HIFFI_WORKERS_URL__ === "string" && global.__HIFFI_WORKERS_URL__.trim()) ||
+      "https://dev.hiffi.workers.dev";
     const clean = trimmed.replace(/^\//, "");
-    return `/proxy/profile-picture/${clean}`;
+    return clean ? `${base.replace(/\/$/, "")}/${clean}` : null;
   }
 
   function resolveShareCardTemplate(artist, chartState) {
@@ -370,8 +365,17 @@
   }
 
   async function resolveArtistImage(artist) {
+    const fromBridge = bridge().artistPhotoUrl?.(artist);
+    if (fromBridge) return fromBridge;
     const fromArtist = proxyImageUrl(artist?.image || artist?.bannerImage || "");
     if (fromArtist) return fromArtist;
+    if (typeof bridge().lookupArtistPhotoUrl === "function" && artist?.username) {
+      try {
+        return (await bridge().lookupArtistPhotoUrl(artist.username)) || null;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 

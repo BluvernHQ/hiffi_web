@@ -25,7 +25,7 @@ function buildDeepLink(username: string, city: string, mode: string): string {
   params.set("artist", username)
   if (city) params.set("city", city)
   if (mode && mode !== "overall") params.set("mode", mode)
-  return `/top-artist?${params.toString()}`
+  return `/top-artists?${params.toString()}`
 }
 
 async function resolveArtist(username: string, citySlug: string) {
@@ -87,7 +87,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (city) pathParams.set("city", city)
   if (mode && mode !== "overall") pathParams.set("mode", mode)
   const qs = pathParams.toString()
-  const sharePath = `/top-artist/share/${encodeURIComponent(artist.username)}${qs ? `?${qs}` : ""}`
+  const sharePath = `/top-artists/share/${encodeURIComponent(artist.username)}${qs ? `?${qs}` : ""}`
   const url = absoluteUrl(sharePath)
 
   return {

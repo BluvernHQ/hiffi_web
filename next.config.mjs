@@ -50,6 +50,31 @@ const nextConfig = {
         destination: "/studio/tools/migrate",
         permanent: true,
       },
+      {
+        source: "/top-artist",
+        destination: "/top-artists",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/",
+        destination: "/top-artists",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/how-it-works",
+        destination: "/top-artists/how-it-works",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/how-it-works/",
+        destination: "/top-artists/how-it-works",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/share/:path*",
+        destination: "/top-artists/share/:path*",
+        permanent: true,
+      },
     ]
   },
   async rewrites() {
@@ -64,20 +89,20 @@ const nextConfig = {
         destination: "/sitemaps/:id",
       },
       {
-        source: "/top-artist",
-        destination: "/top-artist/index.html",
+        source: "/top-artists",
+        destination: "/top-artists/index.html",
       },
       {
-        source: "/top-artist/",
-        destination: "/top-artist/index.html",
+        source: "/top-artists/",
+        destination: "/top-artists/index.html",
       },
       {
-        source: "/top-artist/how-it-works",
-        destination: "/top-artist/how-it-works/index.html",
+        source: "/top-artists/how-it-works",
+        destination: "/top-artists/how-it-works/index.html",
       },
       {
-        source: "/top-artist/how-it-works/",
-        destination: "/top-artist/how-it-works/index.html",
+        source: "/top-artists/how-it-works/",
+        destination: "/top-artists/how-it-works/index.html",
       },
       {
         source: "/:path*.md",

@@ -175,9 +175,9 @@ export function AdminFeedbackTable() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Feedback</th>
+                <th className="text-left px-4 py-3 font-medium">Email</th>
                 <th className="text-left px-4 py-3 font-medium">Platform</th>
                 <th className="text-left px-4 py-3 font-medium">Contact</th>
-                <th className="text-left px-4 py-3 font-medium">Email</th>
                 <th className="text-left px-4 py-3 font-medium">Created</th>
               </tr>
             </thead>
@@ -208,6 +208,19 @@ export function AdminFeedbackTable() {
                         <p className="text-xs text-muted-foreground mt-0.5">Screenshot attached</p>
                       )}
                     </td>
+                    <td className="px-4 py-3 max-w-[200px]">
+                      {submission.email ? (
+                        <a
+                          href={`mailto:${submission.email}`}
+                          className="text-primary hover:underline break-all [overflow-wrap:anywhere]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {submission.email}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -220,9 +233,6 @@ export function AdminFeedbackTable() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {submission.allow_contact ? "Yes" : "No"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {submission.email_sent ? "Sent" : "—"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {submission.created_at

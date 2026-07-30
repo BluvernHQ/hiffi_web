@@ -13,7 +13,8 @@ export const DISALLOW_PATHS = [
   "/referrar/",
 ] as const
 
-export const AI_AND_SEARCH_BOTS = [
+/** AI / LLM crawlers — allowed on non-prod (dev/beta) so agents can read staging. */
+export const AI_BOTS = [
   "GPTBot",
   "OAI-SearchBot",
   "ChatGPT-User",
@@ -22,12 +23,16 @@ export const AI_AND_SEARCH_BOTS = [
   "ClaudeBot",
   "Claude-SearchBot",
   "Claude-User",
-  "Googlebot",
-  "Bingbot",
-  "Applebot",
   "Google-Extended",
   "CCBot",
+  "anthropic-ai",
+  "Claude-Web",
 ] as const
+
+/** Traditional search crawlers (prod allow-list alongside AI bots). */
+export const SEARCH_BOTS = ["Googlebot", "Bingbot", "Applebot"] as const
+
+export const AI_AND_SEARCH_BOTS = [...AI_BOTS, ...SEARCH_BOTS] as const
 
 export function formatDisallowLines(paths: readonly string[]): string {
   return paths.map((path) => `Disallow: ${path}`).join("\n")
@@ -38,8 +43,23 @@ export function buildAgentBlock(agent: string, disallowBlock: string): string {
   return ["", `User-agent: ${agent}`, "Allow: /", disallowBlock].join("\n")
 }
 
+/**
+ * Non-prod (dev/beta): keep generic crawlers off the index (`Disallow: /`),
+ * but explicitly Allow AI bots so ChatGPT / Claude / Perplexity can access e.g. dev.hiffi.com.
+ */
 export function buildNonProdRobotsBody(): string {
-  return ["User-agent: *", "Disallow: /", ""].join("\n")
+  const aiBlocks = AI_BOTS.map((agent) =>
+    ["", `User-agent: ${agent}`, "Allow: /"].join("\n"),
+  ).join("\n")
+
+  return [
+    "User-agent: *",
+    "Disallow: /",
+    aiBlocks,
+    "",
+    "# AI bots allowed on non-prod for agent / GEO access; search engines remain blocked.",
+    "",
+  ].join("\n")
 }
 
 export function buildProdRobotsBody(origin: string): string {
