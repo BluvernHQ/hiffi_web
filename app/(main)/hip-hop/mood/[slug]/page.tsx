@@ -16,6 +16,106 @@ function moodFromSlug(slug: string): MoodDef | undefined {
   )
 }
 
+const moodSeoKeywords: Record<string, string[]> = {
+  "on sight": [
+    "drill trap music",
+    "drill music videos",
+    "trap music videos",
+    "rage rap",
+    "rage rap artists",
+    "rage rap songs",
+    "what is rage rap",
+    "underground rage rap",
+    "aggressive hip hop",
+    "aggressive hip hop songs",
+  ],
+  "soul search": [
+    "conscious rap",
+    "conscious rap music",
+    "conscious hip hop",
+    "introspective hip hop",
+    "J Cole type rap",
+    "what is conscious rap",
+    "conscious rap artists",
+    "conscious rap songs",
+    "socially conscious rap",
+    "conscious hip hop artists",
+    "conscious hip hop albums",
+    "conscious hip hop songs",
+    "conscious hip hop music",
+  ],
+  "money talk": [
+    "triumphant hip hop",
+    "celebration rap",
+    "flex rap",
+    "victory rap songs",
+    "winning rap songs",
+    "celebration rap songs",
+  ],
+  "blue hours": [
+    "heartbreak rap",
+    "sad rap songs",
+    "sad rap music",
+    "emotional rap",
+    "emotional hip hop songs",
+    "late night rap",
+    "melodic rap",
+    "breakup rap songs",
+  ],
+  "low rider": [
+    "lofi hip hop",
+    "lofi hip hop music",
+    "lofi rap",
+    "lofi hip hop beats",
+    "boom bap",
+    "boom bap music",
+    "boom bap rap",
+    "boom bap artists",
+    "boom bap genre",
+    "boom bap hip hop",
+    "what is boom bap",
+    "what is boom bap rap",
+    "what is boom bap music",
+    "chill hip hop",
+    "chill hip hop songs",
+    "old school hip hop",
+    "jazz rap",
+  ],
+  "turn up": [
+    "workout rap",
+    "workout hip hop",
+    "gym rap songs",
+    "hype rap",
+    "hype rap songs",
+    "best hype rap songs",
+    "most hype rap songs",
+    "clean hype rap songs",
+    "best workout hip hop songs",
+    "good workout rap songs",
+    "high energy rap songs",
+    "turn up songs",
+    "party rap",
+    "high energy hip hop",
+  ],
+  "god's plan": [
+    "spiritual rap",
+    "faith rap",
+    "inspirational rap",
+    "inspirational rap music",
+    "inspirational rap songs",
+    "best inspirational rap songs",
+    "most inspirational rap songs",
+    "motivational hip hop",
+    "gospel rap",
+    "positive rap songs",
+    "conscious rap",
+    "what is conscious rap",
+    "conscious rap meaning",
+    "conscious rap definition",
+    "socially conscious rap",
+  ],
+}
+
 export async function generateStaticParams() {
   return MOODS.map((mood) => ({
     slug: mood.query.replace(/\s+/g, "-").toLowerCase(),
@@ -30,11 +130,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pageUrl = absoluteUrl(`/hip-hop/mood/${encodeURIComponent(slug)}`)
   const absoluteTitle = `${mood.label} — ${mood.vibe} | Hiffi`
   const description = `Discover ${mood.vibe} music videos from independent hip-hop artists on Hiffi. ${mood.tagline} Stream ${mood.cluster.toLowerCase()} rap — official videos, underground drops, and creator-first discovery.`
+  const targetedKeywords = moodSeoKeywords[mood.query] ?? []
 
   return {
     title: { absolute: absoluteTitle },
     description,
     keywords: [
+      ...targetedKeywords,
       mood.vibe,
       mood.cluster,
       "hip hop",

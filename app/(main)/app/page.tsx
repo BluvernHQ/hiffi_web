@@ -18,7 +18,7 @@ import {
 
 const pageTitleAbsolute = "Download Hiffi App — Hip-Hop Music Videos & Creator Streaming"
 const pageDescription =
-  "Download Hiffi for iOS and Android. Discover independent hip-hop artists, watch music videos, follow creators, build playlists, and stream high-quality music."
+  "Download the Hiffi hip-hop music app for iOS and Android. Discover rap artists, watch music videos, follow creators, build playlists, and stream in high quality."
 
 const pagePath = "/app"
 const pageUrl = absoluteUrl(pagePath)
@@ -29,7 +29,20 @@ export const metadata: Metadata = {
   keywords: [
     "Hiffi app",
     "download Hiffi",
+    "hip hop music app",
+    "rap music app",
     "hip-hop streaming app",
+    "hip hop app",
+    "music streaming app",
+    "best music app",
+    "free music app",
+    "best free music app",
+    "free rap music app",
+    "free hip hop music app",
+    "discover hip hop artists app",
+    "hip hop music streaming app",
+    "rap music streaming app",
+    "independent rap music app",
     "music video app",
     "Hiffi iOS",
     "Hiffi Android",
@@ -99,7 +112,7 @@ const faqJsonLd = {
       name: "Is Hiffi free to download?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes, Hiffi is free to download on both iOS and Android.",
+        text: "Yes, Hiffi is a free hip-hop music app to download on both iOS and Android.",
       },
     },
     {
@@ -115,7 +128,7 @@ const faqJsonLd = {
       name: "Is Hiffi for hip-hop and rap artists?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Absolutely. Hiffi is built specifically for the hip-hop and rap community — both artists and fans.",
+        text: "Absolutely. Hiffi is built specifically for the hip-hop and rap community — both artists and fans looking for a dedicated rap music app.",
       },
     },
   ],

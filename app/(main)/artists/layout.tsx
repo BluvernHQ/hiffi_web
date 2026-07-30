@@ -9,10 +9,20 @@ export const metadata = routeMetadata({
   path: "/artists",
   keywords: [
     "Hiffi artists",
+    "Independent rap artists",
+    "independent rap artists",
     "upload rap music video",
     "independent hip-hop platform",
     "underground rap streaming",
     "become a music creator",
+    "music app for independent artists",
+    "how to become an artist",
+    "how to become an artist music",
+    "how do I become an artist",
+    "publish music online",
+    "upload music to all platforms free",
+    "independent rap music app",
+    "discover hip-hop artists app",
   ],
 })
 

@@ -13,6 +13,14 @@ export const metadata = routeMetadata({
     "upload rap music video",
     "Hiffi for fans",
     "hip-hop streaming how to",
+    "how to use Hiffi",
+    "how to create a Hiffi account",
+    "how to upload music on Hiffi",
+    "how to publish music online",
+    "how do you publish music",
+    "how to become an artist music",
+    "how to become an independent artist",
+    "how to discover hip-hop artists",
   ],
 })
 
