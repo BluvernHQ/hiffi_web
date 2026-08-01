@@ -295,20 +295,14 @@ export function HeroCarousel({
   }, [])
 
   // Mood-tab leave/return: pause in place; resume only after hero hover.
+  // Audio is silenced via muted={isMuted || !playbackActive} — do not set volume to 0
+  // (that caused unmuted+silent until the next clip remounted).
   useEffect(() => {
     playbackActiveRef.current = playbackActive
     if (!playbackActive) {
       resumeOnHoverRef.current = true
       cancelVolumeFade()
       pauseVideo()
-      const el = videoRef.current
-      // Mute the element (keep volume primed). Never leave unmuted + volume 0 —
-      // that silent state needs a mute/unmute cycle to recover.
-      if (el && wantSoundRef.current) {
-        el.defaultMuted = true
-        el.muted = true
-        el.volume = PREVIEW_VOLUME
-      }
       return
     }
 
@@ -458,15 +452,24 @@ export function HeroCarousel({
 
   const toggleMute = useCallback(() => {
     markGesture()
-    const next = !isMuted
-    setIsMuted(next)
-    wantSoundRef.current = !next
-    setPreviewAudioPreferred(!next)
+    const nextMuted = !isMuted
+    setIsMuted(nextMuted)
+    wantSoundRef.current = !nextMuted
+    setPreviewAudioPreferred(!nextMuted)
     const el = videoRef.current
-    if (el) {
-      applyAudio(el, next)
-      if (el.paused && !userPaused) void tryPlay()
+    if (!el) return
+
+    if (nextMuted) {
+      applyAudio(el, true)
+      return
     }
+
+    // Unmute: force an audible path (React muted prop syncs via isMuted).
+    forceVolumeFadeRef.current = true
+    applyAudio(el, false)
+    el.muted = false
+    el.defaultMuted = false
+    if (el.paused && !userPaused) void tryPlay()
   }, [applyAudio, isMuted, markGesture, tryPlay, userPaused])
 
   const onKeyDown = useCallback(
@@ -771,7 +774,9 @@ export function HeroCarousel({
             className="absolute inset-0 size-full object-cover object-[center_30%] md:object-center"
             src={activeStreamUrl}
             playsInline
-            muted
+            // Bind to state — a hardcoded `muted` made React re-mute after unmute
+            // until the next clip remounted.
+            muted={isMuted || !playbackActive}
             autoPlay
             preload="auto"
             poster={activeCard.thumbnail || undefined}
