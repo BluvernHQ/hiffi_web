@@ -4,9 +4,14 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
-import { MoodPickerCard } from "@/components/home/mood-picker-card"
-import { ActiveMoodBar } from "@/components/home/active-mood-bar"
+import { HeroCarousel } from "@/components/home/hero-carousel"
+import { HeroCarouselSkeleton } from "@/components/home/hero-carousel-skeleton"
+import { MoodMixChips } from "@/components/home/mood-mix-chips"
 import { MoodFeedAnimated } from "@/components/home/mood-feed-animated"
+import { mapVideosToHeroCards, type HeroCarouselCard } from "@/lib/home/hero-carousel-data"
+import { fetchCuratedHeroCards } from "@/lib/home/fetch-curated-hero"
+import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
+import { OPENED_VIDEO_FROM_HOME_HERO } from "@/lib/analytics/video-analytics-names"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
@@ -33,6 +38,7 @@ import {
   buildPlaylistWatchPath,
   playlistVideoMetaFromFeedVideos,
 } from "@/lib/playlist-session"
+import { cn } from "@/lib/utils"
 import { getThumbnailUrl } from "@/lib/storage"
 
 const VIDEOS_PER_PAGE = 10
@@ -110,6 +116,69 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const activeMoodRef = useRef(activeMood)
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
+  const isMoodFeed = Boolean(activeMood)
+
+  const [heroCards, setHeroCards] = useState<HeroCarouselCard[]>([])
+  const [heroSource, setHeroSource] = useState<"pending" | "curated" | "discover">("pending")
+  const curatedHeroIdsRef = useRef<string | null>(null)
+
+  const discoverHeroFallback = useMemo(() => {
+    const source =
+      allFeedCache.current.videos.length > 0 ? allFeedCache.current.videos : videos
+    return mapVideosToHeroCards(source, 5)
+  }, [videos])
+
+  // Load curated hero once and keep it across mood-tab switches (no shimmer on return).
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      const curated = await fetchCuratedHeroCards(5)
+      if (cancelled) return
+
+      if (curated.cards.length > 0) {
+        curatedHeroIdsRef.current = curated.playlistId
+        setHeroCards(curated.cards)
+        setHeroSource("curated")
+        return
+      }
+
+      curatedHeroIdsRef.current = null
+      setHeroSource("discover")
+    }
+
+    void load()
+
+    const onCuratedUpdated = () => {
+      void load()
+    }
+    window.addEventListener(CURATED_PLAYLISTS_UPDATED_EVENT, onCuratedUpdated)
+    return () => {
+      cancelled = true
+      window.removeEventListener(CURATED_PLAYLISTS_UPDATED_EVENT, onCuratedUpdated)
+    }
+  }, [])
+
+  // Discover fallback only when curated is empty / unavailable.
+  useEffect(() => {
+    if (heroSource !== "discover") return
+    setHeroCards(discoverHeroFallback)
+  }, [heroSource, discoverHeroFallback])
+
+  const handleHeroCardChange = useCallback((_index: number, card: HeroCarouselCard) => {
+    if (typeof window !== "undefined" && "HifiAnalytics" in window) {
+      try {
+        ;(window as Window & { HifiAnalytics?: { track?: (n: string, p?: object) => void } })
+          .HifiAnalytics?.track?.("home_hero_card_impression", {
+            video_id: card.id,
+            handle: card.handle,
+            playlist_id: curatedHeroIdsRef.current,
+          })
+      } catch {
+        // analytics optional
+      }
+    }
+  }, [])
 
   useEffect(() => {
     videosRef.current = videos
@@ -501,8 +570,6 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     [readCache, writeCache],
   )
 
-  const isMoodFeed = activeMood !== null
-
   const moodPlaylistNavigation = useMemo(() => {
     if (!activeMood || !activeMoodDef) return undefined
     const videoIds = videos
@@ -535,27 +602,50 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
 
   return (
     <div className="w-full">
-      {activeMoodDef && !pickerOpen ? (
-        <div className="sticky top-0 z-10">
-          <ActiveMoodBar
-            mood={activeMoodDef}
-            onPlay={handlePlayMood}
-            onClose={handleShowAll}
+      <div className="w-full px-4 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="mb-4 sm:mb-5">
+          <MoodMixChips
+            moods={MOODS}
+            activeQuery={activeMood}
+            loading={loading}
+            onSelectMood={(query) => handleStartMix(query)}
+            onSelectAll={handleShowAll}
+            onPlay={
+              moodPlaylistNavigation && moodPlaylistNavigation.videoIds.length > 0
+                ? handlePlayMood
+                : undefined
+            }
           />
         </div>
-      ) : null}
 
-      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
-        {pickerOpen ? (
-          <div className="mb-5 sm:mb-6">
-            <MoodPickerCard
-              moods={MOODS}
-              selectedQuery={pendingMoodQuery}
-              onSelect={setPendingMoodQuery}
-              onStartMix={handleStartMix}
-              loading={loading && pendingMoodQuery !== null && !activeMood}
+        {!isMoodFeed && heroSource === "pending" && heroCards.length === 0 ? (
+          <div className="mb-6 sm:mb-7">
+            <HeroCarouselSkeleton />
+          </div>
+        ) : null}
+
+        {heroCards.length > 0 ? (
+          <div
+            className={cn("mb-6 sm:mb-7", isMoodFeed && "hidden")}
+            aria-hidden={isMoodFeed}
+          >
+            <HeroCarousel
+              cards={heroCards}
+              playbackActive={!isMoodFeed}
+              onCardChange={handleHeroCardChange}
+              openVideoUiName={OPENED_VIDEO_FROM_HOME_HERO}
             />
           </div>
+        ) : null}
+
+        {(!isMoodFeed && (heroSource === "pending" || heroCards.length > 0)) ? (
+          <h2 className="mb-3 text-base font-semibold tracking-tight text-foreground sm:mb-4 sm:text-lg">
+            Recommended Videos
+          </h2>
+        ) : isMoodFeed && activeMoodDef ? (
+          <h2 className="mb-3 text-base font-semibold tracking-tight text-foreground sm:mb-4 sm:text-lg">
+            {activeMoodDef.label}
+          </h2>
         ) : null}
 
         {feedError && videos.length === 0 ? (

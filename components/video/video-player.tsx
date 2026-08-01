@@ -43,6 +43,7 @@ import { NextUpOverlay } from "./next-up-overlay"
 import { AuthenticatedImage } from "./authenticated-image"
 import { usePlayerAudioSettings } from "@/components/video/hooks/use-player-audio-settings"
 import { generateSessionId, getResolutionProfile } from "@/components/video/video-player-utils"
+import { getPlayerVolume, setPlayerMuted, setPlayerVolume } from "@/lib/ux-prefs"
 
 // Add declaration for videojs since we're loading it from CDN
 declare global {
@@ -84,8 +85,6 @@ interface VideoPlayerProps {
 }
 
 const STORAGE_KEYS = {
-  VOLUME: "hiffi_player_volume",
-  MUTED: "hiffi_player_muted",
   WATCH_DEVICE_ID: "hiffi_watch_device_id",
 } as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
@@ -1547,13 +1546,8 @@ export function VideoPlayer({
       }
     }
     
-    // Persist volume preference
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEYS.VOLUME, newVolume.toString())
-      if (newVolume > 0) {
-        localStorage.setItem(STORAGE_KEYS.MUTED, 'false')
-      }
-    }
+    setPlayerVolume(newVolume)
+    if (newVolume > 0) setPlayerMuted(false)
   }
 
   const toggleMute = () => {
@@ -1563,8 +1557,12 @@ export function VideoPlayer({
       if (isForcedMute) {
         player.muted(false)
         player.volume(volume > 0 ? volume : 1)
-        if (volume === 0) setVolume(1)
+        if (volume === 0) {
+          setVolume(1)
+          setPlayerVolume(1)
+        }
         setIsMuted(false)
+        setPlayerMuted(false)
         setForcedMute(false)
         return
       }
@@ -1574,23 +1572,16 @@ export function VideoPlayer({
       player.muted(newMuted)
       setForcedMute(false) // User manual change clears forced flag
       
-      // Persist muted preference
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEYS.MUTED, newMuted.toString())
-      }
+      setPlayerMuted(newMuted)
 
       if (newMuted) {
         setVolume(0)
       } else {
-        // Restore volume from storage or default to 1
-        const savedVolume = localStorage.getItem(STORAGE_KEYS.VOLUME)
-        const volumeToRestore = savedVolume ? parseFloat(savedVolume) : 1
+        const volumeToRestore = getPlayerVolume()
         const finalVolume = volumeToRestore > 0 ? volumeToRestore : 1
         setVolume(finalVolume)
         player.volume(finalVolume)
-        if (typeof window !== "undefined") {
-          localStorage.setItem(STORAGE_KEYS.VOLUME, finalVolume.toString())
-        }
+        setPlayerVolume(finalVolume)
       }
     }
   }

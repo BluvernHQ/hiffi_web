@@ -1,30 +1,20 @@
 import { useEffect, useRef, useState } from "react"
+import { getPlayerMuted, getPlayerVolume } from "@/lib/ux-prefs"
 
 const STORAGE_KEYS = {
   VOLUME: "hiffi_player_volume",
   MUTED: "hiffi_player_muted",
 } as const
 
+/**
+ * Player audio state. Callers must persist explicit user changes via
+ * `setPlayerMuted` / `setPlayerVolume` from `@/lib/ux-prefs` — do not persist
+ * transient autoplay mute here.
+ */
 export function usePlayerAudioSettings() {
-  // Initialize state from localStorage immediately to avoid flash of muted/unmuted
-  const [volume, setVolume] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(STORAGE_KEYS.VOLUME)
-      return saved !== null ? parseFloat(saved) : 1
-    }
-    return 1
-  })
+  const [volume, setVolume] = useState<number>(() => getPlayerVolume())
+  const [isMuted, setIsMuted] = useState<boolean>(() => getPlayerMuted())
 
-  const [isMuted, setIsMuted] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(STORAGE_KEYS.MUTED)
-      // Default to unmuted (false) to ensure sound is present by default
-      return saved !== null ? saved === "true" : false
-    }
-    return false
-  })
-
-  // Use refs to keep state values accessible to event listeners without stale closures
   const volumeRef = useRef(volume)
   const isMutedRef = useRef(isMuted)
 
@@ -33,7 +23,6 @@ export function usePlayerAudioSettings() {
     isMutedRef.current = isMuted
   }, [volume, isMuted])
 
-  // Sync audio state across instances (in case multiple players exist)
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.VOLUME && e.newValue !== null) {
@@ -49,4 +38,3 @@ export function usePlayerAudioSettings() {
 
   return { volume, setVolume, isMuted, setIsMuted, volumeRef, isMutedRef }
 }
-
