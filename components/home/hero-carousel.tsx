@@ -190,6 +190,8 @@ export function HeroCarousel({
         forceVolumeFadeRef.current = false
         el.defaultMuted = true
         el.muted = true
+        // Keep a normal level primed so the next unmute can fade cleanly.
+        el.volume = PREVIEW_VOLUME
         return
       }
       const shouldFade =
@@ -199,7 +201,7 @@ export function HeroCarousel({
       el.muted = false
       if (shouldFade) {
         fadeInVolume(el)
-      } else if (volumeFadeRafRef.current == null) {
+      } else {
         el.volume = PREVIEW_VOLUME
       }
     },
@@ -213,6 +215,10 @@ export function HeroCarousel({
     if (!el) return
     el.pause()
     setIsPlaying(false)
+  }, [])
+
+  const markGesture = useCallback(() => {
+    hasUserGestureRef.current = true
   }, [])
 
   const tryPlay = useCallback(async () => {
@@ -240,6 +246,11 @@ export function HeroCarousel({
       await el.play()
       if (gen !== playGenRef.current) return
       setIsPlaying(true)
+      // Guard against muted=false + volume=0 silent state after tab switches.
+      if (allowSound && el.volume < 0.05 && volumeFadeRafRef.current == null) {
+        forceVolumeFadeRef.current = true
+        applyAudio(el, false)
+      }
     } catch {
       if (gen !== playGenRef.current) return
       applyAudio(el, true)
@@ -291,18 +302,38 @@ export function HeroCarousel({
       cancelVolumeFade()
       pauseVideo()
       const el = videoRef.current
-      // Silence now so hover-resume can ramp 0 → normal.
-      if (el && !el.muted) el.volume = 0
+      // Mute the element (keep volume primed). Never leave unmuted + volume 0 —
+      // that silent state needs a mute/unmute cycle to recover.
+      if (el && wantSoundRef.current) {
+        el.defaultMuted = true
+        el.muted = true
+        el.volume = PREVIEW_VOLUME
+      }
+      return
+    }
+
+    // Hero is shown again — sync in-view from layout (IO can lag after un-hide).
+    const root = sectionRef.current
+    if (root) {
+      const rect = root.getBoundingClientRect()
+      inViewRef.current =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.top < window.innerHeight
     }
   }, [cancelVolumeFade, pauseVideo, playbackActive])
 
   const resumeFromHover = useCallback(() => {
     if (!resumeOnHoverRef.current || userPaused) return
-    if (!playbackActiveRef.current || !inViewRef.current) return
+    if (!playbackActiveRef.current) return
+    markGesture()
+    // Pointer on the hero counts as in-view even if IO hasn't caught up yet.
+    inViewRef.current = true
     resumeOnHoverRef.current = false
     if (wantSoundRef.current) forceVolumeFadeRef.current = true
     void tryPlay()
-  }, [tryPlay, userPaused])
+  }, [markGesture, tryPlay, userPaused])
 
   const goTo = useCallback(
     (index: number) => {
@@ -394,10 +425,6 @@ export function HeroCarousel({
 
     return () => window.clearInterval(id)
   }, [activeCard?.id, goNext, reducedMotion, userPaused])
-
-  const markGesture = useCallback(() => {
-    hasUserGestureRef.current = true
-  }, [])
 
   /** Open watch page continuing from the hero's current playback position. */
   const openWatchFromHero = useCallback(
