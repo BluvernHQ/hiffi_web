@@ -8,7 +8,6 @@ import {
   useState,
   type KeyboardEvent,
   type MouseEvent,
-  type RefObject,
   type TouchEvent,
 } from "react"
 import dynamic from "next/dynamic"
@@ -525,8 +524,7 @@ export function HeroCarousel({
 
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
-  const filmstripScrollDesktopRef = useRef<HTMLDivElement | null>(null)
-  const filmstripScrollMobileRef = useRef<HTMLDivElement | null>(null)
+  const filmstripScrollRef = useRef<HTMLDivElement | null>(null)
 
   const onTouchStart = useCallback((e: TouchEvent) => {
     const t = e.changedTouches[0]
@@ -554,39 +552,34 @@ export function HeroCarousel({
   )
 
   // Keep the active filmstrip thumb centered whenever the slide changes
-  // (thumb tap, mobile side chevrons, or desktop center arrows).
+  // (thumb tap or desktop center arrows).
   useEffect(() => {
-    if (total <= 1) return
-    const scrollers = [filmstripScrollDesktopRef.current, filmstripScrollMobileRef.current].filter(
-      (el): el is HTMLDivElement => el != null,
-    )
-    if (scrollers.length === 0) return
+    const scroller = filmstripScrollRef.current
+    if (!scroller || total <= 1) return
 
     let cancelled = false
     const frame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         if (cancelled) return
-        for (const scroller of scrollers) {
-          const thumbs = scroller.querySelectorAll<HTMLElement>('[role="tab"]')
-          const thumb = thumbs[active]
-          if (!thumb) continue
+        const thumbs = scroller.querySelectorAll<HTMLElement>('[role="tab"]')
+        const thumb = thumbs[active]
+        if (!thumb) return
 
-          const scrollerRect = scroller.getBoundingClientRect()
-          const thumbRect = thumb.getBoundingClientRect()
-          const thumbCenter =
-            thumbRect.left - scrollerRect.left + scroller.scrollLeft + thumbRect.width / 2
-          const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
-          if (maxScroll <= 0) continue
+        const scrollerRect = scroller.getBoundingClientRect()
+        const thumbRect = thumb.getBoundingClientRect()
+        const thumbCenter =
+          thumbRect.left - scrollerRect.left + scroller.scrollLeft + thumbRect.width / 2
+        const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
+        if (maxScroll <= 0) return
 
-          const target = Math.max(
-            0,
-            Math.min(thumbCenter - scroller.clientWidth / 2, maxScroll),
-          )
-          scroller.scrollTo({
-            left: target,
-            behavior: reducedMotion ? "auto" : "smooth",
-          })
-        }
+        const target = Math.max(
+          0,
+          Math.min(thumbCenter - scroller.clientWidth / 2, maxScroll),
+        )
+        scroller.scrollTo({
+          left: target,
+          behavior: reducedMotion ? "auto" : "smooth",
+        })
       })
     })
 
@@ -615,99 +608,114 @@ export function HeroCarousel({
   const glassBtn =
     "inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white shadow-sm backdrop-blur-md transition hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
 
-  const filmstripThumbs = (scrollRef: RefObject<HTMLDivElement | null>, compact: boolean) => (
-    <div
-      ref={scrollRef}
-      className={cn(
-        "relative scrollbar-none flex overflow-x-auto overscroll-x-contain scroll-smooth",
-        compact
-          ? "gap-2 max-w-[15.5rem] pb-0.5 lg:max-w-[18.5rem] xl:max-w-[19.5rem]"
-          : "min-w-0 flex-1 gap-2 pb-0.5",
-        "[mask-image:linear-gradient(to_right,transparent_0%,black_8%,black_92%,transparent_100%)]",
-        "[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_8%,black_92%,transparent_100%)]",
-      )}
-      role="tablist"
-      aria-label="Up next featured videos"
-      onTouchStart={(e) => e.stopPropagation()}
-      onTouchEnd={(e) => e.stopPropagation()}
-      onWheel={(e) => {
-        if (
-          Math.abs(e.deltaX) < Math.abs(e.deltaY) &&
-          e.currentTarget.scrollWidth > e.currentTarget.clientWidth
-        ) {
-          e.currentTarget.scrollLeft += e.deltaY
-          e.preventDefault()
-        }
-      }}
-    >
-      {cards.map((card, index) => {
-        const isCurrent = index === active
-        return (
-          <button
-            key={card.id}
-            type="button"
-            role="tab"
-            aria-selected={isCurrent}
-            aria-label={`Show ${card.title}`}
-            onClick={() => {
-              setProgress(0)
-              goTo(index)
-            }}
-            className={cn(
-              "relative isolate aspect-[16/10] shrink-0 overflow-hidden rounded-[6px] ring-1 transition",
-              compact ? "w-[4.75rem] lg:w-[5.5rem] xl:w-[5.75rem]" : "w-[4.75rem] sm:w-[5.25rem]",
-              isCurrent
-                ? compact
-                  ? "ring-2 ring-white"
-                  : "ring-2 ring-[#E8192C]"
-                : compact
-                  ? "ring-white/30 opacity-80 hover:opacity-100"
-                  : "ring-black/15 opacity-85 hover:opacity-100",
-            )}
-          >
-            {card.thumbnail ? (
-              <AuthenticatedImage
-                src={card.thumbnail}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="(min-width: 1280px) 92px, (min-width: 1024px) 88px, 68px"
-                authenticated
-              />
-            ) : (
-              <VideoThumbnailPlaceholder fill />
-            )}
-            {isCurrent ? (
-              <span
-                className={cn(
-                  "absolute inset-x-1 bottom-1 h-0.5 overflow-hidden rounded-full",
-                  compact ? "bg-white/25" : "bg-black/20",
-                )}
-                aria-hidden
-              >
-                <span
-                  className="absolute inset-y-0 left-0 rounded-full bg-[#E8192C]"
-                  style={{ width: `${progress}%` }}
+  /** In-player filmstrip — mobile gets side chevrons; desktop uses center hero arrows. */
+  const filmstrip = canNavigate ? (
+    <div className="flex shrink-0 items-center gap-1 self-end md:gap-0" role="presentation">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setProgress(0)
+          goPrev()
+        }}
+        className={cn(
+          "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+          "md:hidden",
+        )}
+        aria-label="Previous featured video"
+        data-analytics-name="home-hero-filmstrip-prev"
+      >
+        <ChevronLeft className="size-3.5" aria-hidden />
+      </button>
+
+      <div
+        ref={filmstripScrollRef}
+        className={cn(
+          "relative scrollbar-none flex gap-1.5 overflow-x-auto overscroll-x-contain scroll-smooth pb-0.5 md:gap-2",
+          // ~2.5 thumbs on mobile, ~3 on desktop
+          "max-w-[9.5rem] sm:max-w-[11rem] md:max-w-[15.5rem] lg:max-w-[18.5rem] xl:max-w-[19.5rem]",
+          "[mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]",
+          "[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]",
+        )}
+        role="tablist"
+        aria-label="Up next featured videos"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          if (
+            Math.abs(e.deltaX) < Math.abs(e.deltaY) &&
+            e.currentTarget.scrollWidth > e.currentTarget.clientWidth
+          ) {
+            e.currentTarget.scrollLeft += e.deltaY
+            e.preventDefault()
+          }
+        }}
+      >
+        {cards.map((card, index) => {
+          const isCurrent = index === active
+          return (
+            <button
+              key={card.id}
+              type="button"
+              role="tab"
+              aria-selected={isCurrent}
+              aria-label={`Show ${card.title}`}
+              onClick={() => {
+                setProgress(0)
+                goTo(index)
+              }}
+              className={cn(
+                "relative isolate aspect-[16/10] shrink-0 overflow-hidden rounded-[5px] ring-1 transition md:rounded-[6px]",
+                "w-[3.35rem] sm:w-[3.75rem] md:w-[4.75rem] lg:w-[5.5rem] xl:w-[5.75rem]",
+                isCurrent ? "ring-2 ring-white" : "ring-white/30 opacity-80 hover:opacity-100",
+              )}
+            >
+              {card.thumbnail ? (
+                <AuthenticatedImage
+                  src={card.thumbnail}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="(min-width: 1280px) 92px, (min-width: 1024px) 88px, 60px"
+                  authenticated
                 />
-              </span>
-            ) : null}
-          </button>
-        )
-      })}
-    </div>
-  )
+              ) : (
+                <VideoThumbnailPlaceholder fill />
+              )}
+              {isCurrent ? (
+                <span
+                  className="absolute inset-x-0.5 bottom-0.5 h-0.5 overflow-hidden rounded-full bg-white/25 md:inset-x-1 md:bottom-1"
+                  aria-hidden
+                >
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-full bg-[#E8192C]"
+                    style={{ width: `${progress}%` }}
+                  />
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
 
-  /** Desktop: filmstrip lives inside the player overlay. */
-  const filmstripDesktop = canNavigate ? (
-    <div className="hidden shrink-0 md:block" role="presentation">
-      {filmstripThumbs(filmstripScrollDesktopRef, true)}
-    </div>
-  ) : null
-
-  /** Mobile: filmstrip below the stage — swipe only, no side chevrons. */
-  const filmstripMobile = canNavigate ? (
-    <div className="mt-2.5 w-full md:hidden" role="presentation">
-      {filmstripThumbs(filmstripScrollMobileRef, false)}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setProgress(0)
+          goNext()
+        }}
+        className={cn(
+          "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+          "md:hidden",
+        )}
+        aria-label="Next featured video"
+        data-analytics-name="home-hero-filmstrip-next"
+      >
+        <ChevronRight className="size-3.5" aria-hidden />
+      </button>
     </div>
   ) : null
 
@@ -966,7 +974,7 @@ export function HeroCarousel({
           </div>
         </div>
 
-        {filmstripDesktop}
+        {filmstrip}
       </div>
 
       {canNavigate ? (
@@ -1020,7 +1028,6 @@ export function HeroCarousel({
       />
     </section>
     </div>
-    {filmstripMobile}
     </div>
   )
 }
