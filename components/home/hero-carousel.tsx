@@ -17,7 +17,6 @@ import {
   Bookmark,
   ChevronLeft,
   ChevronRight,
-  Pause,
   Play,
   Share2,
   Volume2,
@@ -825,21 +824,8 @@ export function HeroCarousel({
         aria-hidden
       />
 
-      {/* Top-right actions — mobile: mute + share only; desktop: full set */}
+      {/* Top-right actions — mute + share on mobile; desktop also includes save */}
       <div className="absolute right-2.5 top-2.5 z-30 flex items-center gap-1.5 md:right-5 md:top-5 md:gap-3">
-        <button
-          type="button"
-          onClick={togglePlay}
-          className={cn(glassBtn, "hidden size-8 md:inline-flex md:size-10")}
-          aria-label={isPlaying ? "Pause video" : "Play video"}
-          data-analytics-name="home-hero-play-pause"
-        >
-          {isPlaying ? (
-            <Pause className="size-4 fill-current" aria-hidden />
-          ) : (
-            <Play className="size-4 fill-current" aria-hidden />
-          )}
-        </button>
         <button
           type="button"
           onClick={toggleMute}
