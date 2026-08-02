@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
+import { pauseActiveHoverPreview } from "@/components/video/video-card-hover-preview"
 import { HeroCarousel } from "@/components/home/hero-carousel"
 import { HeroCarouselSkeleton } from "@/components/home/hero-carousel-skeleton"
 import { MoodMixChips } from "@/components/home/mood-mix-chips"
@@ -124,6 +125,8 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const [heroSource, setHeroSource] = useState<"pending" | "curated" | "discover">(() =>
     initialVideos.length > 0 ? "discover" : "pending",
   )
+  /** Scroll gate: Discover hover previews off while hero is meaningfully on screen. */
+  const [heroInView, setHeroInView] = useState(true)
   const curatedHeroIdsRef = useRef<string | null>(null)
 
   const discoverHeroFallback = useMemo(() => {
@@ -183,6 +186,11 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         // analytics optional
       }
     }
+  }, [])
+
+  const handleHeroInViewChange = useCallback((inView: boolean) => {
+    setHeroInView(inView)
+    if (inView) pauseActiveHoverPreview()
   }, [])
 
   useEffect(() => {
@@ -624,31 +632,32 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
         </div>
 
         {!isMoodFeed && heroSource === "pending" && heroCards.length === 0 ? (
-          <div className="mb-6 sm:mb-7">
+          <div className="mb-3 sm:mb-4">
             <HeroCarouselSkeleton />
           </div>
         ) : null}
 
         {heroCards.length > 0 ? (
           <div
-            className={cn("mb-6 sm:mb-7", isMoodFeed && "hidden")}
+            className={cn("mb-3 sm:mb-4", isMoodFeed && "hidden")}
             aria-hidden={isMoodFeed}
           >
             <HeroCarousel
               cards={heroCards}
               playbackActive={!isMoodFeed}
               onCardChange={handleHeroCardChange}
+              onInViewChange={handleHeroInViewChange}
               openVideoUiName={OPENED_VIDEO_FROM_HOME_HERO}
             />
           </div>
         ) : null}
 
-        {(!isMoodFeed && (heroSource === "pending" || heroCards.length > 0)) ? (
-          <h2 className="mb-3 text-base font-semibold tracking-tight text-foreground sm:mb-4 sm:text-lg">
-            Recommended Videos
+        {!isMoodFeed && (heroSource === "pending" || heroCards.length > 0) ? (
+          <h2 className="mb-1.5 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            Discover
           </h2>
         ) : isMoodFeed && activeMoodDef ? (
-          <h2 className="mb-3 text-base font-semibold tracking-tight text-foreground sm:mb-4 sm:text-lg">
+          <h2 className="mb-1.5 text-base font-semibold tracking-tight text-foreground sm:text-lg">
             {activeMoodDef.label}
           </h2>
         ) : null}
@@ -669,7 +678,10 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
           />
         ) : null}
 
-        <FeedVideoPreviewProvider>
+        <FeedVideoPreviewProvider
+          // One stage at a time: no grid hover while the featured hero is in view.
+          enabled={isMoodFeed || heroCards.length === 0 || !heroInView}
+        >
           <MoodFeedAnimated
             feedKey={activeMood ?? "all"}
             loading={loading || loadingMore}

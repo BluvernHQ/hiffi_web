@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -58,9 +59,9 @@ const AddToPlaylistDialog = dynamic(
 const SWITCH_MS = 280
 /** Browse-friendly level — half of full so unmute/resume isn’t overpowering. */
 const PREVIEW_VOLUME = 0.5
-/** Fade-in start when unmuting / resuming sound after mood → All. */
-const UNMUTE_START_VOLUME = 0
-const UNMUTE_FADE_MS = 480
+/** Fade-in start when unmuting — keep slightly above 0 so a cancelled fade isn’t fully silent. */
+const UNMUTE_START_VOLUME = 0.08
+const UNMUTE_FADE_MS = 360
 /** If duration never resolves, advance after this many seconds of playback. */
 const UNKNOWN_DURATION_FALLBACK_MS = 45_000
 
@@ -74,6 +75,8 @@ export type HeroCarouselProps = {
    * When true again, resume from the same position if still in view.
    */
   playbackActive?: boolean
+  /** Fires when hero crosses the in-view threshold (~40% visible). */
+  onInViewChange?: (inView: boolean) => void
 }
 
 /** Append ?t= / &t= so the watch player can resume from the hero position. */
@@ -106,6 +109,7 @@ export function HeroCarousel({
   onCardChange,
   openVideoUiName = "opened-video-from-home-hero",
   playbackActive = true,
+  onInViewChange,
 }: HeroCarouselProps) {
   const router = useRouter()
   const { user } = useAuth()
@@ -190,7 +194,7 @@ export function HeroCarousel({
         return
       }
       const shouldFade =
-        forceVolumeFadeRef.current || el.muted || el.volume <= 0.02
+        forceVolumeFadeRef.current || el.muted || el.volume <= UNMUTE_START_VOLUME + 0.01
       forceVolumeFadeRef.current = false
       el.defaultMuted = false
       el.muted = false
@@ -202,6 +206,28 @@ export function HeroCarousel({
     },
     [cancelVolumeFade, fadeInVolume],
   )
+
+  /**
+   * React's controlled `muted` prop can re-apply after we unmute in the click
+   * handler, leaving muted=false in UI state but a silent (volume≈0) element.
+   * Re-sync after commit so DOM matches isMuted / playbackActive.
+   */
+  useLayoutEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+    const wantMuted = isMuted || !playbackActive
+    if (wantMuted) {
+      applyAudio(el, true)
+      return
+    }
+    applyAudio(el, false)
+    // Hard guarantee after React commits muted={false}.
+    el.muted = false
+    el.defaultMuted = false
+    if (el.volume < 0.05 && volumeFadeRafRef.current == null) {
+      el.volume = PREVIEW_VOLUME
+    }
+  }, [activeCard?.id, applyAudio, isMuted, playbackActive, streamIndex])
 
   useEffect(() => () => cancelVolumeFade(), [cancelVolumeFade])
 
@@ -224,7 +250,9 @@ export function HeroCarousel({
       userPaused ||
       !inViewRef.current ||
       !playbackActiveRef.current ||
-      resumeOnHoverRef.current
+      resumeOnHoverRef.current ||
+      // Don't burn decode/bandwidth in a background tab.
+      (typeof document !== "undefined" && document.hidden)
     ) {
       return
     }
@@ -234,34 +262,60 @@ export function HeroCarousel({
 
     // Prefer muted autoplay; unmute only after a user gesture (or prior preference + gesture).
     const allowSound = hasUserGestureRef.current && wantSoundRef.current
-    applyAudio(el, !allowSound)
     setIsMuted(!allowSound)
+    applyAudio(el, !allowSound)
 
     try {
       await el.play()
       if (gen !== playGenRef.current) return
       setIsPlaying(true)
-      // Guard against muted=false + volume=0 silent state after tab switches.
-      if (allowSound && el.volume < 0.05 && volumeFadeRafRef.current == null) {
-        forceVolumeFadeRef.current = true
-        applyAudio(el, false)
+      if (allowSound) {
+        // Ensure audible after play() — some browsers start muted/volume 0.
+        el.muted = false
+        el.defaultMuted = false
+        if (el.volume < 0.05) {
+          cancelVolumeFade()
+          el.volume = PREVIEW_VOLUME
+        }
       }
     } catch {
       if (gen !== playGenRef.current) return
+      // Sound autoplay blocked: start muted, then restore sound if the user asked for it.
       applyAudio(el, true)
-      setIsMuted(true)
       try {
         await el.play()
         if (gen !== playGenRef.current) return
         setIsPlaying(true)
+        if (allowSound) {
+          setIsMuted(false)
+          forceVolumeFadeRef.current = true
+          applyAudio(el, false)
+        } else {
+          setIsMuted(true)
+        }
       } catch {
         setIsPlaying(false)
       }
     }
-  }, [applyAudio, userPaused])
+  }, [applyAudio, cancelVolumeFade, userPaused])
+
+  // Hero-only: pause when the browser tab is hidden; resume if still eligible.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        pauseVideo()
+        return
+      }
+      if (resumeOnHoverRef.current || userPaused) return
+      void tryPlay()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [pauseVideo, tryPlay, userPaused])
 
   const onHeroVisibilityChange = useEffectEvent((visible: boolean) => {
     inViewRef.current = visible
+    onInViewChange?.(visible)
     if (!visible || !playbackActiveRef.current) {
       pauseVideo()
       return
@@ -280,10 +334,10 @@ export function HeroCarousel({
         const entry = entries[0]
         if (!entry) return
         onHeroVisibilityChange(
-          entry.isIntersecting && entry.intersectionRatio >= 0.35,
+          entry.isIntersecting && entry.intersectionRatio >= 0.4,
         )
       },
-      { threshold: [0, 0.15, 0.35, 0.5, 0.75, 1] },
+      { threshold: [0, 0.15, 0.35, 0.4, 0.5, 0.75, 1] },
     )
     observer.observe(root)
     return () => observer.disconnect()
@@ -462,11 +516,21 @@ export function HeroCarousel({
       return
     }
 
-    // Unmute: force an audible path (React muted prop syncs via isMuted).
+    // Unmute: set intent immediately; useLayoutEffect re-syncs after React commits
+    // muted={false} so we don't lose to the controlled prop race.
     forceVolumeFadeRef.current = true
     applyAudio(el, false)
     el.muted = false
     el.defaultMuted = false
+    // Snap audible if a prior cancelled fade left volume near 0.
+    if (el.volume < 0.05) el.volume = PREVIEW_VOLUME
+    requestAnimationFrame(() => {
+      const node = videoRef.current
+      if (!node || wantSoundRef.current === false) return
+      node.muted = false
+      node.defaultMuted = false
+      if (node.volume < 0.05) node.volume = PREVIEW_VOLUME
+    })
     if (el.paused && !userPaused) void tryPlay()
   }, [applyAudio, isMuted, markGesture, tryPlay, userPaused])
 
@@ -782,8 +846,8 @@ export function HeroCarousel({
               className="absolute inset-0 size-full scale-[1.02] object-cover object-[center_30%] md:object-center"
               src={activeStreamUrl}
               playsInline
-              // Bind to state — a hardcoded `muted` made React re-mute after unmute
-              // until the next clip remounted.
+              // Controlled muted — useLayoutEffect re-applies volume after commit so unmute
+              // isn't left silent (React muted race + cancelled 0→fade).
               muted={isMuted || !playbackActive}
               autoPlay
               // Low-bitrate hero ladder (≤480p) keeps preload=auto cheap on remote Workers.
