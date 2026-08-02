@@ -157,10 +157,10 @@
   }
 }
 
-/* Homepage hero — slow Ken Burns zoom on the active featured card */
+/* Homepage hero — slow Ken Burns on still poster only (scale starts inset to avoid corner bleed) */
 @keyframes hero-ken-burns {
   from {
-    transform: scale(1);
+    transform: scale(1.02);
   }
   to {
     transform: scale(1.08);
@@ -169,6 +169,8 @@
 
 .animate-hero-ken-burns {
   animation: hero-ken-burns 8s ease-in-out infinite alternate;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* Mood picker — subtle film grain on orbs */

@@ -713,11 +713,18 @@ export function HeroCarousel({
 
   return (
     <div className={cn("w-full", className)}>
+    {/* Outer shell owns ring/shadow; inner stage owns overflow clip — avoids corner flicker
+        from box-shadow + transformed/video layers sharing one compositing surface. */}
+    <div
+      className={cn(
+        "relative w-full overflow-hidden rounded-xl bg-zinc-950 sm:rounded-2xl",
+        "ring-1 ring-black/10 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.55)]",
+      )}
+    >
     <section
       ref={sectionRef}
       className={cn(
-        "group/hero relative w-full overflow-hidden rounded-xl bg-zinc-950 outline-none sm:rounded-2xl",
-        "ring-1 ring-black/10 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.55)]",
+        "group/hero relative w-full overflow-hidden rounded-[inherit] outline-none isolate [contain:paint]",
         // Fixed stage height — overlays sit on top, so mobile never grows from content
         "aspect-[16/9] max-h-[232px] sm:max-h-[248px] md:aspect-[21/9] md:max-h-[min(46svh,460px)]",
       )}
@@ -729,14 +736,20 @@ export function HeroCarousel({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Clip media separately so Ken Burns transforms don't bleed past rounded corners
-          (overflow-hidden + border-radius + transformed children is a known compositor bug). */}
-      <div className="absolute inset-0 overflow-hidden rounded-[inherit] [transform:translateZ(0)] [-webkit-mask-image:-webkit-radial-gradient(white,black)]">
+      {/* Media clip: paint containment + round clip-path so video never bleeds past corners. */}
+      <div
+        className={cn(
+          "absolute inset-0 overflow-hidden rounded-[inherit] isolate",
+          "[transform:translateZ(0)] [backface-visibility:hidden]",
+          "[clip-path:inset(0_round_0.75rem)] sm:[clip-path:inset(0_round_1rem)]",
+        )}
+      >
         <div
           className={cn(
             "absolute inset-0 origin-center",
-            // Still poster only — scaling a playing <video> flickers the rounded edges.
-            !reducedMotion && !activeStreamUrl && "animate-hero-ken-burns will-change-transform",
+            // Never Ken-Burns a live <video> — that is the main rounded-corner flicker source.
+            // Poster-only zoom stays subtle and starts already slightly inset.
+            !reducedMotion && !activeStreamUrl && "animate-hero-ken-burns",
             crossfading && "opacity-70",
           )}
         >
@@ -758,7 +771,8 @@ export function HeroCarousel({
             <video
               key={`${activeCard.id}-${streamIndex}`}
               ref={videoRef}
-              className="absolute inset-0 size-full object-cover object-[center_30%] md:object-center"
+              // scale-[1.02] keeps decoded frames inside the clip so rounded edges stay clean
+              className="absolute inset-0 size-full scale-[1.02] object-cover object-[center_30%] md:object-center"
               src={activeStreamUrl}
               playsInline
               // Bind to state — a hardcoded `muted` made React re-mute after unmute
@@ -789,12 +803,17 @@ export function HeroCarousel({
         </div>
       </div>
 
+      {/* Left veil — width tracks the title column so the right of the clip stays open */}
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/85 md:bg-gradient-to-r md:from-black md:via-black/70 md:to-transparent md:w-[68%]"
+        className="pointer-events-none absolute inset-y-0 left-0 w-[58%] bg-gradient-to-r from-black via-black/75 to-transparent md:w-[68%] md:via-black/70"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-t from-black/90 via-black/40 to-transparent md:h-[40%]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[32%] bg-gradient-to-b from-black/35 to-transparent md:hidden"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-black/85 via-black/35 to-transparent md:h-[40%]"
         aria-hidden
       />
 
@@ -858,7 +877,7 @@ export function HeroCarousel({
           crossfading && "opacity-80",
         )}
       >
-        <div className="min-w-0 flex-1 md:max-w-[min(48%,26rem)] lg:max-w-[38%]">
+        <div className="min-w-0 max-w-[min(48%,12.5rem)] flex-1 sm:max-w-[min(48%,14rem)] md:max-w-[min(48%,26rem)] lg:max-w-[38%]">
           <p className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-[#5B9DFF] md:block md:text-[11px]">
             Featured
           </p>
@@ -871,15 +890,16 @@ export function HeroCarousel({
           >
             <h2
               className={cn(
-                "truncate text-[0.9375rem] font-semibold leading-snug tracking-normal text-white drop-shadow-md transition group-hover:text-white/90",
-                "md:font-[family-name:var(--font-bebas)] md:line-clamp-3 md:whitespace-normal md:text-[2.15rem] md:font-normal md:leading-[1.05] md:tracking-wide lg:text-[2.45rem]",
+                "line-clamp-3 text-[0.875rem] font-semibold leading-snug tracking-normal text-white drop-shadow-md transition group-hover:text-white/90",
+                "md:font-[family-name:var(--font-bebas)] md:text-[2.15rem] md:font-normal md:leading-[1.05] md:tracking-wide lg:text-[2.45rem]",
               )}
+              title={activeCard.title}
             >
               {activeCard.title}
             </h2>
           </Link>
 
-          <div className="mt-1.5 flex min-w-0 items-center gap-1.5 md:mt-3 md:gap-2.5">
+          <div className="mt-1 flex min-w-0 items-center gap-1.5 md:mt-3 md:gap-2.5">
             {activeCard.handle ? (
               <Link
                 href={`/profile/${encodeURIComponent(activeCard.handle)}`}
@@ -999,6 +1019,7 @@ export function HeroCarousel({
         description={AUTH_DIALOG_COPY.playlist.description}
       />
     </section>
+    </div>
     {filmstripMobile}
     </div>
   )
