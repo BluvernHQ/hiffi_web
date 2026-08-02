@@ -14,6 +14,9 @@ export type HeroCarouselCard = {
   videoUrl: string
   /** Original API storage path — used to rebuild the playback ladder. */
   storagePath?: string
+  /** Encoded profile ladder from API — required for low-bitrate hero playback. */
+  profiles?: string[] | null
+  originalProfile?: string | null
   artistName: string
   handle: string
   viewCount: number
@@ -106,15 +109,17 @@ export function mapVideosToHeroCards(
     const thumbPath = String(video.video_thumbnail || video.videoThumbnail || "").trim()
     const thumbnail = thumbPath ? getThumbnailUrl(thumbPath) : ""
     const storagePath = String(video.video_url || video.videoUrl || "").trim()
+    const profiles = Array.isArray(video.profiles) ? (video.profiles as string[]) : null
+    const originalProfile =
+      (video.original_profile as string | undefined) ||
+      (video.originalProfile as string | undefined) ||
+      null
     const videoUrl =
       getPrimaryPreviewStreamUrl({
         video_id: id,
         video_url: storagePath || undefined,
-        profiles: Array.isArray(video.profiles) ? (video.profiles as string[]) : null,
-        original_profile:
-          (video.original_profile as string | undefined) ||
-          (video.originalProfile as string | undefined) ||
-          null,
+        profiles,
+        original_profile: originalProfile,
       }) || ""
     const viewCount = getVideoViewCount(video as never)
     const viewCountLabel = shouldShowVideoViewCount(viewCount)
@@ -139,6 +144,8 @@ export function mapVideosToHeroCards(
       thumbnail,
       videoUrl,
       storagePath: storagePath || undefined,
+      profiles,
+      originalProfile,
       artistName: artistName || handle || "Artist",
       handle,
       viewCount,

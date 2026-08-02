@@ -8,6 +8,7 @@ import {
   useState,
   type KeyboardEvent,
   type MouseEvent,
+  type RefObject,
   type TouchEvent,
 } from "react"
 import dynamic from "next/dynamic"
@@ -75,10 +76,6 @@ export type HeroCarouselProps = {
    * When true again, resume from the same position if still in view.
    */
   playbackActive?: boolean
-}
-
-function padIndex(n: number) {
-  return String(n).padStart(2, "0")
 }
 
 /** Append ?t= / &t= so the watch player can resume from the hero position. */
@@ -382,8 +379,11 @@ export function HeroCarousel({
     const derived = getFeedPreviewSources({
       video_id: activeCard.id,
       video_url: activeCard.storagePath || activeCard.videoUrl || undefined,
+      profiles: activeCard.profiles,
+      original_profile: activeCard.originalProfile,
     })
-    const urls = [...new Set([activeCard.videoUrl, ...derived].filter(Boolean))]
+    // Prefer low-bitrate ladder first; keep mapped videoUrl as a late fallback only.
+    const urls = [...new Set([...derived, activeCard.videoUrl].filter(Boolean))]
     setStreamUrls(urls)
     setStreamIndex(0)
     setProgress(0)
@@ -525,7 +525,8 @@ export function HeroCarousel({
 
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
-  const filmstripScrollRef = useRef<HTMLDivElement | null>(null)
+  const filmstripScrollDesktopRef = useRef<HTMLDivElement | null>(null)
+  const filmstripScrollMobileRef = useRef<HTMLDivElement | null>(null)
 
   const onTouchStart = useCallback((e: TouchEvent) => {
     const t = e.changedTouches[0]
@@ -555,32 +556,37 @@ export function HeroCarousel({
   // Keep the active filmstrip thumb centered whenever the slide changes
   // (thumb tap, mobile side chevrons, or desktop center arrows).
   useEffect(() => {
-    const scroller = filmstripScrollRef.current
-    if (!scroller || total <= 1) return
+    if (total <= 1) return
+    const scrollers = [filmstripScrollDesktopRef.current, filmstripScrollMobileRef.current].filter(
+      (el): el is HTMLDivElement => el != null,
+    )
+    if (scrollers.length === 0) return
 
     let cancelled = false
     const frame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         if (cancelled) return
-        const thumbs = scroller.querySelectorAll<HTMLElement>('[role="tab"]')
-        const thumb = thumbs[active]
-        if (!thumb) return
+        for (const scroller of scrollers) {
+          const thumbs = scroller.querySelectorAll<HTMLElement>('[role="tab"]')
+          const thumb = thumbs[active]
+          if (!thumb) continue
 
-        const scrollerRect = scroller.getBoundingClientRect()
-        const thumbRect = thumb.getBoundingClientRect()
-        const thumbCenter =
-          thumbRect.left - scrollerRect.left + scroller.scrollLeft + thumbRect.width / 2
-        const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
-        if (maxScroll <= 0) return
+          const scrollerRect = scroller.getBoundingClientRect()
+          const thumbRect = thumb.getBoundingClientRect()
+          const thumbCenter =
+            thumbRect.left - scrollerRect.left + scroller.scrollLeft + thumbRect.width / 2
+          const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
+          if (maxScroll <= 0) continue
 
-        const target = Math.max(
-          0,
-          Math.min(thumbCenter - scroller.clientWidth / 2, maxScroll),
-        )
-        scroller.scrollTo({
-          left: target,
-          behavior: reducedMotion ? "auto" : "smooth",
-        })
+          const target = Math.max(
+            0,
+            Math.min(thumbCenter - scroller.clientWidth / 2, maxScroll),
+          )
+          scroller.scrollTo({
+            left: target,
+            behavior: reducedMotion ? "auto" : "smooth",
+          })
+        }
       })
     })
 
@@ -609,134 +615,111 @@ export function HeroCarousel({
   const glassBtn =
     "inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white shadow-sm backdrop-blur-md transition hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
 
-  /** Filmstrip: mobile gets side chevrons; desktop uses center hero arrows. */
-  const filmstrip = canNavigate ? (
-    <div className="flex shrink-0 flex-col items-end gap-1.5 md:gap-2" role="presentation">
-      <div className="flex items-center gap-1 md:gap-0">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setProgress(0)
-            goPrev()
-          }}
-          className={cn(
-            "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-            "md:hidden",
-          )}
-          aria-label="Previous featured video"
-          data-analytics-name="home-hero-filmstrip-prev"
-        >
-          <ChevronLeft className="size-3.5" aria-hidden />
-        </button>
-
-        <div
-          ref={filmstripScrollRef}
-          className={cn(
-            "relative scrollbar-none flex gap-1.5 overflow-x-auto overscroll-x-contain scroll-smooth pb-0.5 md:gap-2",
-            // ~2.5 thumbs on mobile, ~3 on desktop
-            "max-w-[9.5rem] sm:max-w-[11rem] md:max-w-[15.5rem] lg:max-w-[18.5rem] xl:max-w-[19.5rem]",
-            "[mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]",
-            "[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent_100%)]",
-          )}
-          role="tablist"
-          aria-label="Up next featured videos"
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-          onWheel={(e) => {
-            if (
-              Math.abs(e.deltaX) < Math.abs(e.deltaY) &&
-              e.currentTarget.scrollWidth > e.currentTarget.clientWidth
-            ) {
-              e.currentTarget.scrollLeft += e.deltaY
-              e.preventDefault()
-            }
-          }}
-        >
-          {cards.map((card, index) => {
-            const isCurrent = index === active
-            return (
-              <button
-                key={card.id}
-                type="button"
-                role="tab"
-                aria-selected={isCurrent}
-                aria-label={`Show ${card.title}`}
-                onClick={() => {
-                  setProgress(0)
-                  goTo(index)
-                }}
+  const filmstripThumbs = (scrollRef: RefObject<HTMLDivElement | null>, compact: boolean) => (
+    <div
+      ref={scrollRef}
+      className={cn(
+        "relative scrollbar-none flex overflow-x-auto overscroll-x-contain scroll-smooth",
+        compact
+          ? "gap-2 max-w-[15.5rem] pb-0.5 lg:max-w-[18.5rem] xl:max-w-[19.5rem]"
+          : "min-w-0 flex-1 gap-2 pb-0.5",
+        "[mask-image:linear-gradient(to_right,transparent_0%,black_8%,black_92%,transparent_100%)]",
+        "[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_8%,black_92%,transparent_100%)]",
+      )}
+      role="tablist"
+      aria-label="Up next featured videos"
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onWheel={(e) => {
+        if (
+          Math.abs(e.deltaX) < Math.abs(e.deltaY) &&
+          e.currentTarget.scrollWidth > e.currentTarget.clientWidth
+        ) {
+          e.currentTarget.scrollLeft += e.deltaY
+          e.preventDefault()
+        }
+      }}
+    >
+      {cards.map((card, index) => {
+        const isCurrent = index === active
+        return (
+          <button
+            key={card.id}
+            type="button"
+            role="tab"
+            aria-selected={isCurrent}
+            aria-label={`Show ${card.title}`}
+            onClick={() => {
+              setProgress(0)
+              goTo(index)
+            }}
+            className={cn(
+              "relative isolate aspect-[16/10] shrink-0 overflow-hidden rounded-[6px] ring-1 transition",
+              compact ? "w-[4.75rem] lg:w-[5.5rem] xl:w-[5.75rem]" : "w-[4.75rem] sm:w-[5.25rem]",
+              isCurrent
+                ? compact
+                  ? "ring-2 ring-white"
+                  : "ring-2 ring-[#E8192C]"
+                : compact
+                  ? "ring-white/30 opacity-80 hover:opacity-100"
+                  : "ring-black/15 opacity-85 hover:opacity-100",
+            )}
+          >
+            {card.thumbnail ? (
+              <AuthenticatedImage
+                src={card.thumbnail}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(min-width: 1280px) 92px, (min-width: 1024px) 88px, 68px"
+                authenticated
+              />
+            ) : (
+              <VideoThumbnailPlaceholder fill />
+            )}
+            {isCurrent ? (
+              <span
                 className={cn(
-                  "relative isolate aspect-[16/10] shrink-0 overflow-hidden rounded-[5px] ring-1 transition md:rounded-[6px]",
-                  "w-[3.35rem] sm:w-[3.75rem] md:w-[4.75rem] lg:w-[5.5rem] xl:w-[5.75rem]",
-                  isCurrent ? "ring-2 ring-white" : "ring-white/30 opacity-80 hover:opacity-100",
+                  "absolute inset-x-1 bottom-1 h-0.5 overflow-hidden rounded-full",
+                  compact ? "bg-white/25" : "bg-black/20",
                 )}
+                aria-hidden
               >
-                {card.thumbnail ? (
-                  <AuthenticatedImage
-                    src={card.thumbnail}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="(min-width: 1280px) 92px, (min-width: 1024px) 88px, 60px"
-                    authenticated
-                  />
-                ) : (
-                  <VideoThumbnailPlaceholder fill />
-                )}
-                {isCurrent ? (
-                  <span
-                    className="absolute inset-x-0.5 bottom-0.5 h-0.5 overflow-hidden rounded-full bg-white/25 md:inset-x-1 md:bottom-1"
-                    aria-hidden
-                  >
-                    <span
-                      className="absolute inset-y-0 left-0 rounded-full bg-[#E8192C]"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </span>
-                ) : null}
-              </button>
-            )
-          })}
-        </div>
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full bg-[#E8192C]"
+                  style={{ width: `${progress}%` }}
+                />
+              </span>
+            ) : null}
+          </button>
+        )
+      })}
+    </div>
+  )
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setProgress(0)
-            goNext()
-          }}
-          className={cn(
-            "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/50 text-white backdrop-blur-md transition hover:bg-black/70",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-            "md:hidden",
-          )}
-          aria-label="Next featured video"
-          data-analytics-name="home-hero-filmstrip-next"
-        >
-          <ChevronRight className="size-3.5" aria-hidden />
-        </button>
-      </div>
-      <span
-        className="self-center font-mono text-[10px] tabular-nums tracking-wider text-white/55 md:self-end md:text-[11px]"
-        aria-live="polite"
-      >
-        {padIndex(active + 1)}/{padIndex(total)}
-      </span>
+  /** Desktop: filmstrip lives inside the player overlay. */
+  const filmstripDesktop = canNavigate ? (
+    <div className="hidden shrink-0 md:block" role="presentation">
+      {filmstripThumbs(filmstripScrollDesktopRef, true)}
+    </div>
+  ) : null
+
+  /** Mobile: filmstrip below the stage — swipe only, no side chevrons. */
+  const filmstripMobile = canNavigate ? (
+    <div className="mt-2.5 w-full md:hidden" role="presentation">
+      {filmstripThumbs(filmstripScrollMobileRef, false)}
     </div>
   ) : null
 
   return (
+    <div className={cn("w-full", className)}>
     <section
       ref={sectionRef}
       className={cn(
         "group/hero relative w-full overflow-hidden rounded-xl bg-zinc-950 outline-none sm:rounded-2xl",
         "ring-1 ring-black/10 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.55)]",
         // Fixed stage height — overlays sit on top, so mobile never grows from content
-        "aspect-[16/9] max-h-[200px] sm:max-h-[220px] md:aspect-[21/9] md:max-h-[min(46svh,460px)]",
-        className,
+        "aspect-[16/9] max-h-[232px] sm:max-h-[248px] md:aspect-[21/9] md:max-h-[min(46svh,460px)]",
       )}
       aria-roledescription="carousel"
       aria-label="Featured artist videos"
@@ -746,59 +729,64 @@ export function HeroCarousel({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div
-        className={cn(
-          "absolute inset-0 origin-center will-change-transform",
-          !reducedMotion && isPlaying && "animate-hero-ken-burns",
-          crossfading && "opacity-70",
-        )}
-      >
-        {activeCard.thumbnail ? (
-          <AuthenticatedImage
-            src={activeCard.thumbnail}
-            alt=""
-            fill
-            className="object-cover object-[center_30%] md:object-center"
-            sizes="100vw"
-            priority
-            authenticated
-          />
-        ) : (
-          <VideoThumbnailPlaceholder fill />
-        )}
+      {/* Clip media separately so Ken Burns transforms don't bleed past rounded corners
+          (overflow-hidden + border-radius + transformed children is a known compositor bug). */}
+      <div className="absolute inset-0 overflow-hidden rounded-[inherit] [transform:translateZ(0)] [-webkit-mask-image:-webkit-radial-gradient(white,black)]">
+        <div
+          className={cn(
+            "absolute inset-0 origin-center",
+            // Still poster only — scaling a playing <video> flickers the rounded edges.
+            !reducedMotion && !activeStreamUrl && "animate-hero-ken-burns will-change-transform",
+            crossfading && "opacity-70",
+          )}
+        >
+          {activeCard.thumbnail ? (
+            <AuthenticatedImage
+              src={activeCard.thumbnail}
+              alt=""
+              fill
+              className="object-cover object-[center_30%] md:object-center"
+              sizes="100vw"
+              priority
+              authenticated={false}
+            />
+          ) : (
+            <VideoThumbnailPlaceholder fill />
+          )}
 
-        {activeStreamUrl ? (
-          <video
-            key={`${activeCard.id}-${streamIndex}`}
-            ref={videoRef}
-            className="absolute inset-0 size-full object-cover object-[center_30%] md:object-center"
-            src={activeStreamUrl}
-            playsInline
-            // Bind to state — a hardcoded `muted` made React re-mute after unmute
-            // until the next clip remounted.
-            muted={isMuted || !playbackActive}
-            autoPlay
-            preload="auto"
-            poster={activeCard.thumbnail || undefined}
-            onLoadedData={() => {
-              if (!userPaused) void tryPlay()
-            }}
-            onCanPlay={() => {
-              if (!userPaused && videoRef.current?.paused) void tryPlay()
-            }}
-            onPlaying={() => setIsPlaying(true)}
-            onPause={() => {
-              if (userPaused) setIsPlaying(false)
-            }}
-            onEnded={handleEnded}
-            onError={handleVideoError}
-            onClick={() => {
-              markGesture()
-              toggleMute()
-            }}
-            aria-label={`${activeCard.title} by ${activeCard.artistName}`}
-          />
-        ) : null}
+          {activeStreamUrl ? (
+            <video
+              key={`${activeCard.id}-${streamIndex}`}
+              ref={videoRef}
+              className="absolute inset-0 size-full object-cover object-[center_30%] md:object-center"
+              src={activeStreamUrl}
+              playsInline
+              // Bind to state — a hardcoded `muted` made React re-mute after unmute
+              // until the next clip remounted.
+              muted={isMuted || !playbackActive}
+              autoPlay
+              // Low-bitrate hero ladder (≤480p) keeps preload=auto cheap on remote Workers.
+              preload="auto"
+              onLoadedData={() => {
+                if (!userPaused) void tryPlay()
+              }}
+              onCanPlay={() => {
+                if (!userPaused && videoRef.current?.paused) void tryPlay()
+              }}
+              onPlaying={() => setIsPlaying(true)}
+              onPause={() => {
+                if (userPaused) setIsPlaying(false)
+              }}
+              onEnded={handleEnded}
+              onError={handleVideoError}
+              onClick={() => {
+                markGesture()
+                toggleMute()
+              }}
+              aria-label={`${activeCard.title} by ${activeCard.artistName}`}
+            />
+          ) : null}
+        </div>
       </div>
 
       <div
@@ -810,12 +798,12 @@ export function HeroCarousel({
         aria-hidden
       />
 
-      {/* Top-right actions — compact on mobile */}
+      {/* Top-right actions — mobile: mute + share only; desktop: full set */}
       <div className="absolute right-2.5 top-2.5 z-30 flex items-center gap-1.5 md:right-5 md:top-5 md:gap-3">
         <button
           type="button"
           onClick={togglePlay}
-          className={cn(glassBtn, "hidden md:inline-flex")}
+          className={cn(glassBtn, "hidden size-8 md:inline-flex md:size-10")}
           aria-label={isPlaying ? "Pause video" : "Play video"}
           data-analytics-name="home-hero-play-pause"
         >
@@ -842,7 +830,7 @@ export function HeroCarousel({
           type="button"
           onClick={handleSaveClick}
           onPointerEnter={prefetchMyPlaylists}
-          className={cn(glassBtn, "hidden size-8 sm:inline-flex md:size-10")}
+          className={cn(glassBtn, "hidden size-8 md:inline-flex md:size-10")}
           aria-label="Save to playlist"
           data-analytics-name="home-hero-save"
         >
@@ -862,10 +850,10 @@ export function HeroCarousel({
         </button>
       </div>
 
-      {/* Bottom: left copy + Watch · right filmstrip (same on mobile & desktop) */}
+      {/* Bottom: left copy + Watch · desktop filmstrip (mobile filmstrip is below the stage) */}
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 px-3 pb-2.5 pt-10",
+          "absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 px-3 pb-3 pt-10",
           "md:gap-4 md:px-4 md:pb-6 md:pl-[5.5rem] md:pt-8 lg:pb-7 lg:pl-24 lg:pr-6",
           crossfading && "opacity-80",
         )}
@@ -881,7 +869,12 @@ export function HeroCarousel({
             className="group block focus-visible:outline-none md:mt-2"
             onClick={openWatchFromHero}
           >
-            <h2 className="truncate font-[family-name:var(--font-bebas)] text-[1.05rem] leading-none tracking-wide text-white drop-shadow-md transition group-hover:text-white/90 sm:text-[1.2rem] md:line-clamp-3 md:whitespace-normal md:text-[2.15rem] md:leading-[1.05] lg:text-[2.45rem]">
+            <h2
+              className={cn(
+                "truncate text-[0.9375rem] font-semibold leading-snug tracking-normal text-white drop-shadow-md transition group-hover:text-white/90",
+                "md:font-[family-name:var(--font-bebas)] md:line-clamp-3 md:whitespace-normal md:text-[2.15rem] md:font-normal md:leading-[1.05] md:tracking-wide lg:text-[2.45rem]",
+              )}
+            >
               {activeCard.title}
             </h2>
           </Link>
@@ -929,19 +922,31 @@ export function HeroCarousel({
             </div>
           </div>
 
-          <Link
-            href={standaloneWatchHref(activeCard.href)}
-            data-analytics-name={openVideoUiName}
-            onClick={openWatchFromHero}
-            className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-semibold leading-none text-primary-foreground shadow-sm transition hover:bg-primary/90 md:mt-4 md:h-10 md:rounded-lg md:px-5 md:text-sm"
-          >
-            <Play className="size-3 fill-current md:size-3.5" aria-hidden />
-            Watch
-            <span className="hidden md:inline"> Now</span>
-          </Link>
+          <div className="mt-2 flex items-center gap-2 md:mt-4">
+            <Link
+              href={standaloneWatchHref(activeCard.href)}
+              data-analytics-name={openVideoUiName}
+              onClick={openWatchFromHero}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-semibold leading-none text-primary-foreground shadow-sm transition hover:bg-primary/90 md:h-10 md:rounded-lg md:px-5 md:text-sm"
+            >
+              <Play className="size-3 fill-current md:size-3.5" aria-hidden />
+              Watch
+              <span className="hidden md:inline"> Now</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleSaveClick}
+              onPointerEnter={prefetchMyPlaylists}
+              className={cn(glassBtn, "size-8 md:hidden")}
+              aria-label="Save to playlist"
+              data-analytics-name="home-hero-save"
+            >
+              <Bookmark className="size-3.5" aria-hidden />
+            </button>
+          </div>
         </div>
 
-        {filmstrip}
+        {filmstripDesktop}
       </div>
 
       {canNavigate ? (
@@ -994,5 +999,7 @@ export function HeroCarousel({
         description={AUTH_DIALOG_COPY.playlist.description}
       />
     </section>
+    {filmstripMobile}
+    </div>
   )
 }

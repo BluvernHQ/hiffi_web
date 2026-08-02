@@ -118,8 +118,12 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
   const isMoodFeed = Boolean(activeMood)
 
-  const [heroCards, setHeroCards] = useState<HeroCarouselCard[]>([])
-  const [heroSource, setHeroSource] = useState<"pending" | "curated" | "discover">("pending")
+  const [heroCards, setHeroCards] = useState<HeroCarouselCard[]>(() =>
+    mapVideosToHeroCards(initialVideos as Array<Record<string, unknown>>, 5),
+  )
+  const [heroSource, setHeroSource] = useState<"pending" | "curated" | "discover">(() =>
+    initialVideos.length > 0 ? "discover" : "pending",
+  )
   const curatedHeroIdsRef = useRef<string | null>(null)
 
   const discoverHeroFallback = useMemo(() => {
@@ -129,6 +133,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   }, [videos])
 
   // Load curated hero once and keep it across mood-tab switches (no shimmer on return).
+  // Discover/SSR cards paint immediately so the first MP4 can start while curated hydrates.
   useEffect(() => {
     let cancelled = false
 
@@ -159,7 +164,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     }
   }, [])
 
-  // Discover fallback only when curated is empty / unavailable.
+  // Discover fallback only when curated is empty / unavailable (keep SSR seed until then).
   useEffect(() => {
     if (heroSource !== "discover") return
     setHeroCards(discoverHeroFallback)
