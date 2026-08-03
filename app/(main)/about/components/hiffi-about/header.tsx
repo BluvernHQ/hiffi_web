@@ -189,6 +189,14 @@ export default function HiffiHeader() {
                   For creators
                 </Link>
                 <Link
+                  aria-label="For fans"
+                  href="/for-fans"
+                  className={`nav-link w-nav-link${pathname === "/for-fans" ? " w--current" : ""}`}
+                  onClick={closeMenu}
+                >
+                  For fans
+                </Link>
+                <Link
                   aria-label="Download the Hiffi app"
                   href="/app"
                   className="nav-link w-nav-link"

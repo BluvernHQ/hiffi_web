@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import HiffiHeader from "@/app/(main)/about/components/hiffi-about/header";
 import HiffiAboutProvider from "@/app/(main)/about/components/hiffi-about/hiffi-about-provider";
 import FcHero from "./components/fc-hero";
@@ -11,7 +11,7 @@ import FcCtaBanner from "./components/fc-cta-banner";
 import { initForCreatorsInteractions } from "./init-for-creators-interactions";
 
 export default function ForCreatorsHome() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const html = document.documentElement;
     const previousFontSize = html.style.fontSize;
     const previousScrollRestoration = history.scrollRestoration;
@@ -22,6 +22,7 @@ export default function ForCreatorsHome() {
     html.style.fontSize = "1vw";
     html.classList.add("w-mod-js");
     html.classList.add("joyjam-rem-scale");
+    window.scrollTo(0, 0);
 
     return () => {
       html.style.fontSize = previousFontSize;

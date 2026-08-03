@@ -73,56 +73,73 @@ export function initSplitText(root: ParentNode) {
     gsap.set(targets, preset.from);
     gsap.set(el, { visibility: "visible" });
 
+    let played = false;
+    const play = () => {
+      if (played) return;
+      played = true;
+      window.setTimeout(() => {
+        gsap.to(targets, { ...preset.to, duration, stagger, ease });
+      }, startDelay * 1000);
+    };
+
     const trigger = ScrollTrigger.create({
       trigger: el,
       start,
       once: true,
-      onEnter: () => {
-        window.setTimeout(() => {
-          gsap.to(targets, { ...preset.to, duration, stagger, ease });
-        }, startDelay * 1000);
-      },
+      onEnter: play,
     });
     triggers.push(trigger);
+
+    // Client nav / rem scale: onEnter can miss — force if already past start
+    ScrollTrigger.refresh();
+    if (trigger.progress > 0) play();
   });
 
   return () => triggers.forEach((t) => t.kill());
 }
 
 export function initViewItems(root: ParentNode) {
+  const reveal = (el: HTMLElement) => {
+    if (el.hasAttribute("view-item") && el.getAttribute("view-item") !== "false") {
+      el.classList.add("view");
+    }
+
+    if (el.hasAttribute("view-list")) {
+      el.querySelectorAll<HTMLElement>("[view-item]").forEach((item, index) => {
+        window.setTimeout(() => item.classList.add("view"), index * 100);
+      });
+    }
+  };
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
-        const el = entry.target as HTMLElement;
-
-        if (el.hasAttribute("view-item") && el.getAttribute("view-item") !== "false") {
-          el.classList.add("view");
-        }
-
-        if (el.hasAttribute("view-list")) {
-          el.querySelectorAll<HTMLElement>("[view-item]").forEach((item, index) => {
-            window.setTimeout(() => item.classList.add("view"), index * 100);
-          });
-        }
-
-        observer.unobserve(el);
+        reveal(entry.target as HTMLElement);
+        observer.unobserve(entry.target);
       });
     },
-    { threshold: 0.2 }
+    { threshold: 0.2 },
   );
 
-  root.querySelectorAll<HTMLElement>("[view-list]:not([" + VIEW_MARK + "])").forEach((el) => {
+  const observe = (el: HTMLElement) => {
     el.setAttribute(VIEW_MARK, "true");
     observer.observe(el);
-  });
+    // Already on screen (client nav) — IO can miss the first callback
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.85 && rect.bottom > 0) {
+      reveal(el);
+      observer.unobserve(el);
+    }
+  };
+
+  root.querySelectorAll<HTMLElement>("[view-list]:not([" + VIEW_MARK + "])").forEach(observe);
 
   root
     .querySelectorAll<HTMLElement>("[view-item]:not([view-list] [view-item]):not([" + VIEW_MARK + "])")
     .forEach((el) => {
       if (el.getAttribute("view-item") === "false") return;
-      el.setAttribute(VIEW_MARK, "true");
-      observer.observe(el);
+      observe(el);
     });
 
   return () => observer.disconnect();
@@ -390,7 +407,13 @@ export function initHiffiAboutAnimations(root: HTMLElement, lenis: HiffiAboutScr
   initWaveHovers(root);
   initAutoplayVideos(root);
 
-  requestAnimationFrame(() => ScrollTrigger.refresh());
+  // Rem scale / images settle after client nav — refresh so once-triggers fire
+  const refreshLater = () => ScrollTrigger.refresh();
+  requestAnimationFrame(() => {
+    refreshLater();
+    window.setTimeout(refreshLater, 100);
+    window.setTimeout(refreshLater, 400);
+  });
 
   return () => {
     cleanupSplit();

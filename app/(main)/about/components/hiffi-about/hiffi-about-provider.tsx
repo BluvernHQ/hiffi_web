@@ -9,6 +9,14 @@ import { initLenisScroll } from "./animations/init-lenis-scroll";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
+/** Client nav skips layout <script> — apply rem before measuring ScrollTriggers */
+function ensureJoyjamRemScale() {
+  const html = document.documentElement;
+  html.classList.add("joyjam-rem-scale");
+  html.style.fontSize = "1vw";
+  window.scrollTo(0, 0);
+}
+
 export default function HiffiAboutProvider({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -17,14 +25,21 @@ export default function HiffiAboutProvider({ children }: { children: ReactNode }
       const root = rootRef.current;
       if (!root) return;
 
+      ensureJoyjamRemScale();
+
       const { lenis, destroy: destroyLenis, refresh } = initLenisScroll();
 
       const cleanupAnimations = initHiffiAboutAnimations(root, lenis);
 
-      const onSectionLoaded = () => refresh();
+      const onSectionLoaded = () => {
+        ensureJoyjamRemScale();
+        refresh();
+        ScrollTrigger.refresh();
+      };
       window.addEventListener("hiffi-about:section-loaded", onSectionLoaded);
 
       refresh();
+      ScrollTrigger.refresh();
       window.dispatchEvent(new CustomEvent("hiffi-about:ready"));
 
       return () => {
@@ -34,7 +49,7 @@ export default function HiffiAboutProvider({ children }: { children: ReactNode }
         ScrollTrigger.getAll().forEach((st) => st.kill());
       };
     },
-    { scope: rootRef }
+    { scope: rootRef },
   );
 
   return <div ref={rootRef}>{children}</div>;
