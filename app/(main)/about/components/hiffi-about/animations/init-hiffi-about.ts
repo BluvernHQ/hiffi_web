@@ -46,13 +46,13 @@ function parseSettings(raw: string) {
 
 export function initSplitText(root: ParentNode) {
   const triggers: ScrollTrigger[] = [];
+  const splits: SplitType[] = [];
+  const marked: HTMLElement[] = [];
 
   root.querySelectorAll<HTMLElement>("[data-split]:not([" + SPLIT_MARK + "])").forEach((el) => {
     const presetName = el.getAttribute("data-split") ?? "";
     const preset = SPLIT_PRESETS[presetName as keyof typeof SPLIT_PRESETS];
     if (!preset) return;
-
-    el.setAttribute(SPLIT_MARK, "true");
 
     const settings = parseSettings(el.getAttribute("split-settings") ?? "");
     const types = settings.type ?? preset.types;
@@ -68,7 +68,14 @@ export function initSplitText(root: ParentNode) {
     });
     const targets =
       targetKey === "chars" ? split.chars : targetKey === "lines" ? split.lines : split.words;
-    if (!targets?.length) return;
+    if (!targets?.length) {
+      split.revert();
+      return;
+    }
+
+    el.setAttribute(SPLIT_MARK, "true");
+    marked.push(el);
+    splits.push(split);
 
     gsap.set(targets, preset.from);
     gsap.set(el, { visibility: "visible" });
@@ -82,23 +89,33 @@ export function initSplitText(root: ParentNode) {
       }, startDelay * 1000);
     };
 
+    // onRefresh: rem/fonts/layout settle after hard refresh — onEnter alone can miss
     const trigger = ScrollTrigger.create({
       trigger: el,
       start,
       once: true,
       onEnter: play,
+      onRefresh: (self) => {
+        if (self.progress > 0) play();
+      },
     });
     triggers.push(trigger);
-
-    // Client nav / rem scale: onEnter can miss — force if already past start
-    ScrollTrigger.refresh();
     if (trigger.progress > 0) play();
   });
 
-  return () => triggers.forEach((t) => t.kill());
+  return () => {
+    triggers.forEach((t) => t.kill());
+    splits.forEach((s) => s.revert());
+    marked.forEach((el) => {
+      el.removeAttribute(SPLIT_MARK);
+      gsap.set(el, { clearProps: "visibility" });
+    });
+  };
 }
 
 export function initViewItems(root: ParentNode) {
+  const marked: HTMLElement[] = [];
+
   const reveal = (el: HTMLElement) => {
     if (el.hasAttribute("view-item") && el.getAttribute("view-item") !== "false") {
       el.classList.add("view");
@@ -122,15 +139,19 @@ export function initViewItems(root: ParentNode) {
     { threshold: 0.2 },
   );
 
-  const observe = (el: HTMLElement) => {
-    el.setAttribute(VIEW_MARK, "true");
-    observer.observe(el);
-    // Already on screen (client nav) — IO can miss the first callback
+  const revealIfOnScreen = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
     if (rect.top < window.innerHeight * 0.85 && rect.bottom > 0) {
       reveal(el);
       observer.unobserve(el);
     }
+  };
+
+  const observe = (el: HTMLElement) => {
+    el.setAttribute(VIEW_MARK, "true");
+    marked.push(el);
+    observer.observe(el);
+    revealIfOnScreen(el);
   };
 
   root.querySelectorAll<HTMLElement>("[view-list]:not([" + VIEW_MARK + "])").forEach(observe);
@@ -142,7 +163,18 @@ export function initViewItems(root: ParentNode) {
       observe(el);
     });
 
-  return () => observer.disconnect();
+  const onSettle = () => marked.forEach(revealIfOnScreen);
+  window.addEventListener("hiffi-about:scroll-settle", onSettle);
+
+  return () => {
+    window.removeEventListener("hiffi-about:scroll-settle", onSettle);
+    observer.disconnect();
+    marked.forEach((el) => {
+      el.removeAttribute(VIEW_MARK);
+      el.classList.remove("view");
+      el.querySelectorAll<HTMLElement>(".view").forEach((item) => item.classList.remove("view"));
+    });
+  };
 }
 
 export function initNavColor(root: ParentNode, lenis: HiffiAboutScroller) {
@@ -287,9 +319,11 @@ export function initScrollScale(root: ParentNode, lenis: HiffiAboutScroller) {
 
 export function initSpanText(root: ParentNode) {
   const triggers: ScrollTrigger[] = [];
+  const marked: HTMLElement[] = [];
 
   root.querySelectorAll<HTMLElement>("[create-spans]:not([data-hiffi-about-spans])").forEach((el) => {
     el.setAttribute("data-hiffi-about-spans", "true");
+    marked.push(el);
     const spanClass = el.getAttribute("view-text-class") ?? "word";
     const text = el.textContent?.trim() ?? "";
     el.innerHTML = text
@@ -303,27 +337,36 @@ export function initSpanText(root: ParentNode) {
     gsap.set(spans, { opacity: 0, y: "50%" });
 
     if (el.getAttribute("view-text") === "true") {
+      let played = false;
+      const play = () => {
+        if (played) return;
+        played = true;
+        gsap.to(spans, {
+          opacity: 1,
+          y: 0,
+          stagger: 0.04,
+          delay,
+          duration: 0.8,
+          ease: "power2.out",
+        });
+      };
       const trigger = ScrollTrigger.create({
         trigger: el,
         start: "top 80%",
         once: true,
-        onEnter: () => {
-          gsap.to(spans, {
-            opacity: 1,
-            y: 0,
-            stagger: 0.04,
-            delay,
-            duration: 0.8,
-            ease: "power2.out",
-          });
+        onEnter: play,
+        onRefresh: (self) => {
+          if (self.progress > 0) play();
         },
       });
       triggers.push(trigger);
+      if (trigger.progress > 0) play();
     }
   });
 
   root.querySelectorAll<HTMLElement>("[create-body-spans]:not([data-hiffi-about-body-spans])").forEach((el) => {
     el.setAttribute("data-hiffi-about-body-spans", "true");
+    marked.push(el);
     const spanClass = el.getAttribute("view-headline-class") ?? "body-line-span";
     const text = el.textContent?.trim() ?? "";
     el.innerHTML = text
@@ -360,13 +403,60 @@ export function initSpanText(root: ParentNode) {
       start: "top 85%",
       once: true,
       onEnter: reveal,
+      onRefresh: (self) => {
+        if (self.progress > 0) reveal();
+      },
     });
-    ScrollTrigger.refresh();
-    if (trigger.progress > 0) reveal();
     triggers.push(trigger);
+    if (trigger.progress > 0) reveal();
   });
 
-  return () => triggers.forEach((t) => t.kill());
+  return () => {
+    triggers.forEach((t) => t.kill());
+    marked.forEach((el) => {
+      el.removeAttribute("data-hiffi-about-spans");
+      el.removeAttribute("data-hiffi-about-body-spans");
+    });
+  };
+}
+
+/** About / for-fans / for-creators only — rem + fonts + images settle after refresh */
+let cancelActiveSettle: (() => void) | undefined;
+
+export function scheduleHiffiScrollTriggerSettle(refreshLenis?: () => void) {
+  cancelActiveSettle?.();
+
+  let cancelled = false;
+  const run = () => {
+    if (cancelled) return;
+    const html = document.documentElement;
+    html.classList.add("joyjam-rem-scale");
+    // Let CSS 1svw win — don't pin inline 1vw over it
+    if (html.style.fontSize === "1vw") html.style.fontSize = "";
+    refreshLenis?.();
+    ScrollTrigger.refresh();
+    window.dispatchEvent(new CustomEvent("hiffi-about:scroll-settle"));
+  };
+
+  const timers: number[] = [];
+  run();
+  const raf = requestAnimationFrame(run);
+  timers.push(window.setTimeout(run, 120), window.setTimeout(run, 450), window.setTimeout(run, 1000));
+  void document.fonts?.ready?.then(run);
+
+  const onLoad = () => run();
+  if (document.readyState === "complete") run();
+  else window.addEventListener("load", onLoad);
+
+  const cancel = () => {
+    cancelled = true;
+    cancelAnimationFrame(raf);
+    timers.forEach((id) => window.clearTimeout(id));
+    window.removeEventListener("load", onLoad);
+    if (cancelActiveSettle === cancel) cancelActiveSettle = undefined;
+  };
+  cancelActiveSettle = cancel;
+  return cancel;
 }
 
 export function initAutoplayVideos(root: ParentNode) {
@@ -383,17 +473,23 @@ export function reinitHiffiAboutDom(root: ParentNode) {
 
   initWaveHovers(root);
   initAutoplayVideos(root);
-  ScrollTrigger.refresh();
 
   return () => {
     cleanupSplit();
     cleanupView();
     cleanupSpans();
     cleanupCsSliders();
+    if ("querySelectorAll" in root) {
+      root.querySelectorAll(`[${WAVE_MARK}]`).forEach((el) => el.removeAttribute(WAVE_MARK));
+    }
   };
 }
 
-export function initHiffiAboutAnimations(root: HTMLElement, lenis: HiffiAboutScroller) {
+export function initHiffiAboutAnimations(
+  root: HTMLElement,
+  lenis: HiffiAboutScroller,
+  refreshLenis?: () => void,
+) {
   const cleanupSplit = initSplitText(root);
   const cleanupView = initViewItems(root);
   const cleanupNav = initNavColor(root, lenis);
@@ -407,15 +503,10 @@ export function initHiffiAboutAnimations(root: HTMLElement, lenis: HiffiAboutScr
   initWaveHovers(root);
   initAutoplayVideos(root);
 
-  // Rem scale / images settle after client nav — refresh so once-triggers fire
-  const refreshLater = () => ScrollTrigger.refresh();
-  requestAnimationFrame(() => {
-    refreshLater();
-    window.setTimeout(refreshLater, 100);
-    window.setTimeout(refreshLater, 400);
-  });
+  const cancelSettle = scheduleHiffiScrollTriggerSettle(refreshLenis);
 
   return () => {
+    cancelSettle();
     cleanupSplit();
     cleanupView();
     cleanupNav();
@@ -424,5 +515,6 @@ export function initHiffiAboutAnimations(root: HTMLElement, lenis: HiffiAboutScr
     cleanupBenefits();
     cleanupCreators();
     cleanupCsSliders();
+    root.querySelectorAll(`[${WAVE_MARK}]`).forEach((el) => el.removeAttribute(WAVE_MARK));
   };
 }

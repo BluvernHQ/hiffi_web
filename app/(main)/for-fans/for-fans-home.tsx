@@ -20,7 +20,7 @@ export default function ForFansHome() {
     const hadRemScale = html.classList.contains("joyjam-rem-scale");
 
     history.scrollRestoration = "manual";
-    html.style.fontSize = "1vw";
+    if (html.style.fontSize === "1vw") html.style.fontSize = "";
     html.classList.add("w-mod-js");
     html.classList.add("joyjam-rem-scale");
     window.scrollTo(0, 0);
