@@ -1,12 +1,10 @@
-"use client"
+"use client";
 
-import { useRef, useEffect } from "react"
-import { gsap, useGSAP } from "@/lib/gsap/register"
-import type { MoodDef } from "@/lib/mood-tabs"
-import {
-  moodMixSelectAnalyticsName,
-} from "@/lib/analytics/mood-mix-analytics"
-import { MoodOrb } from "@/components/home/mood-orb"
+import { useRef, useEffect } from "react";
+import { gsap, useGSAP } from "@/lib/gsap/register";
+import type { MoodDef } from "@/lib/mood-tabs";
+import { moodMixSelectAnalyticsName } from "@/lib/analytics/mood-mix-analytics";
+import { MoodOrb } from "@/components/home/mood-orb";
 import {
   slideCardIn,
   slideCardOut,
@@ -14,14 +12,14 @@ import {
   punchOrb,
   revealMoodDetail,
   prefersReducedMotion,
-} from "@/lib/gsap/mood-animations"
+} from "@/lib/gsap/mood-animations";
 
 interface MoodPickerCardProps {
-  moods: MoodDef[]
-  selectedQuery: string | null
-  onSelect: (query: string) => void
-  onStartMix: (query?: string) => void
-  loading?: boolean
+  moods: MoodDef[];
+  selectedQuery: string | null;
+  onSelect: (query: string) => void;
+  onStartMix: (query?: string) => void;
+  loading?: boolean;
 }
 
 export function MoodPickerCard({
@@ -31,69 +29,88 @@ export function MoodPickerCard({
   onStartMix,
   loading = false,
 }: MoodPickerCardProps) {
-  const selected = moods.find((m) => m.query === selectedQuery)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
-  const orbsScrollRef = useRef<HTMLDivElement>(null)
-  const detailRef = useRef<HTMLDivElement>(null)
-  const prevSelected = useRef<string | null>(null)
-  const exitTween = useRef<gsap.core.Tween | null>(null)
+  const selected = moods.find((m) => m.query === selectedQuery);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const orbsScrollRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const prevSelected = useRef<string | null>(null);
+  const exitTween = useRef<gsap.core.Tween | null>(null);
 
   // Card slides in, then orbs stagger
   useGSAP(
     () => {
-      if (!wrapperRef.current || !cardRef.current) return
+      if (!wrapperRef.current || !cardRef.current) return;
 
       if (prefersReducedMotion()) {
-        gsap.set(cardRef.current, { clearProps: "transform" })
-        return
+        gsap.set(cardRef.current, { clearProps: "transform" });
+        return;
       }
 
-      const slideTween = slideCardIn(cardRef.current)
-      const orbTween = staggerMoodOrbs(orbsScrollRef.current)
+      const slideTween = slideCardIn(cardRef.current);
+      const orbTween = staggerMoodOrbs(orbsScrollRef.current);
 
       return () => {
-        slideTween?.kill()
-        orbTween?.kill()
-        exitTween.current?.kill()
-      }
+        slideTween?.kill();
+        orbTween?.kill();
+        exitTween.current?.kill();
+      };
     },
     { scope: wrapperRef, dependencies: [] },
-  )
+  );
 
   useEffect(() => {
-    if (!selectedQuery || selectedQuery === prevSelected.current) return
-    prevSelected.current = selectedQuery
+    if (!selectedQuery || selectedQuery === prevSelected.current) return;
+    prevSelected.current = selectedQuery;
 
-    const item = orbsScrollRef.current?.querySelector(`[data-mood-query="${selectedQuery}"]`)
-    const orb = item?.querySelector("[data-mood-orb]")
-    punchOrb(orb ?? undefined)
+    const item = orbsScrollRef.current?.querySelector(
+      `[data-mood-query="${selectedQuery}"]`,
+    );
+    const orb = item?.querySelector("[data-mood-orb]");
+    punchOrb(orb ?? undefined);
 
-    item?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+    item?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
 
-    if (detailRef.current) revealMoodDetail(detailRef.current)
-  }, [selectedQuery])
+    if (detailRef.current) revealMoodDetail(detailRef.current);
+  }, [selectedQuery]);
 
   const runExit = (callback: () => void) => {
-    exitTween.current?.kill()
-    const tween = slideCardOut(cardRef.current, callback)
+    exitTween.current?.kill();
+    const tween = slideCardOut(cardRef.current, callback);
     if (tween) {
-      exitTween.current = tween
+      exitTween.current = tween;
     } else {
-      callback()
+      callback();
     }
-  }
+  };
 
   const handleMoodClick = (query: string) => {
-    if (loading) return
-    onSelect(query)
-    runExit(() => onStartMix(query))
-  }
+    if (loading) return;
+    onSelect(query);
+    runExit(() => onStartMix(query));
+  };
 
   return (
     <div ref={wrapperRef} className="overflow-hidden">
-      <div ref={cardRef} className="relative border border-border bg-card shadow-sm will-change-transform">
-        <div className="absolute left-0 top-0 h-full w-1 bg-primary" aria-hidden />
+      <div
+        ref={cardRef}
+        className="relative border border-border bg-card shadow-sm will-change-transform"
+      >
+        <h1 className="sr-only">
+          Hiffi – Stream Hip-Hop Music Videos and Discover Independent Rap Artists
+        </h1>
+        <p className="sr-only">
+  Discover independent hip-hop artists, stream rap music videos, and explore
+  new releases from emerging creators on Hiffi.
+       </p>
+        <div
+          className="absolute left-0 top-0 h-full w-1 bg-primary"
+          aria-hidden
+        />
 
         <div className="relative px-4 pt-4 sm:px-5 sm:pt-5">
           <div className="pr-10 sm:pr-12">
@@ -110,7 +127,7 @@ export function MoodPickerCard({
           aria-label="Mood options"
         >
           {moods.map((mood) => {
-            const isSelected = selectedQuery === mood.query
+            const isSelected = selectedQuery === mood.query;
             return (
               <button
                 key={mood.query}
@@ -133,13 +150,15 @@ export function MoodPickerCard({
                 <span
                   className={[
                     "max-w-[5.5rem] text-center font-[family-name:var(--font-bebas)] text-sm uppercase leading-tight tracking-wide sm:max-w-[6rem]",
-                    isSelected ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80",
+                    isSelected
+                      ? "text-foreground"
+                      : "text-muted-foreground group-hover:text-foreground/80",
                   ].join(" ")}
                 >
                   {mood.label}
                 </span>
               </button>
-            )
+            );
           })}
           {/* Trailing room so the last orb can scroll flush to the card edge */}
           <span aria-hidden className="w-4 shrink-0 sm:w-5" />
@@ -169,5 +188,5 @@ export function MoodPickerCard({
         )}
       </div>
     </div>
-  )
+  );
 }

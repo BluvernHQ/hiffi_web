@@ -7,7 +7,7 @@ export default function HowItWorksPage() {
       path="/how-it-works"
       eyebrow="Product"
       title="How Hiffi works"
-      description="Whether you're discovering new rap or sharing your own music videos, Hiffi is built to be straightforward — sign up, explore hip-hop culture, and connect without gatekeepers."
+      description="Learn how Hiffi works for fans and independent artists. Create an account, discover hip-hop music videos, stream rap content, upload your own music, and grow your audience on Hiffi."
       sections={[
         {
           title: "For fans",
@@ -56,12 +56,10 @@ export default function HowItWorksPage() {
                 . Hip-hop and rap artists get instant access — no application wait.
               </li>
               <li>
-                <strong>Upload</strong> — Publish music videos, freestyles, and official releases from Hiffi Studio or
-                the app. Add titles, descriptions, and thumbnails.
+                <strong>Upload</strong> — Publish official music videos, freestyles, live performances, and new releases with titles, descriptions, and thumbnails.
               </li>
               <li>
-                <strong>Get discovered</strong> — Your content appears in genre-native discovery surfaces where fans
-                already came for hip-hop.
+                <strong>Get discovered</strong> — Reach hip-hop fans through genre pages, mood mixes, artist profiles, and search.
               </li>
               <li>
                 <strong>Build your audience</strong> — Grow through follows, comments, and repeat viewers — not paid
@@ -75,14 +73,13 @@ export default function HowItWorksPage() {
           children: (
             <ul className="list-disc space-y-2 pl-6">
               <li>
-                <strong>Web</strong> — Full experience at hiffi.com on desktop and mobile browsers.
+                <strong>Web</strong> — Stream hip-hop music videos and discover independent artists on hiffi.com.
               </li>
               <li>
-                <strong>iOS &amp; Android</strong> — Native apps for watching on the go and creator uploads where
-                supported.
+                <strong>iOS &amp; Android</strong> — Watch music videos and stay connected with your favorite artists on iOS and Android.
               </li>
               <li>
-                <strong>Studio</strong> — Creators can manage uploads from{" "}
+                <strong>Studio</strong> — Upload, edit, and manage music videos, artwork, and creator information from{" "}
                 <Link href="/studio" className="font-medium text-primary hover:underline">
                   Hiffi Studio
                 </Link>
@@ -92,7 +89,7 @@ export default function HowItWorksPage() {
           ),
         },
         {
-          title: "Need more detail?",
+          title: "Learn More",
           children: (
             <p>
               Creators should read the{" "}

@@ -149,9 +149,7 @@ export default function HipHopPage() {
           Hip-Hop Music Videos &amp; Streaming
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Hiffi is built for hip-hop — the only platform where independent rap artists and
-          their fans come first. Discover official music videos, follow creators, and stream
-          drill, trap, conscious rap, boom bap, and more.
+          Stream independent hip-hop music videos, discover emerging rap artists, and explore drill, trap, boom bap, conscious rap, and more on Hiffi's artist-first streaming platform.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -248,6 +246,10 @@ export default function HipHopPage() {
               title: "Creator Control",
               body: "Manage your profile, upload and edit content, and build your audience directly. No label required. Independent artists keep creative ownership.",
             },
+            {
+              title: "Discoverability",
+              body: "Genre-based discovery through mood mixes, artist profiles, and curated hip-hop collections helps fans find your music.",
+            },
           ].map((item) => (
             <div key={item.title} className="rounded-xl border border-border bg-card p-5">
               <h3 className="font-semibold mb-2">{item.title}</h3>
@@ -260,6 +262,9 @@ export default function HipHopPage() {
       {/* Subgenre quick links */}
       <section id="hip-hop-subgenres" className="mb-14 scroll-mt-20">
         <h2 className="text-2xl font-bold mb-4">Hip-Hop Subgenres on Hiffi</h2>
+         <p className="mb-5 max-w-3xl text-muted-foreground">
+             Explore hip-hop music by subgenre on Hiffi. Discover independent artists, official music videos, and new releases across every style.
+         </p>
         <div className="flex flex-wrap gap-2">
           {[
             "Drill", "Trap", "Conscious Rap", "Boom Bap", "Lo-fi Hip-Hop",

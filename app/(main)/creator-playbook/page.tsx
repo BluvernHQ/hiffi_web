@@ -7,7 +7,7 @@ export default function CreatorPlaybookPage() {
       path="/creator-playbook"
       eyebrow="Creators"
       title="Creator Playbook"
-      description="A practical guide for rappers, producers, and DJs — plan your content, publish strong music videos, get discovered on Hiffi, and build a real fanbase."
+      description="The complete Hiffi Creator Playbook for independent rappers, producers, DJs, and hip-hop artists. Learn how to become a Hiffi creator, upload rap music, publish official music videos, and grow your fanbase."
       sections={[
         {
           title: "Before you start",
@@ -152,6 +152,9 @@ export default function CreatorPlaybookPage() {
                 <strong>Your profile is your home base</strong> — Lead with your strongest official music video. Many
                 fans decide whether to follow based on the first thing they see on your profile.
               </li>
+              <li>
+              <strong>Artist Directory</strong> — A complete artist profile increases your chances of appearing in the Hiffi Artist Directory and related discovery pages.
+             </li>
             </ul>
           ),
         },
@@ -183,10 +186,50 @@ export default function CreatorPlaybookPage() {
           ),
         },
         {
+  title: "Tips for Independent Hip-Hop Artists",
+  children: (
+    <>
+      <p>
+        Growing as an independent hip-hop artist takes consistency, quality,
+        and audience engagement. Publish official music videos regularly,
+        complete your artist profile, collaborate with other creators, and
+        optimize every upload with clear titles, descriptions, and thumbnails.
+      </p>
+
+      <p className="mt-3">
+        The more active your profile is, the more opportunities you have to
+        reach new listeners through Hiffi discovery, the{" "}
+        <Link
+          href="/hip-hop"
+          className="font-medium text-primary hover:underline"
+        >
+          Hip-Hop Hub
+        </Link>
+        , and the{" "}
+        <Link
+          href="/artist-index"
+          className="font-medium text-primary hover:underline"
+        >
+          Artist Directory
+        </Link>
+        .
+      </p>
+
+      <ul className="mt-4 list-disc space-y-2 pl-6">
+        <li>Upload consistently instead of posting many videos at once.</li>
+        <li>Complete your artist profile before publishing.</li>
+        <li>Engage with fans through comments and follows.</li>
+        <li>Collaborate with other independent hip-hop artists.</li>
+        <li>Share your Hiffi music videos across social platforms.</li>
+      </ul>
+    </>
+  ),
+},
+        {
           title: "Rights & community standards",
           children: (
             <p>
-              Hiffi is built on respect for artists and fans. Upload only content you own or have rights to use. No
+              Hiffi is built on respect for artists and fans. Respect copyright, trademarks, and intellectual property. Upload only music and videos you own or have permission to publish. No
               hate speech, harassment, or copyright infringement. Full rules are in our{" "}
               <Link href="/terms-of-use" className="font-medium text-primary hover:underline">
                 Terms of Use

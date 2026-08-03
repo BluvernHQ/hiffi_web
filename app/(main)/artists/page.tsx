@@ -7,10 +7,10 @@ export default function ArtistsPage() {
       path="/artists"
       eyebrow="Creators"
       title="Hiffi Artists"
-      description="Hiffi Artists is the home for independent rappers, producers, DJs, and beatmakers who want to share official music videos and build real fan relationships on a hip-hop-first platform."
+      description="Hiffi Artists is the home for independent hip-hop artists, independent rappers, producers, DJs, and beatmakers. Create your artist profile, upload official music videos, reach new fans, and grow your audience on Hiffi's artist-first hip-hop streaming platform."
       sections={[
         {
-          title: "Built for independent hip-hop",
+          title: "Why Artists Choose Hiffi",
           children: (
             <>
               <p>
@@ -29,6 +29,9 @@ export default function ArtistsPage() {
           title: "What artists get on Hiffi",
           children: (
             <ul className="list-disc space-y-2 pl-6">
+              <li>
+                <strong>Artist profile</strong> — Create a verified artist profile with your music videos, releases, biography, and social links.
+              </li>
               <li>
                 <strong>Direct publishing</strong> — Upload and manage music videos from Hiffi Studio and the mobile
                 app.
@@ -49,7 +52,51 @@ export default function ArtistsPage() {
               </li>
             </ul>
           ),
-        },
+        },{
+  title: "Discover Independent Hip-Hop Artists",
+  children: (
+    <>
+      <p>
+        Hiffi helps fans discover independent hip-hop artists through{" "}
+        <Link href="/artist-index" className="font-medium text-primary hover:underline">
+          the Hiffi Artist Directory
+        </Link>
+        , artist profiles, genre pages, and curated mood mixes.
+      </p>
+
+      <p className="mt-3">
+        Browse emerging rappers, producers, DJs, and beatmakers, watch official
+        music videos, and follow new artists as they grow. Whether you're
+        looking for your next favorite rapper or exploring underground hip-hop,
+        Hiffi makes discovering new talent simple.
+      </p>
+
+      <ul className="mt-4 list-disc space-y-2 pl-6">
+        <li>
+          Browse the{" "}
+          <Link href="/artist-index" className="font-medium text-primary hover:underline">
+            Artist Directory
+          </Link>{" "}
+          to discover independent hip-hop artists.
+        </li>
+        <li>
+          Explore music by genre in the{" "}
+          <Link href="/hip-hop" className="font-medium text-primary hover:underline">
+            Hip-Hop Hub
+          </Link>
+          .
+        </li>
+        <li>
+          Discover regional talent through the{" "}
+          <Link href="/artist-index/city/atlanta" className="font-medium text-primary hover:underline">
+            Atlanta Artist Directory
+          </Link>
+          .
+        </li>
+      </ul>
+    </>
+  ),
+},
         {
           title: "Who can join",
           children: (
@@ -78,7 +125,7 @@ export default function ArtistsPage() {
                 </Link>{" "}
                 — instant access for hip-hop and rap artists.
               </li>
-              <li>Upload your first music video and start building your audience.</li>
+              <li>Upload your first official music video, complete your artist profile, and begin reaching new fans through Hiffi discovery.</li>
             </ol>
           ),
         },

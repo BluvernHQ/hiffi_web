@@ -34,7 +34,7 @@ export default function WhatIsHiffiPage() {
         path="/what-is-hiffi"
         eyebrow="Overview"
         title="What is Hiffi?"
-        description="Hiffi is a hip-hop-first streaming platform at hiffi.com — built for independent artists to share music videos and for fans to discover rap culture without algorithmic gatekeeping."
+        description="Hiffi is an independent hip-hop streaming platform where artists publish music videos, discover new fans, and grow their audience without algorithmic gatekeeping."
         sections={[
           {
             title: "The platform",
@@ -47,19 +47,19 @@ export default function WhatIsHiffiPage() {
             ),
           },
           {
-            title: "Who Hiffi is for",
+            title: "Who Hiffi Is Built For",
             children: (
               <ul className="list-disc space-y-2 pl-6">
                 <li>
-                  <strong>Artists</strong> — Rappers, producers, DJs, and beatmakers who want a genre-native home. See{" "}
+                  <strong>Artists</strong> — Rappers, producers, DJs, and beatmakers looking to share music, grow their audience, and connect with hip-hop fans. 
+                  <br></br>See{" "}
                   <Link href="/artists" className="font-medium text-primary hover:underline">
                     Hiffi Artists
                   </Link>
                   .
                 </li>
                 <li>
-                  <strong>Fans</strong> — Listeners who want underground rap, drill, trap, boom bap, and emerging talent
-                  in one place. Explore the{" "}
+                  <strong>Fans</strong> — Discover underground rap, drill, trap, boom bap, and emerging independent artists in one place. Explore the{" "}
                   <Link href="/hip-hop" className="font-medium text-primary hover:underline">
                     hip-hop hub
                   </Link>
@@ -80,18 +80,18 @@ export default function WhatIsHiffiPage() {
                   .
                 </li>
                 <li>
-                  Watch and discover on web, or{" "}
+                  Watch music videos and discover new artists on the web, or{" "}
                   <Link href="/app" className="font-medium text-primary hover:underline">
                     download the Hiffi app
                   </Link>
                   .
                 </li>
                 <li>
-                  Creators can{" "}
+                  Artists can{" "}
                   <Link href="/creator/apply" className="font-medium text-primary hover:underline">
-                    become a creator
+                    apply as creator
                   </Link>{" "}
-                  to publish — hip-hop and rap artists get instant access.
+                  to publish music videos and reach hip-hop fans.
                 </li>
               </ol>
             ),

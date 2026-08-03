@@ -11,6 +11,39 @@ export const metadata: Metadata = buildAtlantaMetadata({
   keywords: ATLANTA_HUB.keywords,
 })
 
+const faqItems = [
+  {
+    question: "What is the Atlanta Hip-Hop Guide?",
+    answer:
+      "The Hiffi Atlanta Hip-Hop Guide is a discovery hub for Atlanta's hip-hop scene. Browse independent artists, rap music, official music videos, genres, studios, venues, and curated guides in one place.",
+  },
+  {
+    question: "How can I discover new Atlanta hip-hop artists?",
+    answer:
+      "Browse the Hiffi Artist Index to discover independent Atlanta rappers, producers, DJs, and beatmakers. Explore artist profiles, official music videos, and curated collections featuring emerging talent.",
+  },
+  {
+    question: "What hip-hop genres are popular in Atlanta?",
+    answer:
+      "Atlanta is known for trap music, Southern hip-hop, drill, melodic rap, and conscious rap. The Atlanta Hip-Hop Guide helps you explore these genres through artist profiles, music videos, and curated content.",
+  },
+  {
+    question: "Can I browse Atlanta artists by genre?",
+    answer:
+      "Yes. You can explore Atlanta hip-hop by genre, including trap, drill, Southern hip-hop, and other styles. Hiffi also connects genre pages with artist profiles and music discovery.",
+  },
+  {
+    question: "Where can I find independent Atlanta rap artists?",
+    answer:
+      "The Hiffi Artist Index features independent Atlanta rappers, producers, DJs, and beatmakers. Browse artist profiles, watch official music videos, and discover emerging talent across the city.",
+  },
+  {
+    question: "Can Atlanta artists claim their Hiffi profile?",
+    answer:
+      "Yes. Artists can claim their profile on Hiffi to manage their information, connect official links, and build their presence within the Hiffi Artist Index.",
+  },
+];
+
 export default function AtlantaHubPage() {
   return (
     <AtlantaPageShell
@@ -62,6 +95,17 @@ export default function AtlantaHubPage() {
             </li>
           ))}
         </ul>
+      </section>
+      <section className="mb-10">
+        <h2 className="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
+        <div className="space-y-6">
+          {faqItems.map((item) => (
+            <div key={item.question} className="border-b border-border pb-6 last:border-0">
+              <h3 className="font-semibold mb-2">{item.question}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{item.answer}</p>
+            </div>
+          ))}
+        </div>
       </section>
     </AtlantaPageShell>
   )
