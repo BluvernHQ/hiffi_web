@@ -15,7 +15,6 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  Bookmark,
   ChevronLeft,
   ChevronRight,
   Play,
@@ -28,7 +27,6 @@ import {
   VideoThumbnailPlaceholder,
 } from "@/components/video/authenticated-image"
 import { ProfilePicture } from "@/components/profile/profile-picture"
-import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { pauseActiveHoverPreview } from "@/components/video/video-card-hover-preview"
 import {
   isPreviewAudioPreferred,
@@ -36,22 +34,12 @@ import {
 } from "@/lib/feed-preview/preview-audio-preference"
 import { getFeedPreviewSources } from "@/lib/feed-preview/resolve-preview-url"
 import type { HeroCarouselCard } from "@/lib/home/hero-carousel-data"
-import { useAuth } from "@/lib/auth-context"
-import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
 import { cn } from "@/lib/utils"
 
 const ShareVideoDialog = dynamic(
   () =>
     import("@/components/video/share-video-dialog").then((m) => ({
       default: m.ShareVideoDialog,
-    })),
-  { ssr: false },
-)
-
-const AddToPlaylistDialog = dynamic(
-  () =>
-    import("@/components/video/add-to-playlist-dialog").then((m) => ({
-      default: m.AddToPlaylistDialog,
     })),
   { ssr: false },
 )
@@ -112,7 +100,6 @@ export function HeroCarousel({
   onInViewChange,
 }: HeroCarouselProps) {
   const router = useRouter()
-  const { user } = useAuth()
   const [active, setActive] = useState(0)
   /** 0–100 from video playback (or fallback timer). */
   const [progress, setProgress] = useState(0)
@@ -124,8 +111,6 @@ export function HeroCarousel({
   const [streamUrls, setStreamUrls] = useState<string[]>([])
   const [streamIndex, setStreamIndex] = useState(0)
   const [shareOpen, setShareOpen] = useState(false)
-  const [saveOpen, setSaveOpen] = useState(false)
-  const [saveAuthOpen, setSaveAuthOpen] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const sectionRef = useRef<HTMLElement | null>(null)
@@ -569,15 +554,6 @@ export function HeroCarousel({
     goNext()
   }, [goNext, reducedMotion, userPaused])
 
-  const handleSaveClick = useCallback(() => {
-    markGesture()
-    if (!user) {
-      setSaveAuthOpen(true)
-      return
-    }
-    setSaveOpen(true)
-  }, [markGesture, user])
-
   const shareUrl =
     typeof window !== "undefined" && activeCard
       ? `${window.location.origin}${standaloneWatchHref(activeCard.href)}`
@@ -888,7 +864,7 @@ export function HeroCarousel({
         aria-hidden
       />
 
-      {/* Top-right actions — mute + share on mobile; desktop also includes save */}
+      {/* Top-right actions — mute + share */}
       <div className="absolute right-2.5 top-2.5 z-30 flex items-center gap-1.5 md:right-5 md:top-5 md:gap-3">
         <button
           type="button"
@@ -902,16 +878,6 @@ export function HeroCarousel({
           ) : (
             <Volume2 className="size-3.5 md:size-4" aria-hidden />
           )}
-        </button>
-        <button
-          type="button"
-          onClick={handleSaveClick}
-          onPointerEnter={prefetchMyPlaylists}
-          className={cn(glassBtn, "hidden size-8 md:inline-flex md:size-10")}
-          aria-label="Save to playlist"
-          data-analytics-name="home-hero-save"
-        >
-          <Bookmark className="size-3.5 md:size-4" aria-hidden />
         </button>
         <button
           type="button"
@@ -1011,16 +977,6 @@ export function HeroCarousel({
               Watch
               <span className="hidden md:inline"> Now</span>
             </Link>
-            <button
-              type="button"
-              onClick={handleSaveClick}
-              onPointerEnter={prefetchMyPlaylists}
-              className={cn(glassBtn, "size-8 md:hidden")}
-              aria-label="Save to playlist"
-              data-analytics-name="home-hero-save"
-            >
-              <Bookmark className="size-3.5" aria-hidden />
-            </button>
           </div>
         </div>
 
@@ -1061,20 +1017,6 @@ export function HeroCarousel({
         onOpenChange={setShareOpen}
         url={shareUrl}
         title={activeCard.title}
-      />
-      <AddToPlaylistDialog
-        open={saveOpen}
-        onOpenChange={setSaveOpen}
-        videoId={activeCard.id}
-        videoTitle={activeCard.title}
-        artistName={activeCard.handle ? `@${activeCard.handle}` : activeCard.artistName}
-        thumbnailUrl={activeCard.thumbnail || undefined}
-      />
-      <AuthDialog
-        open={saveAuthOpen}
-        onOpenChange={setSaveAuthOpen}
-        title={AUTH_DIALOG_COPY.playlist.title}
-        description={AUTH_DIALOG_COPY.playlist.description}
       />
     </section>
     </div>
