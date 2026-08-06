@@ -98,8 +98,15 @@ export function formatStateCode(state: string): string {
   return state.trim().toUpperCase()
 }
 
+export const UNKNOWN_LOCATION_LABEL = "Location unknown"
+
 export function getShortCityLabel(artist: Artist): string {
   return formatCityName(artist.city.split(",")[0]?.trim() || artist.city)
+}
+
+/** City label for UI — never invents a city when location is missing. */
+export function formatArtistCityDisplay(artist: Artist): string {
+  return getShortCityLabel(artist) || UNKNOWN_LOCATION_LABEL
 }
 
 export type ArtistDirectoryFilter = {
@@ -158,6 +165,7 @@ export function getPrimaryFollowerCount(artist: Artist): number | null {
 export function formatCityState(artist: Artist): string {
   const city = formatCityName(artist.city)
   const state = formatStateCode(artist.state)
+  if (!city) return UNKNOWN_LOCATION_LABEL
   if (!state) return city
   return `${city}, ${state}`
 }

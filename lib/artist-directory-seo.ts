@@ -368,6 +368,10 @@ export function buildArtistProfileFallbackBio(artist: Artist): string {
   const genres =
     artist.genre.length > 0 ? artist.genre.join(", ").toLowerCase() : "hip-hop"
 
+  if (!cityLabel) {
+    return `${artist.name} is a ${genres} artist on the Hiffi Artist Index. Browse official links, claim this profile, and watch music videos on Hiffi.`
+  }
+
   return `${artist.name} is a ${genres} artist from ${cityLabel} on the Hiffi Artist Index. Browse official links, claim this profile, and watch music videos on Hiffi.`
 }
 
@@ -387,18 +391,23 @@ export function buildArtistProfileMetadata(artist: Artist): Metadata {
       : "Claim pending review."
 
   const artistImage = getArtistImageUrl(artist.image)
+  const title = cityLabel
+    ? `${artist.name} — ${cityLabel} ${genres} Artist`
+    : `${artist.name} — ${genres} Artist`
+  const descriptionFallback = cityLabel
+    ? `${artist.name} on the Hiffi Artist Index — ${cityLabel} ${genres} artist. ${statusNote}`
+    : `${artist.name} on the Hiffi Artist Index — ${genres} artist. ${statusNote}`
 
   return buildArtistIndexMetadata({
-    title: `${artist.name} — ${cityLabel} ${genres} Artist`,
-    description: displayBio.slice(0, 155) || `${artist.name} on the Hiffi Artist Index — ${cityLabel} ${genres} artist. ${statusNote}`,
+    title,
+    description: displayBio.slice(0, 155) || descriptionFallback,
     path: `${ARTIST_INDEX_PATH}/${artist.slug}`,
     keywords: [
       artist.name,
       ...artist.genre,
-      cityLabel,
+      ...(cityLabel ? [cityLabel, `${cityLabel} rap artist`] : []),
       "Hiffi artist",
       "claim artist profile",
-      `${cityLabel} rap artist`,
     ],
     ogImageUrl: artistImage ?? absoluteUrl("/hiffi_logo.png"),
     ogImageAlt: `${artist.name} — Hiffi Artist Index`,

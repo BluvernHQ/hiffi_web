@@ -105,9 +105,11 @@ export default function HiffiAboutBenefits() {
                     </video>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src="/hiffi_logo.png"
+                      src="/hiffi_logo.webp"
                       alt="Hiffi"
                       className="benefits-video-brand"
+                      width={739}
+                      height={1024}
                     />
                   </div>
                   <div className="iphone-frame" aria-hidden>

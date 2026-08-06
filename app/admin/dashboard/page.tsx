@@ -379,7 +379,8 @@ function AdminDashboardContent() {
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      List sessions first (with IP/geo), then expand one session to see only its events
+                      See where visitors enter and exit a chain, measure drop-off between stages, then open a
+                      session timeline for detail
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">

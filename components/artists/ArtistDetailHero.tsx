@@ -2,7 +2,7 @@ import Link from "next/link"
 import { BadgeCheck } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
-import { formatCityName, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
+import { formatArtistCityDisplay, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { cn } from "@/lib/utils"
 
@@ -84,7 +84,7 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
                   {isPending ? "Under Review" : "Unclaimed Profile"}
                 </span>
               )}
-              <span className="normal-case text-white/85">{formatCityName(artist.city)}</span>
+              <span className="normal-case text-white/85">{formatArtistCityDisplay(artist)}</span>
             </div>
             <ArtistShareButton title={artist.name} path={profilePath} />
           </div>

@@ -6,8 +6,8 @@ import {
   artistIndexEditHref,
   artistIndexHref,
   formatCityState,
+  formatArtistCityDisplay,
   getArtistProfileSubtitle,
-  getShortCityLabel,
   isArtistNew,
 } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
@@ -168,7 +168,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
             </div>
             {!isHub ? (
               <span className="shrink-0 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-                {getShortCityLabel(artist)}
+                {formatArtistCityDisplay(artist)}
               </span>
             ) : null}
           </div>
