@@ -3,7 +3,7 @@ import type { AtlantaHubCategoryCard } from "./types"
 export const ATLANTA_HUB = {
   title: "Atlanta Hip-Hop Guide",
   description:
-    "Explore Atlanta hip-hop culture through independent artists, rap music, subgenres, studios, venues, and curated guides. Discover official music videos, artist profiles, and the latest talent on Hiffi.",
+    "Explore Atlanta hip-hop — independent artists, genres, studios, venues, and curated guides. Discover official music videos and artist profiles on Hiffi.",
   intro:
     "Atlanta isn’t just a city tag — it’s a full stack of sounds, rooms, labels, and timelines. Start with a genre hub, jump into a best-of list, or walk eras in order.",
   keywords: [

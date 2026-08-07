@@ -7,7 +7,7 @@ export default function CreatorPlaybookPage() {
       path="/creator-playbook"
       eyebrow="Creators"
       title="Creator Playbook"
-      description="The complete Hiffi Creator Playbook for independent rappers, producers, DJs, and hip-hop artists. Learn how to become a Hiffi creator, upload rap music, publish official music videos, and grow your fanbase."
+      description="The Hiffi Creator Playbook for independent rappers and hip-hop artists — become a creator, upload music videos, and grow your fanbase."
       sections={[
         {
           title: "Before you start",

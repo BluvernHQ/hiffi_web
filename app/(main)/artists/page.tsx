@@ -7,7 +7,7 @@ export default function ArtistsPage() {
       path="/artists"
       eyebrow="Creators"
       title="Hiffi Artists"
-      description="Hiffi Artists is the home for independent hip-hop artists, independent rappers, producers, DJs, and beatmakers. Create your artist profile, upload official music videos, reach new fans, and grow your audience on Hiffi's artist-first hip-hop streaming platform."
+      description="Independent hip-hop artists, rappers, producers, and DJs: create your profile, upload official music videos, and grow your audience on Hiffi."
       sections={[
         {
           title: "Why Artists Choose Hiffi",

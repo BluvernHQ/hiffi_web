@@ -51,6 +51,7 @@ export default function AtlantaHubPage() {
       title={ATLANTA_HUB.title}
       description={ATLANTA_HUB.description}
       eyebrow="Atlanta"
+      faqItems={faqItems}
       cta={{ label: "Browse Atlanta artists", href: "/artist-index/city/atlanta" }}
       secondaryCta={{ label: "Read the scene guide", href: "/artist-index/city/atlanta/scene" }}
     >

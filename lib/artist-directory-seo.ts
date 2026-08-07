@@ -362,7 +362,7 @@ export function buildArtistCityPageMetadata(
 
   return buildArtistIndexMetadata({
     title: city.headline,
-    description: city.description,
+    description: `${city.description}${matchNote}`,
     path: artistIndexCityHref(city.slug, page > 1 ? page : undefined),
     keywords: city.keywords,
     page,
@@ -401,7 +401,7 @@ export function buildArtistGenrePageMetadata(
 
   return buildArtistIndexMetadata({
     title: genre.headline,
-    description: genre.description,
+    description: `${genre.description}${matchNote}`,
     path: artistIndexGenreHref(genre.slug, page > 1 ? page : undefined),
     keywords: genre.keywords,
     page,
@@ -414,7 +414,11 @@ export function buildArtistProfileFallbackBio(artist: Artist): string {
   const genres =
     artist.genre.length > 0 ? artist.genre.join(", ").toLowerCase() : "hip-hop";
 
-  return `${artist.name} is a ${genres} artist from ${cityLabel} on the Hiffi Artist Index. Browse official links, claim this profile, and watch music videos on Hiffi.`
+  if (!cityLabel) {
+    return `${artist.name} is a ${genres} artist on the Hiffi Artist Index. Browse official links, claim this profile, and watch music videos on Hiffi.`;
+  }
+
+  return `${artist.name} is a ${genres} artist from ${cityLabel} on the Hiffi Artist Index. Browse official links, claim this profile, and watch music videos on Hiffi.`;
 }
 
 export function getArtistDisplayBio(artist: Artist): string {

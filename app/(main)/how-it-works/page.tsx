@@ -6,8 +6,8 @@ export default function HowItWorksPage() {
     <ContentPageShell
       path="/how-it-works"
       eyebrow="Product"
-      title="How Hiffi works"
-      description="Learn how Hiffi works for fans and independent artists. Create an account, discover hip-hop music videos, stream rap content, upload your own music, and grow your audience on Hiffi."
+      title="How Hiffi Works"
+      description="Learn how Hiffi works for fans and independent artists — create an account, discover hip-hop music videos, upload your music, and grow your audience."
       sections={[
         {
           title: "For fans",

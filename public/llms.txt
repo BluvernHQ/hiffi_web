@@ -24,6 +24,7 @@ Contact and corrections: care@hiffi.com
 
 - [Homepage](https://www.hiffi.com/): Discover feed — latest hip-hop and rap music videos
 - [Hip-hop hub](https://www.hiffi.com/hip-hop.md): Genre landing page with mood grid and subgenre discovery
+- [Atlanta Hip-Hop Guide](https://www.hiffi.com/atlanta.md): Atlanta scene hub — genres, studios, venues, FAQ
 - [Search](https://www.hiffi.com/search): Find hip-hop artists and rap music videos
 - [Artist Index](https://www.hiffi.com/artist-index): Directory of 800+ hip-hop and rap artists — starting in Atlanta
 - [Claim artist profile](https://www.hiffi.com/artist-index/claim): Find and verify your Artist Index listing
@@ -57,7 +58,7 @@ Contact and corrections: care@hiffi.com
 
 ## Optional
 
-- [Hiffi Artists](https://www.hiffi.com/artists): Creator program overview
+- [Hiffi Artists](https://www.hiffi.com/artists.md): Creator program overview
 - [Creator Playbook](https://www.hiffi.com/creator-playbook): Growth tips for rap artists on Hiffi
 - [Hiffi Advertising](https://www.hiffi.com/advertising): Brand advertising on Hiffi
 - [Brand collaboration](https://www.hiffi.com/collaborate): Artist partnership inquiries

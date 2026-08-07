@@ -44,20 +44,16 @@ export function buildAgentBlock(agent: string, disallowBlock: string): string {
 }
 
 /**
- * Non-prod (dev/beta): keep generic crawlers off the index (`Disallow: /`),
- * but explicitly Allow AI bots so ChatGPT / Claude / Perplexity can access e.g. dev.hiffi.com.
+ * Non-prod (dev/beta): block all crawlers including AI bots.
+ * Avoid staging/dev content being cited by ChatGPT / Perplexity / Claude.
+ * GEO testing should use production (or a dedicated allowlisted preview host).
  */
 export function buildNonProdRobotsBody(): string {
-  const aiBlocks = AI_BOTS.map((agent) =>
-    ["", `User-agent: ${agent}`, "Allow: /"].join("\n"),
-  ).join("\n")
-
   return [
     "User-agent: *",
     "Disallow: /",
-    aiBlocks,
     "",
-    "# AI bots allowed on non-prod for agent / GEO access; search engines remain blocked.",
+    "# Non-prod: search engines and AI bots blocked to prevent staging citation pollution.",
     "",
   ].join("\n")
 }

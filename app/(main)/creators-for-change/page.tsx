@@ -7,7 +7,7 @@ export default function CreatorsForChangePage() {
       path="/creators-for-change"
       eyebrow="Commitments"
       title="Creators for Change"
-      description="Hiffi Creators for Change is a community initiative that supports independent hip-hop artists, creators, and community leaders who use music to inspire, educate, mentor, and create positive cultural impact."
+      description="Hiffi Creators for Change supports independent hip-hop artists and community leaders who use music to mentor, educate, and create positive cultural impact."
       sections={[
         {
           title: "What is Creators for Change?",

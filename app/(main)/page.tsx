@@ -19,26 +19,12 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
   keywords: [
     "hip hop music videos",
-    "best hip hop music videos",
-    "new hip hop music videos",
     "rap music videos",
-    "best rap music videos",
-    "free rap music videos",
-    "hip hop videos",
-    "latest hip hop videos",
-    "new rap music videos",
-    "official rap music videos",
-    "top hip hop videos",
-    "music videos",
-    "best music videos",
-    "free music videos",
-    "best rap music videos of all time",
     "independent hip hop",
     "underground hip hop",
     "drill music",
     "trap music",
     "conscious rap",
-    "underground rap",
     "boom bap",
     "hiffi",
   ],
@@ -120,6 +106,7 @@ export default async function RootPage() {
 
   return (
     <>
+      <h1 className="sr-only">{PAGE_TITLE}</h1>
       <JsonLd data={discoverGraph} />
       <Suspense
         fallback={

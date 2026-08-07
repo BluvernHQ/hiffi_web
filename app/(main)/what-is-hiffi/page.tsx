@@ -34,7 +34,7 @@ export default function WhatIsHiffiPage() {
         path="/what-is-hiffi"
         eyebrow="Overview"
         title="What is Hiffi?"
-        description="Hiffi is an independent hip-hop streaming platform where artists publish music videos, discover new fans, and grow their audience without algorithmic gatekeeping."
+        description="Hiffi is an independent hip-hop streaming platform where artists publish music videos and grow their audience — starting from Atlanta's rap scene. Not affiliated with other HIFFI brands."
         sections={[
           {
             title: "The platform",

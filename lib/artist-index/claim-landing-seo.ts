@@ -4,7 +4,7 @@ import { absoluteUrl } from "@/lib/seo/site"
 
 export const ARTIST_CLAIM_LANDING_TITLE = "Claim Your Artist Profile on Hiffi"
 export const ARTIST_CLAIM_LANDING_DESCRIPTION =
-  "Claim your artist profile on Hiffi. Find your listing, verify your identity, update your bio and links, and manage music videos as an independent hip-hop artist."
+  "Claim your free artist profile on Hiffi. Find your listing, verify identity (review in 24–48 hours), update bio and links, and manage music videos as an independent hip-hop artist."
 
 export const ARTIST_CLAIM_STEPS = [
   {

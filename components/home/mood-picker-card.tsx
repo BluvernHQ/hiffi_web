@@ -100,13 +100,6 @@ export function MoodPickerCard({
         ref={cardRef}
         className="relative border border-border bg-card shadow-sm will-change-transform"
       >
-        <h1 className="sr-only">
-          Hiffi – Stream Hip-Hop Music Videos and Discover Independent Rap Artists
-        </h1>
-        <p className="sr-only">
-  Discover independent hip-hop artists, stream rap music videos, and explore
-  new releases from emerging creators on Hiffi.
-       </p>
         <div
           className="absolute left-0 top-0 h-full w-1 bg-primary"
           aria-hidden

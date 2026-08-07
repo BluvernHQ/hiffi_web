@@ -27,6 +27,7 @@ type AtlantaPageShellProps = {
   cta?: { label: string; href: string }
   secondaryCta?: { label: string; href: string }
   headerExtra?: ReactNode
+  faqItems?: Array<{ question: string; answer: string }>
   className?: string
 }
 
@@ -43,6 +44,7 @@ export function AtlantaPageShell({
   cta,
   secondaryCta,
   headerExtra,
+  faqItems,
   className,
 }: AtlantaPageShellProps) {
   const crumbs: AtlantaBreadcrumb[] = [
@@ -58,6 +60,7 @@ export function AtlantaPageShell({
     title,
     description,
     breadcrumbLabel: title,
+    faqItems,
   })
 
   return (
