@@ -26,7 +26,7 @@ Contact and corrections: care@hiffi.com
 - [Hip-hop hub](https://www.hiffi.com/hip-hop.md): Genre landing page with mood grid and subgenre discovery
 - [Atlanta Hip-Hop Guide](https://www.hiffi.com/atlanta.md): Atlanta scene hub — genres, studios, venues, FAQ
 - [Search](https://www.hiffi.com/search): Find hip-hop artists and rap music videos
-- [Artist Index](https://www.hiffi.com/artist-index): Directory of 800+ hip-hop and rap artists — starting in Atlanta
+- [Artist Index](https://www.hiffi.com/artist-index): Directory of hip-hop and rap artists — Atlanta first, expanding by city
 - [Claim artist profile](https://www.hiffi.com/artist-index/claim): Find and verify your Artist Index listing
 - [Claim flow (AI doc)](https://www.hiffi.com/artist-index/claim.md): How to claim — search, verify, manage profile
 - [Artist Index (AI doc)](https://www.hiffi.com/artist-index.md): Claimable artist directory — hub URLs, profile pattern, citation guidance

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import Link from "next/link"
 import { Loader2, MapPin, Search, Youtube } from "lucide-react"
+import { artistProfilePhotoAlt } from "@/lib/artists"
 import { cn } from "@/lib/utils"
 import {
   fetchTopArtistsClient,
@@ -60,7 +61,7 @@ function ArtistBubble({ artist, size }: { artist: TopArtist; size: "sm" | "lg" }
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
-        alt=""
+        alt={artistProfilePhotoAlt(artist.artist_name)}
         className={cn("shrink-0 rounded-full object-cover ring-1 ring-black/5", sizeClasses)}
       />
     )
@@ -97,7 +98,7 @@ function ArtistPortrait({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
-        alt={artist.artist_name}
+        alt={artistProfilePhotoAlt(artist.artist_name)}
         className={cn("rounded-2xl object-cover", className)}
       />
     )

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { ArrowDown, ArrowUp, Minus, Search } from "lucide-react"
+import { artistProfilePhotoAlt } from "@/lib/artists"
 import { cn } from "@/lib/utils"
 import {
   hasMovementData,
@@ -32,7 +33,7 @@ function ArtistBubble({ artist }: { artist: TopArtist }) {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
-        alt=""
+        alt={artistProfilePhotoAlt(artist.artist_name)}
         className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-black/5"
       />
     )

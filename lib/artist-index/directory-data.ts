@@ -118,6 +118,7 @@ export async function buildArtistDirectoryFiltersAsync(): Promise<ArtistDirector
   const cityBuckets = new Map<string, { label: string; count: number }>()
   for (const artist of all) {
     const label = getShortCityLabel(artist)
+    if (!label) continue
     const slug = slugifyFilterSegment(label)
     if (!slug) continue
     const bucket = cityBuckets.get(slug)
@@ -290,7 +291,7 @@ export async function getRelatedArtistsAsync(artist: Artist, limit = 6): Promise
     .filter((item) => item.slug !== artist.slug)
     .map((item) => {
       let score = 0
-      if (slugifyFilterSegment(getShortCityLabel(item)) === citySlug) score += 2
+      if (citySlug && slugifyFilterSegment(getShortCityLabel(item)) === citySlug) score += 2
       if (
         item.genre.some((genre) =>
           genreSlugs.has(slugifyFilterSegment(normalizeCategoryLabel(genre))),
@@ -311,11 +312,13 @@ export async function getRelatedArtistsAsync(artist: Artist, limit = 6): Promise
   }
 
   const seen = new Set<string>([artist.slug, ...scored.map((entry) => entry.artist.slug)])
-  const sameCity = all.filter(
-    (item) =>
-      !seen.has(item.slug) &&
-      slugifyFilterSegment(getShortCityLabel(item)) === citySlug,
-  )
+  const sameCity = citySlug
+    ? all.filter(
+        (item) =>
+          !seen.has(item.slug) &&
+          slugifyFilterSegment(getShortCityLabel(item)) === citySlug,
+      )
+    : []
   const fill = [...scored.map((entry) => entry.artist), ...sameCity]
     .sort(compareArtistsByName)
     .slice(0, limit)

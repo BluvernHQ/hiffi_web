@@ -21,25 +21,25 @@ import { truncateMetaDescription } from "@/lib/seo/meta";
 
 /** Visible H1 on /artist-index (plain text for JSON-LD). */
 export const ARTIST_INDEX_HUB_HEADLINE =
-  "Discover Atlanta's emerging hip-hop & rap artists";
+  "Discover hip-hop & rap artists";
 
 /** `<title>` for clean /artist-index (layout appends " | Hiffi"). */
 export const ARTIST_INDEX_HUB_META_TITLE =
-  "Atlanta Rappers & Hip-Hop Artist Directory";
+  "Hip-Hop & Rap Artist Directory";
 
 /** @deprecated Use ARTIST_INDEX_HUB_META_TITLE or ARTIST_INDEX_HUB_HEADLINE. */
 export const ARTIST_INDEX_HUB_TITLE = ARTIST_INDEX_HUB_META_TITLE;
 
 export const ARTIST_INDEX_HUB_DESCRIPTION =
-  "Search the Hiffi Artist Index for Atlanta rappers, hip-hop artists, underground rap artists, and claimable profiles by city and genre.";
+  "Search the Hiffi Artist Index for hip-hop and rap artists — claimable profiles by city and genre. Atlanta is the first indexed market.";
 
 export function buildArtistIndexHubDescription(artistCount?: number): string {
   const countClause =
     artistCount != null && artistCount > 0
-      ? ` ${artistCount.toLocaleString()}+ artists indexed, Atlanta first.`
-      : " Atlanta is our first indexed market.";
+      ? ` ${artistCount.toLocaleString()}+ artists indexed.`
+      : "";
   return truncateMetaDescription(
-    `Search the Hiffi Artist Index for Atlanta rappers, hip-hop artists, underground rap artists, and claimable profiles by city and genre.${countClause}`,
+    `Search the Hiffi Artist Index for hip-hop and rap artists — claimable profiles by city and genre.${countClause} Atlanta is the first indexed market; more cities as the directory grows.`,
   );
 }
 
@@ -96,22 +96,9 @@ function buildCityPage(
       `claim ${filter.label} artist profile`,
       ...(isAtlanta
         ? [
-            "Atlanta hip-hop and rap artists",
-            "Atlanta hip-hop artists",
-            "Atlanta rap artists",
             "Atlanta rappers",
-            "atlanta rap artists",
-            "famous atlanta rappers",
-            "best atlanta rappers",
-            "atlanta rappers list",
-            "top atlanta rappers",
-            "new atlanta rappers",
-            "underground atlanta rappers",
-            "artist from Atlanta",
-            "Atlanta music artist",
-            "Atlanta hip-hop scene",
+            "Atlanta hip-hop artists",
             "ATL rap artists",
-            "Atlanta rapper directory",
             "underground Atlanta rap",
           ]
         : []),
@@ -122,22 +109,21 @@ function buildCityPage(
 function buildGenrePage(
   filter: Awaited<ReturnType<typeof getArtistDirectoryFilters>>[number],
 ): ArtistGenrePage {
-  const genreLabel = filter.label.toLowerCase();
+  const genreLabel = filter.label;
+  const genreLower = genreLabel.toLowerCase();
 
-  // Genre filters span the full inventory; today that inventory is Atlanta-only (flagship market).
-  // TODO(city-expand): Make headline city-aware when a second city is indexed — e.g. "{City} {genre} artists".
   return {
     slug: filter.slug,
     label: filter.label,
     filterId: filter.id,
-    headline: `Atlanta ${genreLabel} artists`,
-    description: `Browse ${filter.count.toLocaleString()}+ Atlanta ${genreLabel} artists on the Hiffi Artist Index. Search by artist name.`,
+    headline: `${genreLabel} artists`,
+    description: `Browse ${filter.count.toLocaleString()}+ ${genreLower} artists on the Hiffi Artist Index. Filter by city or search by artist name.`,
     keywords: [
-      `Atlanta ${genreLabel} artists`,
-      "Atlanta hip-hop and rap artists",
-      `${genreLabel} artist directory`,
-      `independent Atlanta ${genreLabel} artists`,
-      `claim ${genreLabel} artist profile`,
+      `${genreLower} artists`,
+      `${genreLower} artist directory`,
+      `independent ${genreLower} artists`,
+      "hip-hop artist directory",
+      `claim ${genreLower} artist profile`,
     ],
   };
 }
@@ -299,29 +285,16 @@ export async function buildArtistIndexHubMetadata(options?: {
       description: buildArtistIndexHubDescription(artistCount),
       path: ARTIST_INDEX_PATH,
       keywords: [
-        "Atlanta hip-hop and rap artists",
-        "Atlanta hip-hop artists",
-        "Atlanta rap artists",
-        "Atlanta rappers",
-        "atlanta rap artists",
-        "famous atlanta rappers",
-        "best atlanta rappers",
-        "atlanta rappers list",
-        "top atlanta rappers",
-        "new atlanta rappers",
-        "underground atlanta rappers",
         "Hiffi artist index",
         "hip-hop artist directory",
         "rap artist directory",
         "hip hop artists",
         "rap artists",
-        "underground artists",
-        "new rappers",
-        "independent artists",
-        "ATL rap directory",
-        "claim artist profile",
-        "independent hip-hop",
         "underground rap artists",
+        "independent artists",
+        "claim artist profile",
+        "Atlanta rappers",
+        "Atlanta hip-hop artists",
       ],
     });
   }
@@ -437,20 +410,23 @@ export function buildArtistProfileMetadata(artist: Artist): Metadata {
       : "Claim pending review.";
 
   const artistImage = getArtistImageUrl(artist.image);
+  const title = cityLabel
+    ? `${artist.name} — ${cityLabel} ${genres} Artist`
+    : `${artist.name} — ${genres} Artist`;
+  const descriptionFallback = cityLabel
+    ? `${artist.name} on the Hiffi Artist Index — ${cityLabel} ${genres} artist. ${statusNote}`
+    : `${artist.name} on the Hiffi Artist Index — ${genres} artist. ${statusNote}`;
 
   return buildArtistIndexMetadata({
-    title: `${artist.name} — ${cityLabel} ${genres} Artist`,
-    description:
-      displayBio.slice(0, 155) ||
-      `${artist.name} on the Hiffi Artist Index — ${cityLabel} ${genres} artist. ${statusNote}`,
+    title,
+    description: displayBio.slice(0, 155) || descriptionFallback,
     path: `${ARTIST_INDEX_PATH}/${artist.slug}`,
     keywords: [
       artist.name,
       ...artist.genre,
-      cityLabel,
+      ...(cityLabel ? [cityLabel, `${cityLabel} rap artist`] : []),
       "Hiffi artist",
       "claim artist profile",
-      `${cityLabel} rap artist`,
     ],
     ogImageUrl: artistImage ?? absoluteUrl("/hiffi_logo.png"),
     ogImageAlt: `${artist.name} — Hiffi Artist Index`,

@@ -17,18 +17,19 @@ function pickSocialUrl(record: Record<string, unknown>, ...keys: string[]): stri
 
 function parseCityState(location: string | undefined): { city: string; state: string } {
   const trimmed = location?.trim()
-  if (trimmed) {
-    const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean)
-    if (parts.length >= 2) {
-      return {
-        city: formatCityName(parts.slice(0, -1).join(", ")),
-        state: formatStateCode(parts[parts.length - 1]),
-      }
-    }
-    return { city: formatCityName(trimmed), state: "GA" }
+  if (!trimmed) {
+    return { city: "", state: "" }
   }
 
-  return { city: "Atlanta", state: "GA" }
+  const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean)
+  if (parts.length >= 2) {
+    return {
+      city: formatCityName(parts.slice(0, -1).join(", ")),
+      state: formatStateCode(parts[parts.length - 1]),
+    }
+  }
+
+  return { city: formatCityName(trimmed), state: "" }
 }
 
 export function mapInventoryProfileToArtist(

@@ -26,7 +26,7 @@ export function ArtistIndexHeader({
         <Link href="/" className="flex shrink-0 items-center">
           <Image
             src="/appbarlogo.png"
-            alt="Hiffi"
+            alt="Hiffi logo"
             width={120}
             height={32}
             className="h-8 w-auto"

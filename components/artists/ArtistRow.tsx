@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { formatCityState } from "@/lib/artists"
+import { artistProfilePhotoAlt, formatCityState } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
@@ -25,7 +25,7 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageSrc}
-        alt=""
+        alt={artistProfilePhotoAlt(artist.name)}
         className={cn(
           "h-11 w-11 shrink-0 rounded-full object-cover",
           !artist.verified && artist.claim_status === "unclaimed" && "grayscale opacity-60",

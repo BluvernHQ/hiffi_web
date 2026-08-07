@@ -6,6 +6,7 @@ import {
   ARTIST_CLAIM_FEATURES,
   ARTIST_CLAIM_STEPS,
 } from "@/lib/artist-index/claim-landing-seo"
+import { artistProfilePhotoAlt } from "@/lib/artists"
 
 const stepIconPaths = {
   "step-find": "/artist-claim/icons/step-find.svg",
@@ -42,7 +43,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
               <ArtistClaimSearch variant="claim" />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Indexing {countLabel}+ artists in Atlanta today.
+              Indexing {countLabel}+ artists — Atlanta first, expanding city by city.
             </p>
           </div>
 
@@ -53,7 +54,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
                   <div className="flex items-center gap-2.5 sm:gap-3">
                     <Image
                       src="/artist-claim/hero-profile.png"
-                      alt="Jaxson Kaine profile"
+                      alt={artistProfilePhotoAlt("Jaxson Kaine")}
                       width={52}
                       height={52}
                       className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-[52px] sm:w-[52px]"
