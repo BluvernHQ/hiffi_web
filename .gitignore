@@ -46,9 +46,12 @@ next-env.d.ts
 logs/
 .next/dev/logs/
 
-# cursor agent skills (local)
-.agents/skills/*
-
+# Cursor / agent local files
+.cursor/
+.cursorignore
+.cursorrules
+.agents/
+AGENTS.md
 # community artist edit submissions (contains emails)
 lib/data/artist-edit-suggestions.json
 

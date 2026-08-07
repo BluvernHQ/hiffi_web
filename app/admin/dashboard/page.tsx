@@ -40,6 +40,7 @@ import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-
 import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
 import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
 import { AdminsPanel } from "@/components/admin/admins-panel"
+import { AdminToolsPanel } from "@/components/admin/admin-tools-panel"
 import { InventoryPanel } from "@/components/admin/inventory-panel"
 import { RankingAnomaliesPanel } from "@/components/admin/ranking-anomalies-panel"
 import { Badge } from "@/components/ui/badge"
@@ -378,7 +379,8 @@ function AdminDashboardContent() {
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      List sessions first (with IP/geo), then expand one session to see only its events
+                      See where visitors enter and exit a chain, measure drop-off between stages, then open a
+                      session timeline for detail
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
@@ -529,6 +531,20 @@ function AdminDashboardContent() {
                   </div>
                   <div className="flex-1 min-h-0">
                     {showContent ? <AdminsPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "tools" && can("admin:tools") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tools</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      System integrations and operational utilities
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminToolsPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

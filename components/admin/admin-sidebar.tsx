@@ -26,6 +26,7 @@ import {
   Mic2,
   Route,
   Activity,
+  Wrench,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -120,6 +121,7 @@ const navSections: NavSection[] = [
     title: "Administration",
     items: [
       { icon: ShieldCheck, label: "Admins", value: "admins", permission: "admin:admins" },
+      { icon: Wrench, label: "Tools", value: "tools", permission: "admin:tools" },
     ],
   },
 ]

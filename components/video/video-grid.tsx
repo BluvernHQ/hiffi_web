@@ -182,7 +182,7 @@ export function VideoGrid({
   return (
     <div className="w-full">
       {isInitialLoad && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3 sm:gap-x-4 sm:gap-y-4 md:gap-x-5">
           {Array.from({ length: 8 }).map((_, index) => (
             <VideoCardSkeleton key={`skeleton-${index}`} />
           ))}
@@ -193,7 +193,7 @@ export function VideoGrid({
         <>
           <div
             ref={gridRef}
-            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1"
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3 sm:gap-x-4 sm:gap-y-4 md:gap-x-5"
           >
             {safeVideos.map((video, index) => (
               <div

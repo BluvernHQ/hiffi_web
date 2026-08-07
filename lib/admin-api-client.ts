@@ -67,6 +67,15 @@ import {
   type AdminRow,
 } from "./api/admin-admins"
 import {
+  adminListYoutubeApiKeys as apiAdminListYoutubeApiKeys,
+  adminCreateYoutubeApiKey as apiAdminCreateYoutubeApiKey,
+  adminUpdateYoutubeApiKey as apiAdminUpdateYoutubeApiKey,
+  adminDeleteYoutubeApiKey as apiAdminDeleteYoutubeApiKey,
+  type YoutubeApiKey,
+  type CreateYoutubeApiKeyInput,
+  type UpdateYoutubeApiKeyInput,
+} from "./api/admin-youtube-api-keys"
+import {
   adminListInventory as apiAdminListInventory,
   adminListInventoryClaims as apiAdminListInventoryClaims,
   adminApproveInventoryClaim as apiAdminApproveInventoryClaim,
@@ -306,6 +315,24 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListAdmins(params?: { limit?: number; offset?: number }) {
     return apiAdminListAdmins(this, params)
+  }
+
+  // ─── Tools / YouTube API keys ───────────────────────────────────────────────
+
+  async adminListYoutubeApiKeys() {
+    return apiAdminListYoutubeApiKeys(this)
+  }
+
+  async adminCreateYoutubeApiKey(body: CreateYoutubeApiKeyInput) {
+    return apiAdminCreateYoutubeApiKey(this, body)
+  }
+
+  async adminUpdateYoutubeApiKey(id: string, body: UpdateYoutubeApiKeyInput) {
+    return apiAdminUpdateYoutubeApiKey(this, id, body)
+  }
+
+  async adminDeleteYoutubeApiKey(id: string) {
+    return apiAdminDeleteYoutubeApiKey(this, id)
   }
 
   // ─── Artist inventory ───────────────────────────────────────────────────────
@@ -638,4 +665,13 @@ class AdminApiClient implements AdminApiClientContext {
 
 export const adminApiClient = new AdminApiClient()
 
-export type { CuratedPlaylistSummary, CuratedPlaylistItem, AdminRow, AdminCommentRow, AdminReplyRow, AdminUserRow, AdminVideoRow }
+export type {
+  CuratedPlaylistSummary,
+  CuratedPlaylistItem,
+  AdminRow,
+  AdminCommentRow,
+  AdminReplyRow,
+  AdminUserRow,
+  AdminVideoRow,
+  YoutubeApiKey,
+}
