@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -13,6 +13,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+  isTurnstileEnabled,
+} from "@/components/auth/turnstile-widget"
 
 function LoginForm() {
   const [identifier, setIdentifier] = useState("")
@@ -20,6 +25,8 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null)
   const { login, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -55,14 +62,22 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError("Please complete the security check.")
+      return
+    }
+
     setIsLoading(true)
     setError("")
 
     try {
       // Pass redirect path to login function - it will handle navigation after successful auth
-      await login(identifier, password, redirectPath)
+      await login(identifier, password, redirectPath, turnstileToken)
       // Note: Navigation happens inside login() function, so we don't need to navigate here
     } catch (err: any) {
+      // Tokens are single-use — a failed attempt needs a fresh challenge.
+      turnstileRef.current?.reset()
       // Don't show error message if it's about disabled account (toast already shown)
       if (err.message?.includes("disabled")) {
         // Error already handled with toast, just clear the form state
@@ -161,8 +176,19 @@ function LoginForm() {
                 </Link>
               </div>
             </div>
+            <TurnstileWidget
+              ref={turnstileRef}
+              action="login"
+              onToken={setTurnstileToken}
+              className="flex justify-center"
+            />
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading} data-analytics-name="login-submit-button">
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || (isTurnstileEnabled() && !turnstileToken)}
+              data-analytics-name="login-submit-button"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

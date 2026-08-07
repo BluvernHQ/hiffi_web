@@ -263,14 +263,14 @@ export function BecomeCreatorCta() {
             className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
           >
             {isLoggedOut
-              ? "Sign in to get started"
+              ? "Start your creator journey"
               : upgradeStep === "otp"
                 ? "Verify your email"
                 : "Ready to start creating?"}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             {isLoggedOut
-              ? "Create an account or sign in, then confirm below to enable creator uploads."
+              ? "Create a free account or sign in to unlock creator tools, upload music videos, and publish your first release on Hiffi."
               : upgradeStep === "otp"
                 ? upgradeMessage ||
                   `We've sent a 6-digit code to ${accountEmail}. Enter it below to complete your creator upgrade.`

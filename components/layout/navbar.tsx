@@ -9,7 +9,7 @@ import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 import { isCreator } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2, Flag } from "lucide-react"
+import { Search, Upload, Menu, UserIcon, LogOut, Sparkles, Video, Loader2, Flag, MessageSquareText } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { NavbarProfileAvatar } from "@/components/profile/navbar-profile-avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
+import { FeedbackDialog } from "@/components/feedback/feedback-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState, useEffect, type MouseEvent } from "react"
 import { requestHomeFeedHardReload } from "@/lib/home-feed-session"
@@ -95,6 +96,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -320,6 +322,18 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                         <span>My reports</span>
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        setUserMenuOpen(false)
+                        // Open after dropdown unmounts — same-tick open often prevents dialog from showing (Radix stacking / focus).
+                        queueMicrotask(() => setFeedbackDialogOpen(true))
+                      }}
+                      data-analytics-name="navbar-send-feedback"
+                    >
+                      <MessageSquareText className="mr-2 h-4 w-4" />
+                      <span>Send Feedback</span>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={(e) => {
@@ -360,6 +374,8 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
       </header>
 
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      <FeedbackDialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen} />
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={handleLogoutDialogOpenChange}>

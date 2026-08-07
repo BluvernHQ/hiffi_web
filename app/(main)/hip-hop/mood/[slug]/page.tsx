@@ -16,6 +16,50 @@ function moodFromSlug(slug: string): MoodDef | undefined {
   )
 }
 
+const moodSeoKeywords: Record<string, string[]> = {
+  "on sight": [
+    "drill music videos",
+    "trap music videos",
+    "rage rap",
+    "aggressive hip hop",
+  ],
+  "soul search": [
+    "conscious rap",
+    "conscious hip hop",
+    "introspective hip hop",
+    "conscious rap artists",
+  ],
+  "money talk": [
+    "celebration rap",
+    "flex rap",
+    "triumphant hip hop",
+  ],
+  "blue hours": [
+    "heartbreak rap",
+    "emotional rap",
+    "melodic rap",
+    "late night rap",
+  ],
+  "low rider": [
+    "lofi hip hop",
+    "boom bap",
+    "chill hip hop",
+    "jazz rap",
+  ],
+  "turn up": [
+    "workout rap",
+    "gym rap songs",
+    "hype rap",
+    "party rap",
+  ],
+  "god's plan": [
+    "spiritual rap",
+    "inspirational rap",
+    "motivational hip hop",
+    "gospel rap",
+  ],
+}
+
 export async function generateStaticParams() {
   return MOODS.map((mood) => ({
     slug: mood.query.replace(/\s+/g, "-").toLowerCase(),
@@ -30,11 +74,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pageUrl = absoluteUrl(`/hip-hop/mood/${encodeURIComponent(slug)}`)
   const absoluteTitle = `${mood.label} — ${mood.vibe} | Hiffi`
   const description = `Discover ${mood.vibe} music videos from independent hip-hop artists on Hiffi. ${mood.tagline} Stream ${mood.cluster.toLowerCase()} rap — official videos, underground drops, and creator-first discovery.`
+  const targetedKeywords = moodSeoKeywords[mood.query] ?? []
 
   return {
     title: { absolute: absoluteTitle },
     description,
     keywords: [
+      ...targetedKeywords,
       mood.vibe,
       mood.cluster,
       "hip hop",

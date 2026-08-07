@@ -7,7 +7,7 @@ import { CreatorDestinationLink } from "@/components/creator/creator-destination
 
 const pageTitle = "Hip-Hop Music Videos & Streaming — Discover Independent Rap Artists"
 const pageDescription =
-  "Hiffi is the hip-hop-first platform for independent rap artists and fans. Watch official music videos, discover drill, trap, conscious rap, boom bap, and more."
+  "Stream hip-hop and rap music videos on Hiffi. Discover independent artists, underground rap, drill, trap, conscious rap, boom bap, and new hip-hop releases."
 const pageUrl = absoluteUrl("/hip-hop")
 
 export const metadata: Metadata = {
@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   description: pageDescription,
   keywords: [
     "hip hop streaming",
+    "rap streaming",
+    "stream hip hop",
+    "hip hop platform",
     "rap music videos",
     "independent hip hop artists",
     "underground rap streaming",
@@ -23,9 +26,6 @@ export const metadata: Metadata = {
     "conscious rap",
     "boom bap streaming",
     "hip hop music video platform",
-    "best platform for independent hip hop artists",
-    "where to watch rap music videos",
-    "hip hop app",
     "hiffi hip hop",
   ],
   alternates: { canonical: pageUrl },
@@ -60,7 +60,7 @@ const faqItems = [
   {
     question: "Where can I watch independent rap music videos online?",
     answer:
-      "Hiffi hosts official music videos from independent hip-hop and rap artists worldwide. Browse the discover feed at hiffi.com, search by artist name or vibe, or explore mood-based hubs covering drill, trap, conscious rap, boom bap, lo-fi hip-hop, and more — a dedicated place to watch rap music videos online outside generic video feeds.",
+      "Hiffi hosts official music videos from independent hip-hop and rap artists worldwide. Browse the discover feed at hiffi.com, search by artist name or vibe, or explore mood-based hubs covering drill, trap, conscious rap, boom bap, lo-fi hip-hop, and more — a dedicated place to watch rap music videos online and stream hip-hop without generic video-feed noise.",
   },
   {
     question: "Does Hiffi have drill and trap music?",
@@ -70,7 +70,7 @@ const faqItems = [
   {
     question: "Is there a hip-hop streaming app for iPhone and Android?",
     answer:
-      "Yes. The Hiffi app is free to download on both iOS (App Store) and Android (Google Play). Discover new hip-hop artists, watch music videos, follow creators, build playlists, and stream in high quality on your phone — built as a hip-hop streaming app, not a general video app with a rap filter.",
+      "Yes. The Hiffi app is free to download on both iOS (App Store) and Android (Google Play). Discover new hip-hop artists, watch music videos, follow creators, build playlists, and stream in high quality on your phone — built as a hip-hop music app and rap music app, not a general video app with a rap filter.",
   },
   {
     question: "How is Hiffi different from YouTube or Spotify for rap artists?",
@@ -149,9 +149,8 @@ export default function HipHopPage() {
           Hip-Hop Music Videos &amp; Streaming
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Hiffi is built for hip-hop — the only platform where independent rap artists and
-          their fans come first. Discover official music videos, follow creators, and stream
-          drill, trap, conscious rap, boom bap, and more.
+          Stream hip-hop and rap music videos on Hiffi. Discover independent artists, underground
+          rap, drill, trap, conscious rap, boom bap, and new hip-hop releases.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -248,6 +247,10 @@ export default function HipHopPage() {
               title: "Creator Control",
               body: "Manage your profile, upload and edit content, and build your audience directly. No label required. Independent artists keep creative ownership.",
             },
+            {
+              title: "Discoverability",
+              body: "Genre-based discovery through mood mixes, artist profiles, and curated hip-hop collections helps fans find your music.",
+            },
           ].map((item) => (
             <div key={item.title} className="rounded-xl border border-border bg-card p-5">
               <h3 className="font-semibold mb-2">{item.title}</h3>
@@ -260,6 +263,9 @@ export default function HipHopPage() {
       {/* Subgenre quick links */}
       <section id="hip-hop-subgenres" className="mb-14 scroll-mt-20">
         <h2 className="text-2xl font-bold mb-4">Hip-Hop Subgenres on Hiffi</h2>
+         <p className="mb-5 max-w-3xl text-muted-foreground">
+             Explore hip-hop music by subgenre on Hiffi. Discover independent artists, official music videos, and new releases across every style.
+         </p>
         <div className="flex flex-wrap gap-2">
           {[
             "Drill", "Trap", "Conscious Rap", "Boom Bap", "Lo-fi Hip-Hop",

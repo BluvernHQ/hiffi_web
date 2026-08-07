@@ -20,3 +20,14 @@ export function getAppVersionInfo(): AppVersionInfo {
 export function getAnalyticsAppVersion(): string {
   return `web@${APP_VERSION}`
 }
+
+/**
+ * build_id for HifiAnalytics v2 ingest (required on every event).
+ * Prefers NEXT_PUBLIC_BUILD_ID, then deploy artifact id, then "dev".
+ */
+export function getAnalyticsBuildId(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_BUILD_ID?.trim()
+  if (fromEnv) return fromEnv
+  if (APP_BUILD_ID && APP_BUILD_ID !== "dev") return APP_BUILD_ID
+  return APP_BUILD_ID || "dev"
+}

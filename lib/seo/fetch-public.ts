@@ -60,7 +60,25 @@ function normalizeVideoListPayload(json: unknown): {
 
   const videos: VideoRecord[] = raw.map((item) => {
     if (item && typeof item === "object" && "video" in item) {
-      return (item as { video: VideoRecord }).video
+      const row = item as {
+        video: VideoRecord
+        following?: boolean
+        profile_picture?: string
+        user?: { profile_picture?: string }
+      }
+      const videoData: VideoRecord & Record<string, unknown> = {
+        ...row.video,
+        following: row.following || false,
+      }
+      // Sibling profile_picture on list items (same shape as apiClient.getVideoList).
+      const pic =
+        (typeof row.profile_picture === "string" && row.profile_picture.trim()) ||
+        (typeof row.user?.profile_picture === "string" && row.user.profile_picture.trim()) ||
+        ""
+      if (pic) {
+        videoData.user_profile_picture = pic
+      }
+      return videoData as VideoRecord
     }
     return item as VideoRecord
   })

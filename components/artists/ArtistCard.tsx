@@ -5,9 +5,10 @@ import {
   artistIndexClaimHref,
   artistIndexEditHref,
   artistIndexHref,
+  artistProfilePhotoAlt,
+  formatArtistCityDisplay,
   formatCityState,
   getArtistProfileSubtitle,
-  getShortCityLabel,
   isArtistNew,
 } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
@@ -41,7 +42,7 @@ function ArtistCardAvatar({ artist }: { artist: Artist }) {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageSrc}
-        alt={`${artist.name} profile photo`}
+        alt={artistProfilePhotoAlt(artist.name)}
         className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg"
       />
     )
@@ -168,7 +169,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
             </div>
             {!isHub ? (
               <span className="shrink-0 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-                {getShortCityLabel(artist)}
+                {formatArtistCityDisplay(artist)}
               </span>
             ) : null}
           </div>

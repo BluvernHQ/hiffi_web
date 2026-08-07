@@ -42,13 +42,13 @@ export async function GET(
       )
     }
 
-    // Fetch image from Workers with x-api-key header
-    // Don't cache to ensure fresh images after profile picture updates
+    // Fetch image from Workers with x-api-key header.
+    // Short revalidate so ranking pages can reuse the same avatar without refetching every paint.
     const response = await fetch(workersUrl, {
       headers: {
         'x-api-key': apiKey,
       },
-      cache: 'no-store', // Don't cache profile pictures
+      next: { revalidate: 3600 },
     })
     
     console.log(`[hiffi] Profile picture proxy: Workers response status: ${response.status} ${response.statusText}`)
@@ -76,15 +76,12 @@ export async function GET(
     // Get content type from Workers response
     const contentType = response.headers.get('content-type') || 'image/jpeg'
     
-    // Return the image with appropriate headers
-    // Use no-cache for profile pictures to ensure fresh images after updates
+    // Browser + CDN cache: avatars are keyed by uid path; allow reuse on ranking "load more".
     return new NextResponse(imageBlob, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'no-cache, no-store, must-revalidate', // Don't cache profile pictures
-        'Pragma': 'no-cache',
-        'Expires': '0',
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       },

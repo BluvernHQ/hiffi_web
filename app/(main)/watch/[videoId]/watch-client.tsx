@@ -40,7 +40,7 @@ import {
 } from "@/lib/playlist-session"
 import { moodQueryFromPlaylistId } from "@/lib/mood-tabs"
 import { useToast } from "@/hooks/use-toast"
-import { getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
+import { formatCompactCount, getVideoViewCount, isVideoProcessing, PROCESSING_VIDEO_TOAST, shouldShowVideoViewCount, getProfileFollowerCount, shouldShowPublicFollowerCount } from "@/lib/video-utils"
 import { getSeed, resetSeed } from "@/lib/seed-manager"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import {
@@ -1872,29 +1872,34 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           <Bookmark className="h-5 w-5" />
                         </Button>
                       </AddToPlaylistDialogLazy>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            data-analytics-name={WATCH_MORE_ACTIONS}
-                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                            aria-label="More actions"
-                            title="More"
-                          >
-                            <MoreHorizontal className="h-5 w-5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem
-                            data-analytics-name="shared-video"
-                            onClick={() => setShareDialogOpen(true)}
-                          >
-                            <Share2 className="h-4 w-4" />
-                            Share
-                          </DropdownMenuItem>
-                          {canReportVideo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        data-analytics-name="shared-video"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                        onClick={() => setShareDialogOpen(true)}
+                        aria-label="Share video"
+                        title="Share"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                      {canReportVideo && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              data-analytics-name={WATCH_MORE_ACTIONS}
+                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                              aria-label="More actions"
+                              title="More"
+                            >
+                              <MoreHorizontal className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
                               data-analytics-name="report-video"
                               onClick={() => setReportDialogOpen(true)}
@@ -1902,9 +1907,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                               <Flag className="h-4 w-4" />
                               Report
                             </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2039,7 +2044,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                     <>
                       {showVideoViewCount && (
                         <div className="flex gap-2 font-medium mb-2">
-                          <span>{videoViewCount.toLocaleString()} views</span>
+                          <span>{formatCompactCount(videoViewCount)} views</span>
                         </div>
                       )}
                       {hasVideoDescription ? (

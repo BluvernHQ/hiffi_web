@@ -12,7 +12,7 @@ export const artistCardMedia =
 export const artistCardInset = "p-3"
 
 export const artistButtonSolid =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-[#E8192C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#d01528]"
+  "inline-flex items-center justify-center gap-2 rounded-full bg-[#E8192C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#d01528] sm:px-6 sm:py-3 sm:text-base"
 
 /** Card footer actions — softer corners than header pills */
 export const artistCardButtonPrimary =
@@ -22,7 +22,7 @@ export const artistCardButtonSecondary =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"
 
 export const artistButtonOutline =
-  "inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#E8192C] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#E8192C] transition-colors hover:bg-[#E8192C]/5"
+  "inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#E8192C] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#E8192C] transition-colors hover:bg-[#E8192C]/5 sm:px-6 sm:py-3 sm:text-base"
 
 export const artistButtonMuted =
   "inline-flex items-center justify-center gap-2 rounded-full border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"

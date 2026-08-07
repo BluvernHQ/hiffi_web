@@ -13,7 +13,8 @@ export const DISALLOW_PATHS = [
   "/referrar/",
 ] as const
 
-export const AI_AND_SEARCH_BOTS = [
+/** AI / LLM crawlers — allowed on non-prod (dev/beta) so agents can read staging. */
+export const AI_BOTS = [
   "GPTBot",
   "OAI-SearchBot",
   "ChatGPT-User",
@@ -22,12 +23,16 @@ export const AI_AND_SEARCH_BOTS = [
   "ClaudeBot",
   "Claude-SearchBot",
   "Claude-User",
-  "Googlebot",
-  "Bingbot",
-  "Applebot",
   "Google-Extended",
   "CCBot",
+  "anthropic-ai",
+  "Claude-Web",
 ] as const
+
+/** Traditional search crawlers (prod allow-list alongside AI bots). */
+export const SEARCH_BOTS = ["Googlebot", "Bingbot", "Applebot"] as const
+
+export const AI_AND_SEARCH_BOTS = [...AI_BOTS, ...SEARCH_BOTS] as const
 
 export function formatDisallowLines(paths: readonly string[]): string {
   return paths.map((path) => `Disallow: ${path}`).join("\n")
@@ -38,8 +43,19 @@ export function buildAgentBlock(agent: string, disallowBlock: string): string {
   return ["", `User-agent: ${agent}`, "Allow: /", disallowBlock].join("\n")
 }
 
+/**
+ * Non-prod (dev/beta): block all crawlers including AI bots.
+ * Avoid staging/dev content being cited by ChatGPT / Perplexity / Claude.
+ * GEO testing should use production (or a dedicated allowlisted preview host).
+ */
 export function buildNonProdRobotsBody(): string {
-  return ["User-agent: *", "Disallow: /", ""].join("\n")
+  return [
+    "User-agent: *",
+    "Disallow: /",
+    "",
+    "# Non-prod: search engines and AI bots blocked to prevent staging citation pollution.",
+    "",
+  ].join("\n")
 }
 
 export function buildProdRobotsBody(origin: string): string {

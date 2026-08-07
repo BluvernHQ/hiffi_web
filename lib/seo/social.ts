@@ -1,3 +1,5 @@
+import { HIFFI_STORE_SAME_AS } from "@/lib/app-download"
+
 /** Official Hiffi social profiles — used in Organization JSON-LD sameAs and site footer. */
 export const HIFFI_SOCIAL_PROFILES = {
   instagram: "https://www.instagram.com/officialhiffi/",
@@ -5,7 +7,14 @@ export const HIFFI_SOCIAL_PROFILES = {
   youtube: "https://www.youtube.com/@officialhiffi",
 } as const
 
-export const ORGANIZATION_SAME_AS = Object.values(HIFFI_SOCIAL_PROFILES)
+/**
+ * Brand entity sameAs: socials + store listings so Google can associate
+ * hiffi.com with App Store and Google Play for brand queries.
+ */
+export const ORGANIZATION_SAME_AS = [
+  ...Object.values(HIFFI_SOCIAL_PROFILES),
+  ...HIFFI_STORE_SAME_AS,
+] as const
 
 /** Normalize creator social URLs from API user payloads into absolute https links. */
 export function extractCreatorSameAs(user: Record<string, unknown>): string[] {

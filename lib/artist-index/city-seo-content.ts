@@ -85,6 +85,10 @@ export function buildAtlantaScenePageDescription(profileCount?: number): string 
 
 export const ATLANTA_SCENE_KEYWORDS = [
   "Atlanta hip-hop scene",
+  "Atlanta rap scene",
+  "Atlanta hip hop culture",
+  "Atlanta hip-hop culture",
+  "Atlanta hip hop artists",
   "ATL rap scene",
   "Atlanta trap scene",
   "Atlanta drill rap",

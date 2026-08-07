@@ -119,7 +119,7 @@ export function ArtistDetailInteractive({
 
           <ArtistOtherArtists
             otherArtists={otherArtists}
-            cityLabel={artist.city.split(",")[0]?.trim() || artist.city}
+            cityLabel={artist.city.split(",")[0]?.trim() || artist.city || undefined}
           />
 
           <ArtistClaimCta artist={artist} variant="banner" />

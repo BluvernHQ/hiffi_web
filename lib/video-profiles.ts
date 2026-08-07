@@ -103,6 +103,36 @@ export function buildPlaybackCandidates(
   return [...new Set(candidates)]
 }
 
+/**
+ * Preview / hero ladder: lowest available height first (capped), original last.
+ * Keeps startup bytes small on home hero + feed hover; watch keeps buildPlaybackCandidates.
+ */
+export function buildPreviewPlaybackCandidates(
+  baseUrl: string,
+  originalProfile?: string | null,
+  availableProfiles?: string[] | null,
+  options?: { maxHeight?: number },
+): string[] {
+  const maxHeight = options?.maxHeight ?? 480
+  const keys = new Set<string>()
+
+  const primaryKey = getPrimaryProfileKey(originalProfile)
+  if (primaryKey !== "original") keys.add(primaryKey)
+
+  for (const profile of availableProfiles ?? []) {
+    const key = normalizeProfileKey(profile)
+    if (key && key !== "original") keys.add(key)
+  }
+
+  const ranked = [...keys].sort((a, b) => profileHeight(a) - profileHeight(b))
+  const underCap = ranked.filter((key) => profileHeight(key) <= maxHeight)
+  const overCap = ranked.filter((key) => profileHeight(key) > maxHeight)
+
+  // Prefer ≤maxHeight, then next rungs, then original as last resort.
+  const orderedKeys = [...underCap, ...overCap, "original"]
+  return [...new Set(orderedKeys.map((key) => profileToPlaybackUrl(baseUrl, key)))]
+}
+
 export function profileKeyFromPlaybackUrl(url: string): string | undefined {
   const match = url.match(/\/(original|\d+p)\.mp4(?:\?.*)?$/i)
   return match?.[1]?.toLowerCase()

@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3,
-  Activity,
   Users,
   Video,
   MessageSquare,
@@ -14,6 +13,7 @@ import {
   Megaphone,
   Handshake,
   Flag,
+  MessageCircle,
   Shield,
   ShieldCheck,
   X,
@@ -24,6 +24,9 @@ import {
   ArrowDownToLine,
   ListMusic,
   Mic2,
+  Route,
+  Activity,
+  Wrench,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -65,6 +68,17 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    title: "Hiffi 500",
+    items: [
+      {
+        icon: Activity,
+        label: "Score Anomalies",
+        value: "ranking_anomalies",
+        permission: "admin:inventory",
+      },
+    ],
+  },
+  {
     title: "Editorial",
     items: [
       { icon: ListMusic, label: "Curated Playlists", value: "curated_playlists", permission: "admin:curated" },
@@ -77,6 +91,7 @@ const navSections: NavSection[] = [
       { icon: MessageSquare, label: "Comments", value: "comments", permission: "admin:comments" },
       { icon: Reply, label: "Replies", value: "replies", permission: "admin:replies" },
       { icon: Flag, label: "Reports", value: "flags", permission: "admin:flags" },
+      { icon: MessageCircle, label: "Feedback", value: "feedback", permission: "admin:feedback" },
     ],
   },
   {
@@ -90,7 +105,7 @@ const navSections: NavSection[] = [
   {
     title: "Insights",
     items: [
-      { icon: Activity, label: "Activity Logs", value: "activity", permission: "admin:activity" },
+      { icon: Route, label: "Journeys", value: "journeys", permission: "admin:journeys" },
       { icon: SearchIcon, label: "Searches", value: "searches", permission: "admin:searches" },
       { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: "admin:utm" },
       { icon: Handshake, label: "Collaboration", value: "collaboration", permission: "admin:collaboration" },
@@ -106,6 +121,7 @@ const navSections: NavSection[] = [
     title: "Administration",
     items: [
       { icon: ShieldCheck, label: "Admins", value: "admins", permission: "admin:admins" },
+      { icon: Wrench, label: "Tools", value: "tools", permission: "admin:tools" },
     ],
   },
 ]
@@ -138,9 +154,13 @@ export function AdminSidebar({
 
   const section = searchParams.get("flagId")
     ? "flags"
-    : searchParams.get("playlistId")
-      ? "curated_playlists"
-      : searchParams.get("section") || "overview"
+    : searchParams.get("feedbackId")
+      ? "feedback"
+      : searchParams.get("playlistId")
+        ? "curated_playlists"
+        : searchParams.get("sessionId")
+          ? "journeys"
+          : searchParams.get("section") || "overview"
 
   const handleSectionChange = (value: string) => {
     router.push(`/admin/dashboard?section=${value}`)

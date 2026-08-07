@@ -9,10 +9,16 @@ export const metadata = routeMetadata({
   path: "/advertising",
   keywords: [
     "Hiffi advertising",
+    "Hip-Hop Advertising",
+    "hip-hop advertising platform",
+    "rap music advertising",
+    "advertise to hip-hop fans",
     "hip-hop brand partnerships",
     "music platform advertising",
     "rap artist sponsorship",
     "brand collaboration Hiffi",
+    "sponsored music videos",
+    "music culture brand campaigns",
   ],
 })
 

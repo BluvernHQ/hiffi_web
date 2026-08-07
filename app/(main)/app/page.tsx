@@ -3,8 +3,13 @@ import { cookies } from "next/headers"
 import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
 import { AppDownloadChrome, type PlatformHint } from "@/components/app/app-download-chrome"
-import { absoluteUrl } from "@/lib/seo/site"
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
+import {
+  androidAppSchemaId,
+  iosAppSchemaId,
+  organizationSchemaId,
+} from "@/lib/seo/org"
 import {
   ListMusic,
   Music,
@@ -18,7 +23,7 @@ import {
 
 const pageTitleAbsolute = "Download Hiffi App — Hip-Hop Music Videos & Creator Streaming"
 const pageDescription =
-  "Download Hiffi for iOS and Android. Discover independent hip-hop artists, watch music videos, follow creators, build playlists, and stream high-quality music."
+  "Download the Hiffi hip-hop music app for iOS and Android. Discover rap artists, watch music videos, follow creators, build playlists, and stream in high quality."
 
 const pagePath = "/app"
 const pageUrl = absoluteUrl(pagePath)
@@ -29,11 +34,13 @@ export const metadata: Metadata = {
   keywords: [
     "Hiffi app",
     "download Hiffi",
+    "hip hop music app",
+    "rap music app",
     "hip-hop streaming app",
     "music video app",
     "Hiffi iOS",
     "Hiffi Android",
-    "independent artists",
+    "independent rap music app",
   ],
   alternates: {
     canonical: pageUrl,
@@ -61,17 +68,53 @@ export const metadata: Metadata = {
 
 const softwareJsonLd = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Hiffi",
-  operatingSystem: ["iOS", "Android"],
-  applicationCategory: "MusicApplication",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-  url: pageUrl,
-  installUrl: [HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL],
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": `${pageUrl}#webpage`,
+      url: pageUrl,
+      name: pageTitleAbsolute,
+      description: pageDescription,
+      inLanguage: "en",
+      isPartOf: { "@id": `${getSiteOrigin()}/#website` },
+      about: { "@id": organizationSchemaId() },
+      mainEntity: [{ "@id": iosAppSchemaId() }, { "@id": androidAppSchemaId() }],
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": iosAppSchemaId(),
+      name: "Hiffi",
+      operatingSystem: "iOS",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_APP_STORE_URL,
+      downloadUrl: HIFFI_APP_STORE_URL,
+      installUrl: HIFFI_APP_STORE_URL,
+      sameAs: [pageUrl],
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      publisher: { "@id": organizationSchemaId() },
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": androidAppSchemaId(),
+      name: "Hiffi",
+      operatingSystem: "Android",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_PLAY_STORE_URL,
+      downloadUrl: HIFFI_PLAY_STORE_URL,
+      installUrl: HIFFI_PLAY_STORE_URL,
+      sameAs: [pageUrl],
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      publisher: { "@id": organizationSchemaId() },
+    },
+  ],
 }
 
 const faqJsonLd = {
@@ -99,7 +142,7 @@ const faqJsonLd = {
       name: "Is Hiffi free to download?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes, Hiffi is free to download on both iOS and Android.",
+        text: "Yes, Hiffi is a free hip-hop music app to download on both iOS and Android.",
       },
     },
     {
@@ -115,7 +158,7 @@ const faqJsonLd = {
       name: "Is Hiffi for hip-hop and rap artists?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Absolutely. Hiffi is built specifically for the hip-hop and rap community — both artists and fans.",
+        text: "Absolutely. Hiffi is built specifically for the hip-hop and rap community — both artists and fans looking for a dedicated rap music app.",
       },
     },
   ],

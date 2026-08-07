@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -23,6 +23,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Check, X, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+  isTurnstileEnabled,
+} from "@/components/auth/turnstile-widget"
 
 function SignupForm() {
   const [name, setName] = useState("")
@@ -37,6 +42,8 @@ function SignupForm() {
   const [emailError, setEmailError] = useState("")
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null)
   const { signup, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -197,6 +204,12 @@ function SignupForm() {
       return
     }
 
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError("Please complete the security check.")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const result = await signup(
         username,
@@ -205,9 +218,12 @@ function SignupForm() {
         email.trim(),
         redirectPath,
         refParam?.trim() || null,
+        turnstileToken,
       )
 
       if (!result.success) {
+        // Tokens are single-use — a failed attempt needs a fresh challenge.
+        turnstileRef.current?.reset()
         const errorMessage = result.error || "Something went wrong. Please try again."
 
         if (
@@ -236,6 +252,7 @@ function SignupForm() {
         }
       }
     } catch (err: unknown) {
+      turnstileRef.current?.reset()
       const errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again."
       setError(errorMessage)
     } finally {
@@ -389,6 +406,12 @@ function SignupForm() {
                 <p className="text-xs text-destructive">Password cannot contain spaces.</p>
               )}
             </div>
+            <TurnstileWidget
+              ref={turnstileRef}
+              action="register"
+              onToken={setTurnstileToken}
+              className="flex justify-center"
+            />
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button
               type="submit"
@@ -396,6 +419,7 @@ function SignupForm() {
               data-analytics-name="signup-create-account-button"
               disabled={
                 isLoading ||
+                (isTurnstileEnabled() && !turnstileToken) ||
                 checkingUsername ||
                 !!nameError ||
                 !!usernameError ||

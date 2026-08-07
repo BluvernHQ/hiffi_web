@@ -7,7 +7,6 @@ import {
   ARTIST_INDEX_PATH,
   artistDirectoryFilterSeoHref,
   buildArtistDirectoryHref,
-  pickHubInlineFilters,
 } from "@/lib/artist-directory"
 import { ArtistFilterBar } from "@/components/artists/ArtistFilterBar"
 import { ArtistSearch } from "@/components/artists/ArtistSearch"
@@ -139,17 +138,12 @@ export function ArtistIndexControls({
   )
 
   const isHub = variant === "hub"
-  const hubFilters = pickHubInlineFilters(filterOptions)
-  const emphasizeAtlanta =
-    isHub &&
-    !displayedFilterIds.some((id) => id.startsWith("city:")) &&
-    !initialQuery.trim()
   const isSearching = onSyncDirectory ? isDirectoryPending : isPending
 
   if (isHub) {
     return (
       <section
-        aria-label="Search and filter artists"
+        aria-label="Search artists"
         className="rounded-2xl border border-[#E8192C]/15 bg-[#FAFAFA] p-3 shadow-sm sm:p-4"
       >
         <ArtistSearch
@@ -161,18 +155,6 @@ export function ArtistIndexControls({
           variant="hub"
           loading={isSearching}
         />
-        <div className="mt-3 border-t border-[#E8192C]/10 pt-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Filter by
-          </p>
-          <ArtistFilterBar
-            filters={hubFilters}
-            activeFilterIds={displayedFilterIds}
-            onToggleFilter={toggleFilter}
-            variant="inline"
-            emphasizeAtlanta={emphasizeAtlanta}
-          />
-        </div>
       </section>
     )
   }

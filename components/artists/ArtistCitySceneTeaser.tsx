@@ -24,13 +24,22 @@ export function ArtistCitySceneTeaser({
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
         {getAtlantaSceneTeaser(profileCount)}
       </p>
-      <Link
-        href={artistIndexCitySceneHref(citySlug)}
-        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#E8192C] transition-colors hover:text-[#d01528]"
-      >
-        Read the Atlanta hip-hop scene guide
-        <ArrowRight className="h-4 w-4" aria-hidden />
-      </Link>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+        <Link
+          href={artistIndexCitySceneHref(citySlug)}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#E8192C] transition-colors hover:text-[#d01528]"
+        >
+          Read the Atlanta hip-hop scene guide
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Link>
+        <Link
+          href="/atlanta"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground transition-colors hover:text-primary"
+        >
+          Browse the Atlanta guide
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Link>
+      </div>
     </aside>
   )
 }

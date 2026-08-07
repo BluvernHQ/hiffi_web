@@ -204,6 +204,24 @@ export function shouldShowVideoViewCount(viewCount: number): boolean {
   return viewCount >= MIN_PUBLIC_VIEW_COUNT
 }
 
+/** Compact public counts (10.1K, 1.2M) — used once past the public threshold. */
+export function formatCompactCount(count: number): string {
+  if (!Number.isFinite(count) || count < 0) return "0"
+  if (count >= 1_000_000_000) {
+    const value = count / 1_000_000_000
+    return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}B`
+  }
+  if (count >= 1_000_000) {
+    const value = count / 1_000_000
+    return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}M`
+  }
+  if (count >= 1_000) {
+    const value = count / 1_000
+    return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}K`
+  }
+  return String(Math.round(count))
+}
+
 export function getProfileFollowerCount(
   user: {
     followers?: number

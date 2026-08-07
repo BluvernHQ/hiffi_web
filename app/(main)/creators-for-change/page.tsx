@@ -7,17 +7,14 @@ export default function CreatorsForChangePage() {
       path="/creators-for-change"
       eyebrow="Commitments"
       title="Creators for Change"
-      description="Hiffi was built artist-first. Creators for Change is our commitment to spotlight hip-hop creators who use their voice to uplift communities, mentor the next generation, and push culture forward."
+      description="Hiffi Creators for Change supports independent hip-hop artists and community leaders who use music to mentor, educate, and create positive cultural impact."
       sections={[
         {
-          title: "What Creators for Change means on Hiffi",
+          title: "What is Creators for Change?",
           children: (
             <>
               <p>
-                Hip-hop has always been more than music — it&apos;s storytelling, activism, and community. Creators
-                for Change recognizes artists, producers, and creators who channel that energy into meaningful
-                impact: youth mentorship, mental health awareness, social justice, local scene-building, and
-                educational content that keeps culture alive.
+                Hip-hop has always been more than music. It is a platform for storytelling, education, activism, mentorship, and community. Hiffi's Creators for Change program recognizes artists whose work creates a positive impact both online and offline.
               </p>
               <p>
                 We amplify these creators through featured placement, program partnerships, and platform resources

@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080807">
+  <meta name="description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta property="og:title" content="Hiffi Hip-Hop 500 — Live Signal Index">
+  <meta property="og:description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.hiffi.com/top-artists">
+  <meta property="og:site_name" content="Hiffi">
+  <meta property="og:image" content="https://www.hiffi.com/top-artists/share/og-default">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hiffi Hip-Hop 500 — Live Signal Index">
+  <meta name="twitter:description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta name="twitter:image" content="https://www.hiffi.com/top-artists/share/og-default">
+  <link rel="canonical" href="https://www.hiffi.com/top-artists">
+  <link rel="icon" href="/hiffi_logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="/hiffi_logo.png">
+  <link rel="shortcut icon" href="/hiffi_logo.png">
+  <link rel="preload" href="/top-artists/assets/fonts/NimbusSansNarrow-Bold.otf" as="font" type="font/otf" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/top-artists/css/styles.css">
+  <link rel="stylesheet" href="/top-artists/css/share-cards.css">
+  <title>Hiffi Hip-Hop 500 — Live Signal Index</title>
+</head>
+<body>
+  <main>
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="HIFFI Hip-Hop 500 home">HIFFI HIP-HOP <span>500</span></a>
+      <nav class="desktop-nav" id="primaryNav" aria-label="Primary navigation">
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#movers">Movers</a>
+        <a href="/top-artists/how-it-works">How it works</a>
+      </nav>
+      <button class="header-arrow" type="button" data-scroll-target="leaderboard" aria-label="Explore the ranking"><span>↘</span></button>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu"><span></span><span></span></button>
+    </header>
+
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="live-dot"></span> Live YouTube rap index</p>
+        <h1>The 500<br><span>moving</span><br>hip-hop<br>right now</h1>
+        <div class="hero-bottom">
+          <p class="hero-deck">The live movement signals across the artists shaping rap on the world’s biggest video platform.</p>
+          <div class="hero-stats" aria-label="Index facts">
+            <div><b>500</b><span>Tracked</span></div>
+            <div><b>24/7</b><span>Signal<br>view</span></div>
+          </div>
+        </div>
+          <button class="primary-cta" type="button" data-scroll-target="leaderboard">Enter live ranking <span>→</span></button>
+      </div>
+
+      <div class="hero-visual">
+        <div class="signal-terminal" aria-hidden="true">
+          <div class="terminal-bar"><span>HH500 / SIGNAL MAP</span><span>W29.2026</span><span class="signal-online"><i></i> ONLINE</span></div>
+          <div class="terminal-field">
+            <div class="scan-line"></div>
+            <div class="terminal-number">500</div>
+            <div class="signal-axis"><span>100</span><span>75</span><span>50</span><span>25</span><span>00</span></div>
+            <div class="waveform"> <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="fragment-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="terminal-label"><b>YOUTUBE RAP VELOCITY</b><span id="terminalScope">GLOBAL / LOADING</span></div>
+          </div>
+        </div>
+        <div class="top-three">
+          <div class="top-three-head"><span><i class="live-dot"></i> Live ranking preview</span><small>YouTube index</small></div>
+          <div id="topThree"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="index-intro" id="leaderboard">
+      <div>
+        <p class="section-kicker" id="rankingKicker">Updated weekly · Global</p>
+        <h2>The ranking<br>never stands still.</h2>
+      </div>
+      <p>One view of scale and momentum: recent audience growth, view velocity, reach and publishing consistency.</p>
+    </section>
+
+    <section class="ranking-shell" aria-label="Hip-Hop artist ranking">
+      <div class="ranking-controls">
+        <label class="search-box" for="artistSearch"><span>Search artist</span><input id="artistSearch" type="search" placeholder="Type a name..." autocomplete="off"><b aria-hidden="true">⌕</b></label>
+        <div class="mode-filters-bar" aria-label="Ranking modes">
+          <div class="filter-group" id="modeFilters" aria-label="Filter by ranking mode">
+            <button class="active" type="button" data-mode="overall">Overall</button>
+            <button type="button" data-mode="risers">Biggest Risers</button>
+            <button type="button" data-mode="breakout">Breakout 100</button>
+            <button type="button" data-mode="heat">Underground Heat</button>
+          </div>
+          <p class="mode-filters-kicker" id="modeKicker">Full Hip-Hop 500 · scale and momentum</p>
+        </div>
+        <label class="sort-select" for="rankingSort"><span id="rankingSortLabel">Sort</span><select id="rankingSort" aria-label="Sort ranking">
+          <option value="overall">Overall rank</option>
+          <option value="momentum7d">Momentum 7d</option>
+          <option value="momentum30d">Momentum 30d</option>
+          <option value="momentum90d">Momentum 90d</option>
+          <option value="views">Recent avg views</option>
+          <option value="subscribers">Subscribers</option>
+        </select></label>
+      </div>
+      <div class="location-filters-bar" aria-label="City charts">
+        <div class="filter-group" id="locationFilters" aria-label="Filter by location">
+          <button class="active" type="button" data-location="">All</button>
+        </div>
+      </div>
+
+      <div class="table-head" aria-hidden="true"><span>Rank / Artist</span><span>Region</span><span>Subscribers</span><span>7d mom</span><span>30d mom</span><span>90d mom</span><span>Score</span><span>Move</span></div>
+      <div class="artist-list" id="artistList"></div>
+      <div class="ranking-footer" role="status" aria-live="polite"><p id="resultsCount"></p><button id="loadMore" type="button">Load more artists <span>↓</span></button></div>
+    </section>
+
+    <section class="movers-section" id="movers">
+      <div class="movers-heading"><p class="section-kicker">Signal / 02</p><h2>Momentum<br><span>right now.</span></h2></div>
+      <div class="mover-grid" id="moverGrid"></div>
+    </section>
+
+    <section class="method-section" id="methodology">
+      <div class="method-heading">
+        <p class="section-kicker">Method / 03</p>
+        <h2>Built on signal.<br>Not opinion.</h2>
+        <p>The Hiffi Hip-Hop 500 score is designed to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p>
+        <a class="how-inline-link" href="/top-artists/how-it-works">Full how it works <span>↗</span></a>
+      </div>
+      <div class="weights">
+        <article><span>01</span><b>35%</b><div><h3>Recent momentum</h3><p>30-day view and subscriber growth</p></div></article>
+        <article><span>02</span><b>30%</b><div><h3>View velocity</h3><p>Views earned relative to audience size</p></div></article>
+        <article><span>03</span><b>20%</b><div><h3>Audience reach</h3><p>Verified channel subscriber footprint</p></div></article>
+        <article><span>04</span><b>15%</b><div><h3>Consistency</h3><p>Sustained publishing and performance</p></div></article>
+      </div>
+    </section>
+
+    <section class="closing-band" aria-label="Claim your artist profile">
+      <div class="closing-copy">
+        <p>Are you on the list?</p>
+        <span class="closing-deck">Claim your Hiffi Artist Profile to verify links, upload videos, and get discovered.</span>
+      </div>
+      <a class="closing-cta" href="/artist-index/claim">Claim your profile <span>↗</span></a>
+    </section>
+
+    <footer>
+      <a class="wordmark" href="#top">HIP-HOP <span>500</span></a>
+      <p>Independent index. Not affiliated with YouTube.<br>Metrics shown for may not be accurate, verify on YT.</p>
+      <div><a href="#leaderboard">Ranking</a><a href="/top-artists/how-it-works">How it works</a><a href="/artist-index/claim">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
+      <small>© 2026 HIFFI HIP-HOP 500</small>
+    </footer>
+  </main>
+
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden>
+    <aside class="artist-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerArtistName">
+      <div class="drawer-top-actions">
+        <div class="drawer-share-wrap">
+          <button class="drawer-share-btn" id="drawerShareToggle" type="button" aria-expanded="false" aria-controls="drawerSharePanel" aria-label="Share ranking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11A2.99 2.99 0 0 0 18 7.91c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L7.96 9.81A2.99 2.99 0 0 0 6 9.09c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg><span>Share</span></button>
+          <div class="drawer-share-popup" id="drawerSharePanel" hidden role="dialog" aria-label="Share ranking">
+            <div class="drawer-share-card-block">
+              <p class="drawer-share-label">Share card</p>
+              <div class="drawer-share-card-preview" aria-hidden="true">
+                <div class="drawer-share-card-scaler" id="shareCardScaler">
+                  <div class="share-card format-square is-active" data-template="global">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
+                    <div class="share-card__grain" aria-hidden="true"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
+                    </div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="share-card__mark" aria-hidden="true">
+                      <img src="/top-artists/img/hiffi-mark.webp" alt="" width="649" height="900" decoding="async" />
+                    </div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
+                    <div class="share-card__masthead">
+                      <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
+                      <span class="kicker__title is-brand">
+                        <span class="kicker__brand" aria-label="Hiffi 500">
+                          <img src="/appbarlogo.png" alt="" width="220" height="48" />
+                          <span class="kicker__500">500</span>
+                        </span>
+                        <span class="kicker__title-text" data-field="award_title" hidden>Hiffi 500</span>
+                      </span>
+                      <span class="kicker__sub" data-field="award_sub">Global Rankings</span>
+                    </div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Ranked</div>
+                      </div>
+                    </div>
+                    <div class="footer">
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="share-card format-square" data-template="city">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
+                    <div class="share-card__grain" aria-hidden="true"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
+                    </div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="share-card__mark" aria-hidden="true">
+                      <img src="/top-artists/img/hiffi-mark.webp" alt="" width="649" height="900" decoding="async" />
+                    </div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
+                    <div class="share-card__masthead">
+                      <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
+                      <span class="kicker__title">
+                        <span class="kicker__brand" aria-label="Hiffi 500" hidden>
+                          <img src="/appbarlogo.png" alt="" width="220" height="48" />
+                          <span class="kicker__500">500</span>
+                        </span>
+                        <span class="kicker__title-text" data-field="award_title">Atlanta Top 50</span>
+                      </span>
+                      <span class="kicker__sub" data-field="award_sub">City Rankings</span>
+                    </div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Ranked</div>
+                      </div>
+                    </div>
+                    <div class="footer">
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="share-card format-square" data-template="riser">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
+                    <div class="share-card__grain" aria-hidden="true"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
+                    </div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="share-card__mark" aria-hidden="true">
+                      <img src="/top-artists/img/hiffi-mark.webp" alt="" width="649" height="900" decoding="async" />
+                    </div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
+                    <div class="share-card__masthead">
+                      <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
+                      <span class="kicker__title">
+                        <span class="kicker__brand" aria-label="Hiffi 500" hidden>
+                          <img src="/appbarlogo.png" alt="" width="220" height="48" />
+                          <span class="kicker__500">500</span>
+                        </span>
+                        <span class="kicker__title-text" data-field="award_title">Biggest Riser</span>
+                      </span>
+                      <span class="kicker__sub" data-field="award_sub">Hiffi 500 Global</span>
+                    </div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Ranked</div>
+                      </div>
+                    </div>
+                    <div class="footer">
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="share-card format-square" data-template="verified">
+                    <div class="share-card__vignette" aria-hidden="true"></div>
+                    <div class="share-card__grain" aria-hidden="true"></div>
+                    <div class="share-card__frame" aria-hidden="true">
+                      <span class="share-card__corner share-card__corner--tl"></span>
+                      <span class="share-card__corner share-card__corner--tr"></span>
+                      <span class="share-card__corner share-card__corner--bl"></span>
+                      <span class="share-card__corner share-card__corner--br"></span>
+                    </div>
+                    <div class="share-card__glow" aria-hidden="true"></div>
+                    <div class="share-card__mark" aria-hidden="true">
+                      <img src="/top-artists/img/hiffi-mark.webp" alt="" width="649" height="900" decoding="async" />
+                    </div>
+                    <div class="wordmark">
+                      <img src="/appbarlogo.png" alt="Hiffi" width="180" height="40" />
+                    </div>
+                    <div class="share-card__masthead">
+                      <span class="kicker__eyebrow" data-field="award_eyebrow">Official</span>
+                      <span class="kicker__title is-brand">
+                        <span class="kicker__brand" aria-label="Hiffi 500">
+                          <img src="/appbarlogo.png" alt="" width="220" height="48" />
+                          <span class="kicker__500">500</span>
+                        </span>
+                        <span class="kicker__title-text" data-field="award_title" hidden>Hiffi 500</span>
+                      </span>
+                      <span class="kicker__sub" data-field="award_sub">Verified Artist</span>
+                    </div>
+                    <div class="share-card__hero">
+                      <div class="identity">
+                        <div class="share-card__avatar" data-field="artist_photo_url" style="--mono-accent:#e31e24">
+                          <span class="photo-initials" data-field="monogram">?</span>
+                        </div>
+                        <div class="identity__text">
+                          <div class="artist-name" data-field="artist_name">Artist</div>
+                          <div class="subline" data-field="subline"></div>
+                        </div>
+                      </div>
+                      <div class="share-card__rank" data-field="rank_display" aria-hidden="true">#—</div>
+                      <div class="share-card__meta-stack">
+                        <div class="citation" data-field="citation">Ranked</div>
+                      </div>
+                    </div>
+                    <div class="footer">
+                      <div class="footer__rule" aria-hidden="true"></div>
+                      <div class="footer__row">
+                        <div class="footer__right" data-field="week_date"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="drawer-share-format" role="group" aria-label="Card format">
+                <button class="drawer-share-chip is-active" type="button" data-share-format="square">Square</button>
+                <button class="drawer-share-chip" type="button" data-share-format="story">Story</button>
+              </div>
+              <div class="drawer-share-card-actions">
+                <button type="button" data-share-action="download-card">Download</button>
+                <button class="is-primary" type="button" data-share-action="share-card" aria-expanded="false" aria-controls="drawerShareSheet">Share card</button>
+              </div>
+            </div>
+            <p class="drawer-share-preview" id="drawerSharePreview"></p>
+            <p class="drawer-share-status" id="drawerShareStatus" hidden></p>
+          </div>
+        </div>
+        <button class="drawer-close" id="drawerClose" type="button" aria-label="Close artist profile">×</button>
+      </div>
+      <div id="shareCardCaptureMount" class="share-card-host" aria-hidden="true"></div>
+      <p class="section-kicker">Artist profile / Preview</p>
+      <div class="drawer-rank" id="drawerRank"></div>
+      <p class="drawer-rank-meta" id="drawerRankMeta" hidden></p>
+      <div class="drawer-identity">
+        <div id="drawerArtistAvatar" class="drawer-artist-avatar" aria-hidden="true"></div>
+        <h2 id="drawerArtistName"></h2>
+      </div>
+      <div class="drawer-score"><span>YouTube composite score</span><b id="drawerScore"></b></div>
+      <div class="drawer-metrics">
+        <div><span>Subscribers</span><b id="drawerSubscribers"></b></div>
+        <div><span>Lifetime views</span><b id="drawerViews"></b></div>
+        <div><span>Recent avg views</span><b id="drawerRecentAvg"></b></div>
+        <div><span>Video count</span><b id="drawerVideos"></b></div>
+        <div><span>Upload velocity</span><b id="drawerVelocity"></b></div>
+        <div><span>Location</span><b id="drawerLocation"></b></div>
+        <div><span>Momentum 7d</span><b id="drawerMomentum7d"></b></div>
+        <div><span>Momentum 30d</span><b id="drawerMomentum30d"></b></div>
+        <div><span>Momentum 90d</span><b id="drawerMomentum90d"></b></div>
+      </div>
+      <div class="drawer-chart" id="drawerChart" aria-label="Signal chart"></div>
+      <p class="drawer-note">Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.</p>
+      <p class="drawer-claim-note" id="drawerClaimNote" hidden></p>
+      <div class="drawer-actions">
+        <a class="drawer-link drawer-link-claim" id="drawerClaim" href="/artist-index" target="_blank" rel="noopener noreferrer" hidden>Claim this profile <span>↗</span></a>
+        <a class="drawer-link drawer-link-outline" id="drawerYoutube" href="#" target="_blank" rel="noopener noreferrer">Open YouTube channel <span>↗</span></a>
+      </div>
+    </aside>
+  </div>
+
+  <div class="drawer-share-sheet-overlay" id="drawerShareSheetOverlay" hidden>
+    <button class="drawer-share-sheet-scrim" type="button" id="drawerShareSheetScrim" aria-label="Close share menu"></button>
+    <div class="drawer-share-sheet" id="drawerShareSheet" role="dialog" aria-modal="true" aria-labelledby="drawerShareSheetTitle">
+      <div class="drawer-share-sheet-head">
+        <div class="drawer-share-sheet-thumb" id="drawerShareSheetThumb" aria-hidden="true"></div>
+        <div class="drawer-share-sheet-meta">
+          <b id="drawerShareSheetTitle">Share card</b>
+          <span id="drawerShareSheetSub">PNG image</span>
+        </div>
+        <button class="drawer-share-sheet-close" type="button" id="drawerShareSheetClose" aria-label="Close">×</button>
+      </div>
+      <div class="drawer-share-sheet-list" id="drawerShareApps" aria-label="Share to social apps"></div>
+    </div>
+  </div>
+
+  <script>
+    // Direct Workers CDN for ranking avatars (matches lib/config.ts defaults).
+    window.__HIFFI_WORKERS_URL__ = (function () {
+      var h = location.hostname;
+      if (h === "www.hiffi.com" || h === "hiffi.com" || h === "preprod.hiffi.com") {
+        return "https://prod.hiffi.workers.dev";
+      }
+      return "https://dev.hiffi.workers.dev";
+    })();
+  </script>
+  <script src="/top-artists/js/share-cards.js" defer></script>
+  <script src="/top-artists/js/app.js" defer></script>
+</body>
+</html>
