@@ -32,7 +32,7 @@ Upload rap music videos and grow your audience: https://www.hiffi.com/creator/ap
 
 ## Artist Index
 
-Browse 800+ claimable hip-hop and rap artist profiles — starting in Atlanta:
+Browse 800+ claimable hip-hop and rap artist profiles across cities:
 
 - **Hub:** https://www.hiffi.com/artist-index
 - **Atlanta directory:** https://www.hiffi.com/artist-index/city/atlanta

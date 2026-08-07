@@ -6,7 +6,6 @@ import {
   ARTIST_CLAIM_FEATURES,
   ARTIST_CLAIM_STEPS,
 } from "@/lib/artist-index/claim-landing-seo"
-import { artistProfilePhotoAlt } from "@/lib/artists"
 
 const stepIconPaths = {
   "step-find": "/artist-claim/icons/step-find.svg",
@@ -37,13 +36,15 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
               <span className="text-[#E8192C]">Claim it now.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Claim your Hiffi artist profile to manage your music, official videos, artist information, and audience. Verified artists gain access to creator tools, analytics, and profile management.
+              Take ownership of your digital stage. Verified HIFFI artists can manage their
+              discography, track real-time analytics, and build direct connections with their
+              fanbase.
             </p>
             <div id="find-profile" className="mt-8 max-w-xl scroll-mt-24">
               <ArtistClaimSearch variant="claim" />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Indexing {countLabel}+ artists — Atlanta first, expanding city by city.
+              Indexing {countLabel}+ artists across cities.
             </p>
           </div>
 
@@ -54,7 +55,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
                   <div className="flex items-center gap-2.5 sm:gap-3">
                     <Image
                       src="/artist-claim/hero-profile.png"
-                      alt={artistProfilePhotoAlt("Jaxson Kaine")}
+                      alt="Jaxson Kaine profile"
                       width={52}
                       height={52}
                       className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-[52px] sm:w-[52px]"
@@ -121,7 +122,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
               id="claim-steps-heading"
               className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
             >
-              How to Claim Your Hiffi Artist Profile
+              How it works
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-base text-muted-foreground">
               Three simple steps to professional artist management.
@@ -158,78 +159,6 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
           </ol>
         </div>
       </section>
-      {/* Why Claim Your Artist Profile */}
-<section
-  aria-labelledby="why-claim-heading"
-  className="bg-white"
->
-  <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-
-    <div className="grid gap-12 lg:grid-cols-[1.5fr_0.8fr]">
-
-      {/* Left */}
-      <div>
-        <h2
-          id="why-claim-heading"
-          className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
-        >
-          Why Claim Your Artist Profile?
-        </h2>
-
-        <div className="mt-6 space-y-5 text-base leading-8 text-muted-foreground">
-          <p>
-            Claiming your Hiffi artist profile gives you control over how fans
-            discover your music. Keep your biography, official music videos,
-            social links, and artist information accurate in one trusted profile.
-            A claimed profile also unlocks creator tools that help you manage
-            your catalog, monitor audience engagement, and strengthen your
-            presence on Hiffi.
-          </p>
-
-          <p>
-            Whether you're an independent rapper, producer, DJ, or beatmaker,
-            claiming your profile makes it easier for new listeners to find your
-            latest releases and follow your journey. As your catalog grows, your
-            Hiffi profile becomes the central destination for fans to discover
-            your music, watch official videos, and connect with your work.
-          </p>
-        </div>
-      </div>
-
-      {/* Right */}
-      <aside className="space-y-4">
-        <div className="rounded-2xl border border-border p-5">
-          <h3 className="font-semibold">Manage Your Profile</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Update your bio, links, and artist information.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-border p-5">
-          <h3 className="font-semibold">Official Music Videos</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Keep your latest releases in one place.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-border p-5">
-          <h3 className="font-semibold">Audience Analytics</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Understand your listeners and track engagement.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-border p-5">
-          <h3 className="font-semibold">Creator Tools</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Access tools built for independent hip-hop artists.
-          </p>
-        </div>
-      </aside>
-
-    </div>
-  </div>
-</section>
 
       {/* Features */}
       <section aria-labelledby="claim-features-heading" className="bg-[#1B1C1C] text-white">

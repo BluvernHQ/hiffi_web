@@ -8,7 +8,6 @@ import {
   artistProfilePhotoAlt,
   formatArtistCityDisplay,
   formatCityState,
-  formatArtistCityDisplay,
   getArtistProfileSubtitle,
   isArtistNew,
 } from "@/lib/artists"

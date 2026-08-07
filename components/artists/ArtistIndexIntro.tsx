@@ -15,12 +15,12 @@ export function ArtistIndexIntro({
   compact = false,
   variant = "default",
 }: ArtistIndexIntroProps) {
-  const defaultDescription = `Browse ${artistCount.toLocaleString()}+ claimable hip-hop and rap profiles — browse by city and genre.`
+  const defaultDescription = `Browse ${artistCount.toLocaleString()}+ claimable hip-hop and rap profiles across cities.`
   const hubDescription = description ?? buildArtistIndexHubDescription(artistCount)
 
   const hubDefaultTitle = (
     <>
-      Discover{" "}
+      Discover emerging{" "}
       <span
         className="font-normal text-transparent"
         style={{ WebkitTextStroke: "1px rgba(10, 10, 10, 0.85)" }}

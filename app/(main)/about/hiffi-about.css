@@ -450,9 +450,31 @@ footer.footer .footer-bg {
   font-family: var(--font-sans, "Geist", sans-serif);
 }
 
-/* Hiffi why-us card background (J replaced with H in asset) */
+/* Why-us right card: rings + small centered logo */
 .why-us-card.s2 {
-  background-image: url("/hiffi-about/why-us-card-bg-hiffi.png") !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #1a1a1a !important;
+  background-image: url("/hiffi-about/why-us-card-bg-rings.webp") !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+}
+
+.why-us-card.s2 .why-us-avatars {
+  display: none !important;
+}
+
+.why-us-card.s2 .why-us-card-logo {
+  display: block !important;
+  width: auto !important;
+  height: 72px !important;
+  max-width: 56px !important;
+  object-fit: contain !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 /* Hero — subtle Hiffi red atmosphere (dots + soft glows) */

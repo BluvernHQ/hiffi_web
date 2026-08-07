@@ -31,15 +31,22 @@ export default function HiffiAboutWhyUs() {
   100% { 
     transform: translateY(68%);  
   }
-}` }} /></div></div><div className="why-us-inner-shadow"></div></div></div><div className="pair-card-view s2"><div {...{ "why-us-avatars": "" }} className="why-us-card s2"><div {...{ "scroll-scale": "1" }} className="why-us-avatars"><div className="why-us-avatar-position s1"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134253d_45781dee538831db52b55ab05662b542_why-us-avatar-2.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s2"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342543_520288fc2b13a09ddc7c96c12c287e90_why-us-avatar-1.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s3"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342545_cc09fff58d612d9c9d93a7a1509794e8_why-us-avatar-15.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s4"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342548_9d93e5a242886b743e312e93880e2003_why-us-avatar-16.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s5"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342542_77b71c7e4edbaf3611ed87f333f9873a_why-us-avatar-7.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s6"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134253e_da2d54891503b294690626655a436ff8_why-us-avatar-8.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s7"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342544_5d98b735ff3f486e564b75302a7e468f_why-us-avatar-9.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s8"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134255c_028bcf53f02655c239538de40cf022b6_why-us-avatar-10.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s9"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342558_0657ca150adcf46ae3e9080e8f7cb121_why-us-avatar-17.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s10"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342540_278d4d6fe543a7eafb4e5484a2ee9871_why-us-avatar-6.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s11"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342541_2c61d3ba6bee635bc7b4946692f9de3a_why-us-avatar-11.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s12"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342559_f15445828e0abf37d5eb665ace385f71_why-us-avatar-12.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s13"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134255a_262f0e6f37537fffbc8fb8c9baae528b_why-us-avatar-19.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s14"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134253f_32bc5c3ff8bb6f9e144796d7d7a93781_why-us-avatar-5.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s15"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342562_49495a19fb3716bc76db66627cb30466_why-us-avatar-18.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s16"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134253b_b9ceb73b6b7816bca6bd15644b6ea301_why-us-avatar-3.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s17"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342547_e12a33fb9d5bf41c8d63764e66ac248a_why-us-avatar-14.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s18"><div {...{ "data-rotate": "2" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe30071342546_dbe91ae094eb96f7f6062825523bca80_why-us-avatar-13.webp" loading="lazy" alt="" className="image-cover"/></div></div><div className="why-us-avatar-position s19"><div {...{ "data-rotate": "1" }} className="why-us-avatar"><img src="/hiffi-about/6821a59ae3bfe3007134253c_031285f6a03c744ddd05324ce123f610_why-us-avatar-4.webp" loading="lazy" alt="" className="image-cover"/></div></div></div><div className="avarars-js w-embed w-script"><style dangerouslySetInnerHTML={{ __html: `.why-us-avatar-position {
-  opacity: 0;
-  transform: scale(0.5);
-}
-.why-us-avatar-position.visible {
-  opacity: 1;
-}` }} />
-
-</div></div></div></div></div></div>
+}` }} /></div></div><div className="why-us-inner-shadow"></div></div></div>
+        <div className="pair-card-view s2">
+          <div className="why-us-card s2">
+            <img
+              src="/hiffi_logo.webp"
+              alt="Hiffi"
+              width={739}
+              height={1024}
+              className="why-us-card-logo"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      </div>
+      </div>
+      </div>
     </section>
   );
 }
