@@ -37,7 +37,7 @@ Contact and corrections: care@hiffi.com
 - [Watch a video](https://www.hiffi.com/watch/[videoId]): Video watch page (replace `[videoId]` with the video id)
 - [Creator profile](https://www.hiffi.com/profile/[username]): Artist profile (replace `[username]` with the handle)
 - [Apply as creator](https://www.hiffi.com/creator/apply): Become a creator application flow
-- [Download Hiffi app](https://www.hiffi.com/app): iOS and Android app download page
+- [Download Hiffi app](https://www.hiffi.com/app): iOS and Android download page — [App Store](https://apps.apple.com/us/app/hiffi/id6759672725), [Google Play](https://play.google.com/store/apps/details?id=com.hiffi.app)
 
 ## Mood hubs
 

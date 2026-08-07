@@ -3,8 +3,13 @@ import { cookies } from "next/headers"
 import Link from "next/link"
 import { JsonLd } from "@/components/seo/json-ld"
 import { AppDownloadChrome, type PlatformHint } from "@/components/app/app-download-chrome"
-import { absoluteUrl } from "@/lib/seo/site"
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
+import {
+  androidAppSchemaId,
+  iosAppSchemaId,
+  organizationSchemaId,
+} from "@/lib/seo/org"
 import {
   ListMusic,
   Music,
@@ -63,17 +68,53 @@ export const metadata: Metadata = {
 
 const softwareJsonLd = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Hiffi",
-  operatingSystem: ["iOS", "Android"],
-  applicationCategory: "MusicApplication",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-  url: pageUrl,
-  installUrl: [HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL],
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": `${pageUrl}#webpage`,
+      url: pageUrl,
+      name: pageTitleAbsolute,
+      description: pageDescription,
+      inLanguage: "en",
+      isPartOf: { "@id": `${getSiteOrigin()}/#website` },
+      about: { "@id": organizationSchemaId() },
+      mainEntity: [{ "@id": iosAppSchemaId() }, { "@id": androidAppSchemaId() }],
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": iosAppSchemaId(),
+      name: "Hiffi",
+      operatingSystem: "iOS",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_APP_STORE_URL,
+      downloadUrl: HIFFI_APP_STORE_URL,
+      installUrl: HIFFI_APP_STORE_URL,
+      sameAs: [pageUrl],
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      publisher: { "@id": organizationSchemaId() },
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": androidAppSchemaId(),
+      name: "Hiffi",
+      operatingSystem: "Android",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_PLAY_STORE_URL,
+      downloadUrl: HIFFI_PLAY_STORE_URL,
+      installUrl: HIFFI_PLAY_STORE_URL,
+      sameAs: [pageUrl],
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      publisher: { "@id": organizationSchemaId() },
+    },
+  ],
 }
 
 const faqJsonLd = {
