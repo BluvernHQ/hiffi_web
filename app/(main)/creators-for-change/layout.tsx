@@ -12,6 +12,11 @@ export const metadata = routeMetadata({
     "hip-hop community impact",
     "artist mentorship",
     "Hiffi creators program",
+    "hip-hop creators for change",
+    "music creators community impact",
+    "artist mentorship program",
+    "positive hip-hop culture",
+    "independent artists community",
   ],
 })
 

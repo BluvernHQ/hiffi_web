@@ -13,6 +13,11 @@ export const metadata = routeMetadata({
     "Hiffi press contact",
     "hip-hop streaming press",
     "Kinimi Corporation Hiffi",
+    "Hiffi company overview",
+    "Hiffi brand assets",
+    "independent artist platform press",
+    "hip-hop music app press kit",
+    "music video streaming platform press",
   ],
 })
 

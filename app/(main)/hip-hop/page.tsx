@@ -7,7 +7,7 @@ import { CreatorDestinationLink } from "@/components/creator/creator-destination
 
 const pageTitle = "Hip-Hop Music Videos & Streaming — Discover Independent Rap Artists"
 const pageDescription =
-  "Hiffi is the hip-hop-first platform for independent rap artists and fans. Watch official music videos, discover drill, trap, conscious rap, boom bap, and more."
+  "Stream hip-hop and rap music videos on Hiffi. Discover independent artists, underground rap, drill, trap, conscious rap, boom bap, and new hip-hop releases."
 const pageUrl = absoluteUrl("/hip-hop")
 
 export const metadata: Metadata = {
@@ -15,7 +15,19 @@ export const metadata: Metadata = {
   description: pageDescription,
   keywords: [
     "hip hop streaming",
+    "rap streaming",
+    "music streaming",
+    "stream hip hop",
+    "stream hip hop music",
+    "hip hop platform",
+    "best hip hop platform",
+    "ad free music streaming",
     "rap music videos",
+    "rap music",
+    "new rap music",
+    "new hip hop music",
+    "online music streaming",
+    "music streaming platforms",
     "independent hip hop artists",
     "underground rap streaming",
     "drill music",
@@ -25,6 +37,7 @@ export const metadata: Metadata = {
     "hip hop music video platform",
     "best platform for independent hip hop artists",
     "where to watch rap music videos",
+    "hip hop videos online",
     "hip hop app",
     "hiffi hip hop",
   ],
@@ -60,7 +73,7 @@ const faqItems = [
   {
     question: "Where can I watch independent rap music videos online?",
     answer:
-      "Hiffi hosts official music videos from independent hip-hop and rap artists worldwide. Browse the discover feed at hiffi.com, search by artist name or vibe, or explore mood-based hubs covering drill, trap, conscious rap, boom bap, lo-fi hip-hop, and more — a dedicated place to watch rap music videos online outside generic video feeds.",
+      "Hiffi hosts official music videos from independent hip-hop and rap artists worldwide. Browse the discover feed at hiffi.com, search by artist name or vibe, or explore mood-based hubs covering drill, trap, conscious rap, boom bap, lo-fi hip-hop, and more — a dedicated place to watch rap music videos online and stream hip-hop without generic video-feed noise.",
   },
   {
     question: "Does Hiffi have drill and trap music?",
@@ -70,7 +83,7 @@ const faqItems = [
   {
     question: "Is there a hip-hop streaming app for iPhone and Android?",
     answer:
-      "Yes. The Hiffi app is free to download on both iOS (App Store) and Android (Google Play). Discover new hip-hop artists, watch music videos, follow creators, build playlists, and stream in high quality on your phone — built as a hip-hop streaming app, not a general video app with a rap filter.",
+      "Yes. The Hiffi app is free to download on both iOS (App Store) and Android (Google Play). Discover new hip-hop artists, watch music videos, follow creators, build playlists, and stream in high quality on your phone — built as a hip-hop music app and rap music app, not a general video app with a rap filter.",
   },
   {
     question: "How is Hiffi different from YouTube or Spotify for rap artists?",
@@ -149,7 +162,8 @@ export default function HipHopPage() {
           Hip-Hop Music Videos &amp; Streaming
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Stream independent hip-hop music videos, discover emerging rap artists, and explore drill, trap, boom bap, conscious rap, and more on Hiffi's artist-first streaming platform.
+          Stream hip-hop and rap music videos on Hiffi. Discover independent artists, underground
+          rap, drill, trap, conscious rap, boom bap, and new hip-hop releases.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link

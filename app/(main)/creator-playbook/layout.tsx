@@ -13,6 +13,15 @@ export const metadata = routeMetadata({
     "grow hip-hop audience",
     "independent artist tips",
     "Hiffi creator guide",
+    "rap artist guide",
+    "how to publish music",
+    "self-publish music",
+    "publish music online",
+    "how to upload music videos",
+    "how to become an artist music",
+    "music creator tips",
+    "independent artist marketing",
+    "how to grow as an independent artist",
   ],
 })
 

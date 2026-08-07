@@ -4,7 +4,7 @@ import { absoluteUrl } from "@/lib/seo/site"
 
 export const ARTIST_CLAIM_LANDING_TITLE = "Claim Your Artist Profile on Hiffi"
 export const ARTIST_CLAIM_LANDING_DESCRIPTION =
-  "Find your Hiffi Artist Index listing, verify your identity, and take control of your bio, links, and music videos. Free for independent hip-hop and rap artists — review in 24–48 hours."
+  "Claim your artist profile on Hiffi. Find your listing, verify your identity, update your bio and links, and manage music videos as an independent hip-hop artist."
 
 export const ARTIST_CLAIM_STEPS = [
   {
@@ -79,12 +79,17 @@ export function buildArtistClaimLandingMetadata(): Metadata {
     description: ARTIST_CLAIM_LANDING_DESCRIPTION,
     keywords: [
       "claim artist profile",
+      "claim artist profile Hiffi",
+      "artist profile claim",
+      "claim rapper profile",
       "verify rapper profile",
       "Hiffi artist claim",
       "claim my music profile",
       "hip-hop artist verification",
       "Atlanta rapper profile",
       "artist index claim",
+      "creator profile",
+      "independent artist profile",
     ],
     alternates: { canonical: url },
     robots: {
