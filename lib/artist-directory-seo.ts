@@ -20,22 +20,22 @@ import { absoluteUrl } from "@/lib/seo/site"
 import { truncateMetaDescription } from "@/lib/seo/meta"
 
 /** Visible H1 on /artist-index (plain text for JSON-LD). */
-export const ARTIST_INDEX_HUB_HEADLINE = "Discover Atlanta's emerging hip-hop & rap artists"
+export const ARTIST_INDEX_HUB_HEADLINE = "Discover emerging hip-hop & rap artists"
 
 /** `<title>` for clean /artist-index (layout appends " | Hiffi"). */
-export const ARTIST_INDEX_HUB_META_TITLE = "Atlanta Hip-Hop & Rap Artists"
+export const ARTIST_INDEX_HUB_META_TITLE = "Hip-Hop & Rap Artists Directory"
 
 /** @deprecated Use ARTIST_INDEX_HUB_META_TITLE or ARTIST_INDEX_HUB_HEADLINE. */
 export const ARTIST_INDEX_HUB_TITLE = ARTIST_INDEX_HUB_META_TITLE
 
 export const ARTIST_INDEX_HUB_DESCRIPTION =
-  "Search the Hiffi Artist Index — claimable hip-hop and rap profiles by city and genre. Atlanta is our first indexed market. Find, claim, or suggest edits."
+  "Search the Hiffi Artist Index — claimable hip-hop and rap profiles across cities and genres. Find, claim, or suggest edits."
 
 export function buildArtistIndexHubDescription(artistCount?: number): string {
   const countClause =
     artistCount != null && artistCount > 0
-      ? ` ${artistCount.toLocaleString()}+ artists indexed, Atlanta first.`
-      : " Atlanta is our first indexed market."
+      ? ` ${artistCount.toLocaleString()}+ artists indexed across multiple cities.`
+      : " Artists indexed across multiple cities."
   return truncateMetaDescription(
     `Search the Hiffi Artist Index — claimable hip-hop and rap profiles by city and genre.${countClause} Find, claim, or suggest edits.`,
   )
@@ -139,17 +139,17 @@ export const ARTIST_INDEX_FAQ = [
   {
     question: "What is the Hiffi Artist Index?",
     answer:
-      "The Hiffi Artist Index is a searchable hip-hop and rap artist directory — browse by city, filter by genre, and open claimable profiles. Each listing lets artists verify links, update details, and connect fans to music videos on Hiffi. Atlanta is the first indexed market; the hub is built to expand city by city.",
+      "The Hiffi Artist Index is a searchable hip-hop and rap artist directory — browse profiles across cities, open claimable listings, and connect fans to music videos on Hiffi. Artists verify links, update details, and claim their profiles for free.",
   },
   {
     question: "How many artists are listed in the Hiffi Artist Index?",
     answer:
-      "The Hiffi Artist Index currently lists 800+ hip-hop and rap artist profiles, with Atlanta as the first indexed market. The directory grows as artists claim profiles and Hiffi expands to new U.S. hip-hop scenes — think of it as a living rapper directory, not a static spreadsheet.",
+      "The Hiffi Artist Index lists 800+ hip-hop and rap artist profiles across multiple cities. The directory grows as artists claim profiles and Hiffi indexes new scenes — a living rapper directory, not a static spreadsheet.",
   },
   {
     question: "How do I find Atlanta rap artists on Hiffi?",
     answer:
-      "Visit the Atlanta artist directory at hiffi.com/artist-index/city/atlanta to browse 800+ hip-hop and rap profiles from the Atlanta scene. You can also start at hiffi.com/artist-index and filter by city or genre if you are comparing scenes or looking for a specific ATL subgenre.",
+      "Visit the Atlanta artist directory at hiffi.com/artist-index/city/atlanta to browse Atlanta scene profiles. You can also start at hiffi.com/artist-index and search by name, or open other city pages when comparing scenes.",
   },
   {
     question: "How do I claim my artist profile?",
@@ -159,7 +159,7 @@ export const ARTIST_INDEX_FAQ = [
   {
     question: "Is the Artist Index only for Atlanta artists?",
     answer:
-      "Atlanta is the flagship market in the index, with 800+ profiles indexed today. Hiffi is expanding city-by-city across U.S. hip-hop and rap scenes as more artists claim profiles and upload content — the hub at /artist-index covers the full directory concept, not just one city page.",
+      "No. The index includes artists from various cities. Atlanta has a dedicated city page and scene guide, and the hub at /artist-index covers the full multi-city directory.",
   },
   {
     question: "Can fans suggest corrections to a profile?",
@@ -273,16 +273,14 @@ export async function buildArtistIndexHubMetadata(options?: {
       description: buildArtistIndexHubDescription(artistCount),
       path: ARTIST_INDEX_PATH,
       keywords: [
-        "Atlanta hip-hop and rap artists",
-        "Atlanta hip-hop artists",
-        "Atlanta rap artists",
-        "Hiffi artist index",
         "hip-hop artist directory",
         "rap artist directory",
-        "ATL rap directory",
+        "Hiffi artist index",
+        "emerging hip-hop artists",
         "claim artist profile",
         "independent hip-hop",
         "underground rap artists",
+        "hip-hop artists by city",
       ],
     })
   }

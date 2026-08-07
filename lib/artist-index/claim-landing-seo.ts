@@ -62,7 +62,7 @@ export const ARTIST_CLAIM_FAQ = [
   {
     question: "What if I am not listed in the Artist Index yet?",
     answer:
-      "The index is growing city by city, starting with 800+ Atlanta artists. Apply as a Hiffi creator to publish videos, or contact support if you believe you should be indexed.",
+      "The index lists artists across multiple cities and keeps growing. Apply as a Hiffi creator to publish videos, or contact support if you believe you should be indexed.",
   },
   {
     question: "Does claiming upload my music automatically?",
