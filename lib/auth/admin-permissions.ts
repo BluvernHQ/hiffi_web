@@ -11,7 +11,9 @@ export const ADMIN_PERMISSIONS = {
   "admin:comments": ["super_admin", "read_only"],
   "admin:replies": ["super_admin", "read_only"],
   "admin:flags": ["super_admin", "read_only"],
+  "admin:feedback": ["super_admin", "read_only"],
   "admin:activity": ["super_admin", "read_only"],
+  "admin:journeys": ["super_admin", "read_only"],
   "admin:referrals": ["super_admin", "read_only"],
   "admin:followers": ["super_admin", "read_only"],
   "admin:searches": ["super_admin", "read_only"],
@@ -25,6 +27,7 @@ export const ADMIN_PERMISSIONS = {
   "admin:inventory": ["super_admin", "read_only"],
   "admin:inventory_upload": ["super_admin"],
   "admin:inventory_claims": ["super_admin", "read_only"],
+  "admin:tools": ["super_admin", "read_only"],
 } as const satisfies Record<string, readonly AdminRole[]>
 
 export type AdminPermission = keyof typeof ADMIN_PERMISSIONS
@@ -54,7 +57,9 @@ export const ADMIN_SECTION_PERMISSION: Record<string, AdminPermission> = {
   comments: "admin:comments",
   replies: "admin:replies",
   flags: "admin:flags",
-  activity: "admin:activity",
+  activity: "admin:journeys",
+  journeys: "admin:journeys",
+  feedback: "admin:feedback",
   referrals: "admin:referrals",
   followers: "admin:followers",
   searches: "admin:searches",
@@ -64,6 +69,7 @@ export const ADMIN_SECTION_PERMISSION: Record<string, AdminPermission> = {
   curated_playlists: "admin:curated",
   admins: "admin:admins",
   artist_inventory: "admin:inventory",
+  tools: "admin:tools",
 }
 
 export function canAccessAdminSection(admin: AdminSession | null | undefined, section: string): boolean {

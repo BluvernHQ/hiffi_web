@@ -5,21 +5,14 @@ import { ApiAnalyticsTracker } from "@/components/analytics/api-analytics-tracke
 
 type Props = {
   src: string
-  baseUrl: string
   ingestKey: string | null
-  appVersion: string
+  buildId: string
 }
 
-export function ApiAnalyticsShell({ src, baseUrl, ingestKey, appVersion }: Props) {
+export function ApiAnalyticsShell({ src, ingestKey, buildId }: Props) {
   const pathname = usePathname() || ""
 
   return (
-    <ApiAnalyticsTracker
-      src={src}
-      baseUrl={baseUrl}
-      ingestKey={ingestKey}
-      appVersion={appVersion}
-      pathname={pathname}
-    />
+    <ApiAnalyticsTracker src={src} ingestKey={ingestKey} buildId={buildId} pathname={pathname} />
   )
 }

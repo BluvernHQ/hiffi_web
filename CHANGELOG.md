@@ -6,6 +6,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-07-30
+
+Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary)
+
+### Added
+
+- **Top Artist / Hiffi 500 ranking MVP** — primary UI at **`/top-artists`** (+ `/top-artists/how-it-works`, share routes); Next.js family at **`/hiffi-500`** with methodology, city Top 50, biggest risers/fallers, new entries, Breakout 100, weekly editorial note, score bands + confidence, Δ 7d column, share cards with OG images, subnav, and sitemap/SEO entries
+- Clear data-source disclosure: ranked using YouTube public data only, plus “Data as of” date (API `last_updated` when backend provides it)
+- Same-origin inventory proxies: `/proxy/inventory/top`, risers, cities, breakout, underground
+- Empty-image polish: brand monogram portraits, Artist Index-style avatars, profile photo enrichment, spotlight flow that starts at #2 so the hero isn’t repeated
+- Admin **Score anomalies** panel for ranking QA
+- **Feedback module** — user dialog with screenshot capture (navbar/profile), submit via `/proxy/feedback`; admin Feedback list + detail under `/proxy/admin-feedback`
+- Redesigned **About** page (`/about`) — full marketing experience with hero, benefits, creators/fans, reviews, and motion
+- **Atlanta** editorial hubs: `/atlanta` plus genres, eras, best-of, venues, and studios (list + detail + OG images)
+- Cloudflare **Turnstile** on auth flows (widget + token on auth endpoints)
+- Sitemap routing: `sitemap.xml`, `sitemaps/[id]`, `video-sitemap.xml`, and related `lib/seo` helpers
+- Session analytics proxies under `/proxy/analytics/sessions`
+
+### Changed
+
+- Artist Index: claim CTA / hero copy tweaks; verified badge repositioned on artist detail hero
+- **Share** is a top-level action on home video cards and the watch page (moved out of the ⋯ menu); Report/Delete remain under more-actions
+
+### Fixed
+
+- Additional watch audio mute preference fix beyond the 2.2.3 Next/Previous mute behavior
+- Feedback dialog responsive layout across screen sizes
+
+### Notes
+
+- Live ranking remains YouTube-only for this cut (SOW methodology; not full multi-platform HPS)
+- Movement lists fill when `rank_delta_7d` / `is_new_entry` ship; score bands are derived from `youtube_score` until full HPS bands exist
+- Out of scope: multi-platform HPS expansion, API/data licensing, index report, paid analytics
+
 ## [2.2.4] — 2026-07-16
 
 Release notes: [docs/releases/web-v2.2.4.md](docs/releases/web-v2.2.4.md) (business-friendly summary)

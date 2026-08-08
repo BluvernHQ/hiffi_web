@@ -84,6 +84,12 @@ export function FeedVideoPreviewProvider({
     }
   }, [mode, stopAllPreviews])
 
+  // Scroll-gate / external disable: clear which card is "active".
+  useEffect(() => {
+    if (previewsAllowed) return
+    stopAllPreviews()
+  }, [previewsAllowed, stopAllPreviews])
+
   const requestPreview = useCallback(
     (videoId: string) => {
       if (!previewsAllowed || !videoId) return

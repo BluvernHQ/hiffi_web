@@ -38,7 +38,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -504,6 +503,23 @@ export function VideoCard({
                 </AddToPlaylistDialog>
               )}
               {!isEncoding && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  data-analytics-name="video-card-share"
+                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShareDialogOpen(true)
+                  }}
+                  aria-label="Share video"
+                  title="Share"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              )}
+              {!isEncoding && showDeleteOption && isOwner && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                     <Button
@@ -521,31 +537,15 @@ export function VideoCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuItem
-                      className="cursor-pointer"
+                      className="text-destructive focus:text-destructive cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation()
-                        setShareDialogOpen(true)
+                        setDeleteDialogOpen(true)
                       }}
-                      data-analytics-name="video-card-share"
                     >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Video
                     </DropdownMenuItem>
-                    {showDeleteOption && isOwner && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Video
-                        </DropdownMenuItem>
-                      </>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

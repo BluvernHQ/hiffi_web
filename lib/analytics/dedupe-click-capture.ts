@@ -16,6 +16,9 @@ function clickDedupeKey(props?: Record<string, unknown>): string {
   const uiName = String(props?.element_ui_name ?? "").trim()
   if (uiName) return `ui:${uiName}`
 
+  const domPath = String(props?.dom_path ?? "").trim()
+  if (domPath) return `dom:${domPath.slice(0, 120)}`
+
   const path = String(props?.path ?? props?.url ?? "").trim()
   const tag = String(props?.element_tag ?? "").trim()
   const id = String(props?.element_id ?? "").trim()

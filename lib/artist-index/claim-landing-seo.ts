@@ -4,7 +4,7 @@ import { absoluteUrl } from "@/lib/seo/site"
 
 export const ARTIST_CLAIM_LANDING_TITLE = "Claim Your Artist Profile on Hiffi"
 export const ARTIST_CLAIM_LANDING_DESCRIPTION =
-  "Find your Hiffi Artist Index listing, verify your identity, and take control of your bio, links, and music videos. Free for independent hip-hop and rap artists — review in 24–48 hours."
+  "Claim your free artist profile on Hiffi. Find your listing, verify identity (review in 24–48 hours), update bio and links, and manage music videos as an independent hip-hop artist."
 
 export const ARTIST_CLAIM_STEPS = [
   {
@@ -62,7 +62,7 @@ export const ARTIST_CLAIM_FAQ = [
   {
     question: "What if I am not listed in the Artist Index yet?",
     answer:
-      "The index is growing city by city, starting with 800+ Atlanta artists. Apply as a Hiffi creator to publish videos, or contact support if you believe you should be indexed.",
+      "The index lists artists across multiple cities and keeps growing. Apply as a Hiffi creator to publish videos, or contact support if you believe you should be indexed.",
   },
   {
     question: "Does claiming upload my music automatically?",
@@ -79,12 +79,17 @@ export function buildArtistClaimLandingMetadata(): Metadata {
     description: ARTIST_CLAIM_LANDING_DESCRIPTION,
     keywords: [
       "claim artist profile",
+      "claim artist profile Hiffi",
+      "artist profile claim",
+      "claim rapper profile",
       "verify rapper profile",
       "Hiffi artist claim",
       "claim my music profile",
       "hip-hop artist verification",
       "Atlanta rapper profile",
       "artist index claim",
+      "creator profile",
+      "independent artist profile",
     ],
     alternates: { canonical: url },
     robots: {

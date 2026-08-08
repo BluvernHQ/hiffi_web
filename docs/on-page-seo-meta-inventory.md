@@ -142,7 +142,7 @@ Description template:
 | Field | Value |
 |-------|-------|
 | **Title segment** | `{Artist name} — {City} {Genres} Artist` |
-| **Description** | Artist bio (≤155 chars) or fallback: *{Name} is an emerging {genres} artist from {city} indexed on Hiffi…* |
+| **Description** | Artist bio (≤155 chars) or fallback: *{Name} is a {genres} artist from {city} on the Hiffi Artist Index…* |
 | **OG image** | Artist photo when available |
 | **Index** | yes; `?edit=1` → noindex |
 | **Source** | `buildArtistProfileMetadata()` |
@@ -210,7 +210,7 @@ Description template:
 
 | Environment | Behavior |
 |-------------|----------|
-| **Non-prod** (`NEXT_PUBLIC_ENV` ≠ `prod`) | `User-agent: *` · `Disallow: /` |
+| **Non-prod** (`NEXT_PUBLIC_ENV` ≠ `prod`) | `User-agent: *` · `Disallow: /` (search engines blocked); named AI bots (`GPTBot`, `ClaudeBot`, `PerplexityBot`, etc.) get `Allow: /` |
 | **Production** | Wildcard + every named bot (`Googlebot`, `GPTBot`, `PerplexityBot`, `ClaudeBot`, …) get `Allow: /` **and** full `DISALLOW_PATHS` list |
 
 **Disallowed paths:** `/admin/`, `/api/`, `/studio`, `/login`, `/signup`, `/forgot-password`, `/history`, `/following`, `/liked`, `/playlists`, `/referrar/`

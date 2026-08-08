@@ -1,6 +1,6 @@
-import { getVideoUrl } from "@/lib/storage"
 import {
   buildPlaybackCandidates,
+  buildPreviewPlaybackCandidates,
   resolveVideoBaseUrl,
 } from "@/lib/video-profiles"
 
@@ -9,6 +9,8 @@ const failedPreviewUrls = new Set<string>()
 
 /** Max ladder fallbacks tried sequentially on playback error — never prefetched in parallel. */
 const MAX_PLAYBACK_FALLBACKS = 3
+/** Cap hero/hover progressive MP4 height so first paint stays light on remote Workers. */
+const PREVIEW_MAX_HEIGHT = 480
 
 /**
  * Feed hover plays Workers MP4 directly (same as the watch player).
@@ -37,7 +39,8 @@ export type PreviewVideo = {
 export function previewVideoKey(video: PreviewVideo): string {
   const directPath = (video.videoUrl || video.video_url || "").trim()
   const originalProfile = video.original_profile ?? video.originalProfile
-  return `${directPath || (video.videoId || video.video_id || "").trim()}|${originalProfile ?? ""}`
+  const profiles = Array.isArray(video.profiles) ? video.profiles.join(",") : ""
+  return `${directPath || (video.videoId || video.video_id || "").trim()}|${originalProfile ?? ""}|${profiles}`
 }
 
 /** Drop a URL that 404'd so playback skips it on the next hover. */
@@ -62,13 +65,15 @@ function resolvePreviewBaseUrl(video: PreviewVideo): string | null {
 function buildCandidateStreamUrls(baseUrl: string, video: PreviewVideo): string[] {
   const originalProfile = video.original_profile ?? video.originalProfile
   const profiles = Array.isArray(video.profiles) ? video.profiles : null
-  return buildPlaybackCandidates(baseUrl, originalProfile, profiles)
+  return buildPreviewPlaybackCandidates(baseUrl, originalProfile, profiles, {
+    maxHeight: PREVIEW_MAX_HEIGHT,
+  })
     .slice(0, MAX_PLAYBACK_FALLBACKS)
     .map((url) => buildFeedPreviewPlaybackUrl(url))
 }
 
 /**
- * Candidate URLs (lowest profile first). Loaded one at a time on hover — no prefetch.
+ * Candidate URLs (lowest profile first, ≤480p preferred). Loaded one at a time — no prefetch.
  */
 export function getFeedPreviewSources(video: PreviewVideo): string[] {
   const key = previewVideoKey(video)

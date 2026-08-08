@@ -41,6 +41,10 @@ import {
   adminUpdateContentFlag as flagsAdminUpdateContentFlag,
 } from "./api/flags"
 import {
+  adminListFeedback as feedbackAdminList,
+  adminGetFeedback as feedbackAdminGet,
+} from "./api/feedback"
+import {
   adminListMigrationRequests as migrationAdminList,
   adminGetMigrationRequest as migrationAdminGet,
   adminUpdateMigrationRequest as migrationAdminUpdate,
@@ -63,6 +67,15 @@ import {
   type AdminRow,
 } from "./api/admin-admins"
 import {
+  adminListYoutubeApiKeys as apiAdminListYoutubeApiKeys,
+  adminCreateYoutubeApiKey as apiAdminCreateYoutubeApiKey,
+  adminUpdateYoutubeApiKey as apiAdminUpdateYoutubeApiKey,
+  adminDeleteYoutubeApiKey as apiAdminDeleteYoutubeApiKey,
+  type YoutubeApiKey,
+  type CreateYoutubeApiKeyInput,
+  type UpdateYoutubeApiKeyInput,
+} from "./api/admin-youtube-api-keys"
+import {
   adminListInventory as apiAdminListInventory,
   adminListInventoryClaims as apiAdminListInventoryClaims,
   adminApproveInventoryClaim as apiAdminApproveInventoryClaim,
@@ -70,12 +83,25 @@ import {
   adminDownloadInventoryTemplate as apiAdminDownloadInventoryTemplate,
   adminExportInventory as apiAdminExportInventory,
 } from "./api/admin-inventory"
+import {
+  adminListRankingVersions as apiAdminListRankingVersions,
+  adminListRankingAnomalies as apiAdminListRankingAnomalies,
+  adminListClosedRankingAnomalies as apiAdminListClosedRankingAnomalies,
+  adminGetRankingAnomaly as apiAdminGetRankingAnomaly,
+  adminCloseRankingAnomaly as apiAdminCloseRankingAnomaly,
+  adminScanRankingAnomalies as apiAdminScanRankingAnomalies,
+} from "./api/admin-ranking-anomalies"
 import type {
   AdminListContentFlagsParams,
   ContentFlag,
   ContentFlagsListResult,
   UpdateContentFlagInput,
 } from "./types/content-flag"
+import type {
+  AdminListFeedbackParams,
+  FeedbackListResult,
+  FeedbackSubmission,
+} from "./types/feedback"
 import {
   adminListCollaborationInquiries as collaborationAdminList,
 } from "./api/collaboration"
@@ -291,6 +317,24 @@ class AdminApiClient implements AdminApiClientContext {
     return apiAdminListAdmins(this, params)
   }
 
+  // ─── Tools / YouTube API keys ───────────────────────────────────────────────
+
+  async adminListYoutubeApiKeys() {
+    return apiAdminListYoutubeApiKeys(this)
+  }
+
+  async adminCreateYoutubeApiKey(body: CreateYoutubeApiKeyInput) {
+    return apiAdminCreateYoutubeApiKey(this, body)
+  }
+
+  async adminUpdateYoutubeApiKey(id: string, body: UpdateYoutubeApiKeyInput) {
+    return apiAdminUpdateYoutubeApiKey(this, id, body)
+  }
+
+  async adminDeleteYoutubeApiKey(id: string) {
+    return apiAdminDeleteYoutubeApiKey(this, id)
+  }
+
   // ─── Artist inventory ───────────────────────────────────────────────────────
 
   async adminListInventory(params?: { limit?: number; offset?: number; search?: string }) {
@@ -326,6 +370,38 @@ class AdminApiClient implements AdminApiClientContext {
     params?: { created_after?: string; created_before?: string; search?: string },
   ) {
     return apiAdminExportInventory(this, params)
+  }
+
+  // ─── Hiffi 500 ranking anomalies ────────────────────────────────────────────
+
+  async adminListRankingVersions(
+    params?: Parameters<typeof apiAdminListRankingVersions>[1],
+  ) {
+    return apiAdminListRankingVersions(this, params)
+  }
+
+  async adminListRankingAnomalies(
+    params?: Parameters<typeof apiAdminListRankingAnomalies>[1],
+  ) {
+    return apiAdminListRankingAnomalies(this, params)
+  }
+
+  async adminListClosedRankingAnomalies(
+    params?: Parameters<typeof apiAdminListClosedRankingAnomalies>[1],
+  ) {
+    return apiAdminListClosedRankingAnomalies(this, params)
+  }
+
+  async adminGetRankingAnomaly(anomalyId: string) {
+    return apiAdminGetRankingAnomaly(this, anomalyId)
+  }
+
+  async adminCloseRankingAnomaly(anomalyId: string, notes: string) {
+    return apiAdminCloseRankingAnomaly(this, anomalyId, notes)
+  }
+
+  async adminScanRankingAnomalies() {
+    return apiAdminScanRankingAnomalies(this)
   }
 
   // ─── Curated playlists ──────────────────────────────────────────────────────
@@ -492,6 +568,14 @@ class AdminApiClient implements AdminApiClientContext {
     return flagsAdminUpdateContentFlag(this, flagId, body)
   }
 
+  async adminListFeedback(params?: AdminListFeedbackParams): Promise<FeedbackListResult> {
+    return feedbackAdminList(this, params)
+  }
+
+  async adminGetFeedback(feedbackId: string): Promise<FeedbackSubmission> {
+    return feedbackAdminGet(this, feedbackId)
+  }
+
   async adminListCollaborationInquiries(
     params?: AdminListCollaborationInquiriesParams,
   ): Promise<CollaborationInquiryListResponse> {
@@ -581,4 +665,13 @@ class AdminApiClient implements AdminApiClientContext {
 
 export const adminApiClient = new AdminApiClient()
 
-export type { CuratedPlaylistSummary, CuratedPlaylistItem, AdminRow, AdminCommentRow, AdminReplyRow, AdminUserRow, AdminVideoRow }
+export type {
+  CuratedPlaylistSummary,
+  CuratedPlaylistItem,
+  AdminRow,
+  AdminCommentRow,
+  AdminReplyRow,
+  AdminUserRow,
+  AdminVideoRow,
+  YoutubeApiKey,
+}

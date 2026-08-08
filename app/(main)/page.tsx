@@ -14,7 +14,7 @@ const HOME_SEED = "hiffi_home_v1"
 
 const PAGE_TITLE = "Discover Hip-Hop & Rap — Music Videos from Independent Artists"
 const PAGE_DESCRIPTION =
-  "Discover independent hip-hop and rap artists on Hiffi. Watch music videos, stream drill, trap, conscious rap, and boom bap — no algorithms, just creator-first content."
+  "Watch hip-hop and rap music videos from independent artists on Hiffi. Discover underground hip-hop, drill, trap, conscious rap, boom bap, and new official videos."
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -23,10 +23,10 @@ export const metadata: Metadata = {
     "hip hop music videos",
     "rap music videos",
     "independent hip hop",
+    "underground hip hop",
     "drill music",
     "trap music",
     "conscious rap",
-    "underground rap",
     "boom bap",
     "hiffi",
   ],
@@ -34,16 +34,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: getSiteOrigin(),
-    title: "Hiffi — Discover Hip-Hop & Rap Music Videos",
+    title: "Hiffi — Hip-Hop & Rap Music Videos",
     description:
-      "Stream music videos from independent hip-hop and rap artists on Hiffi. Drill, trap, conscious rap, and more — new content every day.",
+      "Stream official music videos from independent hip-hop and rap artists on Hiffi. Discover underground hip-hop, drill, trap, conscious rap, and boom bap.",
     images: [{ url: absoluteUrl("/hiffi_logo.png"), alt: "Hiffi hip-hop streaming" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hiffi — Discover Hip-Hop & Rap Music Videos",
+    title: "Hiffi — Hip-Hop & Rap Music Videos",
     description:
-      "Stream music videos from independent hip-hop and rap artists on Hiffi.",
+      "Watch hip-hop and rap music videos from independent artists on Hiffi.",
     images: [absoluteUrl("/hiffi_logo.png")],
   },
 }
@@ -118,6 +118,7 @@ async function HomeDiscoverJsonLd() {
 export default function RootPage() {
   return (
     <>
+      <h1 className="sr-only">{PAGE_TITLE}</h1>
       <Suspense fallback={null}>
         <HomeDiscoverJsonLd />
       </Suspense>

@@ -22,7 +22,6 @@ import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
 import { AdminRepliesTable } from "@/components/admin/replies-table"
-import { AdminActivityLogsTable } from "@/components/admin/activity-logs-table"
 import { AdminReferralsTable } from "@/components/admin/referrals-table"
 import { AdminFollowersTable } from "@/components/admin/followers-table"
 import { AdminSearchesTable } from "@/components/admin/searches-table"
@@ -30,7 +29,10 @@ import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
 import { AdminCollaborationInquiriesTable } from "@/components/admin/collaboration-inquiries-table"
 import { AdminFlagsTable } from "@/components/admin/flags-table"
 import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
+import { AdminFeedbackTable } from "@/components/admin/feedback-table"
+import { AdminFeedbackDetail } from "@/components/admin/admin-feedback-detail"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
+import { AnalyticsJourneysPanel } from "@/components/admin/analytics-journeys-panel"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
@@ -38,6 +40,7 @@ import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-
 import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
 import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
 import { AdminsPanel } from "@/components/admin/admins-panel"
+import { AdminToolsPanel } from "@/components/admin/admin-tools-panel"
 import { InventoryPanel } from "@/components/admin/inventory-panel"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -57,16 +60,39 @@ function AdminDashboardContent() {
 
   const section = searchParams.get("flagId")
     ? "flags"
-    : searchParams.get("playlistId")
-      ? "curated_playlists"
-      : searchParams.get("section") || "overview"
+    : searchParams.get("feedbackId")
+      ? "feedback"
+      : searchParams.get("playlistId")
+        ? "curated_playlists"
+        : searchParams.get("sessionId")
+          ? "journeys"
+          : searchParams.get("section") || "overview"
   const flagId = searchParams.get("flagId")
+  const feedbackId = searchParams.get("feedbackId")
   const playlistId = searchParams.get("playlistId")
   const fallbackSection = admin ? getFirstAllowedSection(admin) : "overview"
-  const activeSection = canAdminAccessSection(admin, section) ? section : fallbackSection
+  const normalizedSection = section === "activity" ? "journeys" : section
+  const activeSection = canAdminAccessSection(admin, normalizedSection) ? normalizedSection : fallbackSection
 
   useEffect(() => {
-    if (!searchParams.get("section") && !searchParams.get("flagId") && !searchParams.get("playlistId") && !authLoading && isAuthVerified && admin) {
+    if (section === "activity") {
+      const next = new URLSearchParams(searchParams.toString())
+      next.set("section", "journeys")
+      router.replace(`/admin/dashboard?${next.toString()}`)
+    }
+  }, [section, searchParams, router])
+
+  useEffect(() => {
+    if (
+      !searchParams.get("section") &&
+      !searchParams.get("flagId") &&
+      !searchParams.get("feedbackId") &&
+      !searchParams.get("playlistId") &&
+      !searchParams.get("sessionId") &&
+      !authLoading &&
+      isAuthVerified &&
+      admin
+    ) {
       router.replace(`/admin/dashboard?section=${getFirstAllowedSection(admin)}`)
     }
   }, [searchParams, router, authLoading, isAuthVerified, admin])
@@ -74,10 +100,11 @@ function AdminDashboardContent() {
   // Redirect if user lacks permission for the requested section
   useEffect(() => {
     if (!isAuthVerified || authLoading) return
-    if (section !== activeSection) {
+    if (section === "activity") return
+    if (normalizedSection !== activeSection) {
       router.replace(`/admin/dashboard?section=${activeSection}`)
     }
-  }, [section, activeSection, isAuthVerified, authLoading, router])
+  }, [section, normalizedSection, activeSection, isAuthVerified, authLoading, router])
 
   const homeSection = admin ? getFirstAllowedSection(admin) : "overview"
 
@@ -322,15 +349,42 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {activeSection === "activity" && can("admin:activity") && (
-                <div className="space-y-4">
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Activity Logs</h1>
+              {activeSection === "feedback" && can("admin:feedback") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  {!feedbackId && (
+                    <div className="shrink-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Feedback</h1>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Review in-app feedback submissions from users
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? (
+                      feedbackId ? (
+                        <AdminFeedbackDetail feedbackId={feedbackId} />
+                      ) : (
+                        <AdminFeedbackTable />
+                      )
+                    ) : (
+                      <TableSkeleton />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "journeys" && can("admin:journeys") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Meaningful user activity logs from analytics events
+                      See where visitors enter and exit a chain, measure drop-off between stages, then open a
+                      session timeline for detail
                     </p>
                   </div>
-                  {showContent ? <AdminActivityLogsTable /> : <TableSkeleton />}
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AnalyticsJourneysPanel /> : <TableSkeleton />}
+                  </div>
                 </div>
               )}
 
@@ -365,7 +419,7 @@ function AdminDashboardContent() {
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Recorded Searches</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Server-side search queries from ClickHouse analytics
+                      User search queries on Hiffi
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
@@ -460,6 +514,20 @@ function AdminDashboardContent() {
                   </div>
                   <div className="flex-1 min-h-0">
                     {showContent ? <AdminsPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "tools" && can("admin:tools") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tools</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      System integrations and operational utilities
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <AdminToolsPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

@@ -13,12 +13,18 @@ import { ThirdPartyAnalyticsShell } from '@/components/analytics/third-party-ana
 import { AnalyticsRouteGuard } from '@/components/analytics/analytics-route-guard'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
+import {
+  androidAppSchemaId,
+  iosAppSchemaId,
+  organizationSchemaId,
+  webSiteSchemaId,
+} from '@/lib/seo/org'
+import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from '@/lib/app-download'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
 import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
 import { analyticsUmamiDomains, isApiAnalyticsEnabled } from '@/lib/analytics/is-api-analytics-enabled'
-import { getAnalyticsAppVersion } from '@/lib/app-version'
-import { getApiBaseUrl } from '@/lib/config'
+import { getAnalyticsBuildId } from '@/lib/app-version'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-sans" })
@@ -89,19 +95,18 @@ export const metadata: Metadata = {
 
 // Single @graph with cross-referenced @id nodes — the preferred pattern per schema.org spec.
 // WebSite.publisher → references Organization by @id (no data duplication).
-// Organization.logo must be ImageObject per Google's requirements.
+// Organization.sameAs includes socials + App Store + Play Store for brand entity linking.
 const siteJsonLd = {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "WebSite",
-      "@id": `${getSiteOrigin()}/#website`,
+      "@id": webSiteSchemaId(),
       url: getSiteOrigin(),
       name: SITE_NAME,
       description: "Hip-hop-first music and video streaming platform for independent rap artists and fans.",
       inLanguage: "en",
-      // publisher cross-references Organization by @id — no duplicate data
-      publisher: { "@id": `${getSiteOrigin()}/#organization` },
+      publisher: { "@id": organizationSchemaId() },
       potentialAction: {
         "@type": "SearchAction",
         target: {
@@ -113,7 +118,7 @@ const siteJsonLd = {
     },
     {
       "@type": "Organization",
-      "@id": `${getSiteOrigin()}/#organization`,
+      "@id": organizationSchemaId(),
       name: SITE_NAME,
       url: getSiteOrigin(),
       description: SITE_DESCRIPTION,
@@ -127,7 +132,6 @@ const siteJsonLd = {
         caption: SITE_NAME,
       },
       image: { "@id": `${getSiteOrigin()}/#logo` },
-      // GEO / E-E-A-T: single canonical Organization — referenced by FAQ, profiles, and VideoObject.
       knowsAbout: [
         "Hip hop music",
         "Rap music",
@@ -147,7 +151,33 @@ const siteJsonLd = {
         email: "care@hiffi.com",
         availableLanguage: ["English"],
       },
-      sameAs: ORGANIZATION_SAME_AS,
+      sameAs: [...ORGANIZATION_SAME_AS],
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": iosAppSchemaId(),
+      name: SITE_NAME,
+      operatingSystem: "iOS",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_APP_STORE_URL,
+      downloadUrl: HIFFI_APP_STORE_URL,
+      installUrl: HIFFI_APP_STORE_URL,
+      sameAs: [absoluteUrl("/app")],
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      publisher: { "@id": organizationSchemaId() },
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": androidAppSchemaId(),
+      name: SITE_NAME,
+      operatingSystem: "Android",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_PLAY_STORE_URL,
+      downloadUrl: HIFFI_PLAY_STORE_URL,
+      installUrl: HIFFI_PLAY_STORE_URL,
+      sameAs: [absoluteUrl("/app")],
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      publisher: { "@id": organizationSchemaId() },
     },
   ],
 }
@@ -177,11 +207,10 @@ export default function RootLayout({
       (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com"),
   )
   const apiAnalyticsEnabled = isApiAnalyticsEnabled()
-  const apiAnalyticsBaseUrl = getApiBaseUrl().replace(/\/$/, "")
-  // Serve tracker via same-origin proxy so autocapture can route through wrapped capture().
+  // Serve tracker via same-origin proxy so batch/identify stay on this host.
   const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
   const analyticsIngestKey = process.env.NEXT_PUBLIC_ANALYTICS_INGEST_KEY || null
-  const analyticsAppVersion = getAnalyticsAppVersion()
+  const analyticsBuildId = getAnalyticsBuildId()
 
   return (
     <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
@@ -195,9 +224,8 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <ApiAnalyticsShell
               src={apiAnalyticsSrc}
-              baseUrl={apiAnalyticsBaseUrl}
               ingestKey={analyticsIngestKey}
-              appVersion={analyticsAppVersion}
+              buildId={analyticsBuildId}
             />
           </Suspense>
         )}

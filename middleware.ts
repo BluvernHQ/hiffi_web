@@ -57,6 +57,7 @@ export function middleware(req: NextRequest) {
     normalizedPathname.endsWith(".md") ||
     normalizedPathname.startsWith("/llms-md") ||
     normalizedPathname.startsWith("/sitemap") ||
+    normalizedPathname.startsWith("/sitemaps") ||
     normalizedPathname.startsWith("/appbarlogo") // allow logo used on maintenance page
 
   if (isAllowed) {
@@ -74,7 +75,7 @@ export function middleware(req: NextRequest) {
 // (/health is excluded so external uptime checks always reach the handler, even in maintenance)
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|maintenance|favicon.ico|robots.txt|llms.txt|sitemap.xml|health$).*)",
+    "/((?!_next/static|_next/image|maintenance|favicon.ico|robots.txt|llms.txt|sitemap\\.xml|sitemaps/|health$).*)",
   ],
 }
 

@@ -5,14 +5,18 @@ import { SiteFooter } from "@/components/layout/site-footer"
 export const metadata = routeMetadata({
   title: "Hiffi Artists",
   description:
-    "Independent rappers, producers, and DJs: upload music videos, grow your fanbase, and reach hip-hop audiences on Hiffi.",
+    "Independent hip-hop artists, rappers, producers, and DJs: create your profile, upload official music videos, and grow your audience on Hiffi.",
   path: "/artists",
   keywords: [
     "Hiffi artists",
+    "independent rap artists",
+    "independent hip-hop artists",
     "upload rap music video",
     "independent hip-hop platform",
     "underground rap streaming",
     "become a music creator",
+    "publish music online",
+    "independent rap music app",
   ],
 })
 

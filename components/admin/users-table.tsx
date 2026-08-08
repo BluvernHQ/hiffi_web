@@ -59,6 +59,8 @@ export function AdminUsersTable() {
     },
     [router, searchParams],
   )
+  const syncUsersPageToUrlRef = useRef(syncUsersPageToUrl)
+  syncUsersPageToUrlRef.current = syncUsersPageToUrl
 
   const stripDeepLinkParamsFromUrl = useCallback(() => {
     skipUrlSyncRef.current = true
@@ -67,6 +69,10 @@ export function AdminUsersTable() {
     params.delete(USERS_PAGE_QUERY)
     router.replace(`/admin/dashboard?${params.toString()}`)
   }, [router, searchParams])
+  const stripDeepLinkParamsFromUrlRef = useRef(stripDeepLinkParamsFromUrl)
+  stripDeepLinkParamsFromUrlRef.current = stripDeepLinkParamsFromUrl
+  const searchParamsRef = useRef(searchParams)
+  searchParamsRef.current = searchParams
 
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -144,9 +150,14 @@ export function AdminUsersTable() {
       updated_before: "",
     }
   })
+  /** Debounced filters used for API fetches — keeps typing from racing pagination. */
+  const [appliedFilters, setAppliedFilters] = useState(filters)
+  const skipAppliedPageResetRef = useRef(true)
+  /** Cached full search-result list so Next/Prev does not re-fetch every page. */
+  const searchCacheRef = useRef<{ key: string; users: any[] } | null>(null)
 
-  const resolvedUid = filters.uid.trim() || urlFilters.userUid
-  const resolvedUsername = filters.username.trim() || urlFilters.userUsername
+  const resolvedUid = appliedFilters.uid.trim() || urlFilters.userUid
+  const resolvedUsername = appliedFilters.username.trim() || urlFilters.userUsername
 
   const fetchUsers = async () => {
     const generation = ++fetchGenerationRef.current
@@ -171,122 +182,120 @@ export function AdminUsersTable() {
       let pageHasMore = false
       
       if (isSearchBarActive) {
-        // When searching, make two API calls - one for username, one for name
-        // Fetch all pages for both searches to ensure we get all matching results
-        // Then combine and deduplicate results
+        // Search bar: merge username + name matches, then paginate client-side.
+        // Cache the full merged list so Next/Prev only re-slices.
         const searchTerm = searchQuery.trim()
-        
-        // Build base params with other filters (excluding name/username)
-        const baseParams: any = { limit, offset: 0 }
-        
-        if (filters.role) baseParams.role = filters.role
-        if (resolvedUid) baseParams.uid = resolvedUid
-        if (filters.followers_min) baseParams.followers_min = parseInt(filters.followers_min)
-        if (filters.followers_max) baseParams.followers_max = parseInt(filters.followers_max)
-        if (filters.following_min) baseParams.following_min = parseInt(filters.following_min)
-        if (filters.following_max) baseParams.following_max = parseInt(filters.following_max)
-        if (filters.total_videos_min) baseParams.total_videos_min = parseInt(filters.total_videos_min)
-        if (filters.total_videos_max) baseParams.total_videos_max = parseInt(filters.total_videos_max)
-        if (filters.created_after) baseParams.created_after = filters.created_after
-        if (filters.created_before) baseParams.created_before = filters.created_before
-        if (filters.updated_after) baseParams.updated_after = filters.updated_after
-        if (filters.updated_before) baseParams.updated_before = filters.updated_before
+        const cacheKey = JSON.stringify({
+          searchTerm,
+          role: appliedFilters.role,
+          uid: resolvedUid,
+          followers_min: appliedFilters.followers_min,
+          followers_max: appliedFilters.followers_max,
+          following_min: appliedFilters.following_min,
+          following_max: appliedFilters.following_max,
+          total_videos_min: appliedFilters.total_videos_min,
+          total_videos_max: appliedFilters.total_videos_max,
+          created_after: appliedFilters.created_after,
+          created_before: appliedFilters.created_before,
+          updated_after: appliedFilters.updated_after,
+          updated_before: appliedFilters.updated_before,
+        })
 
-        // Helper function to fetch all pages for a given filter
-        const fetchAllPages = async (params: any): Promise<any[]> => {
-          const allUsers: any[] = []
-          let currentOffset = 0
-          let more = true
-          
-          while (more) {
-            const response = await adminApiClient.adminListUsers({
-              ...params,
-              offset: currentOffset,
-              limit,
-            })
-            
-            const pageUsers = response.users || []
-            allUsers.push(...pageUsers)
-            
-            more = Boolean(response.has_more)
-            currentOffset += limit
-            // Safety limit: don't fetch more than 100 pages (2000 users)
-            if (currentOffset >= 100 * limit) {
-              more = false
+        let mergedUsers: any[]
+        if (searchCacheRef.current?.key === cacheKey) {
+          mergedUsers = searchCacheRef.current.users
+        } else {
+          const baseParams: any = { limit, offset: 0 }
+
+          if (appliedFilters.role) baseParams.role = appliedFilters.role
+          if (resolvedUid) baseParams.uid = resolvedUid
+          if (appliedFilters.followers_min) baseParams.followers_min = parseInt(appliedFilters.followers_min)
+          if (appliedFilters.followers_max) baseParams.followers_max = parseInt(appliedFilters.followers_max)
+          if (appliedFilters.following_min) baseParams.following_min = parseInt(appliedFilters.following_min)
+          if (appliedFilters.following_max) baseParams.following_max = parseInt(appliedFilters.following_max)
+          if (appliedFilters.total_videos_min) baseParams.total_videos_min = parseInt(appliedFilters.total_videos_min)
+          if (appliedFilters.total_videos_max) baseParams.total_videos_max = parseInt(appliedFilters.total_videos_max)
+          if (appliedFilters.created_after) baseParams.created_after = appliedFilters.created_after
+          if (appliedFilters.created_before) baseParams.created_before = appliedFilters.created_before
+          if (appliedFilters.updated_after) baseParams.updated_after = appliedFilters.updated_after
+          if (appliedFilters.updated_before) baseParams.updated_before = appliedFilters.updated_before
+
+          const fetchAllPages = async (params: any): Promise<any[]> => {
+            const allUsers: any[] = []
+            let currentOffset = 0
+            let more = true
+
+            while (more) {
+              const response = await adminApiClient.adminListUsers({
+                ...params,
+                offset: currentOffset,
+                limit,
+              })
+
+              const pageUsers = response.users || []
+              allUsers.push(...pageUsers)
+
+              more = Boolean(response.has_more)
+              currentOffset += limit
+              if (currentOffset >= 100 * limit) {
+                more = false
+              }
             }
+
+            return allUsers
           }
-          
-          return allUsers
+
+          const [usernameUsers, nameUsers] = await Promise.all([
+            fetchAllPages({ ...baseParams, username: searchTerm }),
+            fetchAllPages({ ...baseParams, name: searchTerm }),
+          ])
+
+          const usersMap = new Map<string, any>()
+          usernameUsers.forEach((user: any) => {
+            const key = user.uid || user.username
+            if (key) usersMap.set(key, user)
+          })
+          nameUsers.forEach((user: any) => {
+            const key = user.uid || user.username
+            if (key) usersMap.set(key, user)
+          })
+
+          const searchTermLower = searchTerm.toLowerCase()
+          mergedUsers = Array.from(usersMap.values()).filter((user: any) => {
+            const usernameMatch = (user.username || "").toLowerCase().includes(searchTermLower)
+            const nameMatch = (user.name || "").toLowerCase().includes(searchTermLower)
+            return usernameMatch || nameMatch
+          })
+          searchCacheRef.current = { key: cacheKey, users: mergedUsers }
         }
 
-        // Fetch all pages for both username and name searches in parallel
-        const [usernameUsers, nameUsers] = await Promise.all([
-          fetchAllPages({ ...baseParams, username: searchTerm }),
-          fetchAllPages({ ...baseParams, name: searchTerm }),
-        ])
-        
-        // Create a Map to deduplicate by uid (or username if uid is not available)
-        const usersMap = new Map<string, any>()
-        
-        // Add username matches
-        usernameUsers.forEach((user: any) => {
-          const key = user.uid || user.username
-          if (key) {
-            usersMap.set(key, user)
-          }
-        })
-        
-        // Add name matches (will overwrite if same user, which is fine)
-        nameUsers.forEach((user: any) => {
-          const key = user.uid || user.username
-          if (key) {
-            usersMap.set(key, user)
-          }
-        })
-        
-        // Convert map back to array
-        usersData = Array.from(usersMap.values())
-        
-        // Additional client-side filtering to ensure exact matches (case-insensitive)
-        const searchTermLower = searchTerm.toLowerCase()
-        usersData = usersData.filter((user: any) => {
-          const usernameMatch = (user.username || "").toLowerCase().includes(searchTermLower)
-          const nameMatch = (user.name || "").toLowerCase().includes(searchTermLower)
-          return usernameMatch || nameMatch
-        })
-        
-        // Set total count to the filtered results length
-        totalCount = usersData.length
-        
-        // Apply pagination to the filtered results
+        totalCount = mergedUsers.length
         const startIndex = offset
         const endIndex = offset + limit
         pageHasMore = endIndex < totalCount
-        usersData = usersData.slice(startIndex, endIndex)
+        usersData = mergedUsers.slice(startIndex, endIndex)
       } else {
-        // Normal filtering (no search bar active)
-        // Build filter params - always include limit and offset for pagination
+        // Normal filtering (no search bar active) — server-side pagination
+        searchCacheRef.current = null
         const params: any = { limit, offset }
-        
-        // Individual filters: send both if they have different values
+
         if (resolvedUsername) params.username = resolvedUsername
-        if (filters.name) params.name = filters.name
+        if (appliedFilters.name) params.name = appliedFilters.name
         if (resolvedUid) params.uid = resolvedUid
-        if (filters.role) params.role = filters.role
-        if (filters.followers_min) params.followers_min = parseInt(filters.followers_min)
-        if (filters.followers_max) params.followers_max = parseInt(filters.followers_max)
-        if (filters.following_min) params.following_min = parseInt(filters.following_min)
-        if (filters.following_max) params.following_max = parseInt(filters.following_max)
-        if (filters.total_videos_min) params.total_videos_min = parseInt(filters.total_videos_min)
-        if (filters.total_videos_max) params.total_videos_max = parseInt(filters.total_videos_max)
-        if (filters.created_after) params.created_after = filters.created_after
-        if (filters.created_before) params.created_before = filters.created_before
-        if (filters.updated_after) params.updated_after = filters.updated_after
-        if (filters.updated_before) params.updated_before = filters.updated_before
+        if (appliedFilters.role) params.role = appliedFilters.role
+        if (appliedFilters.followers_min) params.followers_min = parseInt(appliedFilters.followers_min)
+        if (appliedFilters.followers_max) params.followers_max = parseInt(appliedFilters.followers_max)
+        if (appliedFilters.following_min) params.following_min = parseInt(appliedFilters.following_min)
+        if (appliedFilters.following_max) params.following_max = parseInt(appliedFilters.following_max)
+        if (appliedFilters.total_videos_min) params.total_videos_min = parseInt(appliedFilters.total_videos_min)
+        if (appliedFilters.total_videos_max) params.total_videos_max = parseInt(appliedFilters.total_videos_max)
+        if (appliedFilters.created_after) params.created_after = appliedFilters.created_after
+        if (appliedFilters.created_before) params.created_before = appliedFilters.created_before
+        if (appliedFilters.updated_after) params.updated_after = appliedFilters.updated_after
+        if (appliedFilters.updated_before) params.updated_before = appliedFilters.updated_before
 
         const response = await adminApiClient.adminListUsers(params)
         usersData = response.users || []
-        // API `count` is this page's size; `has_more` drives pagination.
         totalCount = offset + usersData.length + (response.has_more ? 1 : 0)
         pageHasMore = Boolean(response.has_more)
       }
@@ -359,38 +368,63 @@ export function AdminUsersTable() {
     }
   }
 
-  // Debounce search input - wait 500ms after user stops typing before searching
+  // Debounce search input - wait 500ms after user stops typing before searching.
+  // Only depend on searchInput — URL/page changes must not re-trigger and bounce to page 1.
   useEffect(() => {
     const prevSearchInput = prevSearchInputRef.current
     prevSearchInputRef.current = searchInput
+    const params = searchParamsRef.current
 
     if (searchInput.trim() === "") {
       setSearchQuery("")
-      // Only touch the URL when deep-link params are present — avoid re-reading stale ?q=
-      // from window.location via syncUsersPageToUrl (which would undo Clear).
+      searchCacheRef.current = null
       const hasDeepLink =
-        !!(searchParams.get("q") || "").trim() ||
-        !!readAdminTableUrlFilters(searchParams).userUid ||
-        !!readAdminTableUrlFilters(searchParams).userUsername
+        !!(params.get("q") || "").trim() ||
+        !!readAdminTableUrlFilters(params).userUid ||
+        !!readAdminTableUrlFilters(params).userUsername
       if (hasDeepLink) {
-        stripDeepLinkParamsFromUrl()
-      } else if (prevSearchInput.trim() !== "" && page !== 1) {
-        // Reset page only when the user clears an active search — not on every
-        // empty-search render (that was bouncing pagination back to page 1).
-        syncUsersPageToUrl(1)
+        stripDeepLinkParamsFromUrlRef.current()
+      } else if (prevSearchInput.trim() !== "") {
+        syncUsersPageToUrlRef.current(1)
       }
       return
     }
 
     const timeoutId = setTimeout(() => {
-      setSearchQuery(searchInput)
-      syncUsersPageToUrl(1)
+      setSearchQuery((prev) => {
+        if (prev === searchInput) return prev
+        searchCacheRef.current = null
+        syncUsersPageToUrlRef.current(1)
+        return searchInput
+      })
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [searchInput, searchParams, page, stripDeepLinkParamsFromUrl, syncUsersPageToUrl])
+  }, [searchInput])
 
-  // Sync search bar when URL ?q= changes (e.g. deep link from migration requests)
+  // Debounce sidebar filters before they hit the API / pagination.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setAppliedFilters((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(filters)) return prev
+        return filters
+      })
+    }, 500)
+    return () => clearTimeout(timeoutId)
+  }, [filters])
+
+  // When applied filters change, reset to page 1 (skip the initial mount).
+  useEffect(() => {
+    if (skipAppliedPageResetRef.current) {
+      skipAppliedPageResetRef.current = false
+      return
+    }
+    searchCacheRef.current = null
+    syncUsersPageToUrlRef.current(1)
+  }, [appliedFilters])
+
+  // Hydrate search bar from URL ?q= deep links only.
+  // Do not sync empty URL → input: pagination/filter URL updates omit `q` and were wiping typed text.
   useEffect(() => {
     if (skipUrlSyncRef.current) {
       skipUrlSyncRef.current = false
@@ -398,6 +432,7 @@ export function AdminUsersTable() {
     }
 
     const q = (searchParams.get("q") || "").trim()
+    if (!q) return
     setSearchInput(q)
     setSearchQuery(q)
   }, [searchParams])
@@ -417,7 +452,7 @@ export function AdminUsersTable() {
 
   useEffect(() => {
     fetchUsers()
-  }, [page, filters, searchQuery, sortKey, sortDirection, resolvedUid, resolvedUsername])
+  }, [page, appliedFilters, searchQuery, sortKey, sortDirection, resolvedUid, resolvedUsername])
 
   // Maintain focus on search input after re-renders
   // This runs whenever users, loading, or searchInput changes to ensure focus is maintained during search
@@ -448,63 +483,25 @@ export function AdminUsersTable() {
     syncUsersPageToUrl(1)
   }
 
-  // Debounce timers for number inputs
-  const numberInputTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
-  
-  // Debounce timers for text filter inputs (username, name)
-  const textFilterTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(numberInputTimersRef.current).forEach(timer => {
-        if (timer) clearTimeout(timer)
-      })
-      Object.values(textFilterTimersRef.current).forEach(timer => {
-        if (timer) clearTimeout(timer)
-      })
-    }
-  }, [])
-
   const handleFilterChange = (key: string, value: string) => {
-    // Track which input is focused
     if (key === "username" && usernameFilterRef.current === document.activeElement) {
       wasFilterFocusedRef.current = "username"
     } else if (key === "name" && nameFilterRef.current === document.activeElement) {
       wasFilterFocusedRef.current = "name"
     }
-    
-    // Update filter value immediately for UI responsiveness
     setFilters((prev) => ({ ...prev, [key]: value }))
-    
-    // Debounce page reset for text filters to prevent focus loss while typing
-    if (key === "username" || key === "name") {
-      // Clear existing timer for this field
-      if (textFilterTimersRef.current[key]) {
-        clearTimeout(textFilterTimersRef.current[key])
-      }
-      
-      // Debounce the page reset - wait 500ms after user stops typing
-      textFilterTimersRef.current[key] = setTimeout(() => {
-        syncUsersPageToUrl(1)
-        delete textFilterTimersRef.current[key]
-      }, 500)
-    } else {
-      // For other filters, reset page immediately
-      syncUsersPageToUrl(1)
-    }
   }
-  
+
   // Maintain focus on filter inputs after re-renders
   useEffect(() => {
     if (wasFilterFocusedRef.current) {
       requestAnimationFrame(() => {
-        const activeInput = wasFilterFocusedRef.current === "username" 
-          ? usernameFilterRef.current 
-          : nameFilterRef.current
+        const activeInput =
+          wasFilterFocusedRef.current === "username"
+            ? usernameFilterRef.current
+            : nameFilterRef.current
         if (activeInput && document.activeElement !== activeInput) {
           activeInput.focus()
-          // Restore cursor position at the end
           const cursorPosition = activeInput.value.length
           activeInput.setSelectionRange(cursorPosition, cursorPosition)
         }
@@ -512,9 +509,7 @@ export function AdminUsersTable() {
     }
   }, [filters.username, filters.name])
 
-  // Handle number input changes with debouncing to prevent page refresh on arrow clicks
   const handleNumberFilterChange = (key: string, value: string) => {
-    // Prevent negative values - if value is negative or would become negative, set to empty or 0
     let sanitizedValue = value
     if (value !== "" && value !== "-") {
       const numValue = parseFloat(value)
@@ -522,20 +517,7 @@ export function AdminUsersTable() {
         sanitizedValue = "0"
       }
     }
-    
-    // Update the filter value immediately for UI responsiveness
     setFilters((prev) => ({ ...prev, [key]: sanitizedValue }))
-    
-    // Clear existing timer for this field
-    if (numberInputTimersRef.current[key]) {
-      clearTimeout(numberInputTimersRef.current[key])
-    }
-    
-    // Debounce the page reset - wait 500ms after user stops clicking arrows
-    numberInputTimersRef.current[key] = setTimeout(() => {
-      syncUsersPageToUrl(1)
-      delete numberInputTimersRef.current[key]
-    }, 500)
   }
 
   // Handle search bar input - updates input immediately, search is debounced
@@ -563,9 +545,8 @@ export function AdminUsersTable() {
 
   const clearFilters = () => {
     skipUrlSyncRef.current = true
-    setSearchInput("")
-    setSearchQuery("")
-    setFilters({
+    searchCacheRef.current = null
+    const emptyFilters = {
       uid: "",
       username: "",
       name: "",
@@ -580,8 +561,11 @@ export function AdminUsersTable() {
       created_before: "",
       updated_after: "",
       updated_before: "",
-    })
-
+    }
+    setSearchInput("")
+    setSearchQuery("")
+    setFilters(emptyFilters)
+    setAppliedFilters(emptyFilters)
     stripDeepLinkParamsFromUrl()
   }
 

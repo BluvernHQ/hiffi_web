@@ -109,7 +109,7 @@ export function ArtistIndexHubClient({
     ? `${directory.totalMatches.toLocaleString()} profiles match your search`
     : directory.isCleanHub
       ? sectionSubtitleProp ??
-        "Verified and emerging Atlanta hip-hop and rap artists — filter by genre and explore official links."
+        "Verified and emerging hip-hop and rap artists across cities — search profiles and explore official links."
       : `${directory.totalMatches.toLocaleString()} profiles match your filters`
 
   return (

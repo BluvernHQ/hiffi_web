@@ -82,6 +82,12 @@ export function ArtistCityScene({
       </div>
 
       <nav aria-label="Atlanta genre links" className="mt-6 flex flex-wrap gap-2 border-t border-border/70 pt-5">
+        <Link
+          href="/atlanta"
+          className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary hover:bg-primary/10"
+        >
+          Atlanta guide
+        </Link>
         {genreLinks.map((link) => (
           <Link
             key={link.href}
