@@ -42,7 +42,6 @@ import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detai
 import { AdminsPanel } from "@/components/admin/admins-panel"
 import { AdminToolsPanel } from "@/components/admin/admin-tools-panel"
 import { InventoryPanel } from "@/components/admin/inventory-panel"
-import { RankingAnomaliesPanel } from "@/components/admin/ranking-anomalies-panel"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -501,22 +500,6 @@ function AdminDashboardContent() {
                   </div>
                   <div className="flex-1 min-h-0">
                     {showContent ? <InventoryPanel /> : <TableSkeleton />}
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "ranking_anomalies" && can("admin:inventory") && (
-                <div className="space-y-4 h-full flex flex-col min-h-0">
-                  <div className="shrink-0">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                      Hiffi 500 Score Anomalies
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Triage sudden YouTube rank and momentum jumps after ranking refreshes
-                    </p>
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    {showContent ? <RankingAnomaliesPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

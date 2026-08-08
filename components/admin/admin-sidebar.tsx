@@ -25,7 +25,6 @@ import {
   ListMusic,
   Mic2,
   Route,
-  Activity,
   Wrench,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -65,17 +64,6 @@ const navSections: NavSection[] = [
     title: "Artist Index",
     items: [
       { icon: Mic2, label: "Artist Inventory", value: "artist_inventory", permission: "admin:inventory" },
-    ],
-  },
-  {
-    title: "Hiffi 500",
-    items: [
-      {
-        icon: Activity,
-        label: "Score Anomalies",
-        value: "ranking_anomalies",
-        permission: "admin:inventory",
-      },
     ],
   },
   {

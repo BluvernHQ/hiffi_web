@@ -69,7 +69,6 @@ export const ADMIN_SECTION_PERMISSION: Record<string, AdminPermission> = {
   curated_playlists: "admin:curated",
   admins: "admin:admins",
   artist_inventory: "admin:inventory",
-  ranking_anomalies: "admin:inventory",
   tools: "admin:tools",
 }
 
