@@ -1,6 +1,6 @@
 /** Client-safe artist directory helpers — no bundled artist data. */
 
-import { getProfilePictureProxyUrl } from "@/lib/utils"
+import { getThumbnailUrl } from "@/lib/storage"
 
 export const ARTIST_INDEX_PATH = "/artist-index" as const
 export const ARTIST_INDEX_CLAIM_PATH = "/artist-index/claim" as const
@@ -105,9 +105,18 @@ export const HUB_FILTER_LABEL_OVERRIDES: Partial<Record<string, string>> = {
   new: "New Uploads",
 }
 
-/** Resolve API profile picture paths (e.g. ProfileProto/users/…) for browser img src. */
+/**
+ * Resolve API profile picture paths (e.g. ProfileProto/users/…) for browser img src.
+ * Uses the direct Workers CDN URL (same pattern as video/thumbnails) — not /proxy/profile-picture.
+ */
 export function getArtistImageUrl(image: string | null | undefined): string | null {
   const trimmed = image?.trim()
   if (!trimmed) return null
-  return getProfilePictureProxyUrl(trimmed)
+  // Unwrap legacy proxy paths so callers always get a direct CDN URL.
+  if (trimmed.startsWith("/proxy/profile-picture/")) {
+    const path = trimmed.slice("/proxy/profile-picture/".length).replace(/^\//, "")
+    return path ? getThumbnailUrl(path) : null
+  }
+  if (trimmed.startsWith("/proxy/")) return null
+  return getThumbnailUrl(trimmed) || null
 }

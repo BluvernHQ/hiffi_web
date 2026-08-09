@@ -50,6 +50,33 @@ const nextConfig = {
         destination: "/studio/tools/migrate",
         permanent: true,
       },
+      // Until Go GET /inventory/top is live, serve the hardcoded preview (same as preprod).
+      // Flip these back to /top-artists when the ranking API is deployed.
+      {
+        source: "/top-artists",
+        destination: "/top-artist",
+        permanent: false,
+      },
+      {
+        source: "/top-artists/",
+        destination: "/top-artist",
+        permanent: false,
+      },
+      {
+        source: "/top-artists/how-it-works",
+        destination: "/top-artist",
+        permanent: false,
+      },
+      {
+        source: "/top-artists/how-it-works/",
+        destination: "/top-artist",
+        permanent: false,
+      },
+      {
+        source: "/top-artists/share/:path*",
+        destination: "/top-artist",
+        permanent: false,
+      },
     ]
   },
   async rewrites() {
