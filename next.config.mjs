@@ -50,31 +50,30 @@ const nextConfig = {
         destination: "/studio/tools/migrate",
         permanent: true,
       },
-      // Until Go GET /inventory/top is live, serve the hardcoded preview (same as preprod).
-      // Flip these back to /top-artists when the ranking API is deployed.
+      // Legacy singular path → canonical /top-artists
       {
-        source: "/top-artists",
-        destination: "/top-artist",
-        permanent: false,
+        source: "/top-artist",
+        destination: "/top-artists",
+        permanent: true,
       },
       {
-        source: "/top-artists/",
-        destination: "/top-artist",
-        permanent: false,
+        source: "/top-artist/",
+        destination: "/top-artists",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/:path*",
+        destination: "/top-artists/:path*",
+        permanent: true,
       },
       {
         source: "/top-artists/how-it-works",
-        destination: "/top-artist",
+        destination: "/top-artists",
         permanent: false,
       },
       {
         source: "/top-artists/how-it-works/",
-        destination: "/top-artist",
-        permanent: false,
-      },
-      {
-        source: "/top-artists/share/:path*",
-        destination: "/top-artist",
+        destination: "/top-artists",
         permanent: false,
       },
     ]
@@ -91,12 +90,12 @@ const nextConfig = {
         destination: "/sitemaps/:id",
       },
       {
-        source: "/top-artist",
-        destination: "/top-artist/index.html",
+        source: "/top-artists",
+        destination: "/top-artists/index.html",
       },
       {
-        source: "/top-artist/",
-        destination: "/top-artist/index.html",
+        source: "/top-artists/",
+        destination: "/top-artists/index.html",
       },
       {
         source: "/:path*.md",
