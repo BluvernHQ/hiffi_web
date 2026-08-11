@@ -59,7 +59,7 @@ export default function PressPage() {
                 </a>
               </li>
               <li>
-                Use the name <strong>Hiffi</strong> (capital H, lowercase iff). Do not imply endorsement without
+                Use the name <strong>Hiffi</strong> (capital H, lowercase iffi). Do not imply endorsement without
                 written approval.
               </li>
             </ul>
