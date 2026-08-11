@@ -1,6 +1,7 @@
 import { Poppins } from "next/font/google";
 import AboutSiteFooter from "../about/components/hiffi-about/about-site-footer";
 import "../about/hiffi-about.css";
+import "../about/hiffi-promo-cards.css";
 import "./for-fans.css";
 
 const poppins = Poppins({

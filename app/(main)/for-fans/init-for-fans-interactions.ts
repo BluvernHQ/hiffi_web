@@ -26,9 +26,11 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
     const card = cards[0];
     const cardWidth = card.offsetWidth;
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const gap = getComputedStyle(carousel).gap;
-    const gapInPx = parseFloat(gap) || 1;
-    const spacing = gap.includes("rem") ? gapInPx : gapInPx / rem;
+    const style = getComputedStyle(carousel);
+    const gapRaw = style.columnGap || style.gap || "1.2rem";
+    const gapVal = parseFloat(gapRaw) || 1.2;
+    // JoyJam spacing multiplier (~1.2); never use raw px as rem multiplier
+    const spacing = gapRaw.includes("rem") ? gapVal : Math.max(0.85, Math.min(1.6, gapVal / rem));
     const radiusInPx = cardWidth / 2 / Math.tan(Math.PI / total);
     radius = (radiusInPx * spacing) / rem;
     baseAngles = cards.map((_, i) => (360 / total) * i);
@@ -125,7 +127,7 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
 }
 
 /** Discover/Connect — drag + wheel → horizontal scroll (JoyJam track) */
-function initTabScrollTracks(root: ParentNode): () => void {
+export function initTabScrollTracks(root: ParentNode): () => void {
   const tracks = root.querySelectorAll<HTMLElement>(
     ".discover-sc .cs-slider-wrapper.tab-slider-s, .connect-sc .cs-slider-wrapper.tab-slider-s",
   );
@@ -206,11 +208,91 @@ function initTabScrollTracks(root: ParentNode): () => void {
   return () => cleanups.forEach((fn) => fn());
 }
 
+/** Nested phone tag carousels inside Discover slides */
+export function initNestedPhoneSliders(root: ParentNode): () => void {
+  const sliders = Array.from(root.querySelectorAll<HTMLElement>("._w-tab-slider.w-slider"));
+  const timers: number[] = [];
+  const cleanups: Array<() => void> = [];
+
+  sliders.forEach((slider) => {
+    if (slider.dataset.ffPhoneReady === "true") return;
+    slider.dataset.ffPhoneReady = "true";
+
+    const slides = Array.from(slider.querySelectorAll<HTMLElement>("._w-tab-slide"));
+    const nav = slider.querySelector<HTMLElement>("._w-tab-slider-nav");
+    if (slides.length < 2) return;
+
+    let index = 0;
+    const delay = Number(slider.getAttribute("data-delay") || 4000);
+
+    const paint = () => {
+      slides.forEach((slide, i) => {
+        slide.style.display = i === index ? "block" : "none";
+      });
+      if (nav) {
+        const dots = Array.from(nav.children) as HTMLElement[];
+        if (dots.length !== slides.length) {
+          nav.innerHTML = "";
+          slides.forEach((_, i) => {
+            const dot = document.createElement("div");
+            dot.className = "w-slider-dot" + (i === index ? " w-active" : "");
+            dot.addEventListener("click", () => {
+              index = i;
+              paint();
+            });
+            nav.appendChild(dot);
+          });
+        } else {
+          dots.forEach((dot, i) => dot.classList.toggle("w-active", i === index));
+        }
+      }
+    };
+
+    paint();
+    timers.push(
+      window.setInterval(() => {
+        index = (index + 1) % slides.length;
+        paint();
+      }, delay),
+    );
+
+    const left = slider.querySelector<HTMLElement>(".w-slider-arrow-left");
+    const right = slider.querySelector<HTMLElement>(".w-slider-arrow-right");
+    if (left) {
+      const onLeft = () => {
+        index = (index - 1 + slides.length) % slides.length;
+        paint();
+      };
+      left.addEventListener("click", onLeft);
+      cleanups.push(() => left.removeEventListener("click", onLeft));
+    }
+    if (right) {
+      const onRight = () => {
+        index = (index + 1) % slides.length;
+        paint();
+      };
+      right.addEventListener("click", onRight);
+      cleanups.push(() => right.removeEventListener("click", onRight));
+    }
+
+    cleanups.push(() => {
+      delete slider.dataset.ffPhoneReady;
+    });
+  });
+
+  return () => {
+    timers.forEach((id) => window.clearInterval(id));
+    cleanups.forEach((fn) => fn());
+  };
+}
+
 export function initForFansInteractions(root: ParentNode = document): () => void {
   const cleanCarousel = initFanHeroCarousel(root);
   const cleanTracks = initTabScrollTracks(root);
+  const cleanPhones = initNestedPhoneSliders(root);
   return () => {
     cleanCarousel();
     cleanTracks();
+    cleanPhones();
   };
 }

@@ -2,16 +2,71 @@
 
 import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-about/use-hiffi-about-section-init";
 
-const HTML = "<div class=\"container support-s\"><div class=\"text-elements\"><div class=\"headline-wrapper discover-s\"><h2 data-split=\"chars-blur\" class=\"headline-h2\">Support.</h2></div></div><div class=\"support-engage-cards\"><div scroll-scale=\"0.8\" view-list=\"\" class=\"support-cards\"><div class=\"support-cards-column\"><div view-item=\"from-center\" class=\"support-card mini violet\"><div class=\"support-tag-position s1\"><div class=\"support-tag orange\">Fan Engagement</div></div><div data-levitation=\"1\" class=\"support-card-image s1\"><img src=\"/for-fans/support-icon-1.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div></div><div view-item=\"from-center\" class=\"support-card big aqua\"><div class=\"support-tag-position s2\"><div class=\"support-tag green\">Featured Artists</div></div><div data-levitation=\"2\" class=\"support-card-image s2\"><img src=\"/hiffi-about/6821a59ae3bfe300713425e1_1f7cad492d75334587fccb6601aba977_support-image-1.webp\" loading=\"lazy\" sizes=\"(max-width: 991px) 100vw, 784.00390625px\" srcset=\"/hiffi-about/6821a59ae3bfe300713425e1_1f7cad492d75334587fccb6601aba977_support-image-1-p-500.png 500w, /hiffi-about/6821a59ae3bfe300713425e1_1f7cad492d75334587fccb6601aba977_support-image-1.webp 784w\" alt=\"\" class=\"image-cover\"/></div></div></div><div class=\"support-cards-column\"><div view-item=\"from-center\" class=\"support-card big grey\"><div class=\"support-tag-position s3\"><div class=\"support-tag purple\">Fan Engagement</div></div><div class=\"support-coin s1\"><img src=\"/hiffi-about/6821a59ae3bfe300713425d0_0c099a51cd1891085acdc9b1c1c91c2a_support-coin-1.webp\" loading=\"lazy\" data-levitation=\"1\" alt=\"\" class=\"image-contain\"/></div><div data-levitation=\"2\" class=\"support-coin s2\"><img src=\"/hiffi-about/6821a59ae3bfe300713425cf_c9669508af68638a2afa1d26e54b9886_support-coin-2.webp\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div data-levitation=\"2\" class=\"support-coin s3\"><img src=\"/hiffi-about/6821a59ae3bfe300713425cd_3fc5b0257030fae46029798bf1eadd4b_support-coin-4.webp\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div data-levitation=\"1\" class=\"support-coin s4\"><img src=\"/hiffi-about/6821a59ae3bfe300713425d1_ef2b28025414d56d6e08e894dd376a6e_support-coin-3.webp\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div data-levitation=\"1\" class=\"support-coin s5\"><img src=\"/hiffi-about/6821a59ae3bfe300713425ce_77f401470e5db6986cd1576008f2fd34_support-coin-5.webp\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div></div><div view-item=\"from-center\" class=\"support-card mini green\"><div class=\"support-tag-position s4\"><div class=\"support-tag blue\">Music Discovery</div></div><div data-levitation=\"2\" class=\"support-card-image s4\"><img src=\"/for-fans/support-icon-2.png\" loading=\"lazy\" sizes=\"(max-width: 620px) 100vw, 620px\" srcset=\"/for-fans/support-icon-2.png\" alt=\"\" class=\"image-contain\"/></div></div></div></div></div></div>" as string;
+const CARDS = [
+  {
+    title: "We’re Here for you",
+    copy: "Get help with your account and more",
+    badge: "/for-fans/support/badge-heart.png",
+    art: "/for-fans/support/art-here.png",
+    tone: "dark" as const,
+    size: "short" as const,
+  },
+  {
+    title: "Help Center",
+    copy: "Find answers to common questions",
+    badge: "/for-fans/support/badge-star.png",
+    art: "/for-fans/support/art-help.png",
+    tone: "blue" as const,
+    size: "tall" as const,
+  },
+  {
+    title: "We’re Here for you",
+    copy: "Get help with your account and more",
+    badge: "/for-fans/support/badge-mail.png",
+    art: "/for-fans/support/art-contact.png",
+    tone: "blue" as const,
+    size: "tall" as const,
+    key: "contact",
+  },
+  {
+    title: "Report an Issue",
+    copy: "Let us know and we’ll look into it",
+    badge: "/for-fans/support/badge-shield.png",
+    art: "/for-fans/support/art-report.png",
+    tone: "dark" as const,
+    size: "short" as const,
+  },
+];
 
+/** Figma Support masonry 2×2 */
 export default function FfSupport() {
-  const ref = useHiffiAboutSectionInit("support-sc");
+  const ref = useHiffiAboutSectionInit("ff-support");
 
   return (
-    <section
-      ref={ref}
-      className="support-sc"
-      dangerouslySetInnerHTML={{ __html: HTML }}
-    />
+    <section ref={ref} className="ff-sec ff-support">
+      <div className="ff-wrap">
+        <h2 data-split="chars-blur" className="ff-h2">
+          Support
+        </h2>
+        <div {...{ "view-list": "" }} className="ff-support-grid">
+          {CARDS.map((c) => (
+            <article
+              key={c.key ?? c.title + c.size + c.tone}
+              {...{ "view-item": "from-center" }}
+              className={`ff-sup-card ff-sup-card--${c.tone} ff-sup-card--${c.size}`}
+            >
+              {c.badge ? (
+                <img className="ff-sup-badge" src={c.badge} alt="" width={50} height={50} />
+              ) : null}
+              <div className="ff-sup-copy">
+                <h3 className="ff-sup-title">{c.title}</h3>
+                <p className="ff-sup-text">{c.copy}</p>
+              </div>
+              <img className="ff-sup-art" src={c.art} alt="" loading="lazy" />
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

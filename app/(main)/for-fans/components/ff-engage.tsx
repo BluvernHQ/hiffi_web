@@ -2,16 +2,89 @@
 
 import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-about/use-hiffi-about-section-init";
 
-const HTML = "<div class=\"container engage-s\"><div class=\"text-elements\"><div class=\"headline-wrapper engage-s\"><h2 data-split=\"chars-blur\" class=\"headline-h2\">Engage.</h2></div></div><div class=\"engage-cards-wrapper\"><div scroll-scale=\"0.8\" view-list=\"\" class=\"engage-cards\"><div view-item=\"from-center\" class=\"engage-card aqua\"><div class=\"engage-card-title\"><h4 class=\"headline-h5\">Teasers</h4><p class=\"body-regular-s opacity-70\">Get a first look at upcoming music, videos, and creator updates.</p></div><div class=\"engage-card-phone\"><img src=\"/hiffi-about/6821a59ae3bfe300713425db_ebc06cf53ecea7fe7d98a6fcb09a2c3e_engage-phone-2.webp\" loading=\"lazy\" sizes=\"(max-width: 767px) 100vw, 644.00390625px\" srcset=\"/hiffi-about/6821a59ae3bfe300713425db_ebc06cf53ecea7fe7d98a6fcb09a2c3e_engage-phone-2-p-500.webp 500w, /hiffi-about/6821a59ae3bfe300713425db_ebc06cf53ecea7fe7d98a6fcb09a2c3e_engage-phone-2.webp 644w\" alt=\"\" class=\"image-contain\"/></div></div><div class=\"engage-center-card\"><div view-item=\"from-center\" class=\"engage-card double-s dark-grey\"><div class=\"engage-card-title\"><h4 class=\"headline-h5\">Discover Creators</h4><p class=\"body-regular-s opacity-70\">Get a first look at upcoming music, videos, and creator updates.</p></div><div class=\"engage-vs-bg\"><img src=\"/hiffi-about/6821a59ae3bfe300713425dc_c0c6008d5b402c3a983a6c18dfaa0d11_engage-vs-bg.png\" loading=\"lazy\" sizes=\"(max-width: 991px) 100vw, 784.00390625px\" srcset=\"/hiffi-about/6821a59ae3bfe300713425dc_c0c6008d5b402c3a983a6c18dfaa0d11_engage-vs-bg-p-500.png 500w, /hiffi-about/6821a59ae3bfe300713425dc_c0c6008d5b402c3a983a6c18dfaa0d11_engage-vs-bg.png 784w\" alt=\"\" class=\"image-contain\"/></div><div data-levitation=\"1\" class=\"vs-point s1\"><div data-levitation=\"\" class=\"engage-vs-avatar-frame s1\"><div class=\"engage-vs-avatar\"><img src=\"/for-fans/avatar.jpg\" loading=\"lazy\" alt=\"\" class=\"image-cover\"/></div></div></div><div data-levitation=\"2\" class=\"vs-point s2\"><div class=\"engage-vs-avatar-frame s2\"><div class=\"engage-vs-avatar\"><img src=\"/for-fans/avatar.jpg\" loading=\"lazy\" alt=\"\" class=\"image-cover\"/></div></div></div></div><div view-item=\"from-center\" class=\"engage-card double-s purple\"><div class=\"engage-card-title\"><h4 class=\"headline-h5\">Featured Artists</h4><p class=\"body-regular-s\">Discover standout artists and content from across HIFFI.</p></div><div data-levitation=\"1\" class=\"likes-pop\"><img src=\"/for-fans/heart-bubble.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div data-levitation=\"2\" class=\"silver-award\"><img src=\"/for-fans/gold-star.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div></div></div><div view-item=\"from-center\" class=\"engage-card sand\"><div class=\"engage-card-title\"><h4 class=\"headline-h5\">Top Fans</h4><p class=\"body-regular-s opacity-70\">The most engaged fans can earn a spot in a creator\u2019s Top 10 Fans section of their profile. Show love, stay active, and get recognized.</p></div><div class=\"engage-card-phone\"><img src=\"/hiffi-about/6821a59ae3bfe300713425da_7070381a40bb1d7d5194fda1b0bc3d1d_engage-phone-1.webp\" loading=\"lazy\" sizes=\"(max-width: 767px) 100vw, 644.00390625px\" srcset=\"/hiffi-about/6821a59ae3bfe300713425da_7070381a40bb1d7d5194fda1b0bc3d1d_engage-phone-1-p-500.webp 500w, /hiffi-about/6821a59ae3bfe300713425da_7070381a40bb1d7d5194fda1b0bc3d1d_engage-phone-1.webp 644w\" alt=\"\" class=\"image-contain\"/></div></div></div></div></div>" as string;
-
+/** Figma Engage grid — asymmetric 3-col */
 export default function FfEngage() {
-  const ref = useHiffiAboutSectionInit("engage-js");
+  const ref = useHiffiAboutSectionInit("ff-engage");
 
   return (
-    <section
-      ref={ref}
-      className="engage-js"
-      dangerouslySetInnerHTML={{ __html: HTML }}
-    />
+    <section ref={ref} className="ff-sec ff-engage">
+      <div className="ff-wrap">
+        <h2 data-split="chars-blur" className="ff-h2">
+          Engage
+        </h2>
+        <div {...{ "view-list": "" }} className="ff-engage-grid">
+          <article {...{ "view-item": "from-center" }} className="ff-eng-card ff-eng-card--blue">
+            <h3 className="ff-eng-title">Artist Stories</h3>
+            <p className="ff-eng-copy">
+              Get a closer look at your favorite artists through behind-the-scenes moments,
+              announcements, and daily updates.
+            </p>
+            <div className="ff-eng-photos" aria-hidden>
+              <img className="ff-eng-photo s1" src="/for-fans/engage/story-1.png" alt="" />
+              <img className="ff-eng-photo s2" src="/for-fans/engage/story-2.png" alt="" />
+            </div>
+          </article>
+
+          <div className="ff-engage-mid">
+            <article {...{ "view-item": "from-center" }} className="ff-eng-card ff-eng-card--gray">
+              <h3 className="ff-eng-title">Find New Artists</h3>
+              <p className="ff-eng-copy">
+                Discover emerging voices, trending releases, and the next generation of hip hop
+                creators.
+              </p>
+              <div className="ff-eng-thumbs" aria-hidden>
+                <img src="/for-fans/carousel-1.jpg" alt="" className="ff-eng-thumb s1" />
+                <div className="ff-eng-thumb-wrap">
+                  <img src="/for-fans/carousel-3.jpg" alt="" className="ff-eng-thumb s2" />
+                  <span className="ff-eng-follow">Follow</span>
+                </div>
+                <img src="/for-fans/carousel-7.jpg" alt="" className="ff-eng-thumb s3" />
+              </div>
+            </article>
+
+            <article {...{ "view-item": "from-center" }} className="ff-eng-card ff-eng-card--magenta">
+              <h3 className="ff-eng-title">Featured Artists</h3>
+              <p className="ff-eng-copy">Discover standout artists and content from across HIFFI.</p>
+              <div className="ff-eng-icons" aria-hidden>
+                <img
+                  {...{ "data-levitation": "1" }}
+                  src="/for-fans/heart-bubble.png"
+                  alt=""
+                  className="ff-eng-heart s1"
+                />
+                <img
+                  {...{ "data-levitation": "2" }}
+                  src="/for-fans/heart-bubble.png"
+                  alt=""
+                  className="ff-eng-heart s2"
+                />
+              </div>
+            </article>
+          </div>
+
+          <article {...{ "view-item": "from-center" }} className="ff-eng-card ff-eng-card--coral">
+            <h3 className="ff-eng-title">Follow Your Favorites</h3>
+            <p className="ff-eng-copy">
+              Stay connected with the artists you love. Follow their profiles to never miss new
+              music, videos, and updates.
+            </p>
+            <div className="ff-eng-stars" aria-hidden>
+              <img
+                {...{ "data-levitation": "1" }}
+                src="/for-fans/gold-star.png"
+                alt=""
+                className="ff-eng-star s1"
+              />
+              <img
+                {...{ "data-levitation": "2" }}
+                src="/for-fans/gold-star.png"
+                alt=""
+                className="ff-eng-star s2"
+              />
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
   );
 }
