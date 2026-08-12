@@ -2791,6 +2791,7 @@ class ApiClient {
     username?: string
     name?: string
     role?: string
+    source?: string
     uid?: string
     followers_min?: number
     followers_max?: number
@@ -2891,6 +2892,7 @@ class ApiClient {
     success: boolean
     counters: {
       users: number
+      organic_users: number
       videos: number
       comments: number
       replies: number

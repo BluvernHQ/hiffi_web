@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,9 +19,11 @@ import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
+import { cn } from "@/lib/utils"
 
 interface AnalyticsData {
   totalUsers: number
+  organicUsers: number
   totalVideos: number
   totalComments: number
   totalReplies: number
@@ -33,6 +36,71 @@ interface AnalyticsData {
   averageCommentsPerVideo: number
   engagementRate: number
   lastUpdated?: string
+}
+
+function adminSectionHref(section: string, extra?: Record<string, string>) {
+  const params = new URLSearchParams({ section })
+  if (extra) {
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) params.set(key, value)
+    }
+  }
+  return `/admin/dashboard?${params.toString()}`
+}
+
+function MetricCard({
+  href,
+  title,
+  value,
+  description,
+  icon,
+  iconClassName,
+}: {
+  href?: string
+  title: string
+  value: ReactNode
+  description: ReactNode
+  icon: ReactNode
+  iconClassName?: string
+}) {
+  const card = (
+    <Card
+      className={cn(
+        "border-2 transition-all duration-200 group h-full",
+        href
+          ? "hover:shadow-lg hover:border-primary/40 cursor-pointer focus-within:ring-2 focus-within:ring-primary/40"
+          : "hover:shadow-lg hover:border-primary/20",
+      )}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-sm font-semibold text-muted-foreground">{title}</CardTitle>
+        <div
+          className={cn(
+            "h-9 w-9 rounded-lg flex items-center justify-center transition-colors",
+            iconClassName ?? "bg-primary/10 group-hover:bg-primary/20",
+          )}
+        >
+          {icon}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold tracking-tight mb-1">{value}</div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+        {href ? (
+          <p className="mt-2 text-[11px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+            View list →
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+
+  if (!href) return card
+  return (
+    <Link href={href} className="block rounded-xl outline-none" aria-label={`View ${title}`}>
+      {card}
+    </Link>
+  )
 }
 
 export function AnalyticsOverview() {
@@ -65,6 +133,7 @@ export function AnalyticsOverview() {
         
         // Get raw values from counters endpoint only - no fallbacks to ensure consistency
         const totalUsers = counters.users || 0
+        const organicUsers = counters.organic_users || 0
         const totalVideos = counters.videos || 0
         const totalComments = counters.comments || 0
         const totalReplies = counters.replies || 0
@@ -98,6 +167,7 @@ export function AnalyticsOverview() {
 
         setAnalytics({
           totalUsers,
+          organicUsers,
           totalVideos,
           totalComments,
           totalReplies,
@@ -152,8 +222,8 @@ export function AnalyticsOverview() {
     return (
       <div className="space-y-6">
         {/* Key Metrics Grid Skeleton */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i} className="border-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="h-4 w-24 bg-muted rounded animate-shimmer" />
@@ -267,133 +337,83 @@ export function AnalyticsOverview() {
       </div>
       
       {/* Key Metrics Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Users</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Users className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalUsers)}</div>
-            <p className="text-xs text-muted-foreground">
-              Registered users on platform
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Videos</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Video className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalVideos)}</div>
-            <p className="text-xs text-muted-foreground">
-              Videos uploaded
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Views</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Eye className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalViews)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total video views
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Watch Hours</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Clock className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">
-              {formatHours(analytics.estimatedWatchHours)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {analytics.isWatchHoursEstimated 
-                ? "Estimated: views × 3 minutes per view"
-                : "Total watch time across all videos"}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <MetricCard
+          href={adminSectionHref("users")}
+          title="Total Users"
+          value={formatNumber(analytics.totalUsers)}
+          description="All accounts (organic + inventory)"
+          icon={<Users className="h-4 w-4 text-primary" />}
+        />
+        <MetricCard
+          href={adminSectionHref("users", { source: "organic" })}
+          title="Organic Users"
+          value={formatNumber(analytics.organicUsers)}
+          description={
+            <>
+              Self-serve signups
+              {analytics.totalUsers > 0
+                ? ` · ${((analytics.organicUsers / analytics.totalUsers) * 100).toFixed(1)}% of total`
+                : ""}
+            </>
+          }
+          icon={<Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          iconClassName="bg-emerald-500/10 group-hover:bg-emerald-500/20"
+        />
+        <MetricCard
+          href={adminSectionHref("videos")}
+          title="Total Videos"
+          value={formatNumber(analytics.totalVideos)}
+          description="Videos uploaded"
+          icon={<Video className="h-4 w-4 text-primary" />}
+        />
+        <MetricCard
+          href={adminSectionHref("videos")}
+          title="Total Views"
+          value={formatNumber(analytics.totalViews)}
+          description="Total video views"
+          icon={<Eye className="h-4 w-4 text-primary" />}
+        />
+        <MetricCard
+          title="Watch Hours"
+          value={formatHours(analytics.estimatedWatchHours)}
+          description={
+            analytics.isWatchHoursEstimated
+              ? "Estimated: views × 3 minutes per view"
+              : "Total watch time across all videos"
+          }
+          icon={<Clock className="h-4 w-4 text-primary" />}
+        />
       </div>
 
       {/* Engagement Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Comments</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <MessageSquare className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalComments)}</div>
-            <p className="text-xs text-muted-foreground">
-              Comments on videos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Replies</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <MessageSquare className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalReplies)}</div>
-            <p className="text-xs text-muted-foreground">
-              Replies to comments
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total Upvotes</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Heart className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalUpvotes)}</div>
-            <p className="text-xs text-muted-foreground">
-              Positive interactions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Engagement Rate</CardTitle>
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">~{analytics.engagementRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
-              (Comments + Replies + Upvotes) ÷ Views × 100
-            </p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          href={adminSectionHref("comments")}
+          title="Total Comments"
+          value={formatNumber(analytics.totalComments)}
+          description="Comments on videos"
+          icon={<MessageSquare className="h-4 w-4 text-primary" />}
+        />
+        <MetricCard
+          href={adminSectionHref("replies")}
+          title="Total Replies"
+          value={formatNumber(analytics.totalReplies)}
+          description="Replies to comments"
+          icon={<MessageSquare className="h-4 w-4 text-primary" />}
+        />
+        <MetricCard
+          title="Total Upvotes"
+          value={formatNumber(analytics.totalUpvotes)}
+          description="Positive interactions"
+          icon={<Heart className="h-4 w-4 text-primary" />}
+        />
+        <MetricCard
+          title="Engagement Rate"
+          value={`~${analytics.engagementRate.toFixed(1)}%`}
+          description="(Comments + Replies + Upvotes) ÷ Views × 100"
+          icon={<TrendingUp className="h-4 w-4 text-primary" />}
+        />
       </div>
 
       {/* Performance Metrics */}
@@ -439,11 +459,35 @@ export function AnalyticsOverview() {
                 </div>
                 <p className="text-xs text-muted-foreground/70">Comments + Replies + Upvotes</p>
               </div>
+              <Link
+                href={adminSectionHref("users", { source: "organic" })}
+                className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0 rounded-md -mx-1 px-1 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Organic Users</span>
+                  <span className="text-base font-semibold text-primary">
+                    {formatNumber(analytics.organicUsers)} →
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Self-serve auth signups · open filtered list</p>
+              </Link>
+              <Link
+                href={adminSectionHref("users", { source: "inventory" })}
+                className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0 rounded-md -mx-1 px-1 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Inventory Users</span>
+                  <span className="text-base font-semibold text-primary">
+                    {formatNumber(Math.max(0, analytics.totalUsers - analytics.organicUsers))} →
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Seeded artists · open filtered list</p>
+              </Link>
               <div className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Videos per User</span>
                   <span className="text-base font-semibold">
-                    {analytics.totalUsers > 0 
+                    {analytics.totalUsers > 0
                       ? `~${(analytics.totalVideos / analytics.totalUsers).toFixed(1)}`
                       : "0"}
                   </span>

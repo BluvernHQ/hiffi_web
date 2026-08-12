@@ -100,7 +100,7 @@ export function AdminUsersTable() {
     if (savedState !== null) {
       setIsFilterCollapsed(savedState === "true")
     }
-  }, [urlFilters.userUid, urlFilters.userUsername])
+  }, [urlFilters.userUid, urlFilters.userUsername, urlFilters.userSource])
 
   // Save collapsed state to localStorage (shared across all admin pages)
   const handleToggleCollapse = () => {
@@ -138,6 +138,7 @@ export function AdminUsersTable() {
       username: fromUrl.userUsername,
       name: "",
       role: "",
+      source: fromUrl.userSource,
       followers_min: "",
       followers_max: "",
       following_min: "",
@@ -188,6 +189,7 @@ export function AdminUsersTable() {
         const cacheKey = JSON.stringify({
           searchTerm,
           role: appliedFilters.role,
+          source: appliedFilters.source,
           uid: resolvedUid,
           followers_min: appliedFilters.followers_min,
           followers_max: appliedFilters.followers_max,
@@ -208,6 +210,7 @@ export function AdminUsersTable() {
           const baseParams: any = { limit, offset: 0 }
 
           if (appliedFilters.role) baseParams.role = appliedFilters.role
+          if (appliedFilters.source) baseParams.source = appliedFilters.source
           if (resolvedUid) baseParams.uid = resolvedUid
           if (appliedFilters.followers_min) baseParams.followers_min = parseInt(appliedFilters.followers_min)
           if (appliedFilters.followers_max) baseParams.followers_max = parseInt(appliedFilters.followers_max)
@@ -283,6 +286,7 @@ export function AdminUsersTable() {
         if (appliedFilters.name) params.name = appliedFilters.name
         if (resolvedUid) params.uid = resolvedUid
         if (appliedFilters.role) params.role = appliedFilters.role
+        if (appliedFilters.source) params.source = appliedFilters.source
         if (appliedFilters.followers_min) params.followers_min = parseInt(appliedFilters.followers_min)
         if (appliedFilters.followers_max) params.followers_max = parseInt(appliedFilters.followers_max)
         if (appliedFilters.following_min) params.following_min = parseInt(appliedFilters.following_min)
@@ -313,6 +317,7 @@ export function AdminUsersTable() {
           if (sortKey === "username") aValue = a.username || ""
           if (sortKey === "email") aValue = a.email || ""
           if (sortKey === "role") aValue = a.role || ""
+          if (sortKey === "source") aValue = a.source || ""
           if (sortKey === "followers") aValue = a.followers || 0
           if (sortKey === "following") aValue = a.following || 0
           if (sortKey === "total_videos") aValue = a.total_videos || 0
@@ -322,6 +327,7 @@ export function AdminUsersTable() {
           if (sortKey === "username") bValue = b.username || ""
           if (sortKey === "email") bValue = b.email || ""
           if (sortKey === "role") bValue = b.role || ""
+          if (sortKey === "source") bValue = b.source || ""
           if (sortKey === "followers") bValue = b.followers || 0
           if (sortKey === "following") bValue = b.following || 0
           if (sortKey === "total_videos") bValue = b.total_videos || 0
@@ -423,6 +429,23 @@ export function AdminUsersTable() {
     syncUsersPageToUrlRef.current(1)
   }, [appliedFilters])
 
+  // Keep ?source= in sync with the Source filter (analytics deep-links + shareable filters).
+  useEffect(() => {
+    const fromWindow =
+      typeof window !== "undefined" &&
+      window.location.pathname.replace(/\/$/, "") === "/admin/dashboard"
+    const params = new URLSearchParams(
+      fromWindow ? window.location.search.slice(1) : searchParams.toString(),
+    )
+    const current = params.get("source")?.trim().toLowerCase() || ""
+    const next = appliedFilters.source.trim().toLowerCase()
+    if (current === next) return
+    if (next === "organic" || next === "inventory") params.set("source", next)
+    else params.delete("source")
+    if (!params.get("section")) params.set("section", "users")
+    router.replace(`/admin/dashboard?${params.toString()}`)
+  }, [appliedFilters.source, router, searchParams])
+
   // Hydrate search bar from URL ?q= deep links only.
   // Do not sync empty URL → input: pagination/filter URL updates omit `q` and were wiping typed text.
   useEffect(() => {
@@ -437,14 +460,15 @@ export function AdminUsersTable() {
     setSearchQuery(q)
   }, [searchParams])
 
-  // Hydrate sidebar uid/username from URL deep links only when present
+  // Hydrate sidebar uid/username/source from URL deep links only when present
   useEffect(() => {
-    const { userUid, userUsername } = readAdminTableUrlFilters(searchParams)
-    if (userUid || userUsername) {
+    const { userUid, userUsername, userSource } = readAdminTableUrlFilters(searchParams)
+    if (userUid || userUsername || userSource) {
       setFilters((prev) => ({
         ...prev,
         ...(userUid && prev.uid !== userUid ? { uid: userUid } : {}),
         ...(userUsername && prev.username !== userUsername ? { username: userUsername } : {}),
+        ...(userSource && prev.source !== userSource ? { source: userSource } : {}),
       }))
       setIsFilterCollapsed(false)
     }
@@ -551,6 +575,7 @@ export function AdminUsersTable() {
       username: "",
       name: "",
       role: "",
+      source: "",
       followers_min: "",
       followers_max: "",
       following_min: "",
@@ -573,7 +598,8 @@ export function AdminUsersTable() {
     searchQuery.trim() !== "" ||
     Object.values(filters).some((v) => v !== "") ||
     !!urlFilters.userUid ||
-    !!urlFilters.userUsername
+    !!urlFilters.userUsername ||
+    !!urlFilters.userSource
   const canGoPrev = page > 1
   const canGoNext = hasMore
   const pageOffset = Math.max(0, (page - 1) * limit)
@@ -778,6 +804,18 @@ export function AdminUsersTable() {
               <option value="user">User</option>
               <option value="creator">Creator</option>
               <option value="admin">Admin</option>
+            </select>
+          </FilterField>
+          <FilterField label="Source" htmlFor="source">
+            <select
+              id="source"
+              value={filters.source}
+              onChange={(e) => handleFilterChange("source", e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">All sources</option>
+              <option value="organic">Organic</option>
+              <option value="inventory">Inventory</option>
             </select>
           </FilterField>
         </FilterSection>
@@ -1034,6 +1072,14 @@ export function AdminUsersTable() {
                     className="min-w-[90px]"
                   />
                   <SortableHeader
+                    label="Source"
+                    sortKey="source"
+                    currentSort={sortKey}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    className="min-w-[100px]"
+                  />
+                  <SortableHeader
                     label="Followers"
                     sortKey="followers"
                     currentSort={sortKey}
@@ -1071,7 +1117,7 @@ export function AdminUsersTable() {
             <tbody>
                 {users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <td colSpan={10} className="h-32 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center py-8">
                       <p className="text-base font-medium">No users found</p>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -1148,6 +1194,22 @@ export function AdminUsersTable() {
                         )}
                       </div>
                     </td>
+                      <td className="px-3 py-2 whitespace-nowrap min-w-[100px]">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            user.source === "inventory"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                          }`}
+                          title={
+                            user.source === "inventory"
+                              ? "Seeded via artist inventory"
+                              : "Self-serve auth signup"
+                          }
+                        >
+                          {user.source === "inventory" ? "inventory" : user.source || "organic"}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[95px]">{user.followers || 0}</td>
                       <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[95px]">{user.following || 0}</td>
                       <td className="px-3 py-2 font-medium text-sm whitespace-nowrap min-w-[85px]">{user.total_videos || 0}</td>
