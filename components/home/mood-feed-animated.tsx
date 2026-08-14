@@ -3,7 +3,6 @@
 import { useRef, useEffect } from "react"
 import { useGSAP } from "@/lib/gsap/register"
 import {
-  clearFeedMotion,
   dimFeedLoading,
   resetFeedContainer,
   staggerFeedCards,
@@ -30,24 +29,14 @@ export function MoodFeedAnimated({
   const prevFeedKey = useRef(feedKey)
   const prevVideoCount = useRef(videoCount)
 
-  // Dim while an empty mood feed loads. Cleanup must restore opacity —
-  // killing the tween alone leaves the grid stuck at ~0.35 (the "faded home" bug
-  // when switching back to All mid-load).
+  // Dim while mood feed loads
   useEffect(() => {
     if (!isMoodFeed || !loading || videoCount > 0) return
-    const el = containerRef.current
-    const tween = dimFeedLoading(el)
+    const tween = dimFeedLoading(containerRef.current)
     return () => {
       tween?.kill()
-      clearFeedMotion(el)
     }
   }, [isMoodFeed, loading, videoCount])
-
-  // Leaving mood mix → always clear residual GSAP opacity/transform on the grid.
-  useEffect(() => {
-    if (isMoodFeed) return
-    clearFeedMotion(containerRef.current)
-  }, [isMoodFeed])
 
   // Stagger cards when mood feed content arrives
   useGSAP(

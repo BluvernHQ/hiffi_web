@@ -96,31 +96,10 @@ export function dimFeedLoading(container: Element | null | undefined): gsap.core
   return gsap.to(container, { opacity: 0.35, y: 10, duration: 0.28, ease: MOOD_EASE.out })
 }
 
-/** Instantly clear residual dim/transform left by interrupted GSAP tweens. */
-export function clearFeedMotion(container: Element | null | undefined) {
-  if (!container) return
-  gsap.killTweensOf(container)
-  gsap.set(container, { opacity: 1, y: 0, clearProps: "opacity,transform" })
-  const cells = container.querySelectorAll("[data-video-card-cell]")
-  if (cells.length === 0) return
-  gsap.killTweensOf(cells)
-  gsap.set(cells, { clearProps: "opacity,transform" })
-}
-
 /** Reset feed container after load. */
 export function resetFeedContainer(container: Element | null | undefined): gsap.core.Tween | void {
-  if (!container) return
-  if (prefersReducedMotion()) {
-    clearFeedMotion(container)
-    return
-  }
-  return gsap.to(container, {
-    opacity: 1,
-    y: 0,
-    duration: 0.32,
-    ease: MOOD_EASE.in,
-    clearProps: "opacity,transform",
-  })
+  if (!container || prefersReducedMotion()) return
+  return gsap.to(container, { opacity: 1, y: 0, duration: 0.32, ease: MOOD_EASE.in })
 }
 
 /** Stagger track cards when mood feed arrives. */
