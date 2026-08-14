@@ -717,6 +717,8 @@ class ApiClient {
     success: boolean
     user?: ApiUser | null
     following?: boolean
+    /** True when this username has an Artist Index inventory listing. */
+    in_inventory?: boolean
     disabled?: boolean
   }> {
     try {
@@ -727,9 +729,11 @@ class ApiClient {
         data?: {
           user: ApiUser
           following?: boolean
+          in_inventory?: boolean
         }
         user?: ApiUser
         following?: boolean
+        in_inventory?: boolean
       }>(`/users/${username}`, {}, true)
       
       // Check if account is disabled (API returns { disabled: true, success: false })
@@ -738,12 +742,13 @@ class ApiClient {
           success: false,
           user: null,
           following: false,
+          in_inventory: false,
           disabled: true,
         }
       }
       
       // Normalize response structure
-      // New API format: { success: true, data: { user: {...}, following: false } }
+      // New API format: { success: true, data: { user: {...}, following: false, in_inventory?: boolean } }
       // Old format: { success: true, user: {...} }
       if (response.success || response.status === "success") {
         // Extract from data object if present
@@ -752,6 +757,7 @@ class ApiClient {
             success: true,
             user: response.data.user,
             following: response.data.following,
+            in_inventory: response.data.in_inventory === true,
             disabled: false,
           }
         }
@@ -760,6 +766,7 @@ class ApiClient {
           success: true,
           user: response.user,
           following: response.following,
+          in_inventory: response.in_inventory === true,
           disabled: false,
         }
       }
@@ -768,6 +775,7 @@ class ApiClient {
         success: false,
         user: null,
         following: false,
+        in_inventory: false,
         disabled: false,
       }
     } catch (error: unknown) {
@@ -782,6 +790,7 @@ class ApiClient {
               success: false,
               user: null,
               following: false,
+              in_inventory: false,
               disabled: true,
             }
           }
@@ -798,6 +807,7 @@ class ApiClient {
           success: false,
           user: null,
           following: false,
+          in_inventory: false,
           disabled: false,
         }
       }

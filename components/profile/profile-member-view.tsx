@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
+import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
 import {
@@ -17,6 +18,7 @@ import {
 export function ProfileMemberView(props: {
   profileUser: any
   username: string
+  inInventory?: boolean
   isFollowing: boolean
   isFollowingAction: boolean
   followActionType: "follow" | "unfollow" | null
@@ -30,6 +32,7 @@ export function ProfileMemberView(props: {
   const {
     profileUser,
     username,
+    inInventory = false,
     isFollowing,
     isFollowingAction,
     followActionType,
@@ -150,6 +153,12 @@ export function ProfileMemberView(props: {
                     <span>Joined {format(new Date(profileUser.createdat), "MMMM yyyy")}</span>
                   </div>
                 )}
+
+                {inInventory ? (
+                  <div className="pt-4 border-t">
+                    <ProfileArtistIndexLink username={profileUser.username || username} />
+                  </div>
+                ) : null}
 
                 {(showFollowerCount || showFollowingCount) && (
                   <div className="pt-4 border-t">
