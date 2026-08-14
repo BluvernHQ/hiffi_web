@@ -21,6 +21,9 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
   let autoRotate = desktopMq.matches;
   let autoDirection = 0.1;
   let raf = 0;
+  let visible = true;
+  let running = false;
+  let resizeTimer = 0;
 
   const setup = () => {
     const card = cards[0];
@@ -29,7 +32,6 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
     const style = getComputedStyle(carousel);
     const gapRaw = style.columnGap || style.gap || "1.2rem";
     const gapVal = parseFloat(gapRaw) || 1.2;
-    // JoyJam spacing multiplier (~1.2); never use raw px as rem multiplier
     const spacing = gapRaw.includes("rem") ? gapVal : Math.max(0.85, Math.min(1.6, gapVal / rem));
     const radiusInPx = cardWidth / 2 / Math.tan(Math.PI / total);
     radius = (radiusInPx * spacing) / rem;
@@ -41,7 +43,19 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
     if (!desktopMq.matches) velocity = 0;
   };
 
+  const paint = () => {
+    cards.forEach((card, i) => {
+      card.style.transform = `rotateY(${baseAngles[i] + angle}deg) translateZ(${radius}rem)`;
+    });
+  };
+
   const animate = () => {
+    raf = 0;
+    if (!visible) {
+      running = false;
+      return;
+    }
+
     if (!isDragging) {
       if (autoRotate && desktopMq.matches) {
         angle += autoDirection;
@@ -56,12 +70,21 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
       }
     }
 
-    cards.forEach((card, i) => {
-      const totalAngle = baseAngles[i] + angle;
-      card.style.transform = `rotateY(${totalAngle}deg) translateZ(${radius}rem)`;
-    });
-
+    paint();
+    running = true;
     raf = requestAnimationFrame(animate);
+  };
+
+  const startLoop = () => {
+    if (running || !visible) return;
+    running = true;
+    raf = requestAnimationFrame(animate);
+  };
+
+  const stopLoop = () => {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
   };
 
   const onDragStart = (x: number) => {
@@ -99,6 +122,10 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
   const onMouseMove = (e: MouseEvent) => onDragMove(e.clientX);
   const onTouchStart = (e: TouchEvent) => onDragStart(e.touches[0].clientX);
   const onTouchMove = (e: TouchEvent) => onDragMove(e.touches[0].clientX);
+  const onResize = () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(setup, 150);
+  };
 
   carousel.addEventListener("mousedown", onMouseDown);
   window.addEventListener("mousemove", onMouseMove);
@@ -106,21 +133,41 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
   carousel.addEventListener("touchstart", onTouchStart, { passive: true });
   window.addEventListener("touchmove", onTouchMove, { passive: true });
   window.addEventListener("touchend", onDragEnd);
-  window.addEventListener("resize", setup);
+  window.addEventListener("resize", onResize);
   desktopMq.addEventListener("change", onDesktopChange);
 
+  const io = new IntersectionObserver(
+    ([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible) startLoop();
+      else stopLoop();
+    },
+    { rootMargin: "20% 0px", threshold: 0 },
+  );
+  io.observe(carousel);
+
+  const onVis = () => {
+    if (document.hidden) stopLoop();
+    else if (visible) startLoop();
+  };
+  document.addEventListener("visibilitychange", onVis);
+
   setup();
-  raf = requestAnimationFrame(animate);
+  paint();
+  startLoop();
 
   return () => {
-    cancelAnimationFrame(raf);
+    stopLoop();
+    window.clearTimeout(resizeTimer);
+    io.disconnect();
+    document.removeEventListener("visibilitychange", onVis);
     carousel.removeEventListener("mousedown", onMouseDown);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onDragEnd);
     carousel.removeEventListener("touchstart", onTouchStart);
     window.removeEventListener("touchmove", onTouchMove);
     window.removeEventListener("touchend", onDragEnd);
-    window.removeEventListener("resize", setup);
+    window.removeEventListener("resize", onResize);
     desktopMq.removeEventListener("change", onDesktopChange);
     delete carousel.dataset.ffCarouselReady;
   };
@@ -290,9 +337,47 @@ export function initForFansInteractions(root: ParentNode = document): () => void
   const cleanCarousel = initFanHeroCarousel(root);
   const cleanTracks = initTabScrollTracks(root);
   const cleanPhones = initNestedPhoneSliders(root);
+  const cleanWarm = warmupEngageConnect(root);
   return () => {
     cleanCarousel();
     cleanTracks();
     cleanPhones();
+    cleanWarm();
+  };
+}
+
+/** Decode Engage/Connect art before first scroll-in so the reveal isn't a hitch */
+function warmupEngageConnect(root: ParentNode): () => void {
+  const imgs = Array.from(root.querySelectorAll<HTMLImageElement>(".ff-engage img, .ff-connect img"));
+  const decodeAll = () => {
+    imgs.forEach((img) => {
+      if (!img.src) return;
+      void img.decode?.().catch(() => undefined);
+    });
+  };
+
+  let idleId = 0;
+  if ("requestIdleCallback" in window) {
+    idleId = window.requestIdleCallback(decodeAll, { timeout: 800 });
+  } else {
+    idleId = window.setTimeout(decodeAll, 200);
+  }
+
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        decodeAll();
+        io.unobserve(entry.target);
+      }
+    },
+    { rootMargin: "90% 0px", threshold: 0 },
+  );
+  root.querySelectorAll<HTMLElement>(".ff-engage, .ff-connect").forEach((el) => io.observe(el));
+
+  return () => {
+    io.disconnect();
+    if ("cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
+    else window.clearTimeout(idleId);
   };
 }

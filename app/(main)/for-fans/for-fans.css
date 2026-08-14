@@ -30,8 +30,7 @@
 .ff-page .ff-h2 .char,
 .ff-page .ff-cta-title .char,
 .ff-page .ff-display .char,
-.ff-page .fan-hero-sc .display-l .char,
-.ff-page .fan-hero-sc .display-l .line {
+.ff-page .fan-hero-sc .display-l .char {
   display: inline !important;
 }
 
@@ -59,136 +58,105 @@
   padding: 4.5rem 0 1rem;
 }
 
-/* —— Hero: Figma copy left + JoyJam barrel right —— */
-.ff-page .fan-hero-sc.ff-hero-barrel {
+/* Hero: JoyJam fan-hero layout (absolute barrel + bottom copy), HIFFI skin */
+.ff-page .fan-hero-sc {
   position: relative;
-  background: #fff;
   overflow: hidden;
-  /* Figma: compact hero, breathing room before Discover */
-  padding: 6.5rem 0 5.5rem;
-  min-height: 0;
+  background: #fff;
 }
 
-.ff-page .ff-hero-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(
-      ellipse 55% 48% at 74% 48%,
-      rgb(218 41 28 / 24%) 0%,
-      rgb(241 77 93 / 10%) 36%,
-      transparent 72%
-    ),
-    radial-gradient(circle, rgb(12 12 12 / 7%) 1px, transparent 1.15px);
-  background-size: auto, 1.55rem 1.55rem;
-}
-
-.ff-page .ff-hero-inner {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr);
-  gap: 1.2rem 1.5rem;
-  /* sit composition on the bottom edge like Figma */
-  align-items: end;
-  min-height: min(32rem, 62svh);
-}
-
-.ff-page .ff-hero-copy {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1.75rem;
-  z-index: 2;
-  max-width: 36rem;
-  padding-bottom: 0.4rem;
-}
-
-.ff-page .ff-display {
-  margin: 0;
-  max-width: 10ch;
+.ff-page .fan-hero-sc .display-l {
   color: var(--ff-ink);
   -webkit-text-fill-color: var(--ff-ink);
-  font-size: clamp(3.2rem, 6vw, 6.8rem);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 0.92;
+  /* vw so first paint matches 1svw rem even before html scale is on */
+  font-size: 9.72vw;
 }
 
-.ff-page .ff-hero-cta-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem 1.35rem;
+.ff-page .container.fan-hero-s {
+  padding-top: 26vw;
 }
 
-.ff-page .ff-hero-sub {
-  margin: 0;
-  max-width: 26rem;
-  font-size: 1.05rem;
-  line-height: 1.35;
+@media screen and (max-width: 991px) {
+  .ff-page .container.fan-hero-s {
+    padding-top: 94vw;
+  }
+
+  .ff-page .fan-hero-sc .display-l {
+    font-size: clamp(2.8rem, 12vw, 9.72vw);
+  }
+}
+
+.ff-page .fan-hero-sc .headline-wrapper.fan-hero-s {
+  width: max-content;
+  max-width: none;
+}
+
+.ff-page .fan-hero-sc .display-l .line,
+.ff-page .fan-hero-sc .ff-hero-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.ff-page .fan-hero-sc .subheadline-l {
   color: var(--ff-ink);
 }
 
-.ff-page .ff-hero-sub span {
+.ff-page .fan-hero-sc .span-neutral-400 {
   color: var(--ff-muted);
 }
 
-/* Barrel in right column — Figma 148:557 phones only */
-.ff-page .ff-hero-phones {
-  position: relative;
-  z-index: 1;
+.ff-page .fan-hero-sc .fan-hero-bg {
+  background-image:
+    linear-gradient(180deg, transparent 90%, #fff),
+    linear-gradient(90deg, #fff, transparent 12%, transparent 88%, #fff),
+    radial-gradient(
+      ellipse 70% 55% at 72% 42%,
+      rgb(218 41 28 / 32%) 0%,
+      rgb(241 77 93 / 12%) 38%,
+      transparent 70%
+    ),
+    radial-gradient(circle, rgb(12 12 12 / 7%) 1px, transparent 1.15px);
+  background-position: 0 0, 0 0, 50%, 50%;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, contain, 1.55rem 1.55rem;
+}
+
+.ff-page .fan-hero-sc .card {
+  aspect-ratio: 164 / 319;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.ff-page .fan-hero-sc .carousel {
+  contain: layout style;
+}
+
+.ff-page [view-item="from-center"] {
+  transition:
+    transform 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.25s ease;
+}
+
+/* First reveal hitch: scale() on these heavy cards; slide/fade stays on compositor */
+.ff-page .ff-engage [view-item="from-center"],
+.ff-page .ff-connect [view-item="from-center"] {
+  transform: translate3d(0, 1.8rem, 0);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.ff-page .ff-engage [view-item="from-center"].view,
+.ff-page .ff-connect [view-item="from-center"].view {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+
+.ff-page .fan-hero-sc .card img {
   width: 100%;
-  max-width: 34rem;
-  aspect-ratio: 539 / 405;
-  justify-self: end;
-  align-self: end;
-  overflow: hidden;
-}
-
-.ff-page .ff-hero-phones-crop {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-/* Figma crop: h 108.87% / left -8.13% / top -4.61% / w 122.8% */
-.ff-page .ff-hero-phones-img {
-  position: absolute;
-  left: -8.13%;
-  top: -4.61%;
-  width: 122.8%;
-  height: 108.87%;
-  max-width: none;
+  height: 100%;
   object-fit: cover;
   display: block;
   pointer-events: none;
-}
-
-@media (max-width: 991px) {
-  .ff-page .fan-hero-sc.ff-hero-barrel {
-    padding: 5.2rem 0 3.5rem;
-  }
-
-  .ff-page .ff-hero-inner {
-    grid-template-columns: 1fr;
-    align-items: center;
-    min-height: 0;
-  }
-
-  .ff-page .ff-hero-copy {
-    max-width: none;
-    order: 1;
-  }
-
-  .ff-page .ff-hero-phones {
-    order: 0;
-    justify-self: center;
-    max-width: min(92vw, 28rem);
-    margin-bottom: 0.5rem;
-  }
 }
 
 /* Discover — closer to Figma 371×488 without empty stretch */

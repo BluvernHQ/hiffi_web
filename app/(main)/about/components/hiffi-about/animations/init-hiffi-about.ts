@@ -14,8 +14,8 @@ const WAVE_MARK = "data-hiffi-about-wave";
 
 const SPLIT_PRESETS = {
   "chars-blur": {
-    from: { opacity: 0, y: "50%", filter: "blur(0.6rem)" },
-    to: { opacity: 1, y: 0, filter: "blur(0rem)" },
+    from: { opacity: 0, y: "50%" },
+    to: { opacity: 1, y: 0 },
     types: "lines,chars",
     target: "chars" as const,
     duration: 1.5,
@@ -24,8 +24,8 @@ const SPLIT_PRESETS = {
     start: "top 80%",
   },
   "lines-blur": {
-    from: { opacity: 0, y: "50%", filter: "blur(0.6rem)" },
-    to: { opacity: 1, y: 0, filter: "blur(0rem)" },
+    from: { opacity: 0, y: "50%" },
+    to: { opacity: 1, y: 0 },
     types: "lines",
     target: "lines" as const,
     duration: 1.5,
@@ -123,7 +123,7 @@ export function initViewItems(root: ParentNode) {
 
     if (el.hasAttribute("view-list")) {
       el.querySelectorAll<HTMLElement>("[view-item]").forEach((item, index) => {
-        window.setTimeout(() => item.classList.add("view"), index * 100);
+        window.setTimeout(() => item.classList.add("view"), 32 + index * 80);
       });
     }
   };
@@ -182,28 +182,37 @@ export function initNavColor(root: ParentNode, lenis: HiffiAboutScroller) {
   if (!navbar) return () => {};
 
   const changeColorElements = navbar.querySelectorAll<HTMLElement>("[change-color]");
+  const whiteSections = root.querySelectorAll<HTMLElement>("[white-section]");
+  if (!whiteSections.length) return () => {};
 
+  let raf = 0;
   const checkSections = () => {
-    const whiteSections = root.querySelectorAll<HTMLElement>("[white-section]");
-    const navbarRect = navbar.getBoundingClientRect();
-    const navbarBottom = navbarRect.bottom;
-    let isIntersecting = false;
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const navbarRect = navbar.getBoundingClientRect();
+      const navbarBottom = navbarRect.bottom;
+      let isIntersecting = false;
 
-    whiteSections.forEach((section) => {
-      const sectionRect = section.getBoundingClientRect();
-      if (sectionRect.top <= navbarBottom && sectionRect.bottom >= navbarRect.top) {
-        isIntersecting = true;
-      }
+      whiteSections.forEach((section) => {
+        const sectionRect = section.getBoundingClientRect();
+        if (sectionRect.top <= navbarBottom && sectionRect.bottom >= navbarRect.top) {
+          isIntersecting = true;
+        }
+      });
+
+      navbar.classList.toggle("change", isIntersecting);
+      changeColorElements.forEach((el) => el.classList.toggle("change", isIntersecting));
     });
-
-    navbar.classList.toggle("change", isIntersecting);
-    changeColorElements.forEach((el) => el.classList.toggle("change", isIntersecting));
   };
 
   lenis.on("scroll", checkSections);
   checkSections();
 
-  return () => lenis.off("scroll", checkSections);
+  return () => {
+    lenis.off("scroll", checkSections);
+    if (raf) cancelAnimationFrame(raf);
+  };
 }
 
 function setupInfinityWave(waveParent: HTMLElement) {
@@ -441,7 +450,7 @@ export function scheduleHiffiScrollTriggerSettle(refreshLenis?: () => void) {
   const timers: number[] = [];
   run();
   const raf = requestAnimationFrame(run);
-  timers.push(window.setTimeout(run, 120), window.setTimeout(run, 450), window.setTimeout(run, 1000));
+  timers.push(window.setTimeout(run, 180));
   void document.fonts?.ready?.then(run);
 
   const onLoad = () => run();
