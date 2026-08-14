@@ -28,7 +28,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   const pathname = usePathname()
   const isContentPageRoute = isContentPage(pathname)
   const isArtistIndexRoute =
-    (pathname?.startsWith("/artist-index") || pathname?.startsWith("/hiffi-500")) ?? false
+    (pathname?.startsWith("/artist-index") ?? false)
   const showAppChrome = !isArtistIndexRoute
 
   const {

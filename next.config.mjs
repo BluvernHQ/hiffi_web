@@ -76,6 +76,17 @@ const nextConfig = {
         destination: "/top-artists",
         permanent: false,
       },
+      // Retired Next.js Hiffi 500 UI → Hip-Hop 500 preview
+      {
+        source: "/hiffi-500",
+        destination: "/top-artists",
+        permanent: true,
+      },
+      {
+        source: "/hiffi-500/:path*",
+        destination: "/top-artists",
+        permanent: true,
+      },
     ]
   },
   async rewrites() {

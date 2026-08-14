@@ -29,7 +29,7 @@ export function describePage(path?: string): string {
   }
   if (path.startsWith("/search")) return "Search"
   if (path.startsWith("/playlists")) return "Playlists"
-  if (path.startsWith("/hiffi-500") || path.startsWith("/artists")) return "Hiffi 500"
+  if (path.startsWith("/top-artists") || path.startsWith("/artists")) return "Top artists"
   if (path.startsWith("/studio") || path.startsWith("/upload")) return "Creator studio"
   if (path.startsWith("/admin")) return "Admin"
   if (path.startsWith("/library")) return "Library"

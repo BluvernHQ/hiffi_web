@@ -6,17 +6,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+### Added
+
+- Homepage **SSR discover snapshot** — streamed real video titles, thumbnails, and `/watch/` links for crawlers/cold loads; interactive `HomeFeedClient` (scroll restore, infinite scroll) unchanged
+
+### Changed
+
+- Production **robots.txt** simplified to YouTube-style single `User-agent: *` (Allow + Disallows + Sitemap); removed per-bot duplicates and non-standard `Host:`; added Disallow for `/maintenance`, `/test-hls`, `/support/reports/`
+- Removed Next.js **`/hiffi-500`** route family (engineering cleanup; **do not ship/announce latest `/top-artists`** as part of this release)
+
+### Notes
+
+- Latest **`/top-artists`** (Hip-Hop 500) is **out of scope** for the v2.3.0 communications cut — hold for a dedicated ranking release
+
 ## [2.3.0] — 2026-07-30
 
-Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary)
+Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary; **updated Aug 14, 2026** — ranking/`/top-artists` excluded from this cut)
 
 ### Added
 
-- **Top Artist / Hiffi 500 ranking MVP** — primary UI at **`/top-artists`** (+ `/top-artists/how-it-works`, share routes); Next.js family at **`/hiffi-500`** with methodology, city Top 50, biggest risers/fallers, new entries, Breakout 100, weekly editorial note, score bands + confidence, Δ 7d column, share cards with OG images, subnav, and sitemap/SEO entries
-- Clear data-source disclosure: ranked using YouTube public data only, plus “Data as of” date (API `last_updated` when backend provides it)
-- Same-origin inventory proxies: `/proxy/inventory/top`, risers, cities, breakout, underground
-- Empty-image polish: brand monogram portraits, Artist Index-style avatars, profile photo enrichment, spotlight flow that starts at #2 so the hero isn’t repeated
-- Admin **Score anomalies** panel for ranking QA
 - **Feedback module** — user dialog with screenshot capture (navbar/profile), submit via `/proxy/feedback`; admin Feedback list + detail under `/proxy/admin-feedback`
 - Redesigned **About** page (`/about`) — full marketing experience with hero, benefits, creators/fans, reviews, and motion
 - **Atlanta** editorial hubs: `/atlanta` plus genres, eras, best-of, venues, and studios (list + detail + OG images)
@@ -36,9 +44,9 @@ Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (busin
 
 ### Notes
 
-- Live ranking remains YouTube-only for this cut (SOW methodology; not full multi-platform HPS)
-- Movement lists fill when `rank_delta_7d` / `is_new_entry` ship; score bands are derived from `youtube_score` until full HPS bands exist
+- **Not announced in this release:** latest `/top-artists` / Hip-Hop 500 (separate ranking launch)
 - Out of scope: multi-platform HPS expansion, API/data licensing, index report, paid analytics
+
 
 ## [2.2.4] — 2026-07-16
 

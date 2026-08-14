@@ -196,14 +196,9 @@ export const TOP_UNDERGROUND_MAX = 50
 export const TOP_BREAKOUT_PAGE_SIZE = 20
 export const TOP_BREAKOUT_MAX = 100
 export const TOP_CITY_PAGE_SIZE = 50
-export const HIFFI_500_PATH = "/hiffi-500"
-export const HIFFI_500_METHODOLOGY_PATH = "/hiffi-500/methodology"
-export const HIFFI_500_RISERS_PATH = "/hiffi-500/biggest-risers"
-export const HIFFI_500_FALLERS_PATH = "/hiffi-500/biggest-fallers"
-export const HIFFI_500_NEW_ENTRIES_PATH = "/hiffi-500/new-entries"
-export const HIFFI_500_BREAKOUT_PATH = "/hiffi-500/breakout-100"
 
-export const HIFFI_500_CITY_CHARTS = [
+/** City labels used for local chart filtering / share deep links. */
+export const TOP_ARTIST_CITY_CHARTS = [
   { slug: "atlanta", label: "Atlanta", live: true },
   { slug: "houston", label: "Houston", live: false },
   { slug: "detroit", label: "Detroit", live: false },
@@ -216,15 +211,7 @@ export const HIFFI_500_CITY_CHARTS = [
   { slug: "new-orleans", label: "New Orleans", live: false },
 ] as const
 
-export type Hiffi500CitySlug = (typeof HIFFI_500_CITY_CHARTS)[number]["slug"]
-
-export function hiffi500CityPath(slug: string): string {
-  return `/hiffi-500/city/${slug}`
-}
-
-export function hiffi500SharePath(username: string): string {
-  return `/hiffi-500/share/${encodeURIComponent(username)}`
-}
+export type TopArtistCitySlug = (typeof TOP_ARTIST_CITY_CHARTS)[number]["slug"]
 
 /** Prefer exact banner-city location strings from `/inventory/top/cities` when available. */
 export function resolveExactCityLocation(
@@ -240,16 +227,6 @@ export function resolveExactCityLocation(
   const includes = cities.find((c) => c.location.toLowerCase().includes(needle))
   return includes?.location ?? null
 }
-
-/** Sub-nav links for the ranking family of pages. */
-export const HIFFI_500_NAV_LINKS = [
-  { href: HIFFI_500_PATH, label: "Top 500" },
-  { href: HIFFI_500_RISERS_PATH, label: "Biggest risers" },
-  { href: HIFFI_500_FALLERS_PATH, label: "Biggest fallers" },
-  { href: HIFFI_500_NEW_ENTRIES_PATH, label: "New entries" },
-  { href: HIFFI_500_BREAKOUT_PATH, label: "Breakout 100" },
-  { href: HIFFI_500_METHODOLOGY_PATH, label: "Methodology" },
-] as const
 
 type Envelope =
   | { success: true; data: Omit<TopArtistsPage, "fetched_at"> }
@@ -891,7 +868,7 @@ export function movementDelta7d(artist: TopArtist): number | null {
 }
 
 export function filterArtistsByCity(artists: TopArtist[], citySlug: string): TopArtist[] {
-  const city = HIFFI_500_CITY_CHARTS.find((c) => c.slug === citySlug)
+  const city = TOP_ARTIST_CITY_CHARTS.find((c) => c.slug === citySlug)
   if (!city) return []
   const needle = city.label.toLowerCase()
   return artists
@@ -901,34 +878,6 @@ export function filterArtistsByCity(artists: TopArtist[], citySlug: string): Top
       global_rank: artist.global_rank ?? artist.rank,
       rank: index + 1,
     }))
-}
-
-/** Breakout 100 preview: global ranks 51–150 until momentum filters exist. */
-export function breakoutArtists(artists: TopArtist[]): TopArtist[] {
-  return artists.filter((a) => a.rank >= 51 && a.rank <= 150).slice(0, 100)
-}
-
-export function artistsWithMovement(
-  artists: TopArtist[],
-  kind: "risers" | "fallers" | "new",
-): TopArtist[] {
-  if (kind === "new") {
-    return artists.filter((a) => a.is_new_entry).sort((a, b) => a.rank - b.rank)
-  }
-  const withDelta = artists
-    .map((a) => ({ artist: a, delta: movementDelta7d(a) }))
-    .filter((entry) => entry.delta != null) as Array<{ artist: TopArtist; delta: number }>
-
-  if (kind === "risers") {
-    return withDelta
-      .filter((e) => e.delta > 0)
-      .sort((a, b) => b.delta - a.delta)
-      .map((e) => e.artist)
-  }
-  return withDelta
-    .filter((e) => e.delta < 0)
-    .sort((a, b) => a.delta - b.delta)
-    .map((e) => e.artist)
 }
 
 const SOCIAL_LABELS: Array<{ key: keyof TopArtistSocials; label: string }> = [

@@ -1,6 +1,14 @@
 "use client"
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react"
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  type ReactNode,
+} from "react"
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
@@ -73,6 +81,8 @@ export interface HomeFeedClientProps {
   initialVideos: any[]
   /** Seed used by SSR; keeps the client from reshuffling after hydration. */
   seed: string
+  /** Lightweight server-rendered cards shown until the interactive feed is ready. */
+  initialSnapshot?: ReactNode
 }
 
 function enhanceVideos(videos: any[], userData: ReturnType<typeof useAuth>["userData"]) {
@@ -90,7 +100,7 @@ function playlistItemsToVideos(items: Array<{ video: Record<string, unknown> }>)
   return items.map((item) => item.video).filter(Boolean)
 }
 
-export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
+export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFeedClientProps) {
   const router = useRouter()
   const { userData } = useAuth()
   const [videos, setVideos] = useState<any[]>(() => initialVideos)
@@ -128,6 +138,12 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const pendingRestoreScrollRef = useRef<number | null>(null)
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
+  const showInitialSnapshot =
+    Boolean(initialSnapshot) &&
+    videos.length === 0 &&
+    loading &&
+    activeMood === null &&
+    !feedError
 
   useEffect(() => {
     videosRef.current = videos
@@ -791,35 +807,39 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
           />
         ) : null}
 
-        <FeedVideoPreviewProvider>
-          <MoodFeedAnimated
-            feedKey={activeMood ?? "all"}
-            loading={loading || loadingMore || (!hydrated && videos.length === 0)}
-            videoCount={videos.length}
-            isMoodFeed={isMoodFeed}
-          >
-            <VideoGrid
-              videos={videos}
+        {showInitialSnapshot ? (
+          initialSnapshot
+        ) : (
+          <FeedVideoPreviewProvider>
+            <MoodFeedAnimated
+              feedKey={activeMood ?? "all"}
               loading={loading || loadingMore || (!hydrated && videos.length === 0)}
-              hasMore={hasMore}
-              hideTimestamp
-              metadataFontDmSans={isMoodFeed}
-              skipCardEntrance={isMoodFeed}
-              enableHoverPreview
-              alwaysShowMoreMenu
-              openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
-              playlistNavigation={moodPlaylistNavigation}
-              onLoadMore={loadMore}
-              suppressEmptyState={
-                Boolean(feedError && videos.length === 0) ||
-                !hydrated ||
-                (loading && videos.length === 0)
-              }
-              emptyTitle={moodEmpty && isMoodFeed ? "No tracks yet" : undefined}
-              onVideoDeleted={handleVideoDeleted}
-            />
-          </MoodFeedAnimated>
-        </FeedVideoPreviewProvider>
+              videoCount={videos.length}
+              isMoodFeed={isMoodFeed}
+            >
+              <VideoGrid
+                videos={videos}
+                loading={loading || loadingMore || (!hydrated && videos.length === 0)}
+                hasMore={hasMore}
+                hideTimestamp
+                metadataFontDmSans={isMoodFeed}
+                skipCardEntrance={isMoodFeed}
+                enableHoverPreview
+                alwaysShowMoreMenu
+                openVideoUiName={isMoodFeed ? OPENED_VIDEO_FROM_MOOD : "opened-video-from-home"}
+                playlistNavigation={moodPlaylistNavigation}
+                onLoadMore={loadMore}
+                suppressEmptyState={
+                  Boolean(feedError && videos.length === 0) ||
+                  !hydrated ||
+                  (loading && videos.length === 0)
+                }
+                emptyTitle={moodEmpty && isMoodFeed ? "No tracks yet" : undefined}
+                onVideoDeleted={handleVideoDeleted}
+              />
+            </MoodFeedAnimated>
+          </FeedVideoPreviewProvider>
+        )}
       </div>
     </div>
   )

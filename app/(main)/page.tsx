@@ -6,6 +6,10 @@ import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
 import { buildSeoImageProxyUrl } from "@/lib/seo/video-public-urls"
 import { getThumbnailUrl } from "@/lib/storage"
 import { HomeFeedClient } from "./home-feed-client"
+import {
+  HomeFeedSsrSnapshot,
+  HomeFeedSsrSnapshotFallback,
+} from "./home-feed-ssr-snapshot"
 
 // Always fetch fresh feed from the API (no static / ISR cache for this route).
 export const dynamic = "force-dynamic"
@@ -111,9 +115,9 @@ async function HomeDiscoverJsonLd() {
 }
 
 /**
- * Home feed is a stable client mount (not inside the SSR Suspense).
- * Soft Back restores cached videos + scroll without waiting on / remounting SSR.
- * Cold load: empty initialVideos → client fetch (or session restore).
+ * Home feed remains a stable client mount (not inside SSR Suspense), preserving
+ * soft-back cache and scroll restoration. A streamed, lightweight snapshot gives
+ * cold loads and crawlers real video links until the interactive feed is ready.
  */
 export default function RootPage() {
   return (
@@ -122,7 +126,15 @@ export default function RootPage() {
       <Suspense fallback={null}>
         <HomeDiscoverJsonLd />
       </Suspense>
-      <HomeFeedClient initialVideos={[]} seed={HOME_SEED} />
+      <HomeFeedClient
+        initialVideos={[]}
+        seed={HOME_SEED}
+        initialSnapshot={
+          <Suspense fallback={<HomeFeedSsrSnapshotFallback />}>
+            <HomeFeedSsrSnapshot seed={HOME_SEED} />
+          </Suspense>
+        }
+      />
     </>
   )
 }
