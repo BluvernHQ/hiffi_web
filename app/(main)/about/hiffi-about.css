@@ -1,6 +1,6 @@
-/* original template rem scale — about page only; sync before JS mount.
+/* original template rem scale — about page only (html.joyjam-rem-scale); sync before JS mount.
    svw stays stable when mobile URL bar shows/hides (vw can thrash rem + rem cascade). */
-html {
+html.joyjam-rem-scale {
   font-size: 1vw;
   font-size: 1svw;
 }
@@ -1761,5 +1761,16 @@ footer.footer .footer-bg {
     max-width: 92vw;
     padding-inline: 0.5rem;
     box-sizing: border-box;
+  }
+}
+
+/* For-creators tools section — local bg (archive CDN URLs expire) */
+.container.tools-s {
+  background-image: url("/hiffi-about/6821a59ae3bfe300713425c4_tools-bg.png") !important;
+}
+
+@media screen and (max-width: 991px) {
+  .container.tools-s {
+    background-image: url("/hiffi-about/6821a59ae3bfe300713425e4_tools-bg-p.png") !important;
   }
 }

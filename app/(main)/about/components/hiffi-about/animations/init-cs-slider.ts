@@ -21,6 +21,7 @@ const CONFIG_URL = "/hiffi-about/sections/cs-slider-config.json";
 const OFFSCREEN_CLASS = "cs-slide-offscreen";
 const DRAG_START_PX = 8;
 const DRAG_ROTATE_FACTOR = 22;
+const SWIPE_COMMIT_PX = 64;
 
 let configCache: SliderConfig[] | null = null;
 let configPromise: Promise<SliderConfig[]> | null = null;
@@ -146,7 +147,11 @@ function initDragStack(
     startY = e.clientY;
     deltaX = 0;
     activePointerId = e.pointerId;
-    slider.setPointerCapture(e.pointerId);
+    try {
+      slider.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   };
 
   const onPointerMove = (e: PointerEvent) => {
@@ -157,9 +162,16 @@ function initDragStack(
 
     if (!isDragging) {
       if (Math.abs(dx) < DRAG_START_PX && Math.abs(dy) < DRAG_START_PX) return;
+      // Prefer horizontal: ignore mostly-vertical pans (Lenis scroll)
+      if (Math.abs(dy) > Math.abs(dx)) {
+        isPointerDown = false;
+        activePointerId = null;
+        return;
+      }
       isDragging = true;
     }
 
+    // Drag left (negative) moves card left — same as JoyJam for-fans
     deltaX = dx;
     renderDrag(false);
 
@@ -180,9 +192,25 @@ function initDragStack(
 
     if (isDragging) {
       suppressClick = true;
-      sendTopCardToBack(slider);
-      deltaX = 0;
-      update();
+      if (deltaX <= -SWIPE_COMMIT_PX) {
+        // Swipe left → advance (top card off to left / back of stack)
+        sendTopCardToBack(slider);
+        deltaX = 0;
+        update();
+      } else if (deltaX >= SWIPE_COMMIT_PX) {
+        // Swipe right → previous
+        const current = getSlides(slider);
+        const first = current[0];
+        if (first) {
+          slider.appendChild(first);
+        }
+        deltaX = 0;
+        update();
+      } else {
+        // Snap back
+        deltaX = 0;
+        renderDrag(true);
+      }
       window.setTimeout(() => {
         suppressClick = false;
       }, 0);
@@ -191,18 +219,19 @@ function initDragStack(
     isDragging = false;
   };
 
-  slider.addEventListener("pointerdown", onPointerDown);
-  slider.addEventListener("pointermove", onPointerMove);
-  slider.addEventListener("pointerup", finishDrag);
-  slider.addEventListener("pointercancel", finishDrag);
+  // Capture so nested Webflow `_w-tab-slider` can't eat the gesture
+  slider.addEventListener("pointerdown", onPointerDown, { capture: true });
+  slider.addEventListener("pointermove", onPointerMove, { capture: true });
+  slider.addEventListener("pointerup", finishDrag, { capture: true });
+  slider.addEventListener("pointercancel", finishDrag, { capture: true });
 
   return {
     isSuppressingClick: () => suppressClick,
     cleanup: () => {
-      slider.removeEventListener("pointerdown", onPointerDown);
-      slider.removeEventListener("pointermove", onPointerMove);
-      slider.removeEventListener("pointerup", finishDrag);
-      slider.removeEventListener("pointercancel", finishDrag);
+      slider.removeEventListener("pointerdown", onPointerDown, true);
+      slider.removeEventListener("pointermove", onPointerMove, true);
+      slider.removeEventListener("pointerup", finishDrag, true);
+      slider.removeEventListener("pointercancel", finishDrag, true);
     },
   };
 }
@@ -292,6 +321,8 @@ export function initCsSliders(root: ParentNode): () => void {
 
     wrappers.forEach((wrapper) => {
       const id = wrapper.getAttribute("cs-slider-id");
+      // for-fans Discover/Connect — JoyJam horizontal scroll track, not deck stack
+      if (id?.startsWith("ff-")) return;
       const config = configs.find((c) => c.id === id);
       if (!config) return;
       instanceCleanups.push(initSliderInstance(wrapper, config));
