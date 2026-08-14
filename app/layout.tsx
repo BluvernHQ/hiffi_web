@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { headers } from 'next/headers'
+import Script from 'next/script'
 import { Geist, Geist_Mono, Bebas_Neue, DM_Sans } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { GuestConversionProvider } from '@/components/conversion/guest-conversion-provider'
@@ -182,11 +184,12 @@ const siteJsonLd = {
   ],
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const joyjamRem = (await headers()).get("x-joyjam-rem") === "1"
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
   const gaId = process.env.NEXT_PUBLIC_GA_ID
   const appEnv = process.env.NEXT_PUBLIC_ENV || "beta"
@@ -213,8 +216,15 @@ export default function RootLayout({
   const analyticsBuildId = getAnalyticsBuildId()
 
   return (
-    <html lang="en" className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}`}>
+    <html
+      lang="en"
+      className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}${joyjamRem ? " joyjam-rem-scale" : ""}`}
+      style={joyjamRem ? { fontSize: "1svw" } : undefined}
+    >
       <head>
+        <Script id="joyjam-rem-scale" strategy="beforeInteractive">
+          {`(function(){var p=location.pathname;if(/^\\/(about|for-fans|for-creators)(\\/|$)/.test(p)){var e=document.documentElement;e.classList.add("joyjam-rem-scale");e.style.fontSize="1svw"}})()`}
+        </Script>
         <JsonLd data={siteJsonLd} />
         {/* First-party + third-party analytics load client-side; skipped on /admin routes */}
         <Suspense fallback={null}>

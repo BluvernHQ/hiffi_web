@@ -1,0 +1,480 @@
+/* Shared Figma promo feature cards — real markup, not screenshots */
+
+.hj-card-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.4rem;
+  align-items: stretch;
+}
+
+.hj-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 30rem;
+  padding: 2rem 1.75rem 1.75rem;
+  border-radius: 1.9rem;
+  color: #fff;
+  overflow: hidden;
+}
+
+.hj-card--red {
+  background: #da291c;
+}
+
+.hj-card--gray {
+  background: #7b7b7b;
+}
+
+.hj-card--grow {
+  background: linear-gradient(180deg, rgb(237 28 47 / 75%) 0%, rgb(135 16 27 / 30%) 100%);
+}
+
+.hj-card-rule {
+  display: block;
+  width: 7rem;
+  height: 3px;
+  margin-top: 1.1rem;
+  border-radius: 999px;
+  background: rgb(218 41 28 / 50%);
+}
+
+.hj-card--community {
+  background: linear-gradient(180deg, rgb(218 41 28 / 72%) 0%, rgb(90 90 90 / 85%) 100%);
+  backdrop-filter: blur(2px);
+}
+
+.hj-card--ink {
+  background: #111;
+}
+
+.hj-card--spotlight {
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 55%) 0%, rgb(0 0 0 / 25%) 40%, rgb(0 0 0 / 55%) 100%),
+    url("/for-fans/connect/spotlight-bg.png") center / cover no-repeat;
+}
+
+.hj-card-art--wide {
+  width: min(16rem, 92%);
+}
+
+.hj-card-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hj-card-title {
+  margin: 0;
+  font-size: clamp(1.55rem, 1.8vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.hj-card-title--lg {
+  font-size: clamp(2rem, 2.4vw, 2.55rem);
+  line-height: 1.05;
+  max-width: 12ch;
+}
+
+.hj-card-sub {
+  margin: 0.85rem 0 0;
+  max-width: 28ch;
+  font-size: 1.05rem;
+  font-weight: 200;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 92%);
+}
+
+.hj-card-list {
+  list-style: none;
+  margin: 1.8rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.hj-card-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hj-card-ico {
+  width: 1.95rem;
+  height: 1.95rem;
+  flex: 0 0 1.95rem;
+  object-fit: contain;
+}
+
+.hj-card-ico-badge {
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: 0 0 2.45rem;
+  border-radius: 0.8rem;
+  object-fit: cover;
+  background: #fff;
+}
+
+.hj-card-foot {
+  margin-top: auto;
+  padding-top: 1.6rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.35;
+  max-width: 32ch;
+  color: rgb(255 255 255 / 95%);
+}
+
+.hj-card-art-wrap {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-top: 1.2rem;
+  min-height: 13rem;
+}
+
+.hj-card-art {
+  width: min(12.5rem, 72%);
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.hj-card-art-frame {
+  width: min(13.5rem, 78%);
+  aspect-ratio: 1;
+  border-radius: 2.4rem;
+  background: #efefef;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.hj-card-art-frame .hj-card-art {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+}
+
+.hj-card-rows {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 1.4rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.hj-card-row-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.2rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 1.25rem;
+  background: #d9d9d9;
+  color: #0c0c0c;
+}
+
+.hj-card-row-item--glass {
+  background: rgb(217 217 217 / 20%);
+  color: #fff;
+}
+
+.hj-card-row-mark {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #da291c;
+  line-height: 1;
+}
+
+.hj-card-row-item--glass .hj-card-row-mark {
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.hj-card-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.hj-card-row-copy strong {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hj-card-row-copy span {
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.25;
+  opacity: 0.9;
+}
+
+.hj-card-row-item--glass .hj-card-row-copy strong {
+  color: #fff;
+}
+
+.hj-card-row-item--glass .hj-card-row-copy span {
+  font-weight: 300;
+  color: rgb(255 255 255 / 88%);
+}
+
+/* Discovery tab cards */
+.hj-card-body {
+  margin: 1rem 0 0;
+  max-width: 32ch;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 95%);
+}
+
+.hj-card-brand {
+  display: block;
+  width: 7.4rem;
+  height: auto;
+  object-fit: contain;
+  /* Figma: darker mark on red card */
+  filter: brightness(0.42) contrast(1.1);
+}
+
+.hj-card-bottom {
+  margin-top: auto;
+  padding-top: 1.6rem;
+}
+
+.hj-card-bottom .hj-card-foot {
+  margin-top: 1rem;
+  padding-top: 0;
+}
+
+.hj-card-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.hj-card-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.8rem;
+  padding: 0.2rem 0.9rem;
+  border-radius: 999px;
+  background: #fff;
+  color: #ed1c2f;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.hj-card-sub--tight {
+  font-size: 0.95rem;
+  font-weight: 600;
+  max-width: 28ch;
+}
+
+.hj-card--mock {
+  padding-bottom: 0;
+}
+
+.hj-mock-panel {
+  position: relative;
+  margin-top: 1.2rem;
+  margin-inline: 0.15rem;
+  flex: 1;
+  min-height: 18rem;
+  border-radius: 1.25rem 1.25rem 0 0;
+  background: #d9d9d9;
+  overflow: hidden;
+}
+
+.hj-mock-dots {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.95rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.hj-mock-dots span {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.hj-mock-badge {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.1rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.8rem;
+  padding: 0.2rem 0.85rem;
+  border-radius: 999px;
+  background: rgb(237 28 47 / 50%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.hj-mock-phone {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: cover;
+  object-position: top center;
+  pointer-events: none;
+}
+
+.hj-mock-phone--studio {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(15rem, 78%);
+  height: 72%;
+  transform: translateX(-50%);
+  border-radius: 1.6rem 1.6rem 0 0;
+}
+
+.hj-mock-feed {
+  position: relative;
+  margin-top: 1.2rem;
+  flex: 1;
+  min-height: 17rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.hj-mock-phone--feed {
+  width: min(19.5rem, 92%);
+  height: 100%;
+  border-radius: 1.6rem 1.6rem 0 0;
+}
+
+/* Connect — Watch fan + Spotlight thumbs */
+.hj-fan-stack {
+  position: relative;
+  margin-top: auto;
+  min-height: 14.5rem;
+  display: grid;
+  place-items: center;
+}
+
+.hj-fan-tile {
+  position: absolute;
+  width: 10.6rem;
+  height: 11.5rem;
+  object-fit: cover;
+  border-radius: 1.25rem;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 35%);
+}
+
+.hj-fan-tile.s1 {
+  left: 0.2rem;
+  bottom: 0.4rem;
+  transform: rotate(-8deg);
+  z-index: 1;
+}
+
+.hj-fan-tile.s2 {
+  right: 0.4rem;
+  bottom: 0.2rem;
+  transform: rotate(8deg);
+  z-index: 1;
+}
+
+.hj-fan-tile.s3 {
+  width: 11rem;
+  height: 12.5rem;
+  bottom: 0.8rem;
+  z-index: 2;
+}
+
+.hj-fan-play {
+  position: absolute;
+  z-index: 3;
+  width: 1.7rem;
+  height: 1.7rem;
+  bottom: 6.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hj-spot-thumbs {
+  position: relative;
+  margin-top: auto;
+  min-height: 12rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.8rem;
+  padding-bottom: 0.6rem;
+}
+
+.hj-spot-thumb {
+  position: relative;
+  width: 7.8rem;
+  height: 8.6rem;
+}
+
+.hj-spot-thumb img:first-child {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 35%);
+}
+
+.hj-spot-thumb.s1 {
+  transform: rotate(-8deg);
+}
+
+.hj-spot-thumb.s2 {
+  transform: rotate(5deg);
+}
+
+.hj-spot-plus {
+  position: absolute !important;
+  left: 50%;
+  bottom: 0.55rem;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  transform: translateX(-50%);
+}
+
+@media (max-width: 991px) {
+  .hj-card-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hj-card {
+    min-height: 0;
+  }
+
+  .hj-mock-panel,
+  .hj-mock-feed {
+    min-height: 16rem;
+  }
+}

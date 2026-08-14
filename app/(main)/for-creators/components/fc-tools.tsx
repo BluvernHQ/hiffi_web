@@ -2,16 +2,82 @@
 
 import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-about/use-hiffi-about-section-init";
 
-const HTML = "<div class=\"container tools-s\"><div class=\"tools-headline\"><h2>Tools</h2></div><div view-item=\"from-center\" class=\"tools-grid\"><div class=\"tools-column\"><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/user.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Content Sharing</h3><p class=\"body-regular-m neutral-400\">Share music and content effortlessly.</p></div></div><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/community.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Build Your Presence</h3><p class=\"body-regular-m neutral-400\">Showcase your creative identity.</p></div></div><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/video.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Short Videos</h3><p class=\"body-regular-m neutral-400\">Create engaging short-form content.</p></div></div></div><div class=\"tools-column\"><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/broadcast.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Trending Content</h3><p class=\"body-regular-m neutral-400\">Get discovered through trending feeds.</p></div></div><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/target.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Performance Insights</h3><p class=\"body-regular-m neutral-400\">Understand your audience better.</p></div></div><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/chat.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Showcase your creative identity.</h3><p class=\"body-regular-m neutral-400\">Share music and content effortlessly.</p></div></div></div><div class=\"tools-column\"><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/handshake.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Community Growth</h3><p class=\"body-regular-m neutral-400\">Build stronger fan relationships.</p></div></div><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/rocket.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Smart Discovery</h3><p class=\"body-regular-m neutral-400\">Reach the right audience.</p></div></div><div class=\"tool-card\"><div class=\"tools-icon\"><img src=\"/for-creators/icons/analytics.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div class=\"tool-card-text\"><h3 class=\"subheadline-l\">Featured Creators</h3><p class=\"body-regular-m neutral-400\">Get noticed across the platform.</p></div></div></div></div></div>" as string;
+const TOOLS = [
+  {
+    icon: "/for-creators/icons/user.png",
+    title: "Content Sharing",
+    body: "Share music and content effortlessly.",
+  },
+  {
+    icon: "/for-creators/icons/broadcast.png",
+    title: "Trending Content",
+    body: "Get discovered through trending feeds.",
+  },
+  {
+    icon: "/for-creators/icons/handshake.png",
+    title: "Community Growth",
+    body: "Build stronger fan relationships.",
+  },
+  {
+    icon: "/for-creators/icons/community.png",
+    title: "Build Your Presence",
+    body: "Showcase your creative identity.",
+  },
+  {
+    icon: "/for-creators/icons/target.png",
+    title: "Performance Insights",
+    body: "Understand your audience better.",
+  },
+  {
+    icon: "/for-creators/icons/rocket.png",
+    title: "Smart Discovery",
+    body: "Reach the right audience.",
+  },
+  {
+    icon: "/for-creators/icons/video.png",
+    title: "Short Videos",
+    body: "Create engaging short-form content.",
+  },
+  {
+    icon: "/for-creators/icons/chat.png",
+    title: "Creator Chat",
+    body: "Talk with fans and share updates.",
+  },
+  {
+    icon: "/for-creators/icons/analytics.png",
+    title: "Featured Creators",
+    body: "Get noticed across the platform.",
+  },
+] as const;
 
 export default function FcTools() {
-  const ref = useHiffiAboutSectionInit("tools-sc");
+  const ref = useHiffiAboutSectionInit("fc-tools");
 
   return (
-    <section
-      ref={ref}
-      className="tools-sc"
-      dangerouslySetInnerHTML={{ __html: HTML }}
-    />
+    <section ref={ref} className="fc-sec fc-tools">
+      <div className="fc-wrap">
+        <div {...{ "view-item": "from-center" }} className="fc-tools-panel">
+          <div className="fc-tools-watermark" aria-hidden>
+            H
+          </div>
+          <div {...{ "view-list": "" }} className="fc-tools-grid">
+            {TOOLS.map((tool) => (
+              <article key={tool.title} {...{ "view-item": "from-center" }} className="fc-tool-card">
+                <img
+                  className="fc-tool-icon"
+                  src={tool.icon}
+                  alt=""
+                  width={48}
+                  height={48}
+                  loading="lazy"
+                />
+                <h3 className="fc-tool-title">{tool.title}</h3>
+                <p className="fc-tool-body">{tool.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

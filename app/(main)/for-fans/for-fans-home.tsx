@@ -23,7 +23,10 @@ export default function ForFansHome() {
     if (html.style.fontSize === "1vw") html.style.fontSize = "";
     html.classList.add("w-mod-js");
     html.classList.add("joyjam-rem-scale");
+    html.style.fontSize = "1svw";
     window.scrollTo(0, 0);
+    const page = document.querySelector<HTMLElement>(".ff-page");
+    if (page) page.style.opacity = "1";
 
     return () => {
       html.style.fontSize = previousFontSize;
@@ -42,7 +45,7 @@ export default function ForFansHome() {
       timer = window.setTimeout(() => {
         cleanup();
         cleanup = initForFansInteractions(document);
-      }, 50);
+      }, 280);
     };
 
     rerun();
@@ -59,7 +62,7 @@ export default function ForFansHome() {
 
   return (
     <HiffiAboutProvider>
-      <div className="page-wrapper ff-page">
+      <div className="page-wrapper ff-page" style={{ opacity: 0 }}>
         <HiffiHeader />
         <main className="main">
           <FfHero />

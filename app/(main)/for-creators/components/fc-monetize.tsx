@@ -2,16 +2,71 @@
 
 import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-about/use-hiffi-about-section-init";
 
-const HTML = "<div data-w-id=\"b37da7fb-7c25-eb08-bc2a-d386aec85d1d\" class=\"container monetize-s\"><div class=\"text-elements monetize-s\"><div class=\"headline-wrapper monetize-s\"><h2 class=\"monetize-headline\"><span data-split=\"chars-blur\" class=\"monetize-span s1\">Create,</span><span data-split=\"chars-blur\" class=\"monetize-span s2\">Your Way.</span></h2></div></div><div class=\"monetize-content\"><div view-item=\"from-center\" class=\"monetize-banner\"><div class=\"monetize-banner-text\"><div class=\"monetize-title-text\"><h3 class=\"headline-h5\">Bring your audience closer to the music you create.</h3><p class=\"body-regular-m neutral-300\">Hiffi helps creators engage with fans, share exclusive content, and grow authentic connections through every release, update, and interaction.</p></div><div class=\"monetize-text-alert\"><div class=\"monetize-alert-svg w-embed\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewbox=\"0 0 20 20\" fill=\"none\">\n  <g clip-path=\"url(#clip0_674_16826)\">\n    <path d=\"M9.99935 18.3332C14.6017 18.3332 18.3327 14.6022 18.3327 9.99984C18.3327 5.39746 14.6017 1.6665 9.99935 1.6665C5.39698 1.6665 1.66602 5.39746 1.66602 9.99984C1.66602 14.6022 5.39698 18.3332 9.99935 18.3332Z\" stroke=\"#A3A3A3\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n    <path d=\"M10 13.3333V10\" stroke=\"#A3A3A3\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n    <path d=\"M10 6.6665H10.0083\" stroke=\"#A3A3A3\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  </g>\n  <defs>\n    <clippath id=\"clip0_674_16826\">\n      <rect width=\"20\" height=\"20\" fill=\"white\"/>\n    </clippath>\n  </defs>\n</svg></div><p class=\"body-regular-m neutral-300\">Every connection starts with a shared love of music.</p></div></div><div class=\"monetize-phone-area\"><div class=\"monetize-phone\"><img src=\"/for-creators/phone-create.png\" loading=\"lazy\" alt=\"\" class=\"image-contain\"/></div><div scroll-scale=\"2\" class=\"m-coin s1\"><img src=\"/hiffi-about/6821a59ae3bfe300713425af_77f401470e5db6986cd1576008f2fd34_coin-2.webp\" loading=\"lazy\" data-levitation=\"1\" alt=\"\" class=\"image-contain\"/></div><div scroll-scale=\"2\" class=\"m-coin s2\"><img src=\"/hiffi-about/6821a59ae3bfe300713425af_77f401470e5db6986cd1576008f2fd34_coin-2.webp\" loading=\"lazy\" data-levitation=\"2\" alt=\"\" class=\"image-contain\"/></div><div scroll-scale=\"2\" class=\"m-coin s3\"><img src=\"/hiffi-about/6821a59ae3bfe300713425ae_3fc5b0257030fae46029798bf1eadd4b_coin-1.webp\" loading=\"lazy\" data-levitation=\"2\" alt=\"\" class=\"image-contain\"/></div><div scroll-scale=\"1\" class=\"m-coin s4\"><img src=\"/hiffi-about/6821a59ae3bfe300713425ad_0c099a51cd1891085acdc9b1c1c91c2a_coin-3.webp\" loading=\"lazy\" data-levitation=\"1\" alt=\"\" class=\"image-contain\"/></div><div scroll-scale=\"1\" class=\"m-coin s5\"><img src=\"/hiffi-about/6821a59ae3bfe300713425ac_c9669508af68638a2afa1d26e54b9886_coin-4.webp\" loading=\"lazy\" data-levitation=\"1\" alt=\"\" class=\"image-contain\"/></div></div></div><div view-item=\"from-center\" view-list=\"\" class=\"monetize-benefits\"><div view-item=\"from-center\" class=\"m-benefits-card\"><h1 class=\"subheadline-l\">Creator Tools</h1><div class=\"m-benenefits-tags\"><div class=\"m-benenefits-tag\"><p>Media Uploads</p></div><div class=\"m-benenefits-tag\"><p>Content Publishing</p></div><div class=\"m-benenefits-tag\"><p>Creator Profiles</p></div></div></div><div class=\"m-benenefits-line\"></div><div view-item=\"from-center\" class=\"m-benefits-card\"><h1 class=\"subheadline-l\">Community Engagement</h1><div class=\"m-benenefits-tags\"><div class=\"m-benenefits-tag\"><p>Fan Interactions</p></div></div></div><div class=\"m-benenefits-line\"></div><div view-item=\"from-center\" class=\"m-benefits-card\"><h1 class=\"subheadline-l\">Content Discovery</h1><div class=\"m-benenefits-tags\"><div class=\"m-benenefits-tag\"><p>Trending Content</p></div><div class=\"m-benenefits-tag\"><p>Featured Creators</p></div><div class=\"m-benenefits-tag\"><p>Personalized Feed</p></div></div></div><div class=\"m-benenefits-line\"></div><div view-item=\"from-center\" class=\"m-benefits-card\"><h1 class=\"subheadline-l\">Creator Growth</h1><div class=\"m-benenefits-tags\"><div class=\"m-benenefits-tag\"><p>Audience Insights</p></div><div class=\"m-benenefits-tag\"><p>Performance Analytics</p></div><div class=\"m-benenefits-tag\"><p>Creator Spotlights</p></div></div></div></div></div></div>" as string;
+const TAG_COLS = [
+  {
+    title: "Creator Tools",
+    pills: ["Media Uploads", "Content Publishing", "Creator Profiles"],
+  },
+  {
+    title: "Community Engagement",
+    pills: ["Fan Interactions"],
+  },
+  {
+    title: "Content Discovery",
+    pills: ["Trending Content", "Featured Creators", "Personalized Feed"],
+  },
+  {
+    title: "Creator Growth",
+    pills: ["Audience Insights", "Performance Analytics", "Creator Spotlights"],
+  },
+] as const;
 
 export default function FcMonetize() {
-  const ref = useHiffiAboutSectionInit("monetize-sc");
+  const ref = useHiffiAboutSectionInit("fc-create");
 
   return (
-    <section
-      ref={ref}
-      className="monetize-sc"
-      dangerouslySetInnerHTML={{ __html: HTML }}
-    />
+    <section ref={ref} className="fc-sec fc-create">
+      <div className="fc-wrap">
+        <div className="fc-create-row">
+          <div {...{ "view-item": "from-center" }} className="fc-create-visual">
+            <div className="fc-create-glow" aria-hidden />
+            <img
+              className="fc-create-phone"
+              src="/for-creators/phone-create.png"
+              alt="Hiffi creator app on phone"
+              width={413}
+              height={495}
+              loading="lazy"
+            />
+          </div>
+          <div className="fc-create-copy">
+            <h2 data-split="chars-blur" className="fc-h2 fc-h2-left">
+              Create, Your Way.
+            </h2>
+            <p className="fc-body">Bring your audience closer to the music you create.</p>
+            <p className="fc-body muted">
+              Hiffi helps creators engage with fans, share exclusive content, and grow authentic
+              connections through every release, update, and interaction.
+            </p>
+            <p className="fc-note">ⓘ Every connection starts with a shared love of music.</p>
+          </div>
+        </div>
+
+        <div {...{ "view-item": "from-center" }} className="fc-tags">
+          {TAG_COLS.map((col) => (
+            <div key={col.title} className="fc-tags-col">
+              <h3 className="fc-tags-heading">{col.title}</h3>
+              <ul className="fc-tags-list">
+                {col.pills.map((pill) => (
+                  <li key={pill}>
+                    <span className="fc-tag-pill">{pill}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

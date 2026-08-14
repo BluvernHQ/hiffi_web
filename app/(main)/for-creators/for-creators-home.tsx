@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
+import { useLayoutEffect } from "react";
 import HiffiHeader from "@/app/(main)/about/components/hiffi-about/header";
 import HiffiAboutProvider from "@/app/(main)/about/components/hiffi-about/hiffi-about-provider";
 import FcHero from "./components/fc-hero";
@@ -8,7 +8,6 @@ import FcMonetize from "./components/fc-monetize";
 import FcFeatures from "./components/fc-features";
 import FcTools from "./components/fc-tools";
 import FcCtaBanner from "./components/fc-cta-banner";
-import { initForCreatorsInteractions } from "./init-for-creators-interactions";
 
 export default function ForCreatorsHome() {
   useLayoutEffect(() => {
@@ -29,30 +28,6 @@ export default function ForCreatorsHome() {
       history.scrollRestoration = previousScrollRestoration;
       if (!hadWModJs) html.classList.remove("w-mod-js");
       if (!hadRemScale) html.classList.remove("joyjam-rem-scale");
-    };
-  }, []);
-
-  useEffect(() => {
-    let cleanup = () => {};
-    let timer = 0;
-
-    const rerun = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        cleanup();
-        cleanup = initForCreatorsInteractions(document);
-      }, 50);
-    };
-
-    rerun();
-    window.addEventListener("hiffi-about:section-loaded", rerun);
-    window.addEventListener("hiffi-about:ready", rerun);
-
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("hiffi-about:section-loaded", rerun);
-      window.removeEventListener("hiffi-about:ready", rerun);
-      cleanup();
     };
   }, []);
 
