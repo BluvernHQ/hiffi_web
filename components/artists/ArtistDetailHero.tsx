@@ -149,12 +149,14 @@ export function ArtistDetailHero({ artist, profilePath }: ArtistDetailHeroProps)
                   Claimed
                 </span>
               )}
-              <Link
-                href={`/profile/${encodeURIComponent(artist.slug)}`}
-                className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-              >
-                Watch on Hiffi
-              </Link>
+              {!isUnclaimed ? (
+                <Link
+                  href={`/profile/${encodeURIComponent(artist.slug)}`}
+                  className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                >
+                  Watch on Hiffi
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>

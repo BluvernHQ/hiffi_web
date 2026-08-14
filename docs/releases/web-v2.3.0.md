@@ -1,15 +1,15 @@
 # Hiffi Web — Release notes (v2.3.0)
 
-**Release date:** July 30, 2026 (notes updated August 14, 2026)  
+**Shipped:** ~August 11, 2026 (notes updated August 14, 2026)  
 **Version:** 2.3.0 (follows v2.2.4 from July 16)
 
-> **Not in this release:** The latest **`/top-artists`** (Hip-Hop 500) experience is **not** part of this cut — do not announce or promote it. Ranking product launch remains a later release.
+> **Do not announce:** Latest **`/top-artists`** (Hip-Hop 500) — ranking launch remains a later release.
 
 ---
 
 ## In one sentence
 
-We redesigned **About** and expanded **Atlanta** scene pages, added in-product **Feedback**, hardened signup with **Turnstile**, polished **Share** and Artist Index on home and watch, and improved crawl/SEO hygiene (robots.txt + crawlable home feed).
+We expanded **Atlanta** scene pages, added in-product **Feedback** (profile / navbar), hardened signup with **Turnstile**, polished **Share** and Artist Index, and improved crawl/SEO hygiene.
 
 ---
 
@@ -17,7 +17,7 @@ We redesigned **About** and expanded **Atlanta** scene pages, added in-product *
 
 | Goal | What we shipped |
 | ---- | --------------- |
-| **Grow discovery & local SEO** | Redesigned About; Atlanta hubs; richer sitemaps; crawlable home feed snapshot |
+| **Grow discovery & local SEO** | Atlanta hubs; richer sitemaps |
 | **Listen to the community** | Feedback with screenshot capture; admin review queue |
 | **Trust & safety** | Cloudflare Turnstile on auth flows |
 | **Clearer everyday actions** | Share as a top-level button on home cards and watch; Artist Index claim/verified polish |
@@ -30,9 +30,8 @@ We redesigned **About** and expanded **Atlanta** scene pages, added in-product *
 
 - **Send feedback** from the profile / navbar menu — screenshot of the current page so the team sees what you saw.
 
-### Learn about Hiffi and the Atlanta scene
+### Explore the Atlanta scene
 
-- Redesigned **About** at [hiffi.com/about](https://www.hiffi.com/about).
 - **Atlanta** editorial hubs at [hiffi.com/atlanta](https://www.hiffi.com/atlanta) — genres, eras, best-of, venues, and studios.
 
 ### Better experience on home and watch
@@ -40,7 +39,6 @@ We redesigned **About** and expanded **Atlanta** scene pages, added in-product *
 - **Share** is a main icon on home video cards and the watch page.
 - Report and Delete stay under more-actions.
 - Additional **mute preference** fix while watching.
-- Home discover HTML includes a **streamed snapshot** of real video titles and `/watch/` links for crawlers and cold loads (interactive infinite scroll unchanged).
 
 ### Small fixes you might notice
 
@@ -66,9 +64,7 @@ We redesigned **About** and expanded **Atlanta** scene pages, added in-product *
 ### SEO & shareability
 
 - Sitemap routing upgrades (`sitemap.xml`, split sitemaps, `video-sitemap.xml`).
-- Production **robots.txt** simplified (YouTube-style single `User-agent: *` + Disallows + Sitemap).
-- Homepage JSON-LD ItemList plus **visible SSR video links** so discover isn’t empty shells in view-source.
-- Expanded **Atlanta** content and redesigned **About** for brand and local discovery.
+- Expanded **Atlanta** content for local discovery.
 
 ---
 
@@ -87,29 +83,40 @@ We redesigned **About** and expanded **Atlanta** scene pages, added in-product *
 
 ## For product & leadership
 
-**In this cut**
+**Shipped in this cut**
 
 | Theme | What shipped |
 | ----- | ------------ |
 | **Share** | Top-level Share on home/watch |
-| **Feedback loop** | User submit → admin review |
-| **Content** | About redesign; Atlanta hubs |
-| **Crawl** | Lean robots.txt; crawlable home feed snapshot |
+| **Feedback loop** | User submit (profile / navbar) → admin review |
+| **Content** | Atlanta hubs |
+| **Artist Index** | Claim CTA / hero polish; verified badge placement |
 
-**Explicitly not in this release**
+**Not part of this cut (do not announce)**
 
-- Latest **`/top-artists`** / Hip-Hop 500 product (hold for a dedicated ranking launch)
+- Latest **`/top-artists`** / Hip-Hop 500 product
 - Full multi-platform HPS ranking
-- Ranking promoted in primary sidebar/footer
+- Ranking in primary sidebar/footer
 - API/data licensing, index report, paid analytics
 
-**Why it matters:** Stronger brand and local content, a real feedback loop, and healthier crawl signals — without bundling an unfinished ranking launch.
-
-*Engineering detail:* see [CHANGELOG.md](../../CHANGELOG.md#230--2026-07-30).
+**Why it matters:** Stronger local content, a real feedback loop, and clearer day-to-day actions — without bundling an unfinished ranking launch.
 
 ---
 
-## Bug fixes & polish
+## Ready for August 15, 2026
+
+These items are built and ready to go live tomorrow (**August 15, 2026**). Green light to ship as a small follow-up cut.
+
+| Item | What changes |
+| ---- | ------------ |
+| **Feedback in the sidebar** | **Send Feedback** entry in the main sidebar (logged-out and logged-in), same dialog as profile / navbar |
+| **Artist Index — unclaimed** | Hide **Watch on Hiffi** on unclaimed Artist Index profiles (claim CTA stays) |
+| **Hiffi profile → Artist Index** | Artist Index profile URL / link on the Hiffi `/profile` page so fans can jump to the matching index listing |
+| **Crawl hygiene** | Simplified production **robots.txt** (YouTube-style single `User-agent: *`) + homepage **SSR discover snapshot** (real video titles and `/watch/` links for crawlers) |
+
+---
+
+## Bug fixes & polish (shipped)
 
 | Area | Fix |
 | ---- | --- |
@@ -117,8 +124,7 @@ We redesigned **About** and expanded **Atlanta** scene pages, added in-product *
 | **Watch mute** | Additional mute preference fix beyond v2.2.3. |
 | **Feedback UI** | Dialog responsive across screen sizes. |
 | **Artist Index** | Claim CTA / hero text; verified badge on artist detail. |
-| **About** | Responsive and image polish. |
-| **Home SEO** | SSR snapshot of discover videos for crawlers; client feed/scroll restore preserved. |
-| **robots.txt** | Single wildcard group; private paths disallowed; Host directive removed. |
+
+*Engineering detail:* see [CHANGELOG.md](../../CHANGELOG.md#230--2026-07-30).
 
 ---

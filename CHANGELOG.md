@@ -9,24 +9,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 ### Added
 
 - Homepage **SSR discover snapshot** — streamed real video titles, thumbnails, and `/watch/` links for crawlers/cold loads; interactive `HomeFeedClient` (scroll restore, infinite scroll) unchanged
+- **Send Feedback** entry in the main sidebar (same dialog as navbar / profile)
 
 ### Changed
 
 - Production **robots.txt** simplified to YouTube-style single `User-agent: *` (Allow + Disallows + Sitemap); removed per-bot duplicates and non-standard `Host:`; added Disallow for `/maintenance`, `/test-hls`, `/support/reports/`
+- Artist Index: hide **Watch on Hiffi** on unclaimed profiles
+- Hiffi `/profile`: Artist Index profile URL / link to the matching index listing
 - Removed Next.js **`/hiffi-500`** route family (engineering cleanup; **do not ship/announce latest `/top-artists`** as part of this release)
 
 ### Notes
 
 - Latest **`/top-artists`** (Hip-Hop 500) is **out of scope** for the v2.3.0 communications cut — hold for a dedicated ranking release
+- Items above are ready for a follow-up ship on **August 15, 2026** (see release notes)
 
-## [2.3.0] — 2026-07-30
+## [2.3.0] — 2026-08-11
 
-Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary; **updated Aug 14, 2026** — ranking/`/top-artists` excluded from this cut)
+Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary; **updated Aug 14, 2026** — ranking/`/top-artists` excluded; Aug 15 follow-up listed separately)
 
 ### Added
 
 - **Feedback module** — user dialog with screenshot capture (navbar/profile), submit via `/proxy/feedback`; admin Feedback list + detail under `/proxy/admin-feedback`
-- Redesigned **About** page (`/about`) — full marketing experience with hero, benefits, creators/fans, reviews, and motion
 - **Atlanta** editorial hubs: `/atlanta` plus genres, eras, best-of, venues, and studios (list + detail + OG images)
 - Cloudflare **Turnstile** on auth flows (widget + token on auth endpoints)
 - Sitemap routing: `sitemap.xml`, `sitemaps/[id]`, `video-sitemap.xml`, and related `lib/seo` helpers
@@ -46,6 +49,7 @@ Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (busin
 
 - **Not announced in this release:** latest `/top-artists` / Hip-Hop 500 (separate ranking launch)
 - Out of scope: multi-platform HPS expansion, API/data licensing, index report, paid analytics
+- Follow-up ready for **August 15, 2026:** sidebar feedback, hide Watch on Hiffi for unclaimed index profiles, Artist Index link on Hiffi profile, robots.txt + home SSR snapshot
 
 
 ## [2.2.4] — 2026-07-16
