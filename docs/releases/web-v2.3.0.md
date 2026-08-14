@@ -1,9 +1,11 @@
 # Hiffi Web — Release notes (v2.3.0)
 
-**Shipped:** ~August 11, 2026 (notes updated August 14, 2026)  
-**Version:** 2.3.0 (follows v2.2.4 from July 16)
+**Version:** 2.3.0 (follows v2.2.4 from July 16)  
+**Shipped:** August 13, 2026  
+**Notes updated:** August 14, 2026
 
-> **Do not announce:** Latest **`/top-artists`** (Hip-Hop 500) — ranking launch remains a later release.
+> **Do not announce:** Latest **`/top-artists`** (Hip-Hop 500) — ranking launch remains a later release.  
+> **Next cut:** [v2.3.1 — August 15, 2026](./web-v2.3.1.md)
 
 ---
 
@@ -38,7 +40,7 @@ We expanded **Atlanta** scene pages, added in-product **Feedback** (profile / na
 
 - **Share** is a main icon on home video cards and the watch page.
 - Report and Delete stay under more-actions.
-- Additional **mute preference** fix while watching.
+- Watch keeps your sound on/off choice when moving to the next video.
 
 ### Small fixes you might notice
 
@@ -83,7 +85,7 @@ We expanded **Atlanta** scene pages, added in-product **Feedback** (profile / na
 
 ## For product & leadership
 
-**Shipped in this cut**
+**Shipped August 13, 2026 (v2.3.0)**
 
 | Theme | What shipped |
 | ----- | ------------ |
@@ -103,28 +105,16 @@ We expanded **Atlanta** scene pages, added in-product **Feedback** (profile / na
 
 ---
 
-## Ready for August 15, 2026
-
-These items are built and ready to go live tomorrow (**August 15, 2026**). Green light to ship as a small follow-up cut.
-
-| Item | What changes |
-| ---- | ------------ |
-| **Feedback in the sidebar** | **Send Feedback** entry in the main sidebar (logged-out and logged-in), same dialog as profile / navbar |
-| **Artist Index — unclaimed** | Hide **Watch on Hiffi** on unclaimed Artist Index profiles (claim CTA stays) |
-| **Hiffi profile → Artist Index** | Artist Index profile URL / link on the Hiffi `/profile` page so fans can jump to the matching index listing |
-| **Crawl hygiene** | Simplified production **robots.txt** (YouTube-style single `User-agent: *`) + homepage **SSR discover snapshot** (real video titles and `/watch/` links for crawlers) |
-
----
-
-## Bug fixes & polish (shipped)
+## Bug fixes & polish
 
 | Area | Fix |
 | ---- | --- |
 | **Share on home & watch** | Share is a top-level icon; Report/Delete remain under more-actions. |
-| **Watch mute** | Additional mute preference fix beyond v2.2.3. |
+| **Watch mute** | Watch keeps your sound on/off choice when moving to the next video. |
 | **Feedback UI** | Dialog responsive across screen sizes. |
 | **Artist Index** | Claim CTA / hero text; verified badge on artist detail. |
 
-*Engineering detail:* see [CHANGELOG.md](../../CHANGELOG.md#230--2026-07-30).
+*Engineering detail:* see [CHANGELOG.md](../../CHANGELOG.md#230--2026-08-13).  
+*Next release:* [v2.3.1 — August 15, 2026](./web-v2.3.1.md)
 
 ---

@@ -6,26 +6,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
+### Notes
+
+- Track next work here after **v2.3.1** ships
+
+## [2.3.1] — 2026-08-15
+
+Release notes: [docs/releases/web-v2.3.1.md](docs/releases/web-v2.3.1.md) (business-friendly summary; **ready to ship August 15, 2026**)
+
 ### Added
 
 - Homepage **SSR discover snapshot** — streamed real video titles, thumbnails, and `/watch/` links for crawlers/cold loads; interactive `HomeFeedClient` (scroll restore, infinite scroll) unchanged
 - **Send Feedback** entry in the main sidebar (same dialog as navbar / profile)
+- Hiffi `/profile`: Artist Index link in About when the artist is listed in the Artist Index (opens in a new tab)
 
 ### Changed
 
 - Production **robots.txt** simplified to YouTube-style single `User-agent: *` (Allow + Disallows + Sitemap); removed per-bot duplicates and non-standard `Host:`; added Disallow for `/maintenance`, `/test-hls`, `/support/reports/`
 - Artist Index: hide **Watch on Hiffi** on unclaimed profiles
-- Hiffi `/profile`: Artist Index profile URL / link to the matching index listing
-- Removed Next.js **`/hiffi-500`** route family (engineering cleanup; **do not ship/announce latest `/top-artists`** as part of this release)
+- Removed Next.js **`/hiffi-500`** route family (engineering cleanup; **do not ship/announce latest `/top-artists`**)
 
 ### Notes
 
-- Latest **`/top-artists`** (Hip-Hop 500) is **out of scope** for the v2.3.0 communications cut — hold for a dedicated ranking release
-- Items above are ready for a follow-up ship on **August 15, 2026** (see release notes)
+- Latest **`/top-artists`** (Hip-Hop 500) remains out of scope for communications — hold for a dedicated ranking release
 
-## [2.3.0] — 2026-08-11
+## [2.3.0] — 2026-08-13
 
-Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary; **updated Aug 14, 2026** — ranking/`/top-artists` excluded; Aug 15 follow-up listed separately)
+Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary; **shipped August 13, 2026**)
 
 ### Added
 
@@ -49,7 +56,7 @@ Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (busin
 
 - **Not announced in this release:** latest `/top-artists` / Hip-Hop 500 (separate ranking launch)
 - Out of scope: multi-platform HPS expansion, API/data licensing, index report, paid analytics
-- Follow-up ready for **August 15, 2026:** sidebar feedback, hide Watch on Hiffi for unclaimed index profiles, Artist Index link on Hiffi profile, robots.txt + home SSR snapshot
+- Follow-up: **[v2.3.1 — August 15, 2026](docs/releases/web-v2.3.1.md)**
 
 
 ## [2.2.4] — 2026-07-16
