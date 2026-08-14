@@ -14,7 +14,7 @@
 }
 
 .fc-page .fc-wrap {
-  width: min(calc(83 * var(--d)), 92vw);
+  width: min(1080px, 90vw);
   margin-inline: auto;
 }
 
@@ -114,6 +114,279 @@
 
 .fc-page .creator-hero-card.s3 {
   transform: rotate(-10deg);
+}
+
+/* Hero sizes to its content — no 100vh lock */
+.fc-page .creator-hero-sc {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+/* iPad / desktop — JoyJam: copy left, tilted cards right */
+@media screen and (min-width: 480px) {
+  .fc-page .creator-hero-sc {
+    overflow: visible;
+  }
+
+  .fc-page .container.creator-hero-s {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: center;
+    column-gap: 2vw;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 132px 5.5vw 48px !important;
+    overflow: visible;
+  }
+
+  .fc-page .text-elements.crator-hero-s {
+    position: relative;
+    z-index: 4;
+    grid-column: 1;
+    width: 100%;
+    max-width: none;
+    align-items: flex-start;
+  }
+
+  .fc-page .headline-wrapper.creator-hero-s {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .fc-page .creator-hero-sc .display-l {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fc-page .creator-hero-sc .display-l br {
+    display: none;
+  }
+
+  .fc-page .creator-hero-sc .display-l,
+  .fc-page .creator-hero-sc .display-l .fc-hero-line,
+  .fc-page .creator-hero-sc .display-l .line,
+  .fc-page .creator-hero-sc .display-l .char {
+    font-size: clamp(52px, 9.2vw, 96px);
+    line-height: 0.9;
+    letter-spacing: -0.05em;
+    text-align: left;
+  }
+
+  .fc-page .creator-hero-sc .display-l .fc-hero-line {
+    display: block;
+  }
+
+  .fc-page .description-wrapper.creator-hero-s {
+    width: 100%;
+    max-width: 34ch;
+    padding-top: 18px;
+    padding-bottom: 22px;
+  }
+
+  .fc-page .creator-hero-sc .subheadline-l {
+    font-size: clamp(14px, 1.6vw, 17px);
+    line-height: 1.45;
+  }
+
+  .fc-page .open-form.full-w-p,
+  .fc-page .main-button-wrapper {
+    width: auto;
+    align-self: flex-start;
+  }
+
+  .fc-page .creator-hero-sc .main-button {
+    min-width: 148px;
+    min-height: 48px;
+    padding-inline: 28px;
+  }
+
+  .fc-page .crator-hero-cards {
+    position: relative !important;
+    grid-column: 2;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    max-width: none;
+    height: min(48vw, 420px) !important;
+    aspect-ratio: auto;
+    transform: none;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .fc-page .creator-hero-card.s1 {
+    inset: 8% auto auto 0%;
+    transform: rotate(-16deg);
+    z-index: 3;
+  }
+
+  .fc-page .creator-hero-card.s2 {
+    inset: 4% auto auto 28%;
+    transform: rotate(-8deg);
+    z-index: 2;
+  }
+
+  .fc-page .creator-hero-card.s3 {
+    inset: 22% auto auto 52%;
+    transform: rotate(10deg);
+    z-index: 1;
+  }
+
+  .fc-page .creator-hero-card-image {
+    width: min(38%, 200px);
+    min-width: 132px;
+    border-radius: 22px;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+    overflow: hidden;
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .fc-page .container.creator-hero-s {
+    padding: 140px 6.8rem 56px !important;
+  }
+
+  .fc-page .creator-hero-sc .display-l,
+  .fc-page .creator-hero-sc .display-l .fc-hero-line,
+  .fc-page .creator-hero-sc .display-l .line,
+  .fc-page .creator-hero-sc .display-l .char {
+    font-size: clamp(72px, 7.2vw, 112px);
+  }
+
+  .fc-page .crator-hero-cards {
+    height: min(42vw, 520px) !important;
+  }
+
+  .fc-page .creator-hero-card-image {
+    width: min(42%, 248px);
+    border-radius: 28px;
+  }
+}
+
+/* Phone — cards above copy */
+@media screen and (max-width: 479px) {
+  .fc-page .creator-hero-sc {
+    overflow: hidden;
+  }
+
+  .fc-page .container.creator-hero-s {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 96px 6.5vw 36px !important;
+    overflow: visible;
+  }
+
+  .fc-page .crator-hero-cards {
+    order: -1;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 86% !important;
+    max-width: 360px;
+    height: 38vw !important;
+    min-height: 148px;
+    max-height: 210px;
+    aspect-ratio: auto;
+    transform: rotate(16deg);
+    margin: 10px auto 28px;
+    pointer-events: none;
+    align-self: center;
+  }
+
+  .fc-page .creator-hero-card.s1 {
+    inset: 6% auto auto 2%;
+    transform: rotate(-6deg);
+  }
+
+  .fc-page .creator-hero-card.s2 {
+    inset: 0 auto auto 30%;
+    transform: rotate(2deg);
+  }
+
+  .fc-page .creator-hero-card.s3 {
+    inset: 14% auto auto 58%;
+    transform: rotate(8deg);
+  }
+
+  .fc-page .creator-hero-card-image {
+    width: min(32vw, 132px);
+    border-radius: 20px;
+    box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
+  }
+
+  .fc-page .text-elements.crator-hero-s {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: none;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .fc-page .headline-wrapper.creator-hero-s {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .fc-page .creator-hero-sc .display-l {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fc-page .creator-hero-sc .display-l br {
+    display: none;
+  }
+
+  .fc-page .creator-hero-sc .display-l,
+  .fc-page .creator-hero-sc .display-l .fc-hero-line,
+  .fc-page .creator-hero-sc .display-l .line,
+  .fc-page .creator-hero-sc .display-l .char {
+    font-size: clamp(44px, 13.8vw, 68px);
+    line-height: 0.9;
+    text-align: left;
+    letter-spacing: -0.05em;
+  }
+
+  .fc-page .creator-hero-sc .display-l .fc-hero-line {
+    display: block;
+  }
+
+  .fc-page .description-wrapper.creator-hero-s {
+    width: 94%;
+    max-width: 360px;
+    padding-top: 18px;
+    padding-bottom: 22px;
+  }
+
+  .fc-page .creator-hero-sc .subheadline-l {
+    font-size: clamp(15px, 3.8vw, 17px);
+    line-height: 1.45;
+    text-align: left;
+  }
+
+  .fc-page .open-form.full-w-p,
+  .fc-page .main-button-wrapper {
+    width: auto;
+    max-width: 100%;
+    align-self: flex-start;
+  }
+
+  .fc-page .creator-hero-sc .main-button {
+    width: auto;
+    min-width: 148px;
+    justify-content: center;
+    min-height: 48px;
+    padding-inline: 28px;
+  }
 }
 
 .fc-page .fc-card-img {
@@ -490,148 +763,12 @@
   }
 
   .fc-page .fc-wrap {
-    width: min(92vw, calc(83 * var(--d)));
+    width: min(1080px, 90vw);
     padding-inline: 0;
   }
 
   .fc-page .fc-sec {
     padding: calc(2.4 * var(--d)) 0 calc(0.6 * var(--d));
-  }
-
-  /* Hero — JoyJam mobile: cards above copy, left-aligned type */
-  .fc-page .creator-hero-sc {
-    overflow: hidden;
-  }
-
-  .fc-page .navbar {
-    padding: 3.6vw 5.5vw 0 !important;
-  }
-
-  .fc-page .navbar:not(.hiffi-nav-is-open) .nav-container {
-    padding: 2.2vw 2.6vw 2.2vw 5vw !important;
-    min-height: 12.5vw !important;
-    gap: 4vw;
-  }
-
-  .fc-page .container.creator-hero-s {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    padding-top: calc(16vw + env(safe-area-inset-top, 0px));
-    padding-bottom: max(8vw, env(safe-area-inset-bottom, 0px));
-    padding-left: 6.5vw;
-    padding-right: 6.5vw;
-    min-height: 0;
-    overflow: visible;
-  }
-
-  /* DOM is copy then cards — pull the stack above the headline */
-  .fc-page .crator-hero-cards {
-    order: -1;
-    position: relative;
-    top: auto;
-    left: auto;
-    right: auto;
-    width: 86%;
-    max-width: 360px;
-    height: 38vw;
-    min-height: 148px;
-    max-height: 210px;
-    aspect-ratio: auto;
-    transform: rotate(16deg);
-    margin: 10px auto 28px;
-    pointer-events: none;
-    align-self: center;
-  }
-
-  .fc-page .creator-hero-card.s1 {
-    inset: 6% auto auto 2%;
-    transform: rotate(-6deg);
-  }
-
-  .fc-page .creator-hero-card.s2 {
-    inset: 0 auto auto 30%;
-    transform: rotate(2deg);
-  }
-
-  .fc-page .creator-hero-card.s3 {
-    inset: 14% auto auto 58%;
-    transform: rotate(8deg);
-  }
-
-  .fc-page .creator-hero-card-image {
-    width: min(32vw, 132px);
-    border-radius: 20px;
-    box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
-  }
-
-  .fc-page .text-elements.crator-hero-s {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: none;
-    align-items: flex-start;
-    text-align: left;
-    margin-top: 4px;
-  }
-
-  .fc-page .headline-wrapper.creator-hero-s {
-    width: 100% !important;
-    max-width: 100%;
-  }
-
-  .fc-page .creator-hero-sc .display-l {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-  }
-
-  .fc-page .creator-hero-sc .display-l br {
-    display: none;
-  }
-
-  .fc-page .creator-hero-sc .display-l,
-  .fc-page .creator-hero-sc .display-l .fc-hero-line,
-  .fc-page .creator-hero-sc .display-l .line,
-  .fc-page .creator-hero-sc .display-l .char {
-    font-size: clamp(44px, 13.8vw, 68px);
-    line-height: 0.9;
-    text-align: left;
-    letter-spacing: -0.05em;
-  }
-
-  .fc-page .creator-hero-sc .display-l .fc-hero-line {
-    display: block;
-  }
-
-  .fc-page .description-wrapper.creator-hero-s {
-    width: 94%;
-    max-width: 360px;
-    padding-top: 18px;
-    padding-bottom: 22px;
-  }
-
-  .fc-page .creator-hero-sc .subheadline-l {
-    font-size: clamp(15px, 3.8vw, 17px);
-    line-height: 1.45;
-    text-align: left;
-  }
-
-  .fc-page .open-form.full-w-p,
-  .fc-page .main-button-wrapper {
-    width: auto;
-    max-width: 100%;
-    align-self: flex-start;
-  }
-
-  .fc-page .creator-hero-sc .main-button {
-    width: auto;
-    min-width: 148px;
-    justify-content: center;
-    min-height: 48px;
-    padding-inline: 28px;
   }
 
   .fc-page .fc-create-row {
@@ -709,16 +846,9 @@
     padding: 0.45rem 1rem;
   }
 
-  .fc-page .hj-card-row {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-  }
-
-  .fc-page .hj-card {
-    flex: 0 0 auto !important;
-    width: min(82vw, 360px) !important;
-    min-width: min(82vw, 360px) !important;
+  .fc-page [view-item="from-center"] {
+    opacity: 1;
+    transform: none;
   }
 
   .fc-page .fc-tools-grid {
@@ -796,12 +926,12 @@
 /* Tablet — multi-column like JoyJam, not phone stack */
 @media (min-width: 768px) and (max-width: 991px) {
   .fc-page .fc-wrap {
-    width: min(94vw, 52rem);
+    width: min(1080px, 90vw);
   }
 
   .fc-page .fc-create-row {
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    gap: 1.6rem;
+    gap: 24px;
   }
 
   .fc-page .fc-h2-left,
@@ -811,24 +941,20 @@
   }
 
   .fc-page .fc-tags {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px 16px;
+    padding: 22px 18px;
+  }
+
+  .fc-page .fc-tag-pill {
+    white-space: normal;
+    max-width: 100%;
+    font-size: 12px;
+    padding: 8px 10px;
   }
 
   .fc-page .fc-tools-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .fc-page .hj-card-row {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    overflow: visible;
-  }
-
-  .fc-page .hj-card {
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    flex: none !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .fc-page .fc-cta-panel {
@@ -846,5 +972,53 @@
 
   .fc-page .fc-cta-title {
     font-size: clamp(48px, 8vw, 72px);
+  }
+}
+
+/* Feature cards — JoyJam: fixed width, peek the next card, no page-wide x gap */
+.fc-page .hj-card-row,
+.fc-page .fc-card-row {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1023px) {
+  .fc-page .hj-card-row,
+  .fc-page .fc-card-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    grid-template-columns: none !important;
+    gap: 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .fc-page .hj-card-row::-webkit-scrollbar,
+  .fc-page .fc-card-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fc-page .hj-card-row[hidden] {
+    display: none !important;
+  }
+
+  .fc-page .hj-card {
+    position: relative !important;
+    flex: 0 0 min(300px, 78%) !important;
+    width: min(300px, 78%) !important;
+    min-width: min(300px, 78%) !important;
+    max-width: min(300px, 78%) !important;
+    min-height: 420px !important;
+    height: auto !important;
+    transform: none !important;
+    scroll-snap-align: start;
+    box-sizing: border-box;
   }
 }
