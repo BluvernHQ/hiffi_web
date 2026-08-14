@@ -1,19 +1,21 @@
 /* Shared Figma promo feature cards — real markup, not screenshots */
 
 .hj-card-row {
+  --d: 1rem;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.4rem;
+  gap: calc(1.4 * var(--d));
   align-items: stretch;
 }
 
 .hj-card {
+  --d: 1rem;
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 30rem;
-  padding: 2rem 1.75rem 1.75rem;
-  border-radius: 1.9rem;
+  min-height: calc(30 * var(--d));
+  padding: calc(2 * var(--d)) calc(1.75 * var(--d)) calc(1.75 * var(--d));
+  border-radius: calc(1.9 * var(--d));
   color: #fff;
   overflow: hidden;
 }
@@ -32,9 +34,9 @@
 
 .hj-card-rule {
   display: block;
-  width: 7rem;
+  width: calc(7 * var(--d));
   height: 3px;
-  margin-top: 1.1rem;
+  margin-top: calc(1.1 * var(--d));
   border-radius: 999px;
   background: rgb(218 41 28 / 50%);
 }
@@ -55,34 +57,34 @@
 }
 
 .hj-card-art--wide {
-  width: min(16rem, 92%);
+  width: min(calc(16 * var(--d)), 92%);
 }
 
 .hj-card-eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 1.05rem;
+  margin: 0 0 calc(0.35 * var(--d));
+  font-size: calc(1.05 * var(--d));
   font-weight: 700;
   line-height: 1.2;
 }
 
 .hj-card-title {
   margin: 0;
-  font-size: clamp(1.55rem, 1.8vw, 2.1rem);
+  font-size: clamp(calc(1.55 * var(--d)), 1.8vw, calc(2.1 * var(--d)));
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
 
 .hj-card-title--lg {
-  font-size: clamp(2rem, 2.4vw, 2.55rem);
+  font-size: clamp(calc(2 * var(--d)), 2.4vw, calc(2.55 * var(--d)));
   line-height: 1.05;
   max-width: 12ch;
 }
 
 .hj-card-sub {
-  margin: 0.85rem 0 0;
+  margin: calc(0.85 * var(--d)) 0 0;
   max-width: 28ch;
-  font-size: 1.05rem;
+  font-size: calc(1.05 * var(--d));
   font-weight: 200;
   line-height: 1.35;
   color: rgb(255 255 255 / 92%);
@@ -90,43 +92,43 @@
 
 .hj-card-list {
   list-style: none;
-  margin: 1.8rem 0 0;
+  margin: calc(1.8 * var(--d)) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: calc(1.15 * var(--d));
 }
 
 .hj-card-list li {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: calc(0.85 * var(--d));
   margin: 0;
-  font-size: 1.05rem;
+  font-size: calc(1.05 * var(--d));
   font-weight: 700;
   line-height: 1.2;
 }
 
 .hj-card-ico {
-  width: 1.95rem;
-  height: 1.95rem;
-  flex: 0 0 1.95rem;
+  width: calc(1.95 * var(--d));
+  height: calc(1.95 * var(--d));
+  flex: 0 0 calc(1.95 * var(--d));
   object-fit: contain;
 }
 
 .hj-card-ico-badge {
-  width: 2.45rem;
-  height: 2.45rem;
-  flex: 0 0 2.45rem;
-  border-radius: 0.8rem;
+  width: calc(2.45 * var(--d));
+  height: calc(2.45 * var(--d));
+  flex: 0 0 calc(2.45 * var(--d));
+  border-radius: calc(0.8 * var(--d));
   object-fit: cover;
   background: #fff;
 }
 
 .hj-card-foot {
   margin-top: auto;
-  padding-top: 1.6rem;
-  font-size: 0.9rem;
+  padding-top: calc(1.6 * var(--d));
+  font-size: calc(0.9 * var(--d));
   font-weight: 500;
   line-height: 1.35;
   max-width: 32ch;
@@ -138,21 +140,21 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding-top: 1.2rem;
-  min-height: 13rem;
+  padding-top: calc(1.2 * var(--d));
+  min-height: calc(13 * var(--d));
 }
 
 .hj-card-art {
-  width: min(12.5rem, 72%);
+  width: min(calc(12.5 * var(--d)), 72%);
   height: auto;
   object-fit: contain;
   pointer-events: none;
 }
 
 .hj-card-art-frame {
-  width: min(13.5rem, 78%);
+  width: min(calc(13.5 * var(--d)), 78%);
   aspect-ratio: 1;
-  border-radius: 2.4rem;
+  border-radius: calc(2.4 * var(--d));
   background: #efefef;
   overflow: hidden;
   display: grid;
@@ -168,19 +170,19 @@
 .hj-card-rows {
   list-style: none;
   margin: auto 0 0;
-  padding: 1.4rem 0 0;
+  padding: calc(1.4 * var(--d)) 0 0;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: calc(0.7 * var(--d));
 }
 
 .hj-card-row-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  min-height: 3.2rem;
-  padding: 0.55rem 0.9rem;
-  border-radius: 1.25rem;
+  gap: calc(0.75 * var(--d));
+  min-height: calc(3.2 * var(--d));
+  padding: calc(0.55 * var(--d)) calc(0.9 * var(--d));
+  border-radius: calc(1.25 * var(--d));
   background: #d9d9d9;
   color: #0c0c0c;
 }
@@ -192,9 +194,9 @@
 
 .hj-card-row-mark {
   flex: 0 0 auto;
-  width: 1.25rem;
+  width: calc(1.25 * var(--d));
   text-align: center;
-  font-size: 1rem;
+  font-size: calc(1 * var(--d));
   font-weight: 700;
   color: #da291c;
   line-height: 1;
@@ -202,24 +204,24 @@
 
 .hj-card-row-item--glass .hj-card-row-mark {
   color: #fff;
-  font-size: 1.1rem;
+  font-size: calc(1.1 * var(--d));
 }
 
 .hj-card-row-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: calc(0.1 * var(--d));
   min-width: 0;
 }
 
 .hj-card-row-copy strong {
-  font-size: 0.72rem;
+  font-size: calc(0.72 * var(--d));
   font-weight: 700;
   line-height: 1.2;
 }
 
 .hj-card-row-copy span {
-  font-size: 0.72rem;
+  font-size: calc(0.72 * var(--d));
   font-weight: 400;
   line-height: 1.25;
   opacity: 0.9;
@@ -236,9 +238,9 @@
 
 /* Discovery tab cards */
 .hj-card-body {
-  margin: 1rem 0 0;
+  margin: calc(1 * var(--d)) 0 0;
   max-width: 32ch;
-  font-size: 1.05rem;
+  font-size: calc(1.05 * var(--d));
   font-weight: 700;
   line-height: 1.35;
   color: rgb(255 255 255 / 95%);
@@ -246,7 +248,7 @@
 
 .hj-card-brand {
   display: block;
-  width: 7.4rem;
+  width: calc(7.4 * var(--d));
   height: auto;
   object-fit: contain;
   /* Figma: darker mark on red card */
@@ -255,36 +257,36 @@
 
 .hj-card-bottom {
   margin-top: auto;
-  padding-top: 1.6rem;
+  padding-top: calc(1.6 * var(--d));
 }
 
 .hj-card-bottom .hj-card-foot {
-  margin-top: 1rem;
+  margin-top: calc(1 * var(--d));
   padding-top: 0;
 }
 
 .hj-card-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
-  margin-top: 0.9rem;
+  gap: calc(0.55 * var(--d));
+  margin-top: calc(0.9 * var(--d));
 }
 
 .hj-card-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.8rem;
-  padding: 0.2rem 0.9rem;
+  min-height: calc(1.8 * var(--d));
+  padding: calc(0.2 * var(--d)) calc(0.9 * var(--d));
   border-radius: 999px;
   background: #fff;
   color: #ed1c2f;
-  font-size: 0.875rem;
+  font-size: calc(0.875 * var(--d));
   font-weight: 500;
 }
 
 .hj-card-sub--tight {
-  font-size: 0.95rem;
+  font-size: calc(0.95 * var(--d));
   font-weight: 600;
   max-width: 28ch;
 }
@@ -295,45 +297,45 @@
 
 .hj-mock-panel {
   position: relative;
-  margin-top: 1.2rem;
-  margin-inline: 0.15rem;
+  margin-top: calc(1.2 * var(--d));
+  margin-inline: calc(0.15 * var(--d));
   flex: 1;
-  min-height: 18rem;
-  border-radius: 1.25rem 1.25rem 0 0;
+  min-height: calc(18 * var(--d));
+  border-radius: calc(1.25 * var(--d)) calc(1.25 * var(--d)) 0 0;
   background: #d9d9d9;
   overflow: hidden;
 }
 
 .hj-mock-dots {
   position: absolute;
-  top: 0.85rem;
-  right: 0.95rem;
+  top: calc(0.85 * var(--d));
+  right: calc(0.95 * var(--d));
   z-index: 2;
   display: flex;
-  gap: 0.35rem;
+  gap: calc(0.35 * var(--d));
 }
 
 .hj-mock-dots span {
-  width: 0.38rem;
-  height: 0.38rem;
+  width: calc(0.38 * var(--d));
+  height: calc(0.38 * var(--d));
   border-radius: 999px;
   background: #fff;
 }
 
 .hj-mock-badge {
   position: absolute;
-  top: 1.5rem;
-  left: 1.1rem;
+  top: calc(1.5 * var(--d));
+  left: calc(1.1 * var(--d));
   z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.8rem;
-  padding: 0.2rem 0.85rem;
+  min-height: calc(1.8 * var(--d));
+  padding: calc(0.2 * var(--d)) calc(0.85 * var(--d));
   border-radius: 999px;
   background: rgb(237 28 47 / 50%);
   color: #fff;
-  font-size: 0.875rem;
+  font-size: calc(0.875 * var(--d));
   font-weight: 500;
 }
 
@@ -350,17 +352,17 @@
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: min(15rem, 78%);
+  width: min(calc(15 * var(--d)), 78%);
   height: 72%;
   transform: translateX(-50%);
-  border-radius: 1.6rem 1.6rem 0 0;
+  border-radius: calc(1.6 * var(--d)) calc(1.6 * var(--d)) 0 0;
 }
 
 .hj-mock-feed {
   position: relative;
-  margin-top: 1.2rem;
+  margin-top: calc(1.2 * var(--d));
   flex: 1;
-  min-height: 17rem;
+  min-height: calc(17 * var(--d));
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -368,56 +370,56 @@
 }
 
 .hj-mock-phone--feed {
-  width: min(19.5rem, 92%);
+  width: min(calc(19.5 * var(--d)), 92%);
   height: 100%;
-  border-radius: 1.6rem 1.6rem 0 0;
+  border-radius: calc(1.6 * var(--d)) calc(1.6 * var(--d)) 0 0;
 }
 
 /* Connect — Watch fan + Spotlight thumbs */
 .hj-fan-stack {
   position: relative;
   margin-top: auto;
-  min-height: 14.5rem;
+  min-height: calc(14.5 * var(--d));
   display: grid;
   place-items: center;
 }
 
 .hj-fan-tile {
   position: absolute;
-  width: 10.6rem;
-  height: 11.5rem;
+  width: calc(10.6 * var(--d));
+  height: calc(11.5 * var(--d));
   object-fit: cover;
-  border-radius: 1.25rem;
+  border-radius: calc(1.25 * var(--d));
   box-shadow: 0 12px 28px rgb(0 0 0 / 35%);
 }
 
 .hj-fan-tile.s1 {
-  left: 0.2rem;
-  bottom: 0.4rem;
+  left: calc(0.2 * var(--d));
+  bottom: calc(0.4 * var(--d));
   transform: rotate(-8deg);
   z-index: 1;
 }
 
 .hj-fan-tile.s2 {
-  right: 0.4rem;
-  bottom: 0.2rem;
+  right: calc(0.4 * var(--d));
+  bottom: calc(0.2 * var(--d));
   transform: rotate(8deg);
   z-index: 1;
 }
 
 .hj-fan-tile.s3 {
-  width: 11rem;
-  height: 12.5rem;
-  bottom: 0.8rem;
+  width: calc(11 * var(--d));
+  height: calc(12.5 * var(--d));
+  bottom: calc(0.8 * var(--d));
   z-index: 2;
 }
 
 .hj-fan-play {
   position: absolute;
   z-index: 3;
-  width: 1.7rem;
-  height: 1.7rem;
-  bottom: 6.2rem;
+  width: calc(1.7 * var(--d));
+  height: calc(1.7 * var(--d));
+  bottom: calc(6.2 * var(--d));
   left: 50%;
   transform: translateX(-50%);
 }
@@ -425,25 +427,25 @@
 .hj-spot-thumbs {
   position: relative;
   margin-top: auto;
-  min-height: 12rem;
+  min-height: calc(12 * var(--d));
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 0.8rem;
-  padding-bottom: 0.6rem;
+  gap: calc(0.8 * var(--d));
+  padding-bottom: calc(0.6 * var(--d));
 }
 
 .hj-spot-thumb {
   position: relative;
-  width: 7.8rem;
-  height: 8.6rem;
+  width: calc(7.8 * var(--d));
+  height: calc(8.6 * var(--d));
 }
 
 .hj-spot-thumb img:first-child {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 1.25rem;
+  border-radius: calc(1.25 * var(--d));
   box-shadow: 0 10px 24px rgb(0 0 0 / 35%);
 }
 
@@ -458,23 +460,120 @@
 .hj-spot-plus {
   position: absolute !important;
   left: 50%;
-  bottom: 0.55rem;
-  width: 2.5rem !important;
-  height: 2.5rem !important;
+  bottom: calc(0.55 * var(--d));
+  width: calc(2.5 * var(--d)) !important;
+  height: calc(2.5 * var(--d)) !important;
   transform: translateX(-50%);
 }
 
 @media (max-width: 991px) {
+  .hj-card-row,
+  .hj-card {
+    --d: 16px;
+  }
+}
+
+@media (max-width: 1023px) {
   .hj-card-row {
-    grid-template-columns: 1fr;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    grid-template-columns: none !important;
+    gap: 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 22px;
+    padding-inline: 22px;
+    margin-inline: -22px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+  }
+
+  .hj-card-row.is-dragging {
+    cursor: grabbing;
+    scroll-snap-type: none;
+  }
+
+  .hj-card-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hj-card-row[hidden] {
+    display: none !important;
   }
 
   .hj-card {
-    min-height: 0;
+    position: relative !important;
+    z-index: 0;
+    flex: 0 0 320px !important;
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+    min-height: 420px !important;
+    height: auto !important;
+    transform: none !important;
+    scroll-snap-align: start;
+    padding: calc(1.5 * var(--d)) calc(1.3 * var(--d)) calc(1.3 * var(--d));
+    box-sizing: border-box;
+  }
+
+  .hj-card-foot,
+  .hj-card-art-wrap,
+  .hj-card-bottom {
+    margin-top: calc(1.1 * var(--d));
+  }
+
+  .hj-card-title,
+  .hj-card-title--lg {
+    font-size: clamp(22px, 6.4vw, 34px);
   }
 
   .hj-mock-panel,
   .hj-mock-feed {
-    min-height: 16rem;
+    min-height: calc(11 * var(--d));
   }
 }
+
+/* Wide desktop — 3 cards in one row */
+@media (min-width: 1024px) {
+  .hj-card-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    flex-wrap: unset !important;
+    gap: 1.15rem;
+    overflow: visible;
+    scroll-snap-type: none;
+    padding-inline: 0;
+    margin-inline: 0;
+    cursor: auto;
+    user-select: auto;
+  }
+
+  .hj-card {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
+    aspect-ratio: auto;
+    scroll-snap-align: unset;
+  }
+
+  .hj-mock-panel,
+  .hj-mock-feed,
+  .hj-card-art-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    margin-top: auto;
+  }
+
+  .hj-mock-phone,
+  .hj-card-art {
+    max-height: 100%;
+    object-fit: contain;
+  }
+}
+

@@ -9,44 +9,35 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
   if (!total) return () => {};
 
   let angle = 0;
-  let radius = 0;
+  let radiusPx = 0;
   let baseAngles: number[] = [];
   let isDragging = false;
   let startX = 0;
   let lastX = 0;
   let lastTime = 0;
   let velocity = 0;
-  // Desktop only — mobile stays still unless user drags
-  const desktopMq = window.matchMedia("(min-width: 992px)");
-  let autoRotate = desktopMq.matches;
-  let autoDirection = 0.1;
+  let autoRotate = true;
+  let autoDirection = 0.08;
   let raf = 0;
   let visible = true;
   let running = false;
   let resizeTimer = 0;
 
-  const setup = () => {
-    const card = cards[0];
-    const cardWidth = card.offsetWidth;
-    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const style = getComputedStyle(carousel);
-    const gapRaw = style.columnGap || style.gap || "1.2rem";
-    const gapVal = parseFloat(gapRaw) || 1.2;
-    const spacing = gapRaw.includes("rem") ? gapVal : Math.max(0.85, Math.min(1.6, gapVal / rem));
-    const radiusInPx = cardWidth / 2 / Math.tan(Math.PI / total);
-    radius = (radiusInPx * spacing) / rem;
-    baseAngles = cards.map((_, i) => (360 / total) * i);
-  };
-
-  const onDesktopChange = () => {
-    autoRotate = desktopMq.matches && !isDragging;
-    if (!desktopMq.matches) velocity = 0;
-  };
-
   const paint = () => {
     cards.forEach((card, i) => {
-      card.style.transform = `rotateY(${baseAngles[i] + angle}deg) translateZ(${radius}rem)`;
+      card.style.transform = `rotateY(${baseAngles[i] + angle}deg) translateZ(${radiusPx}px)`;
     });
+  };
+
+  const setup = () => {
+    const cardWidth = cards[0].offsetWidth;
+    if (cardWidth < 8) {
+      requestAnimationFrame(setup);
+      return;
+    }
+    radiusPx = (cardWidth / 2 / Math.tan(Math.PI / total)) * 1.2;
+    baseAngles = cards.map((_, i) => (360 / total) * i);
+    paint();
   };
 
   const animate = () => {
@@ -57,13 +48,13 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
     }
 
     if (!isDragging) {
-      if (autoRotate && desktopMq.matches) {
+      if (autoRotate) {
         angle += autoDirection;
-      } else if (desktopMq.matches) {
+      } else {
         angle += velocity;
-        velocity *= 0.9;
-        if (Math.abs(velocity) < 0.05) {
-          autoDirection = velocity > 0 ? 0.1 : -0.1;
+        velocity *= 0.92;
+        if (Math.abs(velocity) < 0.04) {
+          autoDirection = velocity >= 0 ? 0.08 : -0.08;
           velocity = 0;
           autoRotate = true;
         }
@@ -109,11 +100,6 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
 
   const onDragEnd = () => {
     isDragging = false;
-    if (!desktopMq.matches) {
-      velocity = 0;
-      autoRotate = false;
-      return;
-    }
     if (Math.abs(velocity) < 0.1) velocity = autoDirection;
     autoRotate = true;
   };
@@ -134,7 +120,6 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
   window.addEventListener("touchmove", onTouchMove, { passive: true });
   window.addEventListener("touchend", onDragEnd);
   window.addEventListener("resize", onResize);
-  desktopMq.addEventListener("change", onDesktopChange);
 
   const io = new IntersectionObserver(
     ([entry]) => {
@@ -168,7 +153,6 @@ export function initFanHeroCarousel(root: ParentNode): () => void {
     window.removeEventListener("touchmove", onTouchMove);
     window.removeEventListener("touchend", onDragEnd);
     window.removeEventListener("resize", onResize);
-    desktopMq.removeEventListener("change", onDesktopChange);
     delete carousel.dataset.ffCarouselReady;
   };
 }

@@ -148,74 +148,111 @@ html.lenis body {
   transition: none;
 }
 
-/* Desktop navbar — full horizontal menu */
-@media screen and (min-width: 992px) {
+/* Desktop / iPad navbar — JoyJam 3-zone pill: logo | links | CTA */
+@media screen and (min-width: 768px) {
+  .navbar {
+    padding: 16px 24px 0;
+    justify-content: center;
+  }
+
   .navbar .hiffi-nav-toggle,
-  .navbar .nav-open-button {
+  .navbar .nav-open-button,
+  .navbar .nav-container > .wave-area {
     display: none !important;
+  }
+
+  .navbar .nav-container,
+  .navbar .nav-container.change {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.25rem;
+    width: min(92vw, 1080px);
+    max-width: 92vw;
+    padding: 8px 10px 8px 20px !important;
+    border-radius: 999px;
+  }
+
+  .navbar .brand.navbar-s {
+    grid-column: 1;
+    flex: 0 0 auto;
+    min-width: 0;
+    width: auto;
   }
 
   .navbar .nav-menu-wrapper {
     display: flex !important;
+    grid-column: 2;
     width: auto;
     height: auto !important;
     overflow: visible !important;
     position: static;
+    justify-content: center;
   }
 
   .navbar .nav-menu {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    gap: 0 !important;
   }
 
-  .navbar .nav-container {
-    display: inline-flex;
-    align-items: center;
+  .navbar .nav-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+  }
+
+  .navbar .nav-button-wrapper {
+    grid-column: 3;
+    width: auto;
+    margin: 0;
+    justify-content: flex-end;
   }
 }
 
-/* Mobile navbar — original template floating pill, white mode */
-@media screen and (max-width: 991px) {
+/* Phone navbar — full-bleed pill aligned with hero edges */
+@media screen and (max-width: 767px) {
   .navbar {
     width: 100% !important;
-    padding: 4vw 5vw 0 !important;
-    justify-content: center !important;
-    align-items: flex-start !important;
+    max-width: none !important;
+    padding: 12px 5.6vw 0 !important;
+    justify-content: stretch !important;
+    align-items: stretch !important;
     background-color: transparent !important;
+    box-sizing: border-box !important;
   }
 
   .navbar .nav-container,
-  .navbar .nav-container.change {
+  .navbar .nav-container.change,
+  .navbar:not(.hiffi-nav-is-open) .nav-container {
     display: flex !important;
-    flex-flow: column !important;
-    justify-content: flex-start !important;
-    align-items: stretch !important;
+    flex-flow: row nowrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    align-self: stretch !important;
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: none !important;
     min-width: 0 !important;
-    margin-inline: auto !important;
-    padding: 4.2vw !important;
-    border-radius: 2rem !important;
+    margin: 0 !important;
+    padding: 8px 12px 8px 18px !important;
+    min-height: 56px !important;
+    border-radius: 999px !important;
     position: relative !important;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     background-color: #fff !important;
     border: 1px solid rgb(0 0 0 / 10%) !important;
     box-shadow: 0 2px 18px rgb(0 0 0 / 7%) !important;
-  }
-
-  /* Closed — original template compact pill */
-  .navbar:not(.hiffi-nav-is-open) .nav-container {
-    flex-flow: row nowrap !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 3vw;
-    padding: 2.8vw 3.2vw 2.8vw 4.8vw !important;
-    min-height: 13.5vw !important;
-    border-radius: 999px !important;
+    transform: none !important;
+    opacity: 1 !important;
   }
 
   .navbar.hiffi-nav-is-open .nav-container {
+    flex-flow: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
     border-radius: 7vw !important;
     padding: 4.2vw !important;
   }
@@ -229,16 +266,16 @@ html.lenis body {
     max-width: none;
     margin: 0 !important;
     align-self: center !important;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
   }
 
   .navbar .hiffi-brand-logo {
-    height: clamp(28px, 7.5vw, 36px) !important;
+    height: 28px !important;
   }
 
   .navbar .hiffi-brand-logo img {
-    height: clamp(28px, 7.5vw, 36px) !important;
+    height: 28px !important;
     width: auto !important;
   }
 
@@ -246,17 +283,17 @@ html.lenis body {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: clamp(40px, 10.5vw, 48px) !important;
-    height: clamp(40px, 10.5vw, 48px) !important;
-    min-width: clamp(40px, 10.5vw, 48px) !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
     padding: 0;
-    position: absolute !important;
-    top: 50% !important;
-    right: 3.2vw !important;
-    transform: translateY(-50%);
-    background: #fff;
-    border: 1px solid rgb(0 0 0 / 14%) !important;
-    border-radius: 0.72rem !important;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    transform: none;
+    background: transparent;
+    border: none !important;
+    border-radius: 0.5rem !important;
     cursor: pointer;
     color: #080808;
     -webkit-tap-highlight-color: transparent;
@@ -266,7 +303,7 @@ html.lenis body {
   }
 
   .navbar:not(.hiffi-nav-is-open) .nav-container {
-    padding-right: calc(3.2vw + clamp(40px, 10.5vw, 48px) + 2.4vw) !important;
+    padding-right: 10px !important;
   }
 
   .navbar.hiffi-nav-is-open .nav-open-button.hiffi-nav-toggle {
@@ -339,10 +376,14 @@ html.lenis body {
     display: none;
   }
 
-  .navbar .nav-button-wrapper {
+  .navbar:not(.hiffi-nav-is-open) .nav-button-wrapper {
+    display: none !important;
+  }
+
+  .navbar.hiffi-nav-is-open .nav-button-wrapper {
+    display: flex;
     width: 100%;
     margin-top: 1.5rem;
-    display: flex;
     justify-content: center;
   }
 
@@ -357,12 +398,52 @@ html.lenis body {
 }
 
 @media screen and (max-width: 479px) {
-  .navbar.hiffi-nav-is-open .nav-container {
-    border-radius: 8vw !important;
+  .navbar {
+    padding: 12px 24px 0 !important;
+  }
+}
+
+/* iPad — JoyJam capsule with links, px sizes (beat Webflow 991 rem) */
+@media screen and (min-width: 768px) and (max-width: 991px) {
+  .navbar {
+    padding: 14px 20px 0 !important;
+    width: 100% !important;
+    justify-content: center !important;
   }
 
-  .navbar:not(.hiffi-nav-is-open) .nav-container {
-    border-radius: 999px !important;
+  .navbar .hiffi-nav-toggle,
+  .navbar .nav-open-button {
+    display: none !important;
+  }
+
+  .navbar .nav-container,
+  .navbar .nav-container.change {
+    width: min(94vw, 760px) !important;
+    max-width: 94vw !important;
+    min-height: 52px !important;
+    padding: 6px 8px 6px 16px !important;
+    column-gap: 10px !important;
+  }
+
+  .navbar .nav-link {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    padding: 8px 8px !important;
+    white-space: nowrap;
+    text-align: left !important;
+  }
+
+  .navbar .hiffi-brand-logo,
+  .navbar .hiffi-brand-logo img,
+  .navbar .hiffi-nav-logo-img {
+    height: 24px !important;
+    width: auto !important;
+  }
+
+  .navbar .nav-button {
+    min-width: 0 !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
   }
 }
 
@@ -448,6 +529,8 @@ footer.footer .footer-bg {
 /* Template body font (Poppins) cascades in — use the site font like other pages */
 .about-site-footer {
   font-family: var(--font-sans, "Geist", sans-serif);
+  overflow: visible;
+  box-sizing: border-box;
 }
 
 /* Why-us right card: rings + small centered logo */
@@ -590,6 +673,32 @@ footer.footer .footer-bg {
 [view-item="from-center"].view {
   transform: scale(1);
   opacity: 1;
+}
+
+@media screen and (max-width: 991px) {
+  html.joyjam-rem-scale .fc-page,
+  html.joyjam-rem-scale .ff-page {
+    --d: 16px;
+  }
+
+  .navbar .nav-container[view-item="from-center"],
+  .navbar .nav-container[view-item="from-center"].view {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  [view-item="from-center"] {
+    transform: translate3d(0, 18px, 0);
+    opacity: 0;
+    transition:
+      transform 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+      opacity 0.35s ease;
+  }
+
+  [view-item="from-center"].view {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 /* Wave hover effects from original template inline styles */

@@ -144,7 +144,7 @@ export function initViewItems(root: ParentNode) {
         observer.unobserve(entry.target);
       });
     },
-    { threshold: 0.2 },
+    { threshold: 0.01, rootMargin: "12% 0px" },
   );
 
   const revealIfOnScreen = (el: HTMLElement) => {
@@ -158,6 +158,10 @@ export function initViewItems(root: ParentNode) {
   const observe = (el: HTMLElement) => {
     el.setAttribute(VIEW_MARK, "true");
     marked.push(el);
+    if (el.hidden || el.closest("[hidden]")) {
+      reveal(el);
+      return;
+    }
     observer.observe(el);
     revealIfOnScreen(el);
   };

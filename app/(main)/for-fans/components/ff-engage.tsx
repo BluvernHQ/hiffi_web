@@ -1,10 +1,20 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-about/use-hiffi-about-section-init";
 
-/** Figma Engage grid — asymmetric 3-col */
+import { bindDragScroll } from "@/app/(main)/about/components/hiffi-about/bind-drag-scroll";
+
+/** Figma Engage grid — asymmetric 3-col on desktop, drag carousel on mobile */
 export default function FfEngage() {
   const ref = useHiffiAboutSectionInit("ff-engage");
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    return bindDragScroll(track);
+  }, []);
 
   return (
     <section ref={ref} className="ff-sec ff-engage">
@@ -12,7 +22,7 @@ export default function FfEngage() {
         <h2 data-split="chars-blur" className="ff-h2">
           Engage
         </h2>
-        <div {...{ "view-list": "" }} className="ff-engage-grid">
+        <div ref={trackRef} {...{ "view-list": "" }} className="ff-engage-grid">
           <article {...{ "view-item": "from-center" }} className="ff-eng-card ff-eng-card--blue">
             <h3 className="ff-eng-title">Artist Stories</h3>
             <p className="ff-eng-copy">

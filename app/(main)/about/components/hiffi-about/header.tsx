@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const MOBILE_NAV_MAX_WIDTH = 991;
+const MOBILE_NAV_MAX_WIDTH = 767;
 
 function useNavLinkHover(enabled: boolean) {
   const navLinksRef = useRef<HTMLDivElement>(null);
@@ -210,24 +210,24 @@ export default function HiffiHeader() {
                   <div className="nav-link-hover-line blur" />
                 </div>
               </div>
-
-              <div className="nav-button-wrapper">
-                <Link
-                  href="/signup"
-                  aria-label="Sign up for Hiffi"
-                  className="nav-button change hiffi-nav-cta"
-                  {...{ "wave-parent-infinity": "" }}
-                  onClick={closeMenu}
-                >
-                  <div>Sign Up</div>
-                  <div aria-hidden="true" className="wave-area">
-                    <div data-expand="1" className="wave-line-infinity" />
-                    <div data-expand="1" className="wave-line-infinity" />
-                  </div>
-                </Link>
-              </div>
             </div>
           </nav>
+
+          <div className="nav-button-wrapper">
+            <Link
+              href="/signup"
+              aria-label="Sign up for Hiffi"
+              className="nav-button change hiffi-nav-cta"
+              {...{ "wave-parent-infinity": "" }}
+              onClick={closeMenu}
+            >
+              <div>Sign Up</div>
+              <div aria-hidden="true" className="wave-area">
+                <div data-expand="1" className="wave-line-infinity" />
+                <div data-expand="1" className="wave-line-infinity" />
+              </div>
+            </Link>
+          </div>
 
           <div wave-parent-default="" className="wave-area">
             <div data-expand="1.5" change-color="" className="wave-line-default navbar-s change" />

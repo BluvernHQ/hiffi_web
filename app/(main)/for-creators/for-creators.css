@@ -1,19 +1,20 @@
 /* Figma For Creators — layout/colors; keep split + view-item animations */
 
 .fc-page {
+  --d: 1rem;
   --fc-red: #da291c;
   --fc-red-soft: #f14d5d;
   --fc-ink: #0c0c0c;
   --fc-muted: #737373;
   --fc-surface: #f3f3f3;
-  --fc-radius: 2.2rem;
+  --fc-radius: calc(2.2 * var(--d));
   background: #fff;
   color: var(--fc-ink);
   font-family: inherit;
 }
 
 .fc-page .fc-wrap {
-  width: min(83rem, 92vw);
+  width: min(calc(83 * var(--d)), 92vw);
   margin-inline: auto;
 }
 
@@ -27,21 +28,21 @@
 }
 
 .fc-page .fc-display {
-  font-size: clamp(3.2rem, 6.2vw, 7.2rem);
+  font-size: clamp(calc(3.2 * var(--d)), 6.2vw, calc(7.2 * var(--d)));
   line-height: 0.95;
   max-width: 10ch;
 }
 
 .fc-page .fc-h2 {
-  font-size: clamp(2.6rem, 4.2vw, 4.4rem);
+  font-size: clamp(calc(2.6 * var(--d)), 4.2vw, calc(4.4 * var(--d)));
   text-align: center;
-  margin-bottom: 1.6rem;
+  margin-bottom: calc(1.6 * var(--d));
   line-height: 1.05;
 }
 
 .fc-page .fc-h2-left {
   text-align: left;
-  margin-bottom: 1.2rem;
+  margin-bottom: calc(1.2 * var(--d));
 }
 
 .fc-page .fc-display .char,
@@ -54,13 +55,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3.4rem;
-  padding: 0.85rem 2rem;
+  min-height: calc(3.4 * var(--d));
+  padding: calc(0.85 * var(--d)) calc(2 * var(--d));
   border-radius: 999px;
   background: var(--fc-red);
   color: #fff !important;
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: calc(1.05 * var(--d));
   text-decoration: none;
   border: none;
 }
@@ -126,29 +127,29 @@
 .fc-page .fc-card-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.4rem;
+  gap: calc(1.4 * var(--d));
 }
 
 .fc-page .fc-sec {
-  padding: 4.5rem 0 1rem;
+  padding: calc(4.5 * var(--d)) 0 calc(1 * var(--d));
 }
 
 .fc-page .fc-body {
-  margin: 0 0 1rem;
-  font-size: 1.15rem;
+  margin: 0 0 calc(1 * var(--d));
+  font-size: calc(1.15 * var(--d));
   line-height: 1.45;
   color: var(--fc-ink);
-  max-width: 36rem;
+  max-width: calc(36 * var(--d));
 }
 
 .fc-page .fc-body.muted {
   color: var(--fc-muted);
-  font-size: 1.05rem;
+  font-size: calc(1.05 * var(--d));
 }
 
 .fc-page .fc-note {
-  margin: 1.4rem 0 0;
-  font-size: 0.95rem;
+  margin: calc(1.4 * var(--d)) 0 0;
+  font-size: calc(0.95 * var(--d));
   color: var(--fc-muted);
 }
 
@@ -156,22 +157,22 @@
 .fc-page .fc-create-row {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 3rem;
+  gap: calc(3 * var(--d));
   align-items: center;
-  margin-bottom: 3.2rem;
+  margin-bottom: calc(3.2 * var(--d));
 }
 
 .fc-page .fc-create-visual {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 28rem;
+  min-height: calc(28 * var(--d));
 }
 
 .fc-page .fc-create-glow {
   position: absolute;
   inset: 12% 18%;
-  border-radius: 2.4rem;
+  border-radius: calc(2.4 * var(--d));
   background:
     radial-gradient(circle at 70% 40%, rgb(218 41 28 / 28%), transparent 55%),
     #ececec;
@@ -181,9 +182,9 @@
 .fc-page .fc-create-phone {
   position: relative;
   z-index: 2;
-  width: min(22rem, 88%);
+  width: min(calc(22 * var(--d)), 88%);
   height: auto;
-  filter: drop-shadow(0 1.2rem 2rem rgb(0 0 0 / 18%));
+  filter: drop-shadow(0 calc(1.2 * var(--d)) calc(2 * var(--d)) rgb(0 0 0 / 18%));
 }
 
 .fc-page .fc-create-copy {
@@ -195,9 +196,9 @@
 .fc-page .fc-tags {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1.2rem 1.6rem;
-  padding: 2rem 1.8rem;
-  border-radius: 1.8rem;
+  gap: calc(1.2 * var(--d)) calc(1.6 * var(--d));
+  padding: calc(2 * var(--d)) calc(1.8 * var(--d));
+  border-radius: calc(1.8 * var(--d));
   background:
     radial-gradient(ellipse 40% 60% at 8% 0%, rgb(218 41 28 / 12%), transparent 55%),
     #f3f3f3;
@@ -208,25 +209,25 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.85rem;
+  gap: calc(0.85 * var(--d));
   text-align: center;
-  padding-inline: 0.4rem;
+  padding-inline: calc(0.4 * var(--d));
 }
 
 .fc-page .fc-tags-col:not(:last-child)::after {
   content: "";
   position: absolute;
-  top: 0.4rem;
-  right: -0.8rem;
+  top: calc(0.4 * var(--d));
+  right: calc(-0.8 * var(--d));
   width: 1px;
-  height: calc(100% - 0.8rem);
+  height: calc(100% - calc(0.8 * var(--d)));
   background: var(--fc-red);
   opacity: 0.85;
 }
 
 .fc-page .fc-tags-heading {
   margin: 0;
-  font-size: 1rem;
+  font-size: calc(1 * var(--d));
   font-weight: 700;
   color: var(--fc-ink);
 }
@@ -238,7 +239,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.65rem;
+  gap: calc(0.65 * var(--d));
   flex: 1;
   justify-content: center;
 }
@@ -247,23 +248,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.6rem;
-  padding: 0.45rem 1.1rem;
+  min-height: calc(2.6 * var(--d));
+  padding: calc(0.45 * var(--d)) calc(1.1 * var(--d));
   border-radius: 999px;
   background: var(--fc-red);
   color: #fff;
-  font-size: 0.92rem;
+  font-size: calc(0.92 * var(--d));
   font-weight: 600;
   white-space: nowrap;
 }
 
 /* —— Features —— */
 .fc-page .fc-features-lead {
-  margin: 0 auto 2rem;
-  max-width: 46rem;
+  margin: 0 auto calc(2 * var(--d));
+  max-width: calc(46 * var(--d));
   text-align: center;
   color: var(--fc-muted);
-  font-size: 1.1rem;
+  font-size: calc(1.1 * var(--d));
   line-height: 1.45;
 }
 
@@ -271,19 +272,19 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 2.4rem;
+  gap: calc(0.75 * var(--d));
+  margin-bottom: calc(2.4 * var(--d));
 }
 
 .fc-page .fc-tab {
-  min-height: 2.8rem;
-  padding: 0.55rem 1.4rem;
+  min-height: calc(2.8 * var(--d));
+  padding: calc(0.55 * var(--d)) calc(1.4 * var(--d));
   border-radius: 999px;
   border: 1px solid rgb(0 0 0 / 12%);
   background: #fff;
   color: var(--fc-ink);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: calc(0.95 * var(--d));
   cursor: pointer;
 }
 
@@ -295,19 +296,19 @@
 
 /* —— Tools —— */
 .fc-page .fc-tools {
-  padding-top: 2rem;
+  padding-top: calc(2 * var(--d));
 }
 
 .fc-page .fc-tools-panel {
   position: relative;
   overflow: hidden;
-  padding: 2.2rem 1.6rem;
-  border-radius: 1.9rem;
+  padding: calc(2.2 * var(--d)) calc(1.6 * var(--d));
+  border-radius: calc(1.9 * var(--d));
   background:
     radial-gradient(ellipse 70% 55% at 50% 40%, rgb(218 41 28 / 14%), transparent 70%),
     radial-gradient(circle, rgb(12 12 12 / 6%) 1px, transparent 1.15px),
     rgb(110 110 110 / 7%);
-  background-size: auto, 1.5rem 1.5rem, auto;
+  background-size: auto, calc(1.5 * var(--d)) calc(1.5 * var(--d)), auto;
 }
 
 .fc-page .fc-tools-watermark {
@@ -315,7 +316,7 @@
   left: 50%;
   top: 46%;
   transform: translate(-50%, -50%);
-  font-size: clamp(18rem, 42vw, 34rem);
+  font-size: clamp(calc(18 * var(--d)), 42vw, calc(34 * var(--d)));
   font-weight: 800;
   line-height: 0.8;
   letter-spacing: -0.08em;
@@ -330,29 +331,38 @@
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.1rem;
+  gap: calc(1.1 * var(--d));
 }
 
 .fc-page .fc-tool-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.55rem;
-  min-height: 11.5rem;
-  padding: 1.5rem 1.4rem 1.35rem;
-  border-radius: 1.25rem;
+  gap: calc(0.55 * var(--d));
+  min-height: calc(11.5 * var(--d));
+  padding: calc(1.5 * var(--d)) calc(1.4 * var(--d)) calc(1.35 * var(--d));
+  border-radius: calc(1.25 * var(--d));
   background: #fff;
 }
 
 .fc-page .fc-tool-icon {
-  width: 2.9rem;
-  height: 2.9rem;
+  width: calc(2.9 * var(--d));
+  height: calc(2.9 * var(--d));
   object-fit: contain;
 }
 
+.fc-page .fc-tool-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(0.2 * var(--d));
+  min-width: 0;
+  flex: 1;
+}
+
 .fc-page .fc-tool-title {
-  margin: 0.35rem 0 0;
-  font-size: 1.1rem;
+  margin: calc(0.35 * var(--d)) 0 0;
+  font-size: calc(1.1 * var(--d));
   font-weight: 700;
   color: var(--fc-ink);
   line-height: 1.2;
@@ -360,7 +370,7 @@
 
 .fc-page .fc-tool-body {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: calc(0.95 * var(--d));
   line-height: 1.35;
   color: #2a2a2a;
   max-width: 22ch;
@@ -368,16 +378,16 @@
 
 /* —— CTA —— */
 .fc-page .fc-cta {
-  padding: 3rem 0 5.5rem;
+  padding: calc(3 * var(--d)) 0 calc(5.5 * var(--d));
 }
 
 .fc-page .fc-cta-title {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 0 0 2.2rem;
+  margin: 0 0 calc(2.2 * var(--d));
   text-align: center;
-  font-size: clamp(3.6rem, 7vw, 6.4rem);
+  font-size: clamp(calc(3.6 * var(--d)), 7vw, calc(6.4 * var(--d)));
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 0.82;
@@ -395,10 +405,10 @@
 .fc-page .fc-cta-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2.4rem;
+  gap: calc(2.4 * var(--d));
   align-items: center;
-  padding: 2.6rem 2.8rem;
-  border-radius: 2.6rem;
+  padding: calc(2.6 * var(--d)) calc(2.8 * var(--d));
+  border-radius: calc(2.6 * var(--d));
   background: #f2f2f2;
 }
 
@@ -407,21 +417,21 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
-  max-width: 34rem;
+  max-width: calc(34 * var(--d));
 }
 
 .fc-page .fc-cta-lead {
-  margin: 0 0 1rem;
-  font-size: clamp(1.25rem, 1.6vw, 1.55rem);
+  margin: 0 0 calc(1 * var(--d));
+  font-size: clamp(calc(1.25 * var(--d)), 1.6vw, calc(1.55 * var(--d)));
   line-height: 1.3;
   font-weight: 700;
   color: var(--fc-ink);
 }
 
 .fc-page .fc-cta-sub {
-  margin: 0 0 1.8rem;
+  margin: 0 0 calc(1.8 * var(--d));
   color: #6b6b6b;
-  font-size: 1.05rem;
+  font-size: calc(1.05 * var(--d));
   line-height: 1.45;
   font-weight: 400;
 }
@@ -429,14 +439,14 @@
 .fc-page .fc-cta-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.9rem;
+  gap: calc(0.9 * var(--d));
   align-items: center;
 }
 
 .fc-page .fc-cta-media-wrap {
   position: relative;
   width: 100%;
-  border-radius: 1.8rem;
+  border-radius: calc(1.8 * var(--d));
   overflow: hidden;
 }
 
@@ -444,38 +454,203 @@
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 24rem;
+  min-height: calc(24 * var(--d));
   object-fit: cover;
   aspect-ratio: 526 / 413;
 }
 
 .fc-page .fc-cta-play {
   position: absolute;
-  right: 1.4rem;
-  bottom: 1.4rem;
-  width: 4.4rem;
-  height: 4.4rem;
+  right: calc(1.4 * var(--d));
+  bottom: calc(1.4 * var(--d));
+  width: calc(4.4 * var(--d));
+  height: calc(4.4 * var(--d));
   border: 0;
   border-radius: 999px;
   background: var(--fc-red);
   cursor: pointer;
   display: grid;
   place-items: center;
-  box-shadow: 0 0.6rem 1.4rem rgb(218 41 28 / 35%);
+  box-shadow: 0 calc(0.6 * var(--d)) calc(1.4 * var(--d)) rgb(218 41 28 / 35%);
 }
 
 .fc-page .fc-cta-play-tri {
   width: 0;
   height: 0;
-  margin-left: 0.2rem;
+  margin-left: calc(0.2 * var(--d));
   border-style: solid;
-  border-width: 0.55rem 0 0.55rem 0.95rem;
+  border-width: calc(0.55 * var(--d)) 0 calc(0.55 * var(--d)) calc(0.95 * var(--d));
   border-color: transparent transparent transparent #fff;
 }
 
 @media (max-width: 991px) {
+  .fc-page {
+    --d: 16px;
+    overflow-x: clip;
+  }
+
+  .fc-page .fc-wrap {
+    width: min(92vw, calc(83 * var(--d)));
+    padding-inline: 0;
+  }
+
+  .fc-page .fc-sec {
+    padding: calc(2.4 * var(--d)) 0 calc(0.6 * var(--d));
+  }
+
+  /* Hero — JoyJam mobile: cards above copy, left-aligned type */
+  .fc-page .creator-hero-sc {
+    overflow: hidden;
+  }
+
+  .fc-page .navbar {
+    padding: 3.6vw 5.5vw 0 !important;
+  }
+
+  .fc-page .navbar:not(.hiffi-nav-is-open) .nav-container {
+    padding: 2.2vw 2.6vw 2.2vw 5vw !important;
+    min-height: 12.5vw !important;
+    gap: 4vw;
+  }
+
+  .fc-page .container.creator-hero-s {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding-top: calc(16vw + env(safe-area-inset-top, 0px));
+    padding-bottom: max(8vw, env(safe-area-inset-bottom, 0px));
+    padding-left: 6.5vw;
+    padding-right: 6.5vw;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* DOM is copy then cards — pull the stack above the headline */
+  .fc-page .crator-hero-cards {
+    order: -1;
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    width: 86%;
+    max-width: 360px;
+    height: 38vw;
+    min-height: 148px;
+    max-height: 210px;
+    aspect-ratio: auto;
+    transform: rotate(16deg);
+    margin: 10px auto 28px;
+    pointer-events: none;
+    align-self: center;
+  }
+
+  .fc-page .creator-hero-card.s1 {
+    inset: 6% auto auto 2%;
+    transform: rotate(-6deg);
+  }
+
+  .fc-page .creator-hero-card.s2 {
+    inset: 0 auto auto 30%;
+    transform: rotate(2deg);
+  }
+
+  .fc-page .creator-hero-card.s3 {
+    inset: 14% auto auto 58%;
+    transform: rotate(8deg);
+  }
+
+  .fc-page .creator-hero-card-image {
+    width: min(32vw, 132px);
+    border-radius: 20px;
+    box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
+  }
+
+  .fc-page .text-elements.crator-hero-s {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: none;
+    align-items: flex-start;
+    text-align: left;
+    margin-top: 4px;
+  }
+
+  .fc-page .headline-wrapper.creator-hero-s {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .fc-page .creator-hero-sc .display-l {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .fc-page .creator-hero-sc .display-l br {
+    display: none;
+  }
+
+  .fc-page .creator-hero-sc .display-l,
+  .fc-page .creator-hero-sc .display-l .fc-hero-line,
+  .fc-page .creator-hero-sc .display-l .line,
+  .fc-page .creator-hero-sc .display-l .char {
+    font-size: clamp(44px, 13.8vw, 68px);
+    line-height: 0.9;
+    text-align: left;
+    letter-spacing: -0.05em;
+  }
+
+  .fc-page .creator-hero-sc .display-l .fc-hero-line {
+    display: block;
+  }
+
+  .fc-page .description-wrapper.creator-hero-s {
+    width: 94%;
+    max-width: 360px;
+    padding-top: 18px;
+    padding-bottom: 22px;
+  }
+
+  .fc-page .creator-hero-sc .subheadline-l {
+    font-size: clamp(15px, 3.8vw, 17px);
+    line-height: 1.45;
+    text-align: left;
+  }
+
+  .fc-page .open-form.full-w-p,
+  .fc-page .main-button-wrapper {
+    width: auto;
+    max-width: 100%;
+    align-self: flex-start;
+  }
+
+  .fc-page .creator-hero-sc .main-button {
+    width: auto;
+    min-width: 148px;
+    justify-content: center;
+    min-height: 48px;
+    padding-inline: 28px;
+  }
+
   .fc-page .fc-create-row {
     grid-template-columns: 1fr;
+    gap: calc(1.6 * var(--d));
+    margin-bottom: calc(2 * var(--d));
+  }
+
+  .fc-page .fc-create-visual {
+    min-height: 0;
+    order: -1;
+  }
+
+  .fc-page .fc-create-phone {
+    width: min(calc(18 * var(--d)), 72vw);
+  }
+
+  .fc-page .fc-h2 {
+    font-size: clamp(32px, 8.2vw, 52px);
   }
 
   .fc-page .fc-h2-left {
@@ -489,22 +664,187 @@
 
   .fc-page .fc-body {
     margin-inline: auto;
+    font-size: calc(1.05 * var(--d));
+  }
+
+  .fc-page .fc-tags {
+    grid-template-columns: 1fr;
+    gap: calc(1.6 * var(--d));
+    padding: calc(1.4 * var(--d)) calc(1.1 * var(--d));
+  }
+
+  .fc-page .fc-tags-col:not(:last-child)::after {
+    display: none;
+  }
+
+  .fc-page .fc-tags-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .fc-page .fc-features-lead {
+    font-size: calc(1 * var(--d));
+    padding-inline: 0.2rem;
+  }
+
+  .fc-page .fc-tabs {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+  }
+
+  .fc-page .fc-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fc-page .fc-tab {
+    flex: 1 0 auto;
+    min-height: calc(2.6 * var(--d));
+    font-size: calc(0.88 * var(--d));
+    padding: 0.45rem 1rem;
+  }
+
+  .fc-page .hj-card-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+  }
+
+  .fc-page .hj-card {
+    flex: 0 0 auto !important;
+    width: min(82vw, 360px) !important;
+    min-width: min(82vw, 360px) !important;
+  }
+
+  .fc-page .fc-tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fc-page .fc-tools-panel {
+    padding: calc(1.2 * var(--d));
+  }
+
+  .fc-page .fc-tools-watermark {
+    font-size: min(42vw, 192px);
+  }
+
+  .fc-page .fc-tool-card {
+    flex-direction: row;
+    align-items: flex-start;
+    min-height: 0;
+    padding: calc(1.05 * var(--d)) calc(1 * var(--d));
+    gap: calc(0.85 * var(--d));
+  }
+
+  .fc-page .fc-tool-icon {
+    width: calc(2.4 * var(--d));
+    height: calc(2.4 * var(--d));
+    flex-shrink: 0;
+  }
+
+  .fc-page .fc-tool-title {
+    margin-top: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .fc-page .fc-tool-body {
+    max-width: none;
+    overflow-wrap: anywhere;
+  }
+
+  .fc-page .fc-cta {
+    padding: calc(2 * var(--d)) 0 calc(3.2 * var(--d));
+  }
+
+  .fc-page .fc-cta-title {
+    font-size: clamp(40px, 12vw, 72px);
+    margin-bottom: calc(1.4 * var(--d));
+    line-height: 0.9;
+  }
+
+  .fc-page .fc-cta-panel {
+    grid-template-columns: 1fr;
+    padding: calc(1.4 * var(--d));
+    gap: calc(1.4 * var(--d));
+    border-radius: calc(1.6 * var(--d));
+  }
+
+  .fc-page .fc-cta-copy {
+    max-width: none;
+    align-items: stretch;
+  }
+
+  .fc-page .fc-cta-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fc-page .fc-btn {
+    width: 100%;
+  }
+
+  .fc-page .fc-cta-media {
+    min-height: calc(16 * var(--d));
+  }
+}
+
+/* Tablet — multi-column like JoyJam, not phone stack */
+@media (min-width: 768px) and (max-width: 991px) {
+  .fc-page .fc-wrap {
+    width: min(94vw, 52rem);
+  }
+
+  .fc-page .fc-create-row {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 1.6rem;
+  }
+
+  .fc-page .fc-h2-left,
+  .fc-page .fc-create-copy {
+    text-align: left;
+    align-items: flex-start;
   }
 
   .fc-page .fc-tags {
     grid-template-columns: 1fr 1fr;
   }
 
-  .fc-page .fc-tags-col:nth-child(2)::after {
-    display: none;
+  .fc-page .fc-tools-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .fc-page .fc-tools-grid,
-  .fc-page .fc-card-row {
-    grid-template-columns: 1fr;
+  .fc-page .hj-card-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    overflow: visible;
+  }
+
+  .fc-page .hj-card {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
   }
 
   .fc-page .fc-cta-panel {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fc-page .fc-cta-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .fc-page .fc-btn {
+    width: auto;
+  }
+
+  .fc-page .fc-cta-title {
+    font-size: clamp(48px, 8vw, 72px);
   }
 }

@@ -71,8 +71,10 @@ export default function FcTools() {
                   height={48}
                   loading="lazy"
                 />
-                <h3 className="fc-tool-title">{tool.title}</h3>
-                <p className="fc-tool-body">{tool.body}</p>
+                <div className="fc-tool-copy">
+                  <h3 className="fc-tool-title">{tool.title}</h3>
+                  <p className="fc-tool-body">{tool.body}</p>
+                </div>
               </article>
             ))}
           </div>

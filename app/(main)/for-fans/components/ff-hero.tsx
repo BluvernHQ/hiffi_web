@@ -26,7 +26,9 @@ export default function FfHero() {
             >
               <span className="ff-hero-line">Enhance</span>
               <br />
-              <span className="ff-hero-line">Your&nbsp;Freedom</span>
+              <span className="ff-hero-line">Your</span>
+              <br />
+              <span className="ff-hero-line">Freedom</span>
             </h1>
           </div>
           <div className="description-wrapper fan-hero-s">
@@ -60,7 +62,16 @@ export default function FfHero() {
                   width={164}
                   height={319}
                   loading={i < 4 ? "eager" : "lazy"}
-                  className="image-cover"
+                  className="image-cover card-face card-face--front"
+                />
+                <img
+                  src={src}
+                  alt=""
+                  width={164}
+                  height={319}
+                  loading="lazy"
+                  aria-hidden
+                  className="image-cover card-face card-face--back"
                 />
               </div>
             ))}
