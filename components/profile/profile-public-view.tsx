@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { VideoGrid } from "@/components/video/video-grid"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
+import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
@@ -23,6 +24,7 @@ export function ProfilePublicView(props: {
   username: string
   currentUserData: any
   isOwnProfile: boolean
+  inInventory?: boolean
   isFollowing: boolean
   isFollowingAction: boolean
   followActionType: "follow" | "unfollow" | null
@@ -53,6 +55,7 @@ export function ProfilePublicView(props: {
     username,
     currentUserData,
     isOwnProfile,
+    inInventory = false,
     isFollowing,
     isFollowingAction,
     followActionType,
@@ -277,6 +280,12 @@ export function ProfilePublicView(props: {
                         </div>
                       )}
                     </div>
+
+                    {inInventory ? (
+                      <div className="pt-3 border-t">
+                        <ProfileArtistIndexLink username={profileUser.username || username} />
+                      </div>
+                    ) : null}
 
                     <div className="pt-3 sm:pt-4 border-t">
                       <h3 className="font-semibold mb-2 sm:mb-3 text-xs sm:text-sm">Stats</h3>

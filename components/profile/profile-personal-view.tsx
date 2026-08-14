@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { VideoGrid } from "@/components/video/video-grid"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
+import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
@@ -17,6 +18,7 @@ export function ProfilePersonalView(props: {
   username: string
   currentUserData: any
   isOwnProfile: boolean
+  inInventory?: boolean
   profilePictureVersion: number
   referralUrl: string
   copied: boolean
@@ -42,6 +44,7 @@ export function ProfilePersonalView(props: {
     username,
     currentUserData,
     isOwnProfile,
+    inInventory = false,
     profilePictureVersion,
     referralUrl,
     copied,
@@ -185,6 +188,12 @@ export function ProfilePersonalView(props: {
                       {profileUser.bio && profileUser.bio.trim() ? profileUser.bio.trim() : "No bio available. Click Edit to add one."}
                     </p>
                   </div>
+
+                  {inInventory ? (
+                    <div className="pt-3 border-t">
+                      <ProfileArtistIndexLink username={profileUser.username || username} />
+                    </div>
+                  ) : null}
 
                   {/* Email display below bio */}
                   {(profileUser.email || (isOwnProfile && currentUserData?.email)) && (

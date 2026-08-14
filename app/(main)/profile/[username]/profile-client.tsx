@@ -70,6 +70,9 @@ export default function ProfilePage({
   const [isFollowingAction, setIsFollowingAction] = useState(false);
   const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null);
   const [profileUser, setProfileUser] = useState<any>(() => initialProfileUser ?? null);
+  const [inInventory, setInInventory] = useState(
+    () => (initialProfileUser as { in_inventory?: unknown } | null)?.in_inventory === true,
+  );
   const [userVideos, setUserVideos] = useState<any[]>(() => sortedInitialVideos);
   const [isLoading, setIsLoading] = useState(() => !initialProfileUser);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -230,6 +233,11 @@ export default function ProfilePage({
 
         debugLog("[hiffi] Final profile_picture value before setting state:", (profileData as any)?.profile_picture)
 
+        const inventoryListed = response?.in_inventory === true
+        if (profileData && typeof profileData === "object") {
+          profileData.in_inventory = inventoryListed
+        }
+        setInInventory(inventoryListed)
         setProfileUser(profileData);
         serverHasProfileRef.current = true;
 
@@ -438,6 +446,9 @@ export default function ProfilePage({
     profileSyncInFlightRef.current = false;
     ownProfileVideosSyncedRef.current = false;
     setProfileUser(initialProfileUser ?? null);
+    setInInventory(
+      (initialProfileUser as { in_inventory?: unknown } | null)?.in_inventory === true,
+    );
     setUserVideos(sortedInitialVideos);
     setIsLoading(!initialProfileUser);
     setHasTriedFetch(!!initialProfileUser);
@@ -735,6 +746,7 @@ export default function ProfilePage({
         username={username}
         currentUserData={currentUserData}
         isOwnProfile={isOwnProfile}
+        inInventory={inInventory}
         profilePictureVersion={profilePictureVersion}
         referralUrl={referralUrl}
         copied={copied}
@@ -793,6 +805,7 @@ export default function ProfilePage({
         <ProfileMemberView
           profileUser={profileUser}
           username={username}
+          inInventory={inInventory}
           isFollowing={isFollowing}
           isFollowingAction={isFollowingAction}
           followActionType={followActionType}
@@ -816,6 +829,7 @@ export default function ProfilePage({
       username={username}
       currentUserData={currentUserData}
       isOwnProfile={isOwnProfile}
+      inInventory={inInventory}
       isFollowing={isFollowing}
       isFollowingAction={isFollowingAction}
       followActionType={followActionType}

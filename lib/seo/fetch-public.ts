@@ -377,6 +377,16 @@ export const fetchUserProfileInitial = cache(
       if (user.image && !user.profile_picture) {
         user.profile_picture = user.image
       }
+      // Sibling of `user` on GET /users/{username}: data.in_inventory
+      const data =
+        json && typeof json === "object"
+          ? (json as Record<string, unknown>).data
+          : undefined
+      const inInventory =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>).in_inventory === true
+          : (json as Record<string, unknown>).in_inventory === true
+      user.in_inventory = inInventory
       return user
     } catch {
       return null
