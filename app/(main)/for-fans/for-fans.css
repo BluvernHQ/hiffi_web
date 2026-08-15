@@ -435,6 +435,47 @@
   padding-bottom: calc(1 * var(--d));
 }
 
+.ff-page .ff-discover .hj-card-row,
+.ff-page .ff-connect .hj-card-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  grid-template-columns: none !important;
+  gap: 22px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 8px;
+  padding-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  scrollbar-width: none;
+}
+
+.ff-page .ff-discover .hj-card-row::-webkit-scrollbar,
+.ff-page .ff-connect .hj-card-row::-webkit-scrollbar {
+  display: none;
+}
+
+.ff-page .ff-discover .hj-card-row.is-dragging,
+.ff-page .ff-connect .hj-card-row.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+}
+
+.ff-page .ff-discover .hj-card,
+.ff-page .ff-connect .hj-card {
+  flex: 0 0 371px !important;
+  width: 371px !important;
+  min-width: 371px !important;
+  max-width: 371px !important;
+  height: 488px !important;
+  min-height: 488px !important;
+  max-height: 488px !important;
+  aspect-ratio: auto !important;
+  scroll-snap-align: start;
+}
+
 .ff-page .hj-card {
   min-height: 0;
   aspect-ratio: 371 / 440;
