@@ -9,6 +9,11 @@ function initBorderRadius(root: HTMLElement) {
   if (!reference || !sticky) return () => {};
 
   const updateBorderRadius = () => {
+    if (window.innerWidth <= 767) {
+      sticky.style.borderTopLeftRadius = "";
+      sticky.style.borderTopRightRadius = "";
+      return;
+    }
     const baseFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
     const referenceWidth = reference.getBoundingClientRect().width;
     const radiusInRem = referenceWidth / baseFontSize;
@@ -36,11 +41,14 @@ function initVideoClose(root: HTMLElement) {
   const videoEmbed = root.querySelector<HTMLElement>(".creators-video-embed");
   const closeTrigger = root.querySelector<HTMLElement>("[close-video-trigger]");
   const headline = root.querySelector<HTMLElement>(".text-elements.creators-s");
+  const endCopy = root.querySelector<HTMLElement>(".description-wrapper.creators-down-s");
   if (!videoArea || !videoEmbed) return () => {};
 
+  const section = root.closest<HTMLElement>(".creators-sc") ?? root;
   let isClosed = false;
 
   videoEmbed.classList.remove("close");
+  section.classList.remove("is-video-closed");
   videoEmbed.style.position = "";
   videoEmbed.style.top = "";
   isClosed = false;
@@ -49,26 +57,37 @@ function initVideoClose(root: HTMLElement) {
     const rect = videoArea.getBoundingClientRect();
     const bottomEdge = rect.bottom;
     const viewportHeight = window.innerHeight;
-    const shouldClose = closeTrigger
-      ? bottomEdge <= viewportHeight
-      : bottomEdge <= viewportHeight * 0.55;
+    const isMobile = window.innerWidth <= 767;
+    let shouldClose = false;
+    if (isMobile && endCopy) {
+      const para = endCopy.getBoundingClientRect();
+      shouldClose = isClosed
+        ? para.top < viewportHeight * 0.9
+        : para.top < viewportHeight * 0.52;
+    } else {
+      shouldClose = closeTrigger
+        ? bottomEdge <= viewportHeight
+        : bottomEdge <= viewportHeight * 0.55;
+    }
 
     if (shouldClose && !isClosed) {
       videoEmbed.classList.add("close");
-
-      if (closeTrigger) {
+      section.classList.add("is-video-closed");
+      videoEmbed.style.position = "";
+      videoEmbed.style.top = "";
+      videoEmbed.style.left = "";
+      if (!isMobile && closeTrigger) {
         const triggerRect = closeTrigger.getBoundingClientRect();
-        const isSmallScreen = window.innerWidth <= 479;
-        const offset = isSmallScreen ? viewportHeight * 0.01 : viewportHeight * 0.15;
-        videoEmbed.style.top = `${triggerRect.top - offset}px`;
+        videoEmbed.style.top = `${triggerRect.top - viewportHeight * 0.15}px`;
       }
-
       headline?.classList.add("over-phone");
       isClosed = true;
     } else if (!shouldClose && isClosed) {
       videoEmbed.classList.remove("close");
+      section.classList.remove("is-video-closed");
       videoEmbed.style.position = "";
       videoEmbed.style.top = "";
+      videoEmbed.style.left = "";
       headline?.classList.remove("over-phone");
       isClosed = false;
     }
@@ -86,6 +105,7 @@ function initVideoClose(root: HTMLElement) {
     scrollTrigger.kill();
     window.removeEventListener("resize", checkPosition);
     headline?.classList.remove("over-phone");
+    section.classList.remove("is-video-closed");
   };
 }
 
@@ -125,8 +145,12 @@ function initCreatorsVideoScroll(root: HTMLElement) {
     timelines.push(tl);
   };
 
-  mm.add("(min-width: 480px)", () => addScroll("2.2rem"));
-  mm.add("(max-width: 479px)", () => addScroll("8rem"));
+  mm.add("(min-width: 768px)", () => addScroll("2.2rem"));
+  mm.add("(max-width: 767px)", () => {
+    gsap.set(videoSticky, { width: "100%", clearProps: "borderRadius" });
+    gsap.set(borderRef, { width: "0rem" });
+    return () => {};
+  });
 
   return () => {
     mm.revert();
@@ -140,21 +164,29 @@ function initCreatorsEndHeadline(root: HTMLElement) {
   const spanDown = root.querySelector<HTMLElement>(".creators-span-down-p");
   if (!endSection || !spanTop || !spanDown) return null;
 
-  gsap.set([spanTop, spanDown], { xPercent: 0 });
+  const mm = gsap.matchMedia();
 
-  const tl = gsap.timeline({
-    scrollTrigger: {
-      trigger: endSection,
-      start: "top bottom",
-      end: "bottom top",
-      scrub: true,
-    },
+  mm.add("(max-width: 767px)", () => {
+    gsap.set([spanTop, spanDown], { xPercent: 0, x: 0, clearProps: "transform" });
+    return () => {};
   });
 
-  tl.to(spanTop, { xPercent: -50, ease: "none", duration: 1 }, 0.1);
-  tl.to(spanDown, { xPercent: 50, ease: "none", duration: 1 }, 0.1);
+  mm.add("(min-width: 768px)", () => {
+    gsap.set([spanTop, spanDown], { xPercent: 0 });
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: endSection,
+        start: "top bottom",
+        end: "bottom top",
+        scrub: true,
+      },
+    });
+    tl.to(spanTop, { xPercent: -18, ease: "none", duration: 1 }, 0.1);
+    tl.to(spanDown, { xPercent: 18, ease: "none", duration: 1 }, 0.1);
+    return () => tl.scrollTrigger?.kill();
+  });
 
-  return () => tl.scrollTrigger?.kill();
+  return () => mm.revert();
 }
 
 function resolveCreatorsScope(root: ParentNode): HTMLElement | null {
