@@ -340,11 +340,13 @@ function warmupEngageConnect(root: ParentNode): () => void {
     });
   };
 
-  let idleId = 0;
-  if ("requestIdleCallback" in window) {
-    idleId = window.requestIdleCallback(decodeAll, { timeout: 800 });
+  let cancelWarmup: (() => void) | undefined;
+  if (typeof window.requestIdleCallback === "function") {
+    const idleId = window.requestIdleCallback(decodeAll, { timeout: 800 });
+    cancelWarmup = () => window.cancelIdleCallback(idleId);
   } else {
-    idleId = window.setTimeout(decodeAll, 200);
+    const timeoutId = window.setTimeout(decodeAll, 200);
+    cancelWarmup = () => window.clearTimeout(timeoutId);
   }
 
   const io = new IntersectionObserver(
@@ -361,7 +363,6 @@ function warmupEngageConnect(root: ParentNode): () => void {
 
   return () => {
     io.disconnect();
-    if ("cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
-    else window.clearTimeout(idleId);
+    cancelWarmup?.();
   };
 }
