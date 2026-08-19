@@ -43,6 +43,8 @@ import { AdminsPanel } from "@/components/admin/admins-panel"
 import { AdminToolsPanel } from "@/components/admin/admin-tools-panel"
 import { InventoryPanel } from "@/components/admin/inventory-panel"
 import { RankingAnomaliesPanel } from "@/components/admin/ranking-anomalies-panel"
+import { CreatorsPanel } from "@/components/admin/creators-panel"
+import { CreatorsDashboardSnapshot } from "@/components/admin/creators-dashboard-snapshot"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -67,7 +69,9 @@ function AdminDashboardContent() {
         ? "curated_playlists"
         : searchParams.get("sessionId")
           ? "journeys"
-          : searchParams.get("section") || "overview"
+          : searchParams.get("creator")
+            ? "creators"
+            : searchParams.get("section") || "overview"
   const flagId = searchParams.get("flagId")
   const feedbackId = searchParams.get("feedbackId")
   const playlistId = searchParams.get("playlistId")
@@ -90,6 +94,7 @@ function AdminDashboardContent() {
       !searchParams.get("feedbackId") &&
       !searchParams.get("playlistId") &&
       !searchParams.get("sessionId") &&
+      !searchParams.get("creator") &&
       !authLoading &&
       isAuthVerified &&
       admin
@@ -255,21 +260,24 @@ function AdminDashboardContent() {
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-            Monitor platform analytics, user engagement, watch hours, and manage content
-          </p>
+                      Creator health first, then platform-wide analytics
+                    </p>
         </div>
             {showContent ? (
-              <Card className="border-2 shadow-lg">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xl">Platform Analytics</CardTitle>
-                  <CardDescription>
-                    Real-time metrics and insights about your platform
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AnalyticsOverview />
-                </CardContent>
-              </Card>
+              <div className="space-y-4 sm:space-y-6">
+                {can("admin:creators") && <CreatorsDashboardSnapshot />}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Platform Analytics</CardTitle>
+                    <CardDescription>
+                      Real-time metrics and insights about your platform
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsOverview />
+                  </CardContent>
+                </Card>
+              </div>
             ) : (
               <AnalyticsSkeleton />
             )}
@@ -286,6 +294,20 @@ function AdminDashboardContent() {
                   </div>
                   <div className="flex-1 min-h-0">
                     {showContent ? <AdminUsersTable /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "creators" && can("admin:creators") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Creators</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Track creator growth, who has uploaded, and who needs a follow-up
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showContent ? <CreatorsPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

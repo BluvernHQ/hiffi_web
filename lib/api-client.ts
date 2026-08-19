@@ -2901,6 +2901,7 @@ class ApiClient {
     success: boolean
     counters: {
       users: number
+      organic_users: number
       videos: number
       comments: number
       replies: number

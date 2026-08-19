@@ -24,6 +24,7 @@ import {
   ArrowDownToLine,
   ListMusic,
   Mic2,
+  Clapperboard,
   Route,
   Activity,
   Wrench,
@@ -98,6 +99,7 @@ const navSections: NavSection[] = [
     title: "Community",
     items: [
       { icon: Users, label: "Users", value: "users", permission: "admin:users" },
+      { icon: Clapperboard, label: "Creators", value: "creators", permission: "admin:creators" },
       { icon: UserPlus, label: "Followers", value: "followers", permission: "admin:followers" },
       { icon: UsersRound, label: "Referrals", value: "referrals", permission: "admin:referrals" },
     ],
@@ -160,7 +162,9 @@ export function AdminSidebar({
         ? "curated_playlists"
         : searchParams.get("sessionId")
           ? "journeys"
-          : searchParams.get("section") || "overview"
+          : searchParams.get("creator")
+            ? "creators"
+            : searchParams.get("section") || "overview"
 
   const handleSectionChange = (value: string) => {
     router.push(`/admin/dashboard?section=${value}`)

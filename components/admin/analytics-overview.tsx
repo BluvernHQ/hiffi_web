@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,7 @@ import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 
 interface AnalyticsData {
   totalUsers: number
+  organicUsers: number
   totalVideos: number
   totalComments: number
   totalReplies: number
@@ -65,6 +67,7 @@ export function AnalyticsOverview() {
         
         // Get raw values from counters endpoint only - no fallbacks to ensure consistency
         const totalUsers = counters.users || 0
+        const organicUsers = counters.organic_users || 0
         const totalVideos = counters.videos || 0
         const totalComments = counters.comments || 0
         const totalReplies = counters.replies || 0
@@ -98,6 +101,7 @@ export function AnalyticsOverview() {
 
         setAnalytics({
           totalUsers,
+          organicUsers,
           totalVideos,
           totalComments,
           totalReplies,
@@ -267,7 +271,7 @@ export function AnalyticsOverview() {
       </div>
       
       {/* Key Metrics Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/20 group">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-semibold text-muted-foreground">Total Users</CardTitle>
@@ -276,10 +280,32 @@ export function AnalyticsOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalUsers)}</div>
-            <p className="text-xs text-muted-foreground">
-              Registered users on platform
-            </p>
+            <Link href="/admin/dashboard?section=users" className="block">
+              <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.totalUsers)}</div>
+              <p className="text-xs text-muted-foreground">
+                All accounts (organic + inventory)
+              </p>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 hover:shadow-lg transition-all duration-200 hover:border-primary/40 group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Organic Users</CardTitle>
+            <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+              <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Link href="/admin/dashboard?section=users&source=organic" className="block">
+              <div className="text-3xl font-bold tracking-tight mb-1">{formatNumber(analytics.organicUsers)}</div>
+              <p className="text-xs text-muted-foreground">
+                Self-serve signups
+                {analytics.totalUsers > 0
+                  ? ` · ${((analytics.organicUsers / analytics.totalUsers) * 100).toFixed(1)}% of total`
+                  : ""}
+              </p>
+            </Link>
           </CardContent>
         </Card>
 
@@ -439,6 +465,30 @@ export function AnalyticsOverview() {
                 </div>
                 <p className="text-xs text-muted-foreground/70">Comments + Replies + Upvotes</p>
               </div>
+              <Link
+                href="/admin/dashboard?section=users&source=organic"
+                className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0 rounded-md -mx-1 px-1 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Organic Users</span>
+                  <span className="text-base font-semibold text-primary">
+                    {formatNumber(analytics.organicUsers)} →
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Self-serve auth signups · open filtered list</p>
+              </Link>
+              <Link
+                href="/admin/dashboard?section=users&source=inventory"
+                className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0 rounded-md -mx-1 px-1 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Inventory Users</span>
+                  <span className="text-base font-semibold text-primary">
+                    {formatNumber(Math.max(0, analytics.totalUsers - analytics.organicUsers))} →
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground/70">Seeded artists · open filtered list</p>
+              </Link>
               <div className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Videos per User</span>

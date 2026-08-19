@@ -91,6 +91,16 @@ import {
   adminCloseRankingAnomaly as apiAdminCloseRankingAnomaly,
   adminScanRankingAnomalies as apiAdminScanRankingAnomalies,
 } from "./api/admin-ranking-anomalies"
+import {
+  adminGetCreatorOverview as apiAdminGetCreatorOverview,
+  adminGetCreatorFunnel as apiAdminGetCreatorFunnel,
+  adminGetCreatorAttention as apiAdminGetCreatorAttention,
+  adminGetCreatorTrends as apiAdminGetCreatorTrends,
+  adminListCreators as apiAdminListCreators,
+  adminGetCreator as apiAdminGetCreator,
+  adminSuspendCreator as apiAdminSuspendCreator,
+  adminUnsuspendCreator as apiAdminUnsuspendCreator,
+} from "./api/admin-creators"
 import type {
   AdminListContentFlagsParams,
   ContentFlag,
@@ -402,6 +412,40 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminScanRankingAnomalies() {
     return apiAdminScanRankingAnomalies(this)
+  }
+
+  // ─── Creators ────────────────────────────────────────────────────────────────
+
+  async adminGetCreatorOverview() {
+    return apiAdminGetCreatorOverview(this)
+  }
+
+  async adminGetCreatorFunnel(compare?: Parameters<typeof apiAdminGetCreatorFunnel>[1]) {
+    return apiAdminGetCreatorFunnel(this, compare)
+  }
+
+  async adminGetCreatorAttention(staleDays?: number) {
+    return apiAdminGetCreatorAttention(this, staleDays)
+  }
+
+  async adminGetCreatorTrends() {
+    return apiAdminGetCreatorTrends(this)
+  }
+
+  async adminListCreators(params?: Parameters<typeof apiAdminListCreators>[1]) {
+    return apiAdminListCreators(this, params)
+  }
+
+  async adminGetCreator(username: string) {
+    return apiAdminGetCreator(this, username)
+  }
+
+  async adminSuspendCreator(username: string) {
+    return apiAdminSuspendCreator(this, username)
+  }
+
+  async adminUnsuspendCreator(username: string) {
+    return apiAdminUnsuspendCreator(this, username)
   }
 
   // ─── Curated playlists ──────────────────────────────────────────────────────
