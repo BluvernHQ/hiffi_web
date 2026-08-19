@@ -294,7 +294,7 @@ function videoRow(raw: unknown): CreatorVideoRow {
   return {
     video_id: str(r.video_id),
     video_title: str(r.video_title, "Untitled"),
-    video_thumbnail: optStr(r.video_thumbnail),
+    video_thumbnail: optStr(r.video_thumbnail) || optStr(r.videoThumbnail),
     status: str(r.status),
     created_at: str(r.created_at),
   }

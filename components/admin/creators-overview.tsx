@@ -161,6 +161,18 @@ export function CreatorsOverview() {
     }
   }
 
+  const applyStaleDays = async (raw: number | string) => {
+    const next = Math.min(365, Math.max(1, Math.floor(Number(raw)) || 14))
+    setStaleDays(next)
+    if (guardOfflineBeforeFetch()) return
+    try {
+      const at = await adminApiClient.adminGetCreatorAttention(next)
+      setAttention(at)
+    } catch (error) {
+      handleFetchError(error)
+    }
+  }
+
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load
@@ -520,11 +532,26 @@ export function CreatorsOverview() {
                   min={1}
                   max={365}
                   value={staleDays}
-                  onChange={(e) => setStaleDays(Number(e.target.value) || 14)}
-                  onBlur={() => void load({ stale: staleDays })}
+                  onChange={(e) => setStaleDays(Number(e.target.value) || 1)}
+                  onBlur={(e) => void applyStaleDays(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      void applyStaleDays((e.target as HTMLInputElement).value)
+                    }
+                  }}
                   className="h-7 w-14 rounded border bg-background px-1.5 text-sm"
                 />
                 days
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => void applyStaleDays(staleDays)}
+                >
+                  Apply
+                </Button>
               </label>
             </div>
           </CardHeader>

@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { creatorsDashboardHref } from "@/lib/admin/creator-nav"
+import { getThumbnailUrl } from "@/lib/storage"
+import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import type { CreatorDetail } from "@/lib/types/admin-creators"
 
 function when(value?: string | null) {
@@ -293,26 +295,31 @@ export function CreatorDetail({ username }: { username: string }) {
             {uploads.recent_videos.length === 0 ? (
               <p className="text-sm text-muted-foreground">No published videos.</p>
             ) : (
-              uploads.recent_videos.map((video) => (
-                <div key={video.video_id} className="flex gap-3">
-                  {video.video_thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={video.video_thumbnail}
-                      alt=""
-                      className="h-14 w-24 rounded object-cover bg-muted"
-                    />
-                  ) : (
-                    <div className="h-14 w-24 rounded bg-muted" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{video.video_title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {video.status} · {when(video.created_at)}
-                    </p>
+              uploads.recent_videos.map((video) => {
+                const thumbnailUrl = getThumbnailUrl(video.video_thumbnail || "")
+                return (
+                  <div key={video.video_id} className="flex gap-3">
+                    <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded bg-muted">
+                      {thumbnailUrl ? (
+                        <AuthenticatedImage
+                          src={thumbnailUrl}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          authenticated={false}
+                          sizes="96px"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{video.video_title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {video.status} · {when(video.created_at)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </CardContent>
         </Card>
