@@ -29,7 +29,10 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   const isContentPageRoute = isContentPage(pathname)
   const isArtistIndexRoute =
     (pathname?.startsWith("/artist-index") || pathname?.startsWith("/hiffi-500")) ?? false
+  const isTopArtistsRoute = pathname?.startsWith("/top-artists") ?? false
   const showAppChrome = !isArtistIndexRoute
+  const showNavbar = showAppChrome && !isTopArtistsRoute
+  const showSidebar = showAppChrome && !isContentPageRoute && !isTopArtistsRoute
 
   const {
     isSidebarOpen,
@@ -47,7 +50,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
           : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
       }
     >
-      {showAppChrome ? (
+      {showNavbar ? (
         <Navbar
           variant={isContentPageRoute ? "minimal" : "full"}
           onMenuClick={
@@ -67,7 +70,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
 
       {/* Main Layout Container */}
       <div className={isArtistIndexRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
-        {showAppChrome && !isContentPageRoute && (
+        {showSidebar && (
           <Sidebar
             isMobileOpen={isSidebarOpen}
             onMobileClose={() => setIsSidebarOpen(false)}
@@ -84,7 +87,9 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
           className={
             isArtistIndexRoute
               ? "w-full min-w-0 flex-1"
-              : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
+              : isTopArtistsRoute
+                ? "h-[100dvh] w-full min-w-0 flex-1 overflow-hidden"
+                : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
           }
         >
           {children}
@@ -93,4 +98,3 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
     </div>
   )
 }
-

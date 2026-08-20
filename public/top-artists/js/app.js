@@ -1251,7 +1251,7 @@ function emptyRankingHTML() {
     return `<div class="empty-state"><b>No underground heat signals yet.</b><span>Underground Heat needs mid/small reach with engagement and momentum both clearing their floors.</span></div>`;
   }
   if (state.mode === "verified") {
-    return `<div class="empty-state"><b>No verified profiles here yet.</b><span>Only claimed Artist Index profiles appear in this mode.</span><a class="empty-state-link" href="/artist-index/claim">Claim your profile <span aria-hidden="true">↗</span></a></div>`;
+    return `<div class="empty-state"><b>No verified profiles here yet.</b><span>Only claimed Artist Index profiles appear in this mode.</span><a class="empty-state-link" href="/artist-index/claim" target="_parent">Claim your profile <span aria-hidden="true">↗</span></a></div>`;
   }
   return `<div class="empty-state"><b>No artist found.</b><span>Try another name or region.</span></div>`;
 }
@@ -1499,6 +1499,13 @@ function normalizeUsername(username) {
     .replace(/^@+/, "");
 }
 
+/** Keep history on the static document when embedded under AppLayout iframe. */
+function rankingDocumentBase() {
+  const path = window.location.pathname || "";
+  if (path.endsWith("/top-artists/index.html")) return "/top-artists/index.html";
+  return "/top-artists";
+}
+
 /** Canonical ranking URL: /top-artists?mode=breakout&city=atlanta&artist=migos */
 function buildRankingPath({ artist = null, location = state.location, mode = state.mode } = {}) {
   const params = new URLSearchParams();
@@ -1507,8 +1514,28 @@ function buildRankingPath({ artist = null, location = state.location, mode = sta
   if (loc) params.set("city", citySlug(loc));
   const handle = normalizeUsername(artist);
   if (handle) params.set("artist", handle);
+  try {
+    if (new URLSearchParams(window.location.search).get("embed") === "1") {
+      params.set("embed", "1");
+    }
+  } catch {
+    /* ignore */
+  }
   const query = params.toString();
-  return `/top-artists${query ? `?${query}` : ""}`;
+  return `${rankingDocumentBase()}${query ? `?${query}` : ""}`;
+}
+
+/** Public URL the parent shell should show (without /index.html or embed flag). */
+function publicRankingPath(documentPath) {
+  try {
+    const url = new URL(String(documentPath || ""), window.location.origin);
+    url.pathname = url.pathname.replace(/\/top-artists\/index\.html$/, "/top-artists");
+    url.searchParams.delete("embed");
+    const q = url.searchParams.toString();
+    return `${url.pathname}${q ? `?${q}` : ""}`;
+  } catch {
+    return String(documentPath || "").replace("/top-artists/index.html", "/top-artists");
+  }
 }
 
 function syncBrowserUrl({ artist = undefined, replace = true } = {}) {
@@ -1523,6 +1550,12 @@ function syncBrowserUrl({ artist = undefined, replace = true } = {}) {
   try {
     if (replace) history.replaceState({ topArtist: true }, "", path);
     else history.pushState({ topArtist: true }, "", path);
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(
+        { type: "hiffi-top-artists-url", path: publicRankingPath(path) },
+        window.location.origin,
+      );
+    }
   } catch {
     /* ignore */
   }
@@ -2148,6 +2181,13 @@ function bindEvents() {
       $("#menuToggle").setAttribute("aria-expanded", "false");
     }),
   );
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (!data || data.type !== "hiffi-top-artists-scroll" || typeof data.id !== "string") return;
+    const target = document.getElementById(data.id);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       const overlay = $("#drawerShareSheetOverlay");

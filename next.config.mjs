@@ -89,22 +89,6 @@ const nextConfig = {
         destination: "/sitemaps/:id",
       },
       {
-        source: "/top-artists",
-        destination: "/top-artists/index.html",
-      },
-      {
-        source: "/top-artists/",
-        destination: "/top-artists/index.html",
-      },
-      {
-        source: "/top-artists/how-it-works",
-        destination: "/top-artists/how-it-works/index.html",
-      },
-      {
-        source: "/top-artists/how-it-works/",
-        destination: "/top-artists/how-it-works/index.html",
-      },
-      {
         source: "/:path*.md",
         destination: "/llms-md/:path*",
       },

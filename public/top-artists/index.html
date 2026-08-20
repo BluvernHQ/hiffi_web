@@ -30,13 +30,28 @@
   <title>Hiffi Hip-Hop 500 — Live Signal Index</title>
 </head>
 <body>
+  <script>
+    try {
+      if (new URLSearchParams(location.search).get("embed") === "1") {
+        document.documentElement.classList.add("is-app-embed");
+      }
+    } catch (e) {}
+  </script>
   <main>
     <header class="site-header">
-      <a class="wordmark" href="#top" aria-label="HIFFI Hip-Hop 500 home">HIFFI HIP-HOP <span>500</span></a>
+      <div class="brand-cluster">
+        <button class="app-sidebar-toggle" id="appSidebarToggle" type="button" aria-label="Open Hiffi menu">
+          <span></span><span></span><span></span>
+        </button>
+        <a class="wordmark" href="#top" aria-label="Hiffi Hip-Hop 500 home">
+          <img class="wordmark-logo" src="/appbarlogo.png" alt="Hiffi" width="132" height="32" decoding="async" />
+          <span class="wordmark-title">HIP-HOP <span>500</span></span>
+        </a>
+      </div>
       <nav class="desktop-nav" id="primaryNav" aria-label="Primary navigation">
         <a href="#leaderboard">Leaderboard</a>
         <a href="#movers">Movers</a>
-        <a href="/top-artists/how-it-works">How it works</a>
+        <a href="/top-artists/how-it-works" target="_parent">How it works</a>
       </nav>
       <button class="header-arrow" type="button" data-scroll-target="leaderboard" aria-label="Explore the ranking"><span>↘</span></button>
       <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Toggle menu"><span></span><span></span></button>
@@ -125,7 +140,7 @@
         <p class="section-kicker">Method / 03</p>
         <h2>Built on signal.<br>Not opinion.</h2>
         <p>The Hiffi Hip-Hop 500 score is designed to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p>
-        <a class="how-inline-link" href="/top-artists/how-it-works">Full how it works <span>↗</span></a>
+        <a class="how-inline-link" href="/top-artists/how-it-works" target="_parent">Full how it works <span>↗</span></a>
       </div>
       <div class="weights">
         <article><span>01</span><b>35%</b><div><h3>Recent momentum</h3><p>30-day view and subscriber growth</p></div></article>
@@ -140,13 +155,16 @@
         <p>Are you on the list?</p>
         <span class="closing-deck">Claim your Hiffi Artist Profile to verify links, upload videos, and get discovered.</span>
       </div>
-      <a class="closing-cta" href="/artist-index/claim">Claim your profile <span>↗</span></a>
+      <a class="closing-cta" href="/artist-index/claim" target="_parent">Claim your profile <span>↗</span></a>
     </section>
 
     <footer>
-      <a class="wordmark" href="#top">HIP-HOP <span>500</span></a>
+      <a class="wordmark" href="#top">
+        <img class="wordmark-logo" src="/appbarlogo.png" alt="Hiffi" width="132" height="32" decoding="async" />
+        <span class="wordmark-title">HIP-HOP <span>500</span></span>
+      </a>
       <p>Independent index. Not affiliated with YouTube.<br>Metrics shown for may not be accurate, verify on YT.</p>
-      <div><a href="#leaderboard">Ranking</a><a href="/top-artists/how-it-works">How it works</a><a href="/artist-index/claim">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
+      <div><a href="#leaderboard">Ranking</a><a href="/top-artists/how-it-works" target="_parent">How it works</a><a href="/artist-index/claim" target="_parent">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
       <small>© 2026 HIFFI HIP-HOP 500</small>
     </footer>
   </main>
@@ -430,6 +448,18 @@
         return "https://prod.hiffi.workers.dev";
       }
       return "https://dev.hiffi.workers.dev";
+    })();
+    (function () {
+      var btn = document.getElementById("appSidebarToggle");
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            { type: "hiffi-top-artists-sidebar-toggle" },
+            window.location.origin
+          );
+        }
+      });
     })();
   </script>
   <script src="/top-artists/js/share-cards.js" defer></script>
