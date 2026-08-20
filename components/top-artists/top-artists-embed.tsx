@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -30,6 +30,8 @@ export function TopArtistsEmbed({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const iframeSrcRef = useRef<string | null>(null)
+  const iframeDocRef = useRef(documentSrc)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const {
@@ -40,13 +42,20 @@ export function TopArtistsEmbed({
     toggleMobileSidebar,
   } = useSidebar()
 
-  const iframeSrc = useMemo(() => {
+  // Lock iframe src after first paint. Parent URL sync (artist/mode/city) must not
+  // rebuild src — that remounts the embed and looks like a full page reload.
+  if (iframeDocRef.current !== documentSrc) {
+    iframeDocRef.current = documentSrc
+    iframeSrcRef.current = null
+  }
+  if (iframeSrcRef.current == null) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("embed", "1")
     const qs = params.toString()
     const hash = typeof window !== "undefined" ? window.location.hash : ""
-    return `${documentSrc}?${qs}${hash}`
-  }, [documentSrc, searchParams])
+    iframeSrcRef.current = `${documentSrc}?${qs}${hash}`
+  }
+  const iframeSrc = iframeSrcRef.current
 
   const toggleAppSidebar = useCallback(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
