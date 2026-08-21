@@ -10,7 +10,7 @@
   }
   function go(delta) {
     const target = current + delta;
-    if (target >= 1 && target <= 10) window.location.href = `slide-${target}.html`;
+    if (target >= 1 && target <= 10) window.location.href = `/pitch/slide-${target}.html`;
   }
   fit();
   window.addEventListener('resize', fit, {passive:true});
@@ -18,8 +18,8 @@
   document.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') { event.preventDefault(); go(1); }
     if (event.key === 'ArrowLeft' || event.key === 'PageUp') { event.preventDefault(); go(-1); }
-    if (event.key === 'Home') window.location.href = 'slide-1.html';
-    if (event.key === 'End') window.location.href = 'slide-10.html';
+    if (event.key === 'Home') window.location.href = '/pitch/slide-1.html';
+    if (event.key === 'End') window.location.href = '/pitch/slide-10.html';
   });
   let startX = null;
   document.addEventListener('touchstart', (event) => { startX = event.changedTouches[0].clientX; }, {passive:true});

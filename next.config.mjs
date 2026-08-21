@@ -98,6 +98,12 @@ const nextConfig = {
         destination: "/pitch/slide-1.html",
         permanent: false,
       },
+      // Safety: relative slide links that resolved to site root
+      {
+        source: "/slide-:n(\\d+)\\.html",
+        destination: "/pitch/slide-:n.html",
+        permanent: false,
+      },
     ]
   },
   async rewrites() {
