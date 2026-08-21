@@ -65,7 +65,9 @@ const columns: FooterColumn[] = [
     links: [
       { label: "Hip-Hop", href: "/hip-hop" },
       { label: "Artist Index", href: "/artist-index" },
+      { label: "Hiffi 500", href: "/top-artists" },
       { label: "Atlanta guide", href: "/atlanta" },
+      { label: "Atlanta artists", href: "/artist-index/city/atlanta" },
       { label: "Claim your profile", href: "/artist-index/claim" },
       { label: "Download app", href: "/app" },
     ],
@@ -126,7 +128,7 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-3 lg:grid-cols-5">
           {columns.map((col) => (
             <div key={col.title} className="space-y-3">
               <div

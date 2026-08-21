@@ -50,7 +50,6 @@ const nextConfig = {
         destination: "/studio/tools/migrate",
         permanent: true,
       },
-      // Legacy singular path → canonical /top-artists
       {
         source: "/top-artist",
         destination: "/top-artists",
@@ -62,29 +61,18 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/top-artist/:path*",
-        destination: "/top-artists/:path*",
+        source: "/top-artist/how-it-works",
+        destination: "/top-artists/how-it-works",
         permanent: true,
       },
       {
-        source: "/top-artists/how-it-works",
-        destination: "/top-artists",
-        permanent: false,
-      },
-      {
-        source: "/top-artists/how-it-works/",
-        destination: "/top-artists",
-        permanent: false,
-      },
-      // Retired Next.js Hiffi 500 UI → Hip-Hop 500 preview
-      {
-        source: "/hiffi-500",
-        destination: "/top-artists",
+        source: "/top-artist/how-it-works/",
+        destination: "/top-artists/how-it-works",
         permanent: true,
       },
       {
-        source: "/hiffi-500/:path*",
-        destination: "/top-artists",
+        source: "/top-artist/share/:path*",
+        destination: "/top-artists/share/:path*",
         permanent: true,
       },
       // Pitch deck entry: avoid /pitch (no trailing slash) resolving relative links to /
@@ -98,7 +86,6 @@ const nextConfig = {
         destination: "/pitch/slide-1.html",
         permanent: false,
       },
-      // Safety: relative slide links that resolved to site root
       {
         source: "/slide-:n(\\d+)\\.html",
         destination: "/pitch/slide-:n.html",
@@ -116,14 +103,6 @@ const nextConfig = {
       {
         source: "/sitemap/:id.xml",
         destination: "/sitemaps/:id",
-      },
-      {
-        source: "/top-artists",
-        destination: "/top-artists/index.html",
-      },
-      {
-        source: "/top-artists/",
-        destination: "/top-artists/index.html",
       },
       {
         source: "/:path*.md",

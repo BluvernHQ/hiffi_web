@@ -3,7 +3,7 @@ import { getWorkersBaseUrl } from "@/lib/config"
 export const dynamic = "force-dynamic"
 
 /**
- * Injects Workers CDN base from NEXT_PUBLIC_WORKERS_URL / env config.
+ * Injects Workers CDN base from NEXT_PUBLIC_WORKERS_URL / NEXT_PUBLIC_ENV.
  * Loaded by /top-artists before app.js — no hostname hardcoding.
  */
 export function GET() {
