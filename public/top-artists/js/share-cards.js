@@ -82,7 +82,7 @@
     if (trimmed.startsWith("/proxy/")) return null;
     const base =
       (typeof global.__HIFFI_WORKERS_URL__ === "string" && global.__HIFFI_WORKERS_URL__.trim()) ||
-      "https://dev.hiffi.workers.dev";
+      "https://prod.hiffi.workers.dev";
     const clean = trimmed.replace(/^\//, "");
     return clean ? `${base.replace(/\/$/, "")}/${clean}` : null;
   }

@@ -9,6 +9,8 @@ const ACCENTS = ["#ff2b2b", "#f4f1ea", "#7e7e83", "#ff2b2b", "#b8b6b1"];
 const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v8";
 const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v1";
 const UI_KEY = "hiffi-top-artist-ui-v4";
+/** Scroll only — sessionStorage so a new browser session always starts at the top. */
+const SCROLL_KEY = "hiffi-top-artist-scroll-v1";
 /** In-memory profile photo URLs keyed by lowercase username. */
 const photoUrlByUsername = new Map();
 const photoLookupFailed = new Set();
@@ -202,7 +204,30 @@ function readUiState() {
   return saved;
 }
 
+function readSessionScrollY() {
+  try {
+    const raw = sessionStorage.getItem(SCROLL_KEY);
+    if (raw == null || raw === "") return null;
+    const y = Number(raw);
+    return Number.isFinite(y) && y >= 0 ? y : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionScrollY(y) {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(Math.max(0, Math.round(Number(y) || 0))));
+  } catch {
+    /* private mode */
+  }
+}
+
 function writeUiState() {
+  const scrollY = suppressScrollSave
+    ? readSessionScrollY() ?? window.scrollY
+    : window.scrollY;
+  writeSessionScrollY(scrollY);
   writeJsonStorage(UI_KEY, {
     query: state.query,
     location: state.location,
@@ -210,7 +235,6 @@ function writeUiState() {
     risersWindow: state.risersWindow,
     sort: state.sort,
     visible: state.visible,
-    scrollY: suppressScrollSave ? readUiState()?.scrollY ?? window.scrollY : window.scrollY,
   });
 }
 
@@ -377,11 +401,11 @@ function scrollToY(y) {
   requestAnimationFrame(settle);
 }
 
-/** Restore scroll only on the initial cached paint (return visit). */
+/** Restore scroll only within the same browser session (not a fresh visit). */
 function restoreScrollPosition() {
-  const saved = readUiState();
-  if (!saved || typeof saved.scrollY !== "number") return;
-  scrollToY(saved.scrollY);
+  const y = readSessionScrollY();
+  if (y == null || y <= 0) return;
+  scrollToY(y);
 }
 
 /** Keep the live viewport still across a background re-render. */
@@ -671,12 +695,9 @@ function workersBaseUrl() {
   if (configured && typeof configured === "string" && configured.trim()) {
     return configured.trim().replace(/\/$/, "");
   }
-  const host = typeof window !== "undefined" ? window.location.hostname : "";
-  // Match lib/config.ts defaults: prod hosts → prod workers; everything else → dev workers.
-  if (host === "www.hiffi.com" || host === "hiffi.com" || host === "preprod.hiffi.com") {
-    return "https://prod.hiffi.workers.dev";
-  }
-  return "https://dev.hiffi.workers.dev";
+  // Fallback if /top-artists/runtime-config did not load — prefer prod CDN.
+  console.warn("[top-artists] __HIFFI_WORKERS_URL__ missing — load /top-artists/runtime-config first");
+  return "https://prod.hiffi.workers.dev";
 }
 
 /**
@@ -2464,11 +2485,24 @@ function hydrateBannerCitiesFromCache() {
 }
 
 async function init() {
+  if ("scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "manual";
+  }
   bindEvents();
   sharedArtistOpenedFor = null;
   const deepLink = readShareDeepLink();
   restoreUiState();
 
+  // Drop scrollY leftover from older localStorage UI blobs (cross-session restore).
+  try {
+    const saved = readUiState();
+    if (saved && Object.prototype.hasOwnProperty.call(saved, "scrollY")) {
+      const { scrollY: _drop, ...rest } = saved;
+      writeJsonStorage(UI_KEY, rest);
+    }
+  } catch {
+    /* ignore */
+  }
   // Shared links win over saved UI state for chart scope + search + mode.
   if (deepLink?.hasLocationParam) {
     state.location = deepLink.location || "";

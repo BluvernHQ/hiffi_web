@@ -440,15 +440,8 @@
     </div>
   </div>
 
+  <script src="/top-artists/runtime-config"></script>
   <script>
-    // Direct Workers CDN for ranking avatars (matches lib/config.ts defaults).
-    window.__HIFFI_WORKERS_URL__ = (function () {
-      var h = location.hostname;
-      if (h === "www.hiffi.com" || h === "hiffi.com" || h === "preprod.hiffi.com") {
-        return "https://prod.hiffi.workers.dev";
-      }
-      return "https://dev.hiffi.workers.dev";
-    })();
     (function () {
       var btn = document.getElementById("appSidebarToggle");
       if (!btn) return;
