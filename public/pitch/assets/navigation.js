@@ -3,10 +3,28 @@
   const BASE_H = 900;
   const TRANSITION_MS = 320;
   const DIR_KEY = "hiffi-pitch-dir";
+  const ASSET_BASE = "/pitch/assets/";
   const body = document.body;
   const current = Number(body.dataset.slide || 1);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let navigating = false;
+
+  const SHARED_ASSETS = ["hiffi-logo.png", "bg_dark_red.png"];
+  const SLIDE_ASSETS = {
+    1: ["hero_crowd.jpg"],
+    2: [],
+    3: [],
+    4: [],
+    5: ["artist_maya.jpg", "artist_kairo.jpg", "artist_aria.jpg"],
+    6: [],
+    7: [],
+    8: ["ai_signal_vortex.png"],
+    9: ["world_music_map.png"],
+    10: ["future_stage.png"],
+  };
+
+  const warmedImages = new Set();
+  const warmedDocs = new Set();
 
   function fit() {
     const scale = Math.min(window.innerWidth / BASE_W, window.innerHeight / BASE_H);
@@ -15,6 +33,10 @@
 
   function slideUrl(n) {
     return `/pitch/slide-${n}.html`;
+  }
+
+  function assetUrl(file) {
+    return `${ASSET_BASE}${file}`;
   }
 
   function rememberDirection(from, to) {
@@ -100,8 +122,95 @@
     return "fade";
   }
 
+  function warmImage(file) {
+    const url = assetUrl(file);
+    if (warmedImages.has(url)) return Promise.resolve();
+    warmedImages.add(url);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = img.onerror = () => resolve();
+      img.src = url;
+    });
+  }
+
+  function warmDocument(n) {
+    if (n < 1 || n > 10) return Promise.resolve();
+    const url = slideUrl(n);
+    if (warmedDocs.has(url)) return Promise.resolve();
+    warmedDocs.add(url);
+
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.as = "document";
+    link.href = url;
+    document.head.appendChild(link);
+
+    return fetch(url, { credentials: "same-origin", priority: "low" }).catch(() => {});
+  }
+
+  function assetsForSlide(n) {
+    return [...SHARED_ASSETS, ...(SLIDE_ASSETS[n] || [])];
+  }
+
+  function preloadSlide(n) {
+    if (n < 1 || n > 10) return Promise.resolve();
+    return Promise.all([warmDocument(n), ...assetsForSlide(n).map(warmImage)]);
+  }
+
+  function schedule(fn, timeout = 400) {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(() => fn(), { timeout });
+    } else {
+      window.setTimeout(fn, Math.min(timeout, 180));
+    }
+  }
+
+  /** Warm next/prev first, then fan out through the deck. */
+  function startProgressivePreload() {
+    const order = [];
+    const seen = new Set([current]);
+    const push = (n) => {
+      if (n < 1 || n > 10 || seen.has(n)) return;
+      seen.add(n);
+      order.push(n);
+    };
+
+    push(current + 1);
+    push(current - 1);
+    push(current + 2);
+    push(current - 2);
+    for (let n = 1; n <= 10; n += 1) push(n);
+
+    // Shared + current unique assets immediately (helps back-nav / shared bg).
+    SHARED_ASSETS.forEach((file) => {
+      void warmImage(file);
+    });
+    (SLIDE_ASSETS[current] || []).forEach((file) => {
+      void warmImage(file);
+    });
+
+    // Highest priority: immediate next slide.
+    if (current < 10) {
+      void preloadSlide(current + 1);
+    }
+
+    let index = 0;
+    const pump = () => {
+      if (navigating || index >= order.length) return;
+      const n = order[index];
+      index += 1;
+      preloadSlide(n).finally(() => {
+        if (!navigating && index < order.length) schedule(pump, 700);
+      });
+    };
+
+    schedule(pump, 220);
+  }
+
   fit();
   enter();
+  startProgressivePreload();
 
   window.addEventListener("resize", fit, { passive: true });
   window.addEventListener("orientationchange", fit, { passive: true });
@@ -141,7 +250,10 @@
     if (!href || href === window.location.pathname) return;
     event.preventDefault();
     const direction = directionForUrl(href);
-    rememberDirection(current, Number((href.match(/slide-(\d+)/) || [])[1] || current));
+    const target = Number((href.match(/slide-(\d+)/) || [])[1] || current);
+    rememberDirection(current, target);
+    // Nudge preload for the exact destination before the fade-out finishes.
+    void preloadSlide(target);
     navigateTo(href, direction);
   });
 
