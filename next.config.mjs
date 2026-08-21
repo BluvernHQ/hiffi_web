@@ -87,6 +87,17 @@ const nextConfig = {
         destination: "/top-artists",
         permanent: true,
       },
+      // Pitch deck entry: avoid /pitch (no trailing slash) resolving relative links to /
+      {
+        source: "/pitch",
+        destination: "/pitch/slide-1.html",
+        permanent: false,
+      },
+      {
+        source: "/pitch/",
+        destination: "/pitch/slide-1.html",
+        permanent: false,
+      },
     ]
   },
   async rewrites() {
