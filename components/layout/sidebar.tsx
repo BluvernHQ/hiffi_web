@@ -38,9 +38,11 @@ interface SidebarProps {
   onDesktopToggle?: () => void
   currentFilter?: 'all' | 'following' | 'liked' | 'history'
   onFilterChange?: (filter: 'all' | 'following' | 'liked' | 'history') => void
+  /** Open only within a body row under a full-width header (e.g. /top-artists). */
+  insetBelowHeader?: boolean
 }
 
-export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange }: SidebarProps) {
+export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesktopOpen = false, onDesktopToggle, currentFilter = 'all', onFilterChange, insetBelowHeader = false }: SidebarProps) {
   const { user, userData } = useAuth()
   const pathname = usePathname()
   const isAppDownloadPage = pathname === "/app"
@@ -363,7 +365,10 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm lg:hidden"
+          className={cn(
+            "fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm lg:hidden",
+            insetBelowHeader && "top-16 sm:top-20",
+          )}
           onClick={closeSidebar}
         />
       )}
@@ -374,10 +379,15 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
           // Fixed width - never changes (256px / w-64) when open
           isAppDownloadPage ? "flex-shrink-0 bg-[#f3f0e8]" : "flex-shrink-0 bg-background",
           // Mobile: fixed overlay, always w-64
-          "fixed left-0 top-0 z-[70] h-[100dvh] w-64 shadow-lg transition-transform duration-300 ease-in-out",
-          // Desktop: sticky positioning below navbar, can be hidden
-          // top-16 = 4rem = navbar height; use 100dvh to match app layout so footer isn't clipped
-          "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100dvh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",
+          "fixed left-0 z-[70] w-64 shadow-lg transition-transform duration-300 ease-in-out",
+          insetBelowHeader
+            ? "top-16 h-[calc(100dvh-4rem)] sm:top-20 sm:h-[calc(100dvh-5rem)]"
+            : "top-0 h-[100dvh]",
+          // Desktop: sticky in layout row
+          // Default: top-16 = navbar height; insetBelowHeader sits in the body row under Hip-Hop 500 header
+          insetBelowHeader
+            ? "lg:sticky lg:left-auto lg:top-0 lg:z-auto lg:h-full lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out"
+            : "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100dvh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",
           // Desktop overflow — inner column scrolls; footer links appear at scroll end
           "lg:overflow-hidden",
           // Mobile visibility

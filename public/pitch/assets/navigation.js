@@ -21,6 +21,7 @@
     8: ["ai_signal_vortex.png"],
     9: ["world_music_map.png"],
     10: ["future_stage.png"],
+    11: ["team_inoto.png", "team_balachander.png", "team_hemangi.png", "team_srider.png", "team_guru.png"],
   };
 
   const warmedImages = new Set();
@@ -108,7 +109,7 @@
 
   function go(delta) {
     const target = current + delta;
-    if (target < 1 || target > 10) return;
+    if (target < 1 || target > 11) return;
     rememberDirection(current, target);
     navigateTo(slideUrl(target), delta > 0 ? "next" : "prev");
   }
@@ -135,7 +136,7 @@
   }
 
   function warmDocument(n) {
-    if (n < 1 || n > 10) return Promise.resolve();
+    if (n < 1 || n > 11) return Promise.resolve();
     const url = slideUrl(n);
     if (warmedDocs.has(url)) return Promise.resolve();
     warmedDocs.add(url);
@@ -154,7 +155,7 @@
   }
 
   function preloadSlide(n) {
-    if (n < 1 || n > 10) return Promise.resolve();
+    if (n < 1 || n > 11) return Promise.resolve();
     return Promise.all([warmDocument(n), ...assetsForSlide(n).map(warmImage)]);
   }
 
@@ -171,7 +172,7 @@
     const order = [];
     const seen = new Set([current]);
     const push = (n) => {
-      if (n < 1 || n > 10 || seen.has(n)) return;
+      if (n < 1 || n > 11 || seen.has(n)) return;
       seen.add(n);
       order.push(n);
     };
@@ -180,7 +181,7 @@
     push(current - 1);
     push(current + 2);
     push(current - 2);
-    for (let n = 1; n <= 10; n += 1) push(n);
+    for (let n = 1; n <= 11; n += 1) push(n);
 
     // Shared + current unique assets immediately (helps back-nav / shared bg).
     SHARED_ASSETS.forEach((file) => {
@@ -191,7 +192,7 @@
     });
 
     // Highest priority: immediate next slide.
-    if (current < 10) {
+    if (current < 11) {
       void preloadSlide(current + 1);
     }
 
@@ -238,8 +239,8 @@
     }
     if (event.key === "End") {
       event.preventDefault();
-      rememberDirection(current, 10);
-      navigateTo(slideUrl(10), current < 10 ? "next" : "fade");
+      rememberDirection(current, 11);
+      navigateTo(slideUrl(11), current < 11 ? "next" : "fade");
     }
   });
 

@@ -29,7 +29,11 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   const isContentPageRoute = isContentPage(pathname)
   const isArtistIndexRoute =
     (pathname?.startsWith("/artist-index") ?? false)
-  const showAppChrome = !isArtistIndexRoute
+  // Hip-Hop 500 owns its own header + sidebar chrome.
+  const isTopArtistsRoute =
+    pathname === "/top-artists" || (pathname?.startsWith("/top-artists/") ?? false)
+  const isFullBleedRoute = isArtistIndexRoute || isTopArtistsRoute
+  const showAppChrome = !isFullBleedRoute
 
   const {
     isSidebarOpen,
@@ -42,7 +46,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   return (
     <div
       className={
-        isArtistIndexRoute
+        isFullBleedRoute
           ? "relative flex min-h-[100dvh] flex-col bg-background"
           : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
       }
@@ -66,7 +70,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
       ) : null}
 
       {/* Main Layout Container */}
-      <div className={isArtistIndexRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
+      <div className={isFullBleedRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
         {showAppChrome && !isContentPageRoute && (
           <Sidebar
             isMobileOpen={isSidebarOpen}
@@ -82,7 +86,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         <main
           id="main-content"
           className={
-            isArtistIndexRoute
+            isFullBleedRoute
               ? "w-full min-w-0 flex-1"
               : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
           }

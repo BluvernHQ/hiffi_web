@@ -665,22 +665,43 @@ function mapArtist(item, index) {
   };
 }
 
+/** Prefer 7d momentum, then 30d / 90d — used when rank delta is unavailable. */
+function primaryMomentum(artist) {
+  for (const key of ["momentum7d", "momentum30d", "momentum90d"]) {
+    const value = artist?.[key];
+    if (value != null && !Number.isNaN(Number(value))) return Number(value);
+  }
+  return null;
+}
+
 function movementMeta(artist) {
   let delta = null;
   if (artist.rankDelta != null) delta = artist.rankDelta;
   else if (artist.rankDelta7d != null) delta = artist.rankDelta7d;
   else if (artist.previousRank != null) delta = artist.previousRank - artist.rank;
 
-  if (delta == null) {
-    return { delta: 0, direction: "flat", symbol: "→", amount: 0, label: "No movement data", soft: true };
+  if (delta != null) {
+    const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    const symbol = direction === "up" ? "↗" : direction === "down" ? "↘" : "→";
+    const amount = Math.abs(delta);
+    const label =
+      delta === 0 ? "No rank change" : `${direction} ${amount} ${amount === 1 ? "place" : "places"}`;
+    return { delta, direction, symbol, amount, label, soft: false };
   }
 
-  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-  const symbol = direction === "up" ? "↗" : direction === "down" ? "↘" : "→";
-  const amount = Math.abs(delta);
-  const label =
-    delta === 0 ? "No rank change" : `${direction} ${amount} ${amount === 1 ? "place" : "places"}`;
-  return { delta, direction, symbol, amount, label, soft: false };
+  // No rank-delta from API yet — derive MOVE from momentum columns.
+  const mom = primaryMomentum(artist);
+  if (mom != null) {
+    const direction = mom > 0 ? "up" : mom < 0 ? "down" : "flat";
+    const symbol = direction === "up" ? "↗" : direction === "down" ? "↘" : "→";
+    const label =
+      direction === "flat"
+        ? "Flat momentum"
+        : `${direction === "up" ? "Positive" : "Negative"} momentum ${formatMomentum(mom)}`;
+    return { delta: 0, direction, symbol, amount: 0, label, soft: true };
+  }
+
+  return { delta: 0, direction: "flat", symbol: "→", amount: 0, label: "No movement data", soft: true };
 }
 
 function movementHTML(artist, compact = false) {
