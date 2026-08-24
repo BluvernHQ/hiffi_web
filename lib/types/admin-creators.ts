@@ -23,6 +23,7 @@ export type FunnelStage = {
 }
 
 export type CreatorOverview = {
+  as_of: string
   total_creators: number
   creators_with_uploads: number
   upload_rate: number
@@ -34,6 +35,7 @@ export type CreatorOverview = {
 }
 
 export type CreatorFunnel = {
+  as_of: string
   applied: { pending_claims: number; pending_upgrades: number }
   approved: FunnelStage
   first_upload: FunnelStage
@@ -52,6 +54,7 @@ export type CreatorFunnel = {
 export type AttentionSegment = { count: number; percentage: number }
 
 export type CreatorAttention = {
+  as_of: string
   total_creators: number
   stale_days: number
   segments: {
@@ -89,10 +92,16 @@ export type CreatorDailySnapshot = {
 }
 
 export type CreatorTrends = {
+  as_of: string
   daily: CreatorDailySnapshot[]
   new_creators_weekly: WeekBucket[]
   first_uploads_weekly: WeekBucket[]
   total_uploads_weekly: WeekBucket[]
+}
+
+/** Shared calendar param for overview / funnel / attention / trends (`YYYY-MM-DD` UTC). */
+export type CreatorAsOfParams = {
+  as_of?: string
 }
 
 export type CreatorDirectoryRow = {
@@ -303,6 +312,7 @@ function videoRow(raw: unknown): CreatorVideoRow {
 export function normalizeCreatorOverview(raw: unknown): CreatorOverview {
   const r = asRecord(raw)
   return {
+    as_of: str(r.as_of),
     total_creators: num(r.total_creators),
     creators_with_uploads: num(r.creators_with_uploads),
     upload_rate: num(r.upload_rate),
@@ -319,6 +329,7 @@ export function normalizeCreatorFunnel(raw: unknown): CreatorFunnel {
   const applied = asRecord(r.applied)
   const compareRaw = r.compare
   const funnel: CreatorFunnel = {
+    as_of: str(r.as_of),
     applied: {
       pending_claims: num(applied.pending_claims),
       pending_upgrades: num(applied.pending_upgrades),
@@ -349,6 +360,7 @@ export function normalizeCreatorAttention(raw: unknown): CreatorAttention {
   const r = asRecord(raw)
   const s = asRecord(r.segments)
   return {
+    as_of: str(r.as_of),
     total_creators: num(r.total_creators),
     stale_days: num(r.stale_days, 14),
     segments: {
@@ -390,6 +402,7 @@ function dailySnapshot(raw: unknown): CreatorDailySnapshot {
 export function normalizeCreatorTrends(raw: unknown): CreatorTrends {
   const r = asRecord(raw)
   return {
+    as_of: str(r.as_of),
     daily: Array.isArray(r.daily) ? r.daily.map(dailySnapshot) : [],
     new_creators_weekly: Array.isArray(r.new_creators_weekly)
       ? r.new_creators_weekly.map(weekBucket)

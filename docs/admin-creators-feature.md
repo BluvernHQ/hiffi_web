@@ -35,6 +35,8 @@ Each number is clickable and opens the matching list.
 
 The Overview is the “health check” for creators.
 
+**As of (UTC)** — one calendar at the top drives KPIs, funnel, needs attention, and trend charts. Default is today. Pending claims and OTP upgrades stay live even when you pick an older date.
+
 ### Headline numbers
 Click any card to jump straight into that group in the Directory.
 

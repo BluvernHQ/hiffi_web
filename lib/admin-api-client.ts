@@ -416,20 +416,23 @@ class AdminApiClient implements AdminApiClientContext {
 
   // ─── Creators ────────────────────────────────────────────────────────────────
 
-  async adminGetCreatorOverview() {
-    return apiAdminGetCreatorOverview(this)
+  async adminGetCreatorOverview(asOf?: string) {
+    return apiAdminGetCreatorOverview(this, asOf)
   }
 
-  async adminGetCreatorFunnel(compare?: Parameters<typeof apiAdminGetCreatorFunnel>[1]) {
-    return apiAdminGetCreatorFunnel(this, compare)
+  async adminGetCreatorFunnel(
+    compare?: Parameters<typeof apiAdminGetCreatorFunnel>[1],
+    asOf?: string,
+  ) {
+    return apiAdminGetCreatorFunnel(this, compare, asOf)
   }
 
-  async adminGetCreatorAttention(staleDays?: number) {
-    return apiAdminGetCreatorAttention(this, staleDays)
+  async adminGetCreatorAttention(staleDays?: number, asOf?: string) {
+    return apiAdminGetCreatorAttention(this, staleDays, asOf)
   }
 
-  async adminGetCreatorTrends() {
-    return apiAdminGetCreatorTrends(this)
+  async adminGetCreatorTrends(asOf?: string) {
+    return apiAdminGetCreatorTrends(this, asOf)
   }
 
   async adminListCreators(params?: Parameters<typeof apiAdminListCreators>[1]) {

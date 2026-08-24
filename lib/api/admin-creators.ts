@@ -29,17 +29,25 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return q ? `?${q}` : ""
 }
 
-export async function adminGetCreatorOverview(ctx: AdminApiClientContext): Promise<CreatorOverview> {
-  const raw = await ctx.request<unknown>("/admin/creators/overview", { method: "GET" }, true)
+export async function adminGetCreatorOverview(
+  ctx: AdminApiClientContext,
+  asOf?: string,
+): Promise<CreatorOverview> {
+  const raw = await ctx.request<unknown>(
+    `/admin/creators/overview${buildQuery({ as_of: asOf })}`,
+    { method: "GET" },
+    true,
+  )
   return normalizeCreatorOverview(unwrapSuccessData(raw))
 }
 
 export async function adminGetCreatorFunnel(
   ctx: AdminApiClientContext,
   compare?: FunnelComparePeriod,
+  asOf?: string,
 ): Promise<CreatorFunnel> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators/funnel${buildQuery({ compare })}`,
+    `/admin/creators/funnel${buildQuery({ compare, as_of: asOf })}`,
     { method: "GET" },
     true,
   )
@@ -49,17 +57,25 @@ export async function adminGetCreatorFunnel(
 export async function adminGetCreatorAttention(
   ctx: AdminApiClientContext,
   staleDays?: number,
+  asOf?: string,
 ): Promise<CreatorAttention> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators/attention${buildQuery({ stale_days: staleDays })}`,
+    `/admin/creators/attention${buildQuery({ stale_days: staleDays, as_of: asOf })}`,
     { method: "GET" },
     true,
   )
   return normalizeCreatorAttention(unwrapSuccessData(raw))
 }
 
-export async function adminGetCreatorTrends(ctx: AdminApiClientContext): Promise<CreatorTrends> {
-  const raw = await ctx.request<unknown>("/admin/creators/trends", { method: "GET" }, true)
+export async function adminGetCreatorTrends(
+  ctx: AdminApiClientContext,
+  asOf?: string,
+): Promise<CreatorTrends> {
+  const raw = await ctx.request<unknown>(
+    `/admin/creators/trends${buildQuery({ as_of: asOf })}`,
+    { method: "GET" },
+    true,
+  )
   return normalizeCreatorTrends(unwrapSuccessData(raw))
 }
 
