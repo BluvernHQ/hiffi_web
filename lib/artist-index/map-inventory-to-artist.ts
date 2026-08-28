@@ -45,8 +45,12 @@ export function mapInventoryProfileToArtist(
   let bannerImage: string | null = null
   let followers = 0
   let contactEmail: string | null = null
-  let addedDate = "1970-01-01T00:00:00.000Z"
+  let addedDate = profile.created_at?.trim() || "1970-01-01T00:00:00.000Z"
   let { city, state } = parseCityState(profile.location ?? undefined)
+  const genreLabel = profile.genre?.trim()
+  const genres = genreLabel
+    ? [genreLabel.charAt(0).toUpperCase() + genreLabel.slice(1)]
+    : ["Rap"]
 
   let ig = getInventorySocialUrl(profile, "instagram") ?? null
   let yt = getInventorySocialUrl(profile, "youtube") ?? null
@@ -58,7 +62,10 @@ export function mapInventoryProfileToArtist(
       : null
 
   if (linked) {
-    name = String(linked.name ?? name).trim() || name
+    // Display name always comes from inventory artist_name — not linked user.name (claimant legal name).
+    if (!profile.artist_name.trim()) {
+      name = String(linked.name ?? name).trim() || name
+    }
     const linkedBio = String(linked.bio ?? "").trim()
     if (linkedBio) bio = linkedBio
     const profilePicture = String(linked.profile_picture ?? linked.image ?? "").trim()
@@ -101,7 +108,7 @@ export function mapInventoryProfileToArtist(
     rank: 0,
     city,
     state,
-    genre: ["Rap"],
+    genre: genres,
     bio,
     image,
     banner_image: bannerImage,

@@ -78,6 +78,7 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
         totalMatches={directory.totalMatches}
         currentPage={directory.currentPage}
         totalPages={directory.totalPages}
+        hasMore={directory.hasMore}
         query={directory.query}
         activeFilterIds={directory.activeFilterIds}
         filterOptions={filterOptions}

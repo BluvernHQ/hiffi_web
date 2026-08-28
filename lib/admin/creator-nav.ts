@@ -13,6 +13,8 @@ export type CreatorsDirectoryQuery = {
   claim_status?: string
   stale_days?: string
   page?: string
+  /** Shared analytics calendar (`YYYY-MM-DD` UTC). */
+  as_of?: string
 }
 
 const DIRECTORY_KEYS = [
@@ -25,6 +27,22 @@ const DIRECTORY_KEYS = [
   "stale_days",
   "page",
 ] as const
+
+/** UTC calendar date as `YYYY-MM-DD` (API `as_of` format). */
+export function utcDateString(date = new Date()): string {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0")
+  const d = String(date.getUTCDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+/** Validate / clamp an `as_of` string. Invalid → today UTC. Future → today UTC. */
+export function normalizeAsOf(value: string | null | undefined): string {
+  const today = utcDateString()
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return today
+  if (value > today) return today
+  return value
+}
 
 export function formatCount(value: number): string {
   return new Intl.NumberFormat("en-US").format(value)
@@ -94,6 +112,7 @@ export function creatorsDashboardHref(params: Partial<CreatorsDirectoryQuery> = 
   }
   const view = params.view ?? "dashboard"
   if (view === "directory") sp.set("creators_view", "directory")
+  if (params.as_of) sp.set("as_of", params.as_of)
   for (const key of DIRECTORY_KEYS) {
     const value = params[key]
     if (value) sp.set(key, value)

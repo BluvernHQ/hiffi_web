@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   BarChart3,
@@ -24,8 +24,11 @@ import {
   ArrowDownToLine,
   ListMusic,
   Mic2,
+  Clapperboard,
   Route,
+  Activity,
   Wrench,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -39,6 +42,22 @@ interface AdminSidebarProps {
   onMobileClose?: () => void
   isCollapsed?: boolean
   onToggleCollapse?: () => void
+  /** Resolved section from the URL (after deep-link overrides). */
+  activeSection?: string
+  /** Optimistic target while soft-navigating between sections. */
+  pendingSection?: string | null
+  isNavPending?: boolean
+  onSectionChange?: (value: string) => void
+}
+
+/** True when the URL is already the bare home for this section (no deep-link params). */
+export function isAdminSectionHome(searchParams: URLSearchParams, value: string): boolean {
+  const section = searchParams.get("section") || "overview"
+  if (section !== value) return false
+  for (const key of searchParams.keys()) {
+    if (key !== "section") return false
+  }
+  return true
 }
 
 type NavItem = {
@@ -67,6 +86,17 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    title: "Hiffi 500",
+    items: [
+      {
+        icon: Activity,
+        label: "Score Anomalies",
+        value: "ranking_anomalies",
+        permission: "admin:inventory",
+      },
+    ],
+  },
+  {
     title: "Editorial",
     items: [
       { icon: ListMusic, label: "Curated Playlists", value: "curated_playlists", permission: "admin:curated" },
@@ -86,6 +116,7 @@ const navSections: NavSection[] = [
     title: "Community",
     items: [
       { icon: Users, label: "Users", value: "users", permission: "admin:users" },
+      { icon: Clapperboard, label: "Creators", value: "creators", permission: "admin:creators" },
       { icon: UserPlus, label: "Followers", value: "followers", permission: "admin:followers" },
       { icon: UsersRound, label: "Referrals", value: "referrals", permission: "admin:referrals" },
     ],
@@ -128,9 +159,12 @@ export function AdminSidebar({
   onMobileClose,
   isCollapsed = false,
   onToggleCollapse,
+  activeSection: activeSectionProp,
+  pendingSection = null,
+  isNavPending = false,
+  onSectionChange,
 }: AdminSidebarProps) {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const { can, admin, role } = useAdminPermissions()
 
   const visibleSections = navSections
@@ -140,7 +174,7 @@ export function AdminSidebar({
     }))
     .filter((section) => section.items.length > 0)
 
-  const section = searchParams.get("flagId")
+  const sectionFromUrl = searchParams.get("flagId")
     ? "flags"
     : searchParams.get("feedbackId")
       ? "feedback"
@@ -148,10 +182,15 @@ export function AdminSidebar({
         ? "curated_playlists"
         : searchParams.get("sessionId")
           ? "journeys"
-          : searchParams.get("section") || "overview"
+          : searchParams.get("creator")
+            ? "creators"
+            : searchParams.get("section") || "overview"
+
+  const section = activeSectionProp ?? sectionFromUrl
+  const highlightedSection = pendingSection ?? section
 
   const handleSectionChange = (value: string) => {
-    router.push(`/admin/dashboard?section=${value}`)
+    onSectionChange?.(value)
     onMobileClose?.()
   }
 
@@ -225,13 +264,15 @@ export function AdminSidebar({
                   <ul className="space-y-0.5">
                     {navSection.items.map((item) => {
                       const Icon = item.icon
-                      const isActive = section === item.value
+                      const isActive = highlightedSection === item.value
+                      const isItemPending = isNavPending && pendingSection === item.value
                       return (
                         <li key={item.value}>
                           <button
                             type="button"
                             onClick={() => handleSectionChange(item.value)}
                             aria-current={isActive ? "page" : undefined}
+                            aria-busy={isItemPending || undefined}
                             title={isCollapsed ? item.label : undefined}
                             className={cn(
                               "w-full flex items-center rounded-lg text-sm transition-colors text-left",
@@ -241,15 +282,23 @@ export function AdminSidebar({
                               isActive
                                 ? "bg-primary/10 text-foreground font-medium"
                                 : "text-muted-foreground hover:text-foreground",
+                              isItemPending && "opacity-90",
                             )}
                           >
-                            <Icon
-                              className={cn(
-                                "h-[18px] w-[18px] flex-shrink-0",
-                                isActive ? "text-primary" : "text-muted-foreground",
-                              )}
-                              aria-hidden="true"
-                            />
+                            {isItemPending ? (
+                              <Loader2
+                                className="h-[18px] w-[18px] flex-shrink-0 animate-spin text-primary"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <Icon
+                                className={cn(
+                                  "h-[18px] w-[18px] flex-shrink-0",
+                                  isActive ? "text-primary" : "text-muted-foreground",
+                                )}
+                                aria-hidden="true"
+                              />
+                            )}
                             {!isCollapsed && <span className="truncate">{item.label}</span>}
                           </button>
                         </li>

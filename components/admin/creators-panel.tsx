@@ -12,6 +12,7 @@ export function CreatorsPanel() {
   const searchParams = useSearchParams()
   const creator = searchParams.get("creator")?.trim()
   const showDirectory = hasDirectoryQuery(searchParams)
+  const asOf = searchParams.get("as_of") || undefined
 
   if (creator) {
     return <CreatorDetail username={creator} />
@@ -21,7 +22,7 @@ export function CreatorsPanel() {
     <div className="space-y-4">
       <div className="bg-muted text-muted-foreground inline-flex h-10 items-center rounded-xl p-1">
         <Link
-          href={creatorsDashboardHref({ view: "dashboard" })}
+          href={creatorsDashboardHref({ view: "dashboard", as_of: asOf })}
           className={cn(
             "inline-flex h-8 items-center rounded-lg px-4 text-sm font-medium transition-colors",
             !showDirectory && "bg-background text-foreground shadow-sm",
@@ -30,7 +31,7 @@ export function CreatorsPanel() {
           Overview
         </Link>
         <Link
-          href={creatorsDashboardHref({ view: "directory" })}
+          href={creatorsDashboardHref({ view: "directory", as_of: asOf })}
           className={cn(
             "inline-flex h-8 items-center rounded-lg px-4 text-sm font-medium transition-colors",
             showDirectory && "bg-background text-foreground shadow-sm",

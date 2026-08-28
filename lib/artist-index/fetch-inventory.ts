@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/config"
 import { unwrapSuccessData } from "@/lib/api/envelope"
 import type {
   InventoryProfileListResponse,
+  PublicInventoryClaimStatus,
   PublicInventoryProfile,
 } from "@/lib/types/inventory"
 import { normalizePublicInventoryProfile } from "@/lib/types/inventory"
@@ -24,22 +25,30 @@ export class InventoryFetchError extends Error {
   }
 }
 
-export async function fetchInventoryPage(params: {
+export type InventoryPageParams = {
   limit: number
   offset: number
   search?: string
   username?: string
-}): Promise<InventoryProfileListResponse> {
+  location?: string
+  city?: string
+  genre?: string
+  claim_status?: PublicInventoryClaimStatus
+}
+
+export async function fetchInventoryPage(
+  params: InventoryPageParams,
+): Promise<InventoryProfileListResponse> {
   const sp = new URLSearchParams({
     limit: String(Math.min(params.limit, MAX_PAGE_SIZE)),
     offset: String(params.offset),
   })
-  if (params.search?.trim()) {
-    sp.set("search", params.search.trim())
-  }
-  if (params.username?.trim()) {
-    sp.set("username", params.username.trim().toLowerCase())
-  }
+  if (params.search?.trim()) sp.set("search", params.search.trim())
+  if (params.username?.trim()) sp.set("username", params.username.trim().toLowerCase())
+  if (params.location?.trim()) sp.set("location", params.location.trim())
+  else if (params.city?.trim()) sp.set("city", params.city.trim())
+  if (params.genre?.trim()) sp.set("genre", params.genre.trim().toLowerCase())
+  if (params.claim_status) sp.set("claim_status", params.claim_status)
 
   const usernameTag = params.username?.trim()
     ? artistInventoryUsernameTag(params.username)
@@ -61,6 +70,7 @@ export async function fetchInventoryPage(params: {
 
   const json = await res.json()
   const data = unwrapSuccessData<InventoryProfileListResponse>(json)
+  const itemCount = data.items?.length ?? 0
 
   return {
     items: (data.items ?? []).map((item) =>
@@ -68,14 +78,28 @@ export async function fetchInventoryPage(params: {
     ),
     limit: Number(data.limit ?? params.limit),
     offset: Number(data.offset ?? params.offset),
-    count: Number(data.count ?? data.items?.length ?? 0),
+    count: Number(data.count ?? itemCount),
+    total: Number(data.total ?? data.count ?? itemCount),
     has_more: Boolean(data.has_more),
     ...(data.search ? { search: data.search } : {}),
     ...(data.username ? { username: data.username } : {}),
+    ...(data.location ? { location: data.location } : {}),
+    ...(data.genre ? { genre: data.genre } : {}),
+    ...(data.claim_status ? { claim_status: data.claim_status } : {}),
   }
 }
 
-export async function fetchAllInventoryProfiles(search?: string): Promise<PublicInventoryProfile[]> {
+/** Catalog size for hub copy — uses `total` from a minimal list request. */
+export async function fetchInventoryTotal(
+  params: Omit<InventoryPageParams, "limit" | "offset"> = {},
+): Promise<number> {
+  const result = await fetchInventoryPage({ ...params, limit: 1, offset: 0 })
+  return result.total
+}
+
+export async function fetchAllInventoryProfiles(
+  params: Omit<InventoryPageParams, "limit" | "offset"> = {},
+): Promise<PublicInventoryProfile[]> {
   const all: PublicInventoryProfile[] = []
   let offset = 0
   const limit = MAX_PAGE_SIZE
@@ -84,7 +108,7 @@ export async function fetchAllInventoryProfiles(search?: string): Promise<Public
     const result = await fetchInventoryPage({
       limit,
       offset,
-      ...(search?.trim() ? { search: search.trim() } : {}),
+      ...params,
     })
     all.push(...result.items)
     if (!result.has_more) break

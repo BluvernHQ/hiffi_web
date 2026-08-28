@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   ArrowRight,
@@ -40,6 +41,8 @@ import {
   formatDays,
   formatRate,
   kpiDirectoryParams,
+  normalizeAsOf,
+  utcDateString,
 } from "@/lib/admin/creator-nav"
 import type {
   CreatorAttention,
@@ -118,6 +121,10 @@ function chartTooltipStyle() {
 }
 
 export function CreatorsOverview() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const asOf = normalizeAsOf(searchParams.get("as_of"))
+  const todayUtc = utcDateString()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
   const [loading, setLoading] = useState(true)
@@ -130,21 +137,32 @@ export function CreatorsOverview() {
   const [trendTab, setTrendTab] = useState<"new" | "first" | "uploads">("new")
   const [dailyKey, setDailyKey] = useState<(typeof DAILY_SERIES)[number]["key"]>("active_30d")
 
-  const load = async (opts?: { stale?: number; compare?: FunnelComparePeriod }) => {
+  const setAsOf = (next: string) => {
+    const clamped = normalizeAsOf(next)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("section", "creators")
+    params.delete("creators_view")
+    if (clamped === todayUtc) params.delete("as_of")
+    else params.set("as_of", clamped)
+    router.replace(`/admin/dashboard?${params.toString()}`)
+  }
+
+  const load = async (opts?: { stale?: number; compare?: FunnelComparePeriod; asOf?: string }) => {
     if (guardOfflineBeforeFetch()) {
       setLoading(false)
       return
     }
     const nextStale = opts?.stale ?? staleDays
     const nextCompare = opts?.compare ?? compare
+    const nextAsOf = opts?.asOf ?? asOf
     try {
       setLoading(true)
       clearNetworkError()
       const [ov, fn, at, tr] = await Promise.all([
-        adminApiClient.adminGetCreatorOverview(),
-        adminApiClient.adminGetCreatorFunnel(nextCompare),
-        adminApiClient.adminGetCreatorAttention(nextStale),
-        adminApiClient.adminGetCreatorTrends(),
+        adminApiClient.adminGetCreatorOverview(nextAsOf),
+        adminApiClient.adminGetCreatorFunnel(nextCompare, nextAsOf),
+        adminApiClient.adminGetCreatorAttention(nextStale, nextAsOf),
+        adminApiClient.adminGetCreatorTrends(nextAsOf),
       ])
       setOverview(ov)
       setFunnel(fn)
@@ -166,7 +184,7 @@ export function CreatorsOverview() {
     setStaleDays(next)
     if (guardOfflineBeforeFetch()) return
     try {
-      const at = await adminApiClient.adminGetCreatorAttention(next)
+      const at = await adminApiClient.adminGetCreatorAttention(next, asOf)
       setAttention(at)
     } catch (error) {
       handleFetchError(error)
@@ -174,9 +192,9 @@ export function CreatorsOverview() {
   }
 
   useEffect(() => {
-    void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load
-  }, [])
+    void load({ asOf })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when calendar date changes
+  }, [asOf])
 
   const weekly = {
     new: labelWeeks(trends?.new_creators_weekly ?? []),
@@ -238,21 +256,21 @@ export function CreatorsOverview() {
       key: "new" as const,
       label: "New this week",
       value: formatCount(overview.new_creators_this_week),
-      hint: "Became a creator in the last 7 days",
+      hint: "Became a creator in the last 7 days ending at this date",
       icon: UserPlus,
     },
     {
       key: "active_7d" as const,
       label: "Active 7d",
       value: formatCount(overview.active_7d),
-      hint: "Login, session, or upload",
+      hint: "Activity in the 7 days ending at this date",
       icon: UserCheck,
     },
     {
       key: "active_30d" as const,
       label: "Active 30d",
       value: formatCount(overview.active_30d),
-      hint: "Login, session, or upload",
+      hint: "Activity in the 30 days ending at this date",
       icon: Clock,
     },
   ]
@@ -308,13 +326,19 @@ export function CreatorsOverview() {
           label: "Active uploader",
           stage: funnel.active_uploader,
           previous: funnel.compare?.active_30d,
-          href: creatorsDashboardHref({ view: "directory", segment: "has_uploads" }),
+          // Funnel "Active uploader" is based on upload activity within a 30d window.
+          // Directory segments/filters we have:
+          // - `active_30d` (activity in window)
+          // - `upload_status=has_uploads` (must have first upload)
+          // Combining both matches the intended semantics better than `has_uploads` alone.
+          href: creatorsDashboardHref({ view: "directory", segment: "active_30d", upload_status: "has_uploads" }),
         },
         {
           label: "Retained",
           stage: funnel.retained,
           previous: funnel.compare?.retained_30d,
-          href: creatorsDashboardHref(kpiDirectoryParams("active_30d")),
+          // Retained requires first upload + activity <= 30 days.
+          href: creatorsDashboardHref({ view: "directory", segment: "active_30d", upload_status: "has_uploads" }),
         },
       ]
     : []
@@ -324,12 +348,29 @@ export function CreatorsOverview() {
     <div className="space-y-6 pb-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Click any number to open that creator list.
+          Metrics as of {overview.as_of || asOf} UTC. Click any number to open that creator list.
         </p>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-          <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 rounded-lg border bg-background px-2 py-1.5 text-xs text-muted-foreground">
+            As of
+            <input
+              type="date"
+              max={todayUtc}
+              value={asOf}
+              onChange={(e) => setAsOf(e.target.value)}
+              className="h-8 rounded border bg-background px-2 text-sm text-foreground"
+            />
+          </label>
+          {asOf !== todayUtc && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setAsOf(todayUtc)}>
+              Today
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
@@ -421,7 +462,7 @@ export function CreatorsOverview() {
               <div>
                 <CardTitle>Growth funnel</CardTitle>
                 <CardDescription>
-                  Claims and OTP upgrades are separate queues. Conversion starts with creators.
+                  Claims and OTP upgrades are live queues (not historical). Conversion starts with creators as of this date.
                 </CardDescription>
               </div>
               <div className="inline-flex rounded-lg border bg-muted p-0.5">
@@ -521,7 +562,7 @@ export function CreatorsOverview() {
                   Needs attention
                 </CardTitle>
                 <CardDescription>
-                  Counts and percentages come from the API. Never returned can over-count until people log in
+                  Counts and percentages as of this date. Never returned can over-count until people log in
                   again. At-risk 90 ⊂ 60 ⊂ 30.
                 </CardDescription>
               </div>
@@ -602,7 +643,7 @@ export function CreatorsOverview() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Weekly volume</CardTitle>
-              <CardDescription>Weeks returned by the API (missing weeks are omitted, not filled)</CardDescription>
+              <CardDescription>12 weeks ending at this date. Missing weeks are omitted, not filled.</CardDescription>
             </div>
             <div className="inline-flex rounded-lg border bg-muted p-0.5">
               {(
@@ -659,7 +700,9 @@ export function CreatorsOverview() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Daily snapshots</CardTitle>
-              <CardDescription>Raw fields from the snapshot table. Empty until the UTC job writes rows.</CardDescription>
+              <CardDescription>
+                Snapshot rows for the 90 days ending at this date. Empty until the UTC job writes rows.
+              </CardDescription>
             </div>
             <select
               className="h-9 rounded-md border bg-background px-2 text-sm"

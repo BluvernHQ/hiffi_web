@@ -90,7 +90,6 @@ export const HUB_INLINE_FILTER_SPECS = [
   { kind: "genre" as const, slug: "hip-hop" },
   { kind: "genre" as const, slug: "rap" },
   { kind: "genre" as const, slug: "trap" },
-  { kind: "status" as const, slug: "new" },
 ]
 
 export function pickHubInlineFilters(

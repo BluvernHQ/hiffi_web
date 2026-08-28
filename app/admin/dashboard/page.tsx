@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useCallback, useTransition, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAdminAuth } from "@/lib/admin-auth-context"
 import { Button } from "@/components/ui/button"
@@ -35,13 +35,16 @@ import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsJourneysPanel } from "@/components/admin/analytics-journeys-panel"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
 import { TableSkeleton } from "@/components/admin/table-skeleton"
-import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { AdminSidebar, isAdminSectionHome } from "@/components/admin/admin-sidebar"
 import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-requests-table"
 import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
 import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
 import { AdminsPanel } from "@/components/admin/admins-panel"
 import { AdminToolsPanel } from "@/components/admin/admin-tools-panel"
 import { InventoryPanel } from "@/components/admin/inventory-panel"
+import { RankingAnomaliesPanel } from "@/components/admin/ranking-anomalies-panel"
+import { CreatorsPanel } from "@/components/admin/creators-panel"
+import { CreatorsDashboardSnapshot } from "@/components/admin/creators-dashboard-snapshot"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -57,6 +60,8 @@ function AdminDashboardContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isNavPending, startNavTransition] = useTransition()
+  const [pendingSection, setPendingSection] = useState<string | null>(null)
 
   const section = searchParams.get("flagId")
     ? "flags"
@@ -66,13 +71,40 @@ function AdminDashboardContent() {
         ? "curated_playlists"
         : searchParams.get("sessionId")
           ? "journeys"
-          : searchParams.get("section") || "overview"
+          : searchParams.get("creator")
+            ? "creators"
+            : searchParams.get("section") || "overview"
   const flagId = searchParams.get("flagId")
   const feedbackId = searchParams.get("feedbackId")
   const playlistId = searchParams.get("playlistId")
   const fallbackSection = admin ? getFirstAllowedSection(admin) : "overview"
   const normalizedSection = section === "activity" ? "journeys" : section
   const activeSection = canAdminAccessSection(admin, normalizedSection) ? normalizedSection : fallbackSection
+
+  // Keep optimistic highlight until the URL catches up (covers transition end before searchParams update).
+  useEffect(() => {
+    if (pendingSection && pendingSection === activeSection && !isNavPending) {
+      setPendingSection(null)
+    }
+  }, [pendingSection, activeSection, isNavPending])
+
+  const displaySection =
+    pendingSection && (isNavPending || pendingSection !== activeSection)
+      ? pendingSection
+      : activeSection
+
+  const handleSectionChange = useCallback(
+    (value: string) => {
+      if (pendingSection === value && isNavPending) return
+      if (isAdminSectionHome(searchParams, value) && activeSection === value) return
+
+      setPendingSection(value)
+      startNavTransition(() => {
+        router.push(`/admin/dashboard?section=${value}`)
+      })
+    },
+    [activeSection, isNavPending, pendingSection, router, searchParams],
+  )
 
   useEffect(() => {
     if (section === "activity") {
@@ -89,6 +121,7 @@ function AdminDashboardContent() {
       !searchParams.get("feedbackId") &&
       !searchParams.get("playlistId") &&
       !searchParams.get("sessionId") &&
+      !searchParams.get("creator") &&
       !authLoading &&
       isAuthVerified &&
       admin
@@ -109,6 +142,8 @@ function AdminDashboardContent() {
   const homeSection = admin ? getFirstAllowedSection(admin) : "overview"
 
   const showContent = isAuthVerified
+  // Hide previous section body while soft-nav is in flight (optimistic target chrome still shows).
+  const showSectionBody = showContent && !pendingSection
 
   const handleLogoutClick = () => {
     setLogoutDialogOpen(true)
@@ -233,49 +268,59 @@ function AdminDashboardContent() {
 
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        <AdminSidebar 
+        <AdminSidebar
           isMobileOpen={isSidebarOpen}
           onMobileClose={() => setIsSidebarOpen(false)}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          activeSection={activeSection}
+          pendingSection={pendingSection}
+          isNavPending={isNavPending}
+          onSectionChange={handleSectionChange}
         />
 
       {/* Main Content */}
-        <main className={cn(
+        <main
+          className={cn(
           "flex-1 overflow-y-auto bg-background w-full min-w-0",
           "h-[calc(100vh-4rem)]",
           // Prevent horizontal scroll on mobile
           "overflow-x-hidden"
-        )}>
+        )}
+          aria-busy={Boolean(pendingSection) || undefined}
+        >
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-full mx-auto">
-              {activeSection === "overview" && can("admin:overview") && (
+              {displaySection === "overview" && can("admin:overview") && (
                 <div className="space-y-4 sm:space-y-6">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-            Monitor platform analytics, user engagement, watch hours, and manage content
-          </p>
+                      Creator health first, then platform-wide analytics
+                    </p>
         </div>
-            {showContent ? (
-              <Card className="border-2 shadow-lg">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xl">Platform Analytics</CardTitle>
-                  <CardDescription>
-                    Real-time metrics and insights about your platform
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AnalyticsOverview />
-                </CardContent>
-              </Card>
+            {showSectionBody ? (
+              <div className="space-y-4 sm:space-y-6">
+                {can("admin:creators") && <CreatorsDashboardSnapshot />}
+                <Card className="border-2 shadow-lg">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl">Platform Analytics</CardTitle>
+                    <CardDescription>
+                      Real-time metrics and insights about your platform
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsOverview />
+                  </CardContent>
+                </Card>
+              </div>
             ) : (
               <AnalyticsSkeleton />
             )}
                 </div>
               )}
 
-              {activeSection === "users" && can("admin:users") && (
+              {displaySection === "users" && can("admin:users") && (
                 <div className="h-full flex flex-col min-h-0">
                   <div className="mb-4 shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
@@ -284,12 +329,26 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AdminUsersTable /> : <TableSkeleton />}
+                    {showSectionBody ? <AdminUsersTable /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "videos" && can("admin:videos") && (
+              {displaySection === "creators" && can("admin:creators") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Creators</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Track creator growth, who has uploaded, and who needs a follow-up
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showSectionBody ? <CreatorsPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {displaySection === "videos" && can("admin:videos") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Videos</h1>
@@ -297,11 +356,11 @@ function AdminDashboardContent() {
                   View and manage all videos uploaded to the platform
                     </p>
                   </div>
-                  {showContent ? <AdminVideosTable /> : <TableSkeleton />}
+                  {showSectionBody ? <AdminVideosTable /> : <TableSkeleton />}
                 </div>
               )}
 
-              {activeSection === "comments" && can("admin:comments") && (
+              {displaySection === "comments" && can("admin:comments") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Comments</h1>
@@ -309,11 +368,11 @@ function AdminDashboardContent() {
                   View and manage all comments on videos
                     </p>
                   </div>
-                  {showContent ? <AdminCommentsTable /> : <TableSkeleton />}
+                  {showSectionBody ? <AdminCommentsTable /> : <TableSkeleton />}
                 </div>
               )}
 
-              {activeSection === "replies" && can("admin:replies") && (
+              {displaySection === "replies" && can("admin:replies") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Replies</h1>
@@ -321,11 +380,11 @@ function AdminDashboardContent() {
                   View and manage all replies to comments
                     </p>
                   </div>
-                  {showContent ? <AdminRepliesTable /> : <TableSkeleton />}
+                  {showSectionBody ? <AdminRepliesTable /> : <TableSkeleton />}
                 </div>
               )}
 
-              {activeSection === "flags" && can("admin:flags") && (
+              {displaySection === "flags" && can("admin:flags") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!flagId && (
                     <div className="shrink-0">
@@ -336,7 +395,7 @@ function AdminDashboardContent() {
                     </div>
                   )}
                   <div className="flex-1 min-h-0">
-                    {showContent ? (
+                    {showSectionBody ? (
                       flagId ? (
                         <AdminFlagDetail flagId={flagId} />
                       ) : (
@@ -349,7 +408,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {activeSection === "feedback" && can("admin:feedback") && (
+              {displaySection === "feedback" && can("admin:feedback") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!feedbackId && (
                     <div className="shrink-0">
@@ -360,7 +419,7 @@ function AdminDashboardContent() {
                     </div>
                   )}
                   <div className="flex-1 min-h-0">
-                    {showContent ? (
+                    {showSectionBody ? (
                       feedbackId ? (
                         <AdminFeedbackDetail feedbackId={feedbackId} />
                       ) : (
@@ -373,7 +432,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {activeSection === "journeys" && can("admin:journeys") && (
+              {displaySection === "journeys" && can("admin:journeys") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
@@ -383,12 +442,12 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AnalyticsJourneysPanel /> : <TableSkeleton />}
+                    {showSectionBody ? <AnalyticsJourneysPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "referrals" && can("admin:referrals") && (
+              {displaySection === "referrals" && can("admin:referrals") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Referrals</h1>
@@ -396,11 +455,11 @@ function AdminDashboardContent() {
                       Track referral codes, referrers, and enrolled users
                     </p>
                   </div>
-                  {showContent ? <AdminReferralsTable /> : <TableSkeleton />}
+                  {showSectionBody ? <AdminReferralsTable /> : <TableSkeleton />}
                 </div>
               )}
 
-              {activeSection === "followers" && can("admin:followers") && (
+              {displaySection === "followers" && can("admin:followers") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Followers</h1>
@@ -409,12 +468,12 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AdminFollowersTable /> : <TableSkeleton />}
+                    {showSectionBody ? <AdminFollowersTable /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "searches" && can("admin:searches") && (
+              {displaySection === "searches" && can("admin:searches") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Recorded Searches</h1>
@@ -423,12 +482,12 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AdminSearchesTable /> : <TableSkeleton />}
+                    {showSectionBody ? <AdminSearchesTable /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "utm_polls" && can("admin:utm") && (
+              {displaySection === "utm_polls" && can("admin:utm") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">UTM campaigns</h1>
@@ -436,11 +495,11 @@ function AdminDashboardContent() {
                       Marketing landing parameters (raw events and grouped analysis)
                     </p>
                   </div>
-                  {showContent ? <AdminUtmPollsPanel /> : <TableSkeleton />}
+                  {showSectionBody ? <AdminUtmPollsPanel /> : <TableSkeleton />}
                 </div>
               )}
 
-              {activeSection === "collaboration" && can("admin:collaboration") && (
+              {displaySection === "collaboration" && can("admin:collaboration") && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Collaboration inquiries</h1>
@@ -448,11 +507,11 @@ function AdminDashboardContent() {
                       Brand partnership submissions from the public collaboration form
                     </p>
                   </div>
-                  {showContent ? <AdminCollaborationInquiriesTable /> : <TableSkeleton />}
+                  {showSectionBody ? <AdminCollaborationInquiriesTable /> : <TableSkeleton />}
                 </div>
               )}
 
-              {activeSection === "migrations" && can("admin:migrations") && (
+              {displaySection === "migrations" && can("admin:migrations") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Migration Requests</h1>
@@ -461,12 +520,12 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AdminMigrationRequestsTable /> : <TableSkeleton />}
+                    {showSectionBody ? <AdminMigrationRequestsTable /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "curated_playlists" && can("admin:curated") && (
+              {displaySection === "curated_playlists" && can("admin:curated") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!playlistId && (
                     <div className="shrink-0">
@@ -477,7 +536,7 @@ function AdminDashboardContent() {
                     </div>
                   )}
                   <div className="flex-1 min-h-0">
-                    {showContent ? (
+                    {showSectionBody ? (
                       playlistId ? (
                         <CuratedPlaylistDetail playlistId={playlistId} />
                       ) : (
@@ -490,7 +549,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {activeSection === "artist_inventory" && can("admin:inventory") && (
+              {displaySection === "artist_inventory" && can("admin:inventory") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Artist Inventory</h1>
@@ -499,12 +558,28 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <InventoryPanel /> : <TableSkeleton />}
+                    {showSectionBody ? <InventoryPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "admins" && can("admin:admins") && (
+              {displaySection === "ranking_anomalies" && can("admin:inventory") && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                      Hiffi 500 Score Anomalies
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Triage sudden YouTube rank and momentum jumps after ranking refreshes
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    {showSectionBody ? <RankingAnomaliesPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {displaySection === "admins" && can("admin:admins") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Accounts</h1>
@@ -513,12 +588,12 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AdminsPanel /> : <TableSkeleton />}
+                    {showSectionBody ? <AdminsPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}
 
-              {activeSection === "tools" && can("admin:tools") && (
+              {displaySection === "tools" && can("admin:tools") && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tools</h1>
@@ -527,7 +602,7 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
-                    {showContent ? <AdminToolsPanel /> : <TableSkeleton />}
+                    {showSectionBody ? <AdminToolsPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

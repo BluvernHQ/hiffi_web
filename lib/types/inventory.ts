@@ -27,13 +27,19 @@ export type InventorySocialLinks = {
 
 export type PublicInventoryClaimStatus = "unclaimed" | "pending" | "claimed"
 
+export type InventorySort = "name" | "name_desc" | "verified_first" | "newest" | "oldest"
+
 export interface PublicInventoryProfile {
   username: string
   artist_name: string
   bio?: string | null
   other_socials?: InventorySocialLinks | null
   location?: string | null
+  genre?: string | null
+  banner_image?: string | null
   claim_status: PublicInventoryClaimStatus
+  created_at?: string
+  updated_at?: string
 }
 
 export interface InventoryProfileListResponse {
@@ -41,9 +47,13 @@ export interface InventoryProfileListResponse {
   limit: number
   offset: number
   count: number
+  total: number
   has_more: boolean
   search?: string
   username?: string
+  location?: string
+  genre?: string
+  claim_status?: PublicInventoryClaimStatus
 }
 
 export interface InventoryClaimSubmit {
@@ -222,13 +232,26 @@ export function normalizeInventoryEntry(raw: Record<string, unknown>): Inventory
 }
 
 export function normalizePublicInventoryProfile(raw: Record<string, unknown>): PublicInventoryProfile {
+  const genre =
+    raw.genre != null && String(raw.genre).trim() ? String(raw.genre).trim().toLowerCase() : undefined
+  const bannerImage =
+    raw.banner_image != null && String(raw.banner_image).trim()
+      ? String(raw.banner_image).trim()
+      : undefined
+  const createdAt = raw.created_at != null && String(raw.created_at).trim() ? String(raw.created_at) : undefined
+  const updatedAt = raw.updated_at != null && String(raw.updated_at).trim() ? String(raw.updated_at) : undefined
+
   return {
     username: String(raw.username ?? "").trim().toLowerCase(),
     artist_name: String(raw.artist_name ?? "").trim(),
     bio: raw.bio != null && String(raw.bio).trim() ? String(raw.bio).trim() : undefined,
     other_socials: normalizeInventorySocials(raw),
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
+    genre,
+    banner_image: bannerImage,
     claim_status: normalizePublicClaimStatus(raw.claim_status),
+    ...(createdAt ? { created_at: createdAt } : {}),
+    ...(updatedAt ? { updated_at: updatedAt } : {}),
   }
 }
 
