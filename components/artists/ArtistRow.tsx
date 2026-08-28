@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { formatCityState } from "@/lib/artists"
+import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
+import { artistProfilePhotoAlt, formatCityState } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
@@ -25,7 +26,7 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageSrc}
-        alt=""
+        alt={artistProfilePhotoAlt(artist.name)}
         className={cn(
           "h-11 w-11 shrink-0 rounded-full object-cover",
           !artist.verified && artist.claim_status === "unclaimed" && "grayscale opacity-60",
@@ -52,7 +53,7 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
 function ClaimStatusBadge({ artist }: { artist: Artist }) {
   if (artist.verified) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-xs font-semibold text-white">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#4F7AE1]/10 px-2.5 py-1 text-xs font-semibold text-[#4F7AE1]">
         <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
         Verified
       </span>
@@ -91,7 +92,7 @@ export function ArtistRow({ artist }: ArtistRowProps) {
         <ArtistAvatar artist={artist} />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <Link
+            <ArtistProfileLink
               href={profileHref}
               className={cn(
                 "truncate text-base font-semibold transition-colors hover:text-[#E8192C]",
@@ -99,9 +100,9 @@ export function ArtistRow({ artist }: ArtistRowProps) {
               )}
             >
               {artist.name}
-            </Link>
+            </ArtistProfileLink>
             {artist.verified ? (
-              <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
+              <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
             ) : null}
           </div>
           <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground sm:hidden">
@@ -142,10 +143,10 @@ export function ArtistRow({ artist }: ArtistRowProps) {
           <ClaimStatusBadge artist={artist} />
         </div>
         {artist.verified ? (
-          <Link href={profileHref} className={artistButtonSolid}>
+          <ArtistProfileLink href={profileHref} className={artistButtonSolid}>
             View profile
             <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+          </ArtistProfileLink>
         ) : isPending ? (
           <Link href={claimHref} className={artistButtonOutline}>
             Request ownership

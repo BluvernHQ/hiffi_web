@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, PencilLine, X } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+import type { ArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
+import { ArtistIndexBackLink } from "@/components/artists/ArtistIndexBackLink"
+import {
+  ArtistProfileDirectoryFooterNav,
+  ArtistProfileDirectoryHeaderNav,
+} from "@/components/artists/ArtistProfileDirectoryNav"
 import { ArtistClaimCta } from "@/components/artists/ArtistClaimCta"
 import { ArtistDetailAbout } from "@/components/artists/ArtistDetailAbout"
 import { ArtistDetailHero } from "@/components/artists/ArtistDetailHero"
@@ -19,6 +24,7 @@ type ArtistDetailInteractiveProps = {
   profilePath: string
   otherArtists: Artist[]
   initialEditMode?: boolean
+  onDirectoryNavigate?: (slug: string, context: ArtistDirectoryNavContext) => void
 }
 
 export function ArtistDetailInteractive({
@@ -26,6 +32,7 @@ export function ArtistDetailInteractive({
   profilePath,
   otherArtists,
   initialEditMode = false,
+  onDirectoryNavigate,
 }: ArtistDetailInteractiveProps) {
   const [editMode, setEditMode] = useState(initialEditMode)
 
@@ -92,13 +99,13 @@ export function ArtistDetailInteractive({
         </header>
       ) : (
         <>
-          <Link
-            href={ARTIST_INDEX_PATH}
-            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to Artist Index
-          </Link>
+          <div className="flex items-center justify-between gap-4">
+            <ArtistIndexBackLink />
+            <ArtistProfileDirectoryHeaderNav
+              slug={artist.slug}
+              onDirectoryNavigate={onDirectoryNavigate}
+            />
+          </div>
           <ArtistDetailHero artist={artist} profilePath={profilePath} />
         </>
       )}
@@ -120,6 +127,11 @@ export function ArtistDetailInteractive({
           <ArtistOtherArtists
             otherArtists={otherArtists}
             cityLabel={artist.city.split(",")[0]?.trim() || artist.city || undefined}
+          />
+
+          <ArtistProfileDirectoryFooterNav
+            slug={artist.slug}
+            onDirectoryNavigate={onDirectoryNavigate}
           />
 
           <ArtistClaimCta artist={artist} variant="banner" />

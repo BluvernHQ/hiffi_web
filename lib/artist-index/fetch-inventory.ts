@@ -100,19 +100,26 @@ export async function fetchInventoryTotal(
 export async function fetchAllInventoryProfiles(
   params: Omit<InventoryPageParams, "limit" | "offset"> = {},
 ): Promise<PublicInventoryProfile[]> {
-  const all: PublicInventoryProfile[] = []
-  let offset = 0
-  const limit = MAX_PAGE_SIZE
+  const first = await fetchInventoryPage({ limit: MAX_PAGE_SIZE, offset: 0, ...params })
+  const all = [...first.items]
+  if (!first.has_more) return all
 
-  for (let page = 0; page < 500; page += 1) {
-    const result = await fetchInventoryPage({
-      limit,
-      offset,
-      ...params,
-    })
-    all.push(...result.items)
-    if (!result.has_more) break
-    offset += limit
+  const total = first.total
+  const pageCount = Math.ceil(total / MAX_PAGE_SIZE)
+  if (pageCount <= 1) return all
+
+  const rest = await Promise.all(
+    Array.from({ length: pageCount - 1 }, (_, index) =>
+      fetchInventoryPage({
+        limit: MAX_PAGE_SIZE,
+        offset: (index + 1) * MAX_PAGE_SIZE,
+        ...params,
+      }),
+    ),
+  )
+
+  for (const page of rest) {
+    all.push(...page.items)
   }
 
   return all

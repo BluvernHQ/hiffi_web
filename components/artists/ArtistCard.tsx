@@ -1,17 +1,17 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import {
   artistIndexClaimHref,
   artistIndexEditHref,
   artistIndexHref,
-  artistProfilePhotoAlt,
   formatArtistCityDisplay,
   formatCityState,
   getArtistProfileSubtitle,
   isArtistNew,
 } from "@/lib/artists"
-import { getArtistImageUrl } from "@/lib/artist-directory"
+import { ArtistCardAvatar } from "@/components/artists/ArtistCardAvatar"
 import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import {
   artistCardButtonPrimary,
@@ -25,37 +25,6 @@ import { cn } from "@/lib/utils"
 type ArtistCardProps = {
   artist: Artist
   variant?: "default" | "hub"
-}
-
-function ArtistCardAvatar({ artist }: { artist: Artist }) {
-  const initials = artist.name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-
-  const imageSrc = getArtistImageUrl(artist.image)
-
-  if (imageSrc) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={imageSrc}
-        alt={artistProfilePhotoAlt(artist.name)}
-        className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg"
-      />
-    )
-  }
-
-  return (
-    <div
-      className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-black text-xl font-bold text-white shadow-lg"
-      aria-hidden
-    >
-      {initials}
-    </div>
-  )
 }
 
 function HeaderBadge({ artist }: { artist: Artist }) {
@@ -116,14 +85,14 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
         "hover:shadow-md",
       )}
     >
-      <Link
+      <ArtistProfileLink
         href={profileHref}
         prefetch
         className="absolute inset-0 z-0 rounded-[inherit] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8192C] focus-visible:ring-offset-2"
         aria-label={`View ${artist.name} profile`}
       >
         <span className="sr-only">View {artist.name} profile</span>
-      </Link>
+      </ArtistProfileLink>
 
       <div className="pointer-events-none relative z-[1] flex flex-1 flex-col">
         <div className={cn(artistCardMedia, "h-28")}>
@@ -197,14 +166,14 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
       </div>
 
       <div className={cn("relative z-[2] mt-5 px-1 pb-1", isHub ? "" : "grid grid-cols-2 gap-3")}>
-        <Link
+        <ArtistProfileLink
           href={profileHref}
           prefetch
           className={cn(artistCardButtonPrimary, "w-full", isHub && "inline-flex gap-2")}
         >
           View profile
           {isHub ? <ArrowRight className="h-4 w-4" aria-hidden /> : null}
-        </Link>
+        </ArtistProfileLink>
         {!isHub ? (
           <Link
             href={secondaryHref}

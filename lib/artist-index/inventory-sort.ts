@@ -21,6 +21,15 @@ export function inventorySortUsesServerPagination(sort: InventorySort): boolean 
   return sort === "name"
 }
 
+/** `verified_first` uses claimed + merged non-claimed slices — no full-catalog fetch. */
+export function inventorySortUsesVerifiedFirstSlice(sort: InventorySort): boolean {
+  return sort === "verified_first"
+}
+
+export function inventorySortNeedsFullCatalog(sort: InventorySort): boolean {
+  return sort === "newest" || sort === "oldest" || sort === "name_desc"
+}
+
 export function compareInventoryProfiles(
   a: PublicInventoryProfile,
   b: PublicInventoryProfile,
