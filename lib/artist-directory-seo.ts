@@ -16,6 +16,7 @@ import {
   ATLANTA_SCENE_PAGE_TITLE,
   buildAtlantaScenePageDescription,
 } from "@/lib/artist-index/city-seo-content"
+import { DIRECTORY_CITY_FILTERS, DIRECTORY_GENRE_FILTERS } from "@/lib/artist-index/directory-filters"
 import { absoluteUrl } from "@/lib/seo/site"
 import { truncateMetaDescription } from "@/lib/seo/meta"
 
@@ -124,15 +125,29 @@ function buildGenrePage(filter: Awaited<ReturnType<typeof getArtistDirectoryFilt
 }
 
 export async function getArtistCityPages(): Promise<ArtistCityPage[]> {
-  return (await getArtistDirectoryFilters())
-    .filter((filter) => filter.kind === "city" && filter.count > 0)
-    .map(buildCityPage)
+  return DIRECTORY_CITY_FILTERS.map((filter) =>
+    buildCityPage({
+      id: filter.id,
+      label: filter.label,
+      count: 0,
+      kind: "city",
+      slug: filter.slug,
+      test: () => true,
+    }),
+  )
 }
 
 export async function getArtistGenrePages(): Promise<ArtistGenrePage[]> {
-  return (await getArtistDirectoryFilters())
-    .filter((filter) => filter.kind === "genre" && filter.count > 0)
-    .map(buildGenrePage)
+  return DIRECTORY_GENRE_FILTERS.map((filter) =>
+    buildGenrePage({
+      id: filter.id,
+      label: filter.label,
+      count: 0,
+      kind: "genre",
+      slug: filter.slug,
+      test: () => true,
+    }),
+  )
 }
 
 export const ARTIST_INDEX_FAQ = [

@@ -326,21 +326,19 @@ export function CreatorsOverview() {
           label: "Active uploader",
           stage: funnel.active_uploader,
           previous: funnel.compare?.active_30d,
-          href: creatorsDashboardHref({
-            view: "directory",
-            segment: "active_30d",
-            upload_status: "has_uploads",
-          }),
+          // Funnel "Active uploader" is based on upload activity within a 30d window.
+          // Directory segments/filters we have:
+          // - `active_30d` (activity in window)
+          // - `upload_status=has_uploads` (must have first upload)
+          // Combining both matches the intended semantics better than `has_uploads` alone.
+          href: creatorsDashboardHref({ view: "directory", segment: "active_30d", upload_status: "has_uploads" }),
         },
         {
           label: "Retained",
           stage: funnel.retained,
           previous: funnel.compare?.retained_30d,
-          href: creatorsDashboardHref({
-            view: "directory",
-            segment: "active_30d",
-            upload_status: "has_uploads",
-          }),
+          // Retained requires first upload + activity <= 30 days.
+          href: creatorsDashboardHref({ view: "directory", segment: "active_30d", upload_status: "has_uploads" }),
         },
       ]
     : []

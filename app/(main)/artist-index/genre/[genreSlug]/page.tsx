@@ -94,6 +94,7 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
         totalMatches={directory.totalMatches}
         currentPage={directory.currentPage}
         totalPages={directory.totalPages}
+        hasMore={directory.hasMore}
         query=""
         activeFilterIds={[genre.filterId]}
         claimArtist={directory.claimArtist}

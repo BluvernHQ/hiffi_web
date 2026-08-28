@@ -10,21 +10,32 @@ export async function GET(request: Request) {
     : []
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1)
 
-  const directory = await resolveArtistDirectoryPage({
-    query,
-    activeFilterIds,
-    page,
-  })
+  try {
+    const directory = await resolveArtistDirectoryPage({
+      query,
+      activeFilterIds,
+      page,
+    })
 
-  return NextResponse.json({
-    query: directory.query,
-    activeFilterIds: directory.activeFilterIds,
-    artistCount: directory.artistCount,
-    totalMatches: directory.totalMatches,
-    totalPages: directory.totalPages,
-    currentPage: directory.currentPage,
-    pageArtists: directory.pageArtists,
-    claimArtist: directory.claimArtist,
-    isCleanHub: !directory.query.trim() && directory.activeFilterIds.length === 0,
-  })
+    return NextResponse.json({
+      query: directory.query,
+      activeFilterIds: directory.activeFilterIds,
+      artistCount: directory.artistCount,
+      totalMatches: directory.totalMatches,
+      totalPages: directory.totalPages,
+      currentPage: directory.currentPage,
+      pageArtists: directory.pageArtists,
+      claimArtist: directory.claimArtist,
+      hasMore: directory.hasMore,
+      isCleanHub: !directory.query.trim() && directory.activeFilterIds.length === 0,
+    })
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[artist-index] directory API failed:", error)
+    }
+    return NextResponse.json(
+      { error: "Failed to load artist directory" },
+      { status: 503 },
+    )
+  }
 }

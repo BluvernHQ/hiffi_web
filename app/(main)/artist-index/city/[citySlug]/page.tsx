@@ -63,13 +63,7 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
   })
 
   const isAtlanta = city.slug === "atlanta"
-  const spotlightDirectory = isAtlanta
-    ? await resolveArtistDirectoryPage({
-        activeFilterIds: [city.filterId, "new"],
-        page: 1,
-      })
-    : null
-  const spotlightArtists = spotlightDirectory?.pageArtists.slice(0, 6) ?? []
+  const spotlightArtists = isAtlanta ? directory.pageArtists.slice(0, 6) : []
   const filterOptions = await getAvailableArtistDirectoryFilters()
 
   const pageUrl = absoluteUrl(
@@ -107,6 +101,7 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         totalMatches={directory.totalMatches}
         currentPage={directory.currentPage}
         totalPages={directory.totalPages}
+        hasMore={directory.hasMore}
         query=""
         activeFilterIds={[city.filterId]}
         claimArtist={directory.claimArtist}

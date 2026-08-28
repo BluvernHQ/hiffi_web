@@ -1,9 +1,10 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { buildArtistDirectoryHref } from "@/lib/artist-directory"
 import { ArtistCard } from "@/components/artists/ArtistCard"
+import { ArtistDirectoryGridSkeleton } from "@/components/artists/ArtistDirectoryGridSkeleton"
 import { artistPanelShell } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
 
@@ -20,6 +21,12 @@ type ArtistDirectoryGridProps = {
   paginationHref?: (page: number) => string
   /** When set, pagination updates in place instead of navigating via links. */
   onPageChange?: (page: number) => void
+  /** Client directory fetch in flight — disables pagination and dims the grid. */
+  isPending?: boolean
+  /** Replace grid with skeletons (search/filter changes). */
+  showSkeleton?: boolean
+  /** Backend `has_more` — enables next when total page count is unknown. */
+  hasMore?: boolean
   compactHeader?: boolean
   cardVariant?: "default" | "hub"
 }
@@ -55,6 +62,9 @@ export function ArtistDirectoryGrid({
   sectionSubtitle,
   paginationHref,
   onPageChange,
+  isPending = false,
+  showSkeleton = false,
+  hasMore = false,
   compactHeader = false,
   cardVariant = "default",
 }: ArtistDirectoryGridProps) {
@@ -70,8 +80,14 @@ export function ArtistDirectoryGrid({
   const paginationNavClassName =
     "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted/40"
 
+  const canGoToPage = (page: number) => {
+    if (isPending || page < 1 || page === currentPage) return false
+    if (page <= totalPages) return true
+    return hasMore && page === currentPage + 1
+  }
+
   const goToPage = (page: number) => {
-    if (page < 1 || page > totalPages || page === currentPage) return
+    if (!canGoToPage(page)) return
     onPageChange?.(page)
   }
 
@@ -80,6 +96,7 @@ export function ArtistDirectoryGrid({
     const className = cn(
       paginationClassName,
       isCurrent ? paginationActiveClassName : paginationInactiveClassName,
+      isPending && !isCurrent && "opacity-50",
     )
 
     if (onPageChange) {
@@ -88,6 +105,7 @@ export function ArtistDirectoryGrid({
           key={page}
           type="button"
           onClick={() => goToPage(page)}
+          disabled={isPending}
           aria-label={`Page ${page}`}
           aria-current={isCurrent ? "page" : undefined}
           className={className}
@@ -131,8 +149,10 @@ export function ArtistDirectoryGrid({
         <button
           type="button"
           onClick={() => goToPage(targetPage)}
-          className={paginationNavClassName}
+          disabled={isPending}
+          className={cn(paginationNavClassName, isPending && "opacity-50")}
           aria-label={label}
+          aria-busy={isPending || undefined}
         >
           {icon}
         </button>
@@ -191,15 +211,33 @@ export function ArtistDirectoryGrid({
         <h2 className="sr-only">Artist directory</h2>
       )}
 
-      {artists.length > 0 ? (
-        <div className={compactHeader ? "space-y-6" : "space-y-8"}>
-          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
+      {showSkeleton ? (
+        <ArtistDirectoryGridSkeleton compact={compactHeader} />
+      ) : artists.length > 0 ? (
+        <div className={cn("relative", compactHeader ? "space-y-6" : "space-y-8")}>
+          {isPending ? (
+            <div
+              className="absolute inset-0 z-10 flex items-start justify-center rounded-xl bg-background/40 pt-24"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-7 w-7 animate-spin text-[#E8192C]" aria-hidden />
+              <span className="sr-only">Loading artists</span>
+            </div>
+          ) : null}
+          <div
+            className={cn(
+              "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
+              isPending && "pointer-events-none opacity-60",
+            )}
+            aria-busy={isPending || undefined}
+          >
             {artists.map((artist) => (
               <ArtistCard key={artist.slug} artist={artist} variant={cardVariant} />
             ))}
           </div>
 
-          {totalPages > 1 ? (
+          {totalPages > 1 || hasMore ? (
             <nav
               aria-label="Artist directory pagination"
               className="flex items-center justify-center gap-1 sm:gap-2"
@@ -224,12 +262,14 @@ export function ArtistDirectoryGrid({
               {renderNavControl(
                 currentPage + 1,
                 "Next page",
-                <ChevronRight className="h-4 w-4" />,
-                currentPage >= totalPages,
+                isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />,
+                currentPage >= totalPages && !hasMore,
               )}
             </nav>
           ) : null}
         </div>
+      ) : isPending ? (
+        <ArtistDirectoryGridSkeleton compact={compactHeader} />
       ) : (
         <div
           className={cn(

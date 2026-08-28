@@ -33,6 +33,7 @@ type ArtistIndexListingProps = {
   layout?: "default" | "hub"
   /** Hub layout: update search/filter/clear in place without full page navigation. */
   clientDirectory?: boolean
+  hasMore?: boolean
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
 }
@@ -61,6 +62,7 @@ export function ArtistIndexListing({
   showIntro = true,
   layout = "default",
   clientDirectory = false,
+  hasMore = false,
   childrenBeforeGrid,
   childrenAfterGrid,
 }: ArtistIndexListingProps) {
@@ -79,6 +81,7 @@ export function ArtistIndexListing({
           totalPages,
           currentPage,
           pageArtists: artists,
+          hasMore: hasMore,
           isCleanHub,
         }}
         filterOptions={filterOptions}
@@ -145,6 +148,7 @@ export function ArtistIndexListing({
         artists={artists}
         currentPage={currentPage}
         totalPages={totalPages}
+        hasMore={hasMore}
         totalMatches={totalMatches}
         artistCount={artistCount}
         query={query}
