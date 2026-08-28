@@ -9,6 +9,7 @@ import {
   getCachedDirectorySnapshot,
   prefetchDirectoryPages,
 } from "@/lib/artist-index/directory-client-cache"
+import { saveArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
 import { ArtistIndexIntro } from "@/components/artists/ArtistIndexIntro"
 import { ArtistIndexControls } from "@/components/artists/ArtistIndexControls"
 import { ArtistDirectoryGrid } from "@/components/artists/ArtistDirectoryGrid"
@@ -71,7 +72,6 @@ export function ArtistIndexHubClient({
 }: ArtistIndexHubClientProps) {
   const [directory, setDirectory] = useState(initialDirectory)
   const [isPending, setIsPending] = useState(false)
-  const [showSkeleton, setShowSkeleton] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const gridSectionRef = useRef<HTMLDivElement>(null)
   const fetchGenerationRef = useRef(0)
@@ -83,6 +83,27 @@ export function ArtistIndexHubClient({
     page: initialDirectory.currentPage,
   })
   directoryRef.current = directory
+
+  useEffect(() => {
+    saveArtistDirectoryNavContext({
+      returnUrl: buildArtistDirectoryHref({
+        query: directory.query,
+        activeFilterIds: directory.activeFilterIds,
+        page: directory.currentPage,
+      }),
+      query: directory.query,
+      activeFilterIds: directory.activeFilterIds,
+      page: directory.currentPage,
+      slugs: directory.pageArtists.map((artist) => (artist as Artist).slug),
+      totalMatches: directory.totalMatches,
+    })
+  }, [
+    directory.query,
+    directory.activeFilterIds,
+    directory.currentPage,
+    directory.pageArtists,
+    directory.totalMatches,
+  ])
 
   useEffect(() => {
     prefetchDirectoryPages(
@@ -116,8 +137,6 @@ export function ArtistIndexHubClient({
 
       lastRequestRef.current = { query: nextQuery, activeFilterIds: nextFilterIds, page }
 
-      const filtersChanged =
-        nextQuery !== previous.query || filterKey(nextFilterIds) !== filterKey(previous.activeFilterIds)
       const cached = getCachedDirectorySnapshot(nextQuery, nextFilterIds, page)
 
       if (historyMode === "push") {
@@ -130,16 +149,14 @@ export function ArtistIndexHubClient({
       if (cached) {
         pendingRef.current = false
         setIsPending(false)
-        setShowSkeleton(false)
         setDirectory(cached as DirectorySnapshot)
         return
       }
 
       pendingRef.current = true
       setIsPending(true)
-      setShowSkeleton(filtersChanged)
 
-      // Optimistic page/filter highlight; keep cards when paginating (stale-while-revalidate).
+      // Optimistic page/filter highlight; keep cards while fetching (stale-while-revalidate).
       setDirectory((current) => ({
         ...current,
         query: nextQuery,
@@ -170,7 +187,6 @@ export function ArtistIndexHubClient({
           if (generation === fetchGenerationRef.current) {
             pendingRef.current = false
             setIsPending(false)
-            setShowSkeleton(false)
           }
         })
     },
@@ -272,7 +288,6 @@ export function ArtistIndexHubClient({
           paginationHref={paginationHref}
           onPageChange={handlePageChange}
           isPending={isPending}
-          showSkeleton={showSkeleton}
           compactHeader={false}
           cardVariant="hub"
         />

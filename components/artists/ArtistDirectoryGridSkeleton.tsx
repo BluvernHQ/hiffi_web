@@ -13,7 +13,7 @@ export function ArtistDirectoryGridSkeleton({
     <div
       className={cn(
         "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
-        compact ? "animate-pulse" : "animate-shimmer",
+        "animate-pulse",
       )}
       aria-hidden
     >

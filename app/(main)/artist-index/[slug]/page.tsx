@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
-import { ArtistDetailInteractive } from "@/components/artists/ArtistDetailInteractive"
-import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
+import { ArtistProfilePageClient } from "@/components/artists/artist-profile-page-client"
 import {
   buildArtistProfileBreadcrumbs,
   buildArtistProfileMetadata,
@@ -53,24 +52,20 @@ export default async function ArtistBriefPage({ params, searchParams }: ArtistBr
   const query = await searchParams
   const initialEditMode = query.edit === "1" || query.edit === "true"
 
-  const profilePath = `/artist-index/${artist.slug}`
   const otherArtists = await getRelatedArtists(artist, 6)
   const breadcrumbs = buildArtistProfileBreadcrumbs(artist)
 
   return (
-    <ArtistDirectoryShell
-      claimHref={`/artist-index/${artist.slug}/claim`}
-      breadcrumbs={breadcrumbs}
-    >
+    <>
       <JsonLd data={buildArtistProfileJsonLd(artist)} />
       <JsonLd data={buildArtistProfileBreadcrumbJsonLd(artist)} />
 
-      <ArtistDetailInteractive
-        artist={artist}
-        profilePath={profilePath}
-        otherArtists={otherArtists}
+      <ArtistProfilePageClient
+        initialArtist={artist}
+        initialOtherArtists={otherArtists}
+        initialBreadcrumbs={breadcrumbs}
         initialEditMode={initialEditMode}
       />
-    </ArtistDirectoryShell>
+    </>
   )
 }

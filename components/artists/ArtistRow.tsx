@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import { artistProfilePhotoAlt, formatCityState } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
@@ -91,7 +92,7 @@ export function ArtistRow({ artist }: ArtistRowProps) {
         <ArtistAvatar artist={artist} />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <Link
+            <ArtistProfileLink
               href={profileHref}
               className={cn(
                 "truncate text-base font-semibold transition-colors hover:text-[#E8192C]",
@@ -99,7 +100,7 @@ export function ArtistRow({ artist }: ArtistRowProps) {
               )}
             >
               {artist.name}
-            </Link>
+            </ArtistProfileLink>
             {artist.verified ? (
               <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
             ) : null}
@@ -142,10 +143,10 @@ export function ArtistRow({ artist }: ArtistRowProps) {
           <ClaimStatusBadge artist={artist} />
         </div>
         {artist.verified ? (
-          <Link href={profileHref} className={artistButtonSolid}>
+          <ArtistProfileLink href={profileHref} className={artistButtonSolid}>
             View profile
             <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+          </ArtistProfileLink>
         ) : isPending ? (
           <Link href={claimHref} className={artistButtonOutline}>
             Request ownership

@@ -1,24 +1,36 @@
+import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
 import { ArtistDirectoryGridSkeleton } from "@/components/artists/ArtistDirectoryGridSkeleton"
+import { ArtistIndexIntro } from "@/components/artists/ArtistIndexIntro"
 
 export default function ArtistIndexLoading() {
   return (
-    <div className="space-y-8 sm:space-y-10" aria-busy aria-live="polite">
-      <div className="space-y-4 sm:space-y-5">
-        <div className="space-y-3">
-          <div className="h-10 w-3/4 max-w-lg animate-shimmer rounded-lg bg-muted" />
-          <div className="h-4 w-full max-w-2xl animate-shimmer rounded bg-muted/80" />
-          <div className="h-4 w-5/6 max-w-xl animate-shimmer rounded bg-muted/70" />
+    <ArtistDirectoryShell claimLabel="Claim Now">
+      <div className="space-y-8 sm:space-y-10" aria-busy aria-live="polite">
+        <div className="space-y-4 sm:space-y-5">
+          <ArtistIndexIntro artistCount={0} variant="hub" />
+          <section
+            aria-label="Search artists"
+            className="rounded-2xl border border-[#E8192C]/15 bg-[#FAFAFA] p-3 shadow-sm sm:p-4"
+          >
+            <div className="h-11 rounded-xl border border-border/60 bg-white" aria-hidden />
+          </section>
         </div>
-        <div className="h-14 animate-shimmer rounded-2xl border border-border/60 bg-muted/30" />
+
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Featured artists
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Verified and emerging hip-hop and rap artists across cities — search profiles and
+              explore official links.
+            </p>
+          </div>
+          <ArtistDirectoryGridSkeleton />
+        </section>
+
+        <span className="sr-only">Loading Artist Index</span>
       </div>
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <div className="h-8 w-48 animate-shimmer rounded bg-muted" />
-          <div className="h-4 w-72 animate-shimmer rounded bg-muted/80" />
-        </div>
-        <ArtistDirectoryGridSkeleton />
-      </div>
-      <span className="sr-only">Loading Artist Index</span>
-    </div>
+    </ArtistDirectoryShell>
   )
 }

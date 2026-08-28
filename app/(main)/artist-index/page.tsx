@@ -14,6 +14,7 @@ import {
   ARTIST_INDEX_PATH,
 } from "@/lib/artist-directory"
 import {
+  getArtistCount,
   getArtistDirectoryFilters,
   getAvailableArtistDirectoryFilters,
   parseArtistDirectorySearchParams,
@@ -33,6 +34,13 @@ type ArtistIndexPageProps = {
 export async function generateMetadata({ searchParams }: ArtistIndexPageProps): Promise<Metadata> {
   const params = await searchParams
   const { query, activeFilterIds, page } = parseArtistDirectorySearchParams(params)
+  const isCleanHub = !query.trim() && activeFilterIds.length === 0 && page === 1
+
+  if (isCleanHub) {
+    const artistCount = await getArtistCount().catch(() => undefined)
+    return await buildArtistIndexHubMetadata({ artistCount })
+  }
+
   const directory = await resolveArtistDirectoryPage({ query, activeFilterIds, page })
 
   return await buildArtistIndexHubMetadata({

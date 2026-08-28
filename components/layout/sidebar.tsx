@@ -336,13 +336,27 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     [closeSidebar, curatedFirstVideoById, router],
   )
 
-  const SidebarFooterInlineLink = ({ item }: { item: ContentPageLink }) => (
+  const SidebarFooterInlineLink = ({ item }: { item: ContentPageLink }) => {
+    const prefetchArtistIndex = item.href === "/artist-index"
+
+    return (
     <Link
       href={item.href}
+      prefetch={prefetchArtistIndex ? true : undefined}
       className={cn(
         "inline-block transition-colors hover:underline underline-offset-2",
         isAppDownloadPage ? "text-black/60 hover:text-black" : "text-muted-foreground hover:text-foreground",
       )}
+      onMouseEnter={() => {
+        if (prefetchArtistIndex) {
+          router.prefetch("/artist-index")
+        }
+      }}
+      onFocus={() => {
+        if (prefetchArtistIndex) {
+          router.prefetch("/artist-index")
+        }
+      }}
       onClick={(e) => {
         const { shouldBlock, message } = checkUploadNavigationGuard()
         if (shouldBlock) {
@@ -358,7 +372,8 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     >
       {item.label}
     </Link>
-  )
+    )
+  }
 
   return (
     <>

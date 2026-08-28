@@ -52,6 +52,12 @@ export function mapInventoryProfileToArtist(
     ? [genreLabel.charAt(0).toUpperCase() + genreLabel.slice(1)]
     : ["Rap"]
 
+  const inventoryBanner = profile.banner_image?.trim()
+  if (inventoryBanner) {
+    bannerImage = getArtistImageUrl(inventoryBanner)
+    image = bannerImage
+  }
+
   let ig = getInventorySocialUrl(profile, "instagram") ?? null
   let yt = getInventorySocialUrl(profile, "youtube") ?? null
   let tt = getInventorySocialUrl(profile, "tiktok") ?? null
@@ -69,7 +75,8 @@ export function mapInventoryProfileToArtist(
     const linkedBio = String(linked.bio ?? "").trim()
     if (linkedBio) bio = linkedBio
     const profilePicture = String(linked.profile_picture ?? linked.image ?? "").trim()
-    image = getArtistImageUrl(profilePicture)
+    const linkedImage = getArtistImageUrl(profilePicture)
+    if (linkedImage) image = linkedImage
     const linkedBanner = String(linked.banner_image ?? linked.cover_image ?? "").trim()
     bannerImage = linkedBanner ? getArtistImageUrl(linkedBanner) : null
     followers = Number(linked.followers ?? 0)

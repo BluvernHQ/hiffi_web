@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ChevronRight } from "lucide-react"
@@ -13,12 +14,14 @@ type ArtistIndexHeaderProps = {
   claimHref?: string
   claimLabel?: string
   breadcrumbs?: Breadcrumb[]
+  breadcrumbTrailing?: ReactNode
 }
 
 export function ArtistIndexHeader({
   claimHref = "/artist-index/claim",
   claimLabel = "Claim your profile",
   breadcrumbs,
+  breadcrumbTrailing,
 }: ArtistIndexHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
@@ -41,8 +44,9 @@ export function ArtistIndexHeader({
       {breadcrumbs?.length ? (
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center gap-1 border-t border-border/40 px-2 pb-2.5 pt-2 text-xs sm:px-3 md:px-4"
+          className="flex items-center justify-between gap-3 border-t border-border/40 px-2 pb-2.5 pt-2 text-xs sm:px-3 md:px-4"
         >
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           {breadcrumbs.map((crumb, index) => (
             <span key={crumb.label} className="inline-flex items-center gap-1">
               {index > 0 ? (
@@ -63,6 +67,8 @@ export function ArtistIndexHeader({
               )}
             </span>
           ))}
+          </div>
+          {breadcrumbTrailing ? <div className="shrink-0">{breadcrumbTrailing}</div> : null}
         </nav>
       ) : null}
     </header>

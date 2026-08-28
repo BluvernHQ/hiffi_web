@@ -7,6 +7,7 @@ type ArtistDirectoryShellProps = {
   claimHref?: string
   claimLabel?: string
   breadcrumbs?: Array<{ label: string; href?: string }>
+  breadcrumbTrailing?: ReactNode
 }
 
 export function ArtistDirectoryShell({
@@ -14,10 +15,16 @@ export function ArtistDirectoryShell({
   claimHref,
   claimLabel,
   breadcrumbs,
+  breadcrumbTrailing,
 }: ArtistDirectoryShellProps) {
   return (
     <div className="min-h-screen bg-white">
-      <ArtistIndexHeader claimHref={claimHref} claimLabel={claimLabel} breadcrumbs={breadcrumbs} />
+      <ArtistIndexHeader
+        claimHref={claimHref}
+        claimLabel={claimLabel}
+        breadcrumbs={breadcrumbs}
+        breadcrumbTrailing={breadcrumbTrailing}
+      />
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">{children}</main>
       <SiteFooter />
     </div>
