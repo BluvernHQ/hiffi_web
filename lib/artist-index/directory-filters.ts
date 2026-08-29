@@ -72,7 +72,7 @@ export function getAllDirectoryFilterOptions(): ArtistDirectoryFilterOption[] {
 
 /**
  * Map hub/city/genre UI state → GET /inventory filter params + client display sort.
- * Hub default display sort: verified-first (claimed, then name A→Z).
+ * Hub default follows API order (`artist_name ASC`).
  */
 export function buildDirectoryInventoryQuery(
   query: string,
@@ -89,7 +89,7 @@ export function buildDirectoryInventoryQuery(
     if (filter.kind === "genre" && filter.genre) genre = filter.genre
   }
 
-  const sort: InventorySort = search ? "name" : "verified_first"
+  const sort: InventorySort = "name"
 
   return {
     ...(search ? { search } : {}),

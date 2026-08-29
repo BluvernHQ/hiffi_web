@@ -9,11 +9,9 @@ import {
 import {
   inventorySortNeedsFullCatalog,
   inventorySortUsesServerPagination,
-  inventorySortUsesVerifiedFirstSlice,
   sortArtistsByDisplaySort,
   sortInventoryProfiles,
 } from "@/lib/artist-index/inventory-sort"
-import { fetchVerifiedFirstInventorySlice } from "@/lib/artist-index/fetch-verified-first-slice"
 import {
   buildDirectoryInventoryQuery,
   DIRECTORY_CITY_FILTERS,
@@ -170,15 +168,6 @@ async function resolveArtistDirectoryPageImpl(options: {
     inventoryItems = inventoryPage.items
     totalMatches = inventoryPage.total
     hasMore = inventoryPage.has_more
-  } else if (inventorySortUsesVerifiedFirstSlice(sort)) {
-    const slice = await fetchVerifiedFirstInventorySlice(
-      apiFilters,
-      offset,
-      ARTIST_DIRECTORY_PAGE_SIZE,
-    )
-    inventoryItems = slice.items
-    totalMatches = slice.total
-    hasMore = slice.hasMore
   } else if (inventorySortNeedsFullCatalog(sort)) {
     const allItems = await fetchAllInventoryProfiles(apiFilters)
     const sorted = sortInventoryProfiles(allItems, sort)
@@ -193,12 +182,7 @@ async function resolveArtistDirectoryPageImpl(options: {
     hasMore = offset + ARTIST_DIRECTORY_PAGE_SIZE < totalMatches
   }
 
-  const catalogTotal =
-    isCleanHub && inventorySortUsesVerifiedFirstSlice(sort)
-      ? totalMatches
-      : isCleanHub
-        ? await getCachedCatalogTotal().catch(() => 0)
-        : 0
+  const catalogTotal = isCleanHub ? await getCachedCatalogTotal().catch(() => 0) : 0
 
   const pageArtists = await mapInventoryProfilesToArtists(inventoryItems)
   const totalPages = Math.max(1, Math.ceil(totalMatches / ARTIST_DIRECTORY_PAGE_SIZE))
@@ -239,7 +223,7 @@ async function fetchRelatedCandidates(artist: Artist, limit: number): Promise<Ar
     result.items
       .map((profile) => mapInventoryProfileToArtist(profile))
       .filter((item) => item.slug !== artist.slug),
-    "verified_first",
+    "name",
   )
 }
 
@@ -287,7 +271,7 @@ export async function getOtherArtistsAsync(artist: Artist, limit = 6): Promise<A
         (item) =>
           item.slug !== artist.slug && !related.some((relatedArtist) => relatedArtist.slug === item.slug),
       ),
-    "verified_first",
+    "name",
   ).slice(0, limit - related.length)
 
   return enrichArtistsWithLinkedProfiles([...related, ...others])
@@ -295,7 +279,7 @@ export async function getOtherArtistsAsync(artist: Artist, limit = 6): Promise<A
 
 export async function getArtistsAsync(): Promise<Artist[]> {
   const result = await fetchAllInventoryProfiles()
-  return sortInventoryProfiles(result, "verified_first").map((profile) =>
+  return sortInventoryProfiles(result, "name").map((profile) =>
     mapInventoryProfileToArtist(profile),
   )
 }
@@ -315,7 +299,7 @@ export async function getArtistCountAsync(): Promise<number> {
 /** @deprecated Use resolveArtistDirectoryPageAsync. */
 export const loadAllArtists = cache(async (): Promise<Artist[]> => {
   const profiles = await fetchAllInventoryProfiles()
-  return sortInventoryProfiles(profiles, "verified_first").map((profile) =>
+  return sortInventoryProfiles(profiles, "name").map((profile) =>
     mapInventoryProfileToArtist(profile),
   )
 })
