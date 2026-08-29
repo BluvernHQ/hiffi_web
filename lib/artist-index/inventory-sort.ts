@@ -1,8 +1,19 @@
 import type { Artist } from "@/lib/artists"
 import type { InventorySort, PublicInventoryProfile } from "@/lib/types/inventory"
 
-function claimedFirstRank(claimStatus: PublicInventoryProfile["claim_status"]): number {
-  return claimStatus === "claimed" ? 0 : 1
+function claimStatusDisplayRank(
+  claimStatus: PublicInventoryProfile["claim_status"],
+): number {
+  switch (claimStatus) {
+    case "claimed":
+      return 0
+    case "pending":
+      return 1
+    case "unclaimed":
+      return 2
+    default:
+      return 3
+  }
 }
 
 function compareNames(a: string, b: string): number {
@@ -21,7 +32,7 @@ export function inventorySortUsesServerPagination(sort: InventorySort): boolean 
   return sort === "name"
 }
 
-/** `verified_first` uses claimed + merged non-claimed slices — no full-catalog fetch. */
+/** `verified_first` uses claimed → pending → unclaimed slices — no full-catalog fetch. */
 export function inventorySortUsesVerifiedFirstSlice(sort: InventorySort): boolean {
   return sort === "verified_first"
 }
@@ -37,7 +48,8 @@ export function compareInventoryProfiles(
 ): number {
   switch (sort) {
     case "verified_first": {
-      const rankDiff = claimedFirstRank(a.claim_status) - claimedFirstRank(b.claim_status)
+      const rankDiff =
+        claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
       if (rankDiff !== 0) return rankDiff
       return compareNames(a.artist_name, b.artist_name)
     }
@@ -70,7 +82,8 @@ export function sortInventoryProfiles(
 export function compareArtistsByDisplaySort(a: Artist, b: Artist, sort: InventorySort): number {
   switch (sort) {
     case "verified_first": {
-      const rankDiff = claimedFirstRank(a.claim_status) - claimedFirstRank(b.claim_status)
+      const rankDiff =
+        claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
       if (rankDiff !== 0) return rankDiff
       return compareNames(a.name, b.name)
     }
