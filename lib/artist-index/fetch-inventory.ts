@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/config"
 import { unwrapSuccessData } from "@/lib/api/envelope"
 import type {
   InventoryProfileListResponse,
+  InventorySort,
   PublicInventoryClaimStatus,
   PublicInventoryProfile,
 } from "@/lib/types/inventory"
@@ -34,6 +35,7 @@ export type InventoryPageParams = {
   city?: string
   genre?: string
   claim_status?: PublicInventoryClaimStatus
+  sort?: InventorySort
 }
 
 export async function fetchInventoryPage(
@@ -49,6 +51,7 @@ export async function fetchInventoryPage(
   else if (params.city?.trim()) sp.set("city", params.city.trim())
   if (params.genre?.trim()) sp.set("genre", params.genre.trim().toLowerCase())
   if (params.claim_status) sp.set("claim_status", params.claim_status)
+  if (params.sort) sp.set("sort", params.sort)
 
   const usernameTag = params.username?.trim()
     ? artistInventoryUsernameTag(params.username)
@@ -86,6 +89,7 @@ export async function fetchInventoryPage(
     ...(data.location ? { location: data.location } : {}),
     ...(data.genre ? { genre: data.genre } : {}),
     ...(data.claim_status ? { claim_status: data.claim_status } : {}),
+    ...(data.sort ? { sort: data.sort as InventoryPageParams["sort"] } : {}),
   }
 }
 

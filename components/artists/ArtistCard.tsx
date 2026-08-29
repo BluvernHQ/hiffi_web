@@ -37,6 +37,14 @@ function HeaderBadge({ artist }: { artist: Artist }) {
     )
   }
 
+  if (artist.claim_status === "pending") {
+    return (
+      <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-foreground">
+        Under Review
+      </span>
+    )
+  }
+
   if (isArtistNew(artist)) {
     return (
       <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-foreground">
@@ -49,14 +57,6 @@ function HeaderBadge({ artist }: { artist: Artist }) {
     return (
       <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#E8192C]">
         Claim available
-      </span>
-    )
-  }
-
-  if (artist.claim_status === "pending") {
-    return (
-      <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-foreground">
-        Under Review
       </span>
     )
   }

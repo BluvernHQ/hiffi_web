@@ -5,15 +5,15 @@ import {
 } from "@/lib/artist-index/fetch-inventory"
 import type { PublicInventoryClaimStatus, PublicInventoryProfile } from "@/lib/types/inventory"
 
-type InventoryFilterParams = Omit<InventoryPageParams, "limit" | "offset" | "claim_status">
+type InventoryFilterParams = Omit<InventoryPageParams, "limit" | "offset" | "claim_status" | "sort">
 
-const DISPLAY_SEGMENTS: PublicInventoryClaimStatus[] = ["claimed", "pending", "unclaimed"]
+const FEATURED_SEGMENTS: PublicInventoryClaimStatus[] = ["claimed", "pending", "unclaimed"]
 
 /**
- * Claimed profiles first, then pending (under review), then unclaimed — each segment A→Z.
- * Paginated via GET /inventory without loading the full catalog.
+ * Claimed → pending → unclaimed (A→Z within each tier) via claim_status slices.
+ * Matches GET /inventory?sort=featured without relying on backend sort support.
  */
-export async function fetchVerifiedFirstInventorySlice(
+export async function fetchFeaturedInventorySlice(
   params: InventoryFilterParams,
   offset: number,
   limit: number,
@@ -24,7 +24,7 @@ export async function fetchVerifiedFirstInventorySlice(
   }
 
   const segmentTotals = await Promise.all(
-    DISPLAY_SEGMENTS.map((claim_status) => fetchInventoryTotal({ ...params, claim_status })),
+    FEATURED_SEGMENTS.map((claim_status) => fetchInventoryTotal({ ...params, claim_status })),
   )
   const catalogTotal = segmentTotals.reduce((sum, count) => sum + count, 0)
 
@@ -32,10 +32,10 @@ export async function fetchVerifiedFirstInventorySlice(
   let remainingOffset = offset
   let remainingLimit = limit
 
-  for (let index = 0; index < DISPLAY_SEGMENTS.length; index += 1) {
+  for (let index = 0; index < FEATURED_SEGMENTS.length; index += 1) {
     if (remainingLimit <= 0) break
 
-    const claim_status = DISPLAY_SEGMENTS[index]
+    const claim_status = FEATURED_SEGMENTS[index]
     const segmentTotal = segmentTotals[index]
 
     if (remainingOffset >= segmentTotal) {
@@ -48,6 +48,7 @@ export async function fetchVerifiedFirstInventorySlice(
     const page = await fetchInventoryPage({
       ...params,
       claim_status,
+      sort: "name",
       offset: localOffset,
       limit: fetchLimit,
     })

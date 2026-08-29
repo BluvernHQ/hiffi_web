@@ -27,7 +27,7 @@ export type InventorySocialLinks = {
 
 export type PublicInventoryClaimStatus = "unclaimed" | "pending" | "claimed"
 
-export type InventorySort = "name" | "name_desc" | "verified_first" | "newest" | "oldest"
+export type InventorySort = "verified_first" | "featured" | "name"
 
 export interface PublicInventoryProfile {
   username: string
@@ -54,6 +54,7 @@ export interface InventoryProfileListResponse {
   location?: string
   genre?: string
   claim_status?: PublicInventoryClaimStatus
+  sort?: InventorySort
 }
 
 export interface InventoryClaimSubmit {

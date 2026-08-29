@@ -71,8 +71,9 @@ export function getAllDirectoryFilterOptions(): ArtistDirectoryFilterOption[] {
 }
 
 /**
- * Map hub/city/genre UI state → GET /inventory filter params + client display sort.
- * Hub default display sort: verified (claimed) → under review (pending) → A→Z.
+ * Map hub/city/genre UI state → GET /inventory filter params.
+ * Hub/browse uses `sort=featured` (claimed → pending → unclaimed, A→Z per tier).
+ * Search uses `sort=name`.
  */
 export function buildDirectoryInventoryQuery(
   query: string,
@@ -89,7 +90,7 @@ export function buildDirectoryInventoryQuery(
     if (filter.kind === "genre" && filter.genre) genre = filter.genre
   }
 
-  const sort: InventorySort = search ? "name" : "verified_first"
+  const sort: InventorySort = search ? "name" : "featured"
 
   return {
     ...(search ? { search } : {}),
