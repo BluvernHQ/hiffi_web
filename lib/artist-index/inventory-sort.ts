@@ -1,6 +1,21 @@
 import type { Artist } from "@/lib/artists"
 import type { InventorySort, PublicInventoryProfile } from "@/lib/types/inventory"
 
+function claimStatusDisplayRank(
+  claimStatus: PublicInventoryProfile["claim_status"],
+): number {
+  switch (claimStatus) {
+    case "claimed":
+      return 0
+    case "pending":
+      return 1
+    case "unclaimed":
+      return 2
+    default:
+      return 3
+  }
+}
+
 function compareNames(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: "base" })
 }
@@ -17,6 +32,11 @@ export function inventorySortUsesServerPagination(sort: InventorySort): boolean 
   return sort === "name"
 }
 
+/** `verified_first` uses claimed → pending → unclaimed slices — no full-catalog fetch. */
+export function inventorySortUsesVerifiedFirstSlice(sort: InventorySort): boolean {
+  return sort === "verified_first"
+}
+
 export function inventorySortNeedsFullCatalog(sort: InventorySort): boolean {
   return sort === "newest" || sort === "oldest" || sort === "name_desc"
 }
@@ -27,6 +47,12 @@ export function compareInventoryProfiles(
   sort: InventorySort,
 ): number {
   switch (sort) {
+    case "verified_first": {
+      const rankDiff =
+        claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
+      if (rankDiff !== 0) return rankDiff
+      return compareNames(a.artist_name, b.artist_name)
+    }
     case "newest": {
       const diff = parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
       if (diff !== 0) return diff
@@ -55,6 +81,12 @@ export function sortInventoryProfiles(
 
 export function compareArtistsByDisplaySort(a: Artist, b: Artist, sort: InventorySort): number {
   switch (sort) {
+    case "verified_first": {
+      const rankDiff =
+        claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
+      if (rankDiff !== 0) return rankDiff
+      return compareNames(a.name, b.name)
+    }
     case "newest": {
       const diff = parseTimestamp(b.added_date) - parseTimestamp(a.added_date)
       if (diff !== 0) return diff
