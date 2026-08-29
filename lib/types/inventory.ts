@@ -57,10 +57,30 @@ export interface InventoryProfileListResponse {
   sort?: InventorySort
 }
 
+export type DiscoverySource =
+  | "google_search"
+  | "email"
+  | "instagram"
+  | "chatgpt"
+  | "other";
+
+export const DISCOVERY_SOURCE_OPTIONS: {
+  value: DiscoverySource
+  label: string
+}[] = [
+  { value: "google_search", label: "Search (Google)" },
+  { value: "email", label: "Email" },
+  { value: "instagram", label: "Instagram" },
+  { value: "chatgpt", label: "ChatGPT" },
+  { value: "other", label: "Other" },
+]
+
 export interface InventoryClaimSubmit {
   username: string
   name: string
   email: string
+  discovery_source: DiscoverySource
+  discovery_source_other?: string
 }
 
 export interface InventoryClaimSubmitResponse {
@@ -68,6 +88,9 @@ export interface InventoryClaimSubmitResponse {
   username: string
   status: "pending"
   message: string
+  discovery_source: DiscoverySource
+  discovery_source_label?: string
+  discovery_source_other?: string
 }
 
 export type InventoryClaimStatus = "pending" | "approved" | "rejected"
@@ -79,6 +102,9 @@ export interface InventoryClaim {
   name: string
   email: string
   status: InventoryClaimStatus
+  discovery_source?: DiscoverySource
+  discovery_source_other?: string
+  discovery_source_label?: string
   client_ip?: string
   created_at: string
   updated_at: string
@@ -182,6 +208,21 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
       ? String(raw.client_ip).trim()
       : undefined
 
+  const discoverySource =
+  raw.discovery_source != null && String(raw.discovery_source).trim()
+    ? (String(raw.discovery_source).trim() as DiscoverySource)
+    : undefined
+
+const discoverySourceOther =
+  raw.discovery_source_other != null && String(raw.discovery_source_other).trim()
+    ? String(raw.discovery_source_other).trim()
+    : undefined
+
+const discoverySourceLabel =
+  raw.discovery_source_label != null && String(raw.discovery_source_label).trim()
+    ? String(raw.discovery_source_label).trim()
+    : undefined
+
   return {
     id: String(raw.id ?? "").trim(),
     username: String(raw.username ?? "").trim().toLowerCase(),
@@ -192,6 +233,9 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
     client_ip: clientIp,
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
+    discovery_source: discoverySource,
+    discovery_source_other: discoverySourceOther,
+    discovery_source_label: discoverySourceLabel,
   }
 }
 

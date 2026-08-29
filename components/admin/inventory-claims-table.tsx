@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Check, ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, Info, Loader2, RefreshCw, Search } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
 import type { InventoryClaim, InventoryClaimStatus } from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -38,6 +43,32 @@ function formatTimestamp(value: string): string {
   return format(date, "MMM d, yyyy · h:mm a")
 }
 
+function discoverySourceDisplay(claim: InventoryClaim): {
+  label: string
+  detail?: string
+} {
+  if (!claim.discovery_source) {
+    return { label: "Unknown" }
+  }
+
+  if (claim.discovery_source === "other") {
+    const detail =
+      claim.discovery_source_other?.trim() ||
+      claim.discovery_source_label?.replace(/^Other:\s*/i, "").trim()
+
+    return {
+      label: "Other",
+      ...(detail && detail !== "Other" ? { detail } : {}),
+    }
+  }
+
+  if (claim.discovery_source_label?.trim()) {
+    return { label: claim.discovery_source_label.trim() }
+  }
+
+  return { label: claim.discovery_source }
+}
+
 function statusLabel(status: InventoryClaimStatus): string {
   switch (status) {
     case "approved":
@@ -58,6 +89,37 @@ function statusBadgeClass(status: InventoryClaimStatus): string {
     default:
       return "bg-amber-100 text-amber-900 border-amber-200"
   }
+}
+
+function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
+  const source = discoverySourceDisplay(claim)
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span>{source.label}</span>
+
+      {source.detail ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={`View discovery source detail for ${claim.email}`}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-red-50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </button>
+          </PopoverTrigger>
+
+          <PopoverContent align="start" side="top" className="w-72 rounded-lg border bg-background p-3 shadow-lg">
+            
+            <p className="mt-1 text-sm leading-5 text-foreground">
+              {source.detail}
+            </p>
+          </PopoverContent>
+        </Popover>
+      ) : null}
+    </span>
+  )
 }
 
 export function InventoryClaimsTable() {
@@ -199,7 +261,7 @@ export function InventoryClaimsTable() {
     usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
-  const colSpan = canWrite ? 7 : 6
+  const colSpan = canWrite ? 8 : 7
 
   if (isInitialLoad) {
     return (
@@ -347,6 +409,9 @@ export function InventoryClaimsTable() {
                   Email
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Discovery Source
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Status
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -385,6 +450,9 @@ export function InventoryClaimsTable() {
                     <td className="px-4 py-3 text-sm">{row.name}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
                       {row.email}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <DiscoverySourceCell claim={row} />
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>

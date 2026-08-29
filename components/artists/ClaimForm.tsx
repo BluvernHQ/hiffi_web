@@ -3,10 +3,21 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import type { Artist } from "@/lib/artists"
+import {
+  type DiscoverySource,
+  DISCOVERY_SOURCE_OPTIONS,
+} from "@/lib/types/inventory"
 import { InventoryClaimError, submitInventoryClaim } from "@/lib/api/inventory"
 import { artistButtonSolid } from "@/components/artists/artist-styles"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 type ClaimFormProps = {
@@ -16,15 +27,19 @@ type ClaimFormProps = {
 type ClaimFormState = {
   name: string
   email: string
+  howFound: DiscoverySource | ""
+  howFoundOther: string
 }
 
 export function ClaimForm({ artist }: ClaimFormProps) {
   const router = useRouter()
   const isOwnershipRequest = artist.claim_status === "pending"
   const [form, setForm] = useState<ClaimFormState>({
-    name: "",
-    email: "",
-  })
+  name: "",
+  email: "",
+  howFound: "",
+  howFoundOther: "",
+})
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -34,18 +49,42 @@ export function ClaimForm({ artist }: ClaimFormProps) {
     if (error) setError(null)
   }
 
+  const handleHowFoundChange = (value: DiscoverySource) => {
+  setForm((current) => ({
+    ...current,
+    howFound: value,
+    // Clear custom text when switching away from Other
+    howFoundOther: value === "other" ? current.howFoundOther : "",
+  }))
+
+  if (error) setError(null)
+}
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!form.howFound) {
+  setError("Please select how you found us.")
+  return
+}
+
+if (form.howFound === "other" && !form.howFoundOther.trim()) {
+  setError("Please specify how you found us.")
+  return
+}
     setSubmitting(true)
     setError(null)
 
     try {
       // Same inventory claim endpoint — queues another pending claim for admin review.
       await submitInventoryClaim({
-        username: artist.slug,
-        name: form.name,
-        email: form.email,
-      })
+  username: artist.slug,
+  name: form.name,
+  email: form.email,
+  discovery_source: form.howFound,
+  ...(form.howFound === "other" && {
+    discovery_source_other: form.howFoundOther.trim(),
+  }),
+})
       setSubmitted(true)
       // Claims BFF already revalidates inventory tags; refresh RSC tree so CTAs update.
       router.refresh()
@@ -101,7 +140,7 @@ export function ClaimForm({ artist }: ClaimFormProps) {
             <Label htmlFor="name">Your name</Label>
             <Input
               id="name"
-              placeholder="Your legal or stage name"
+              placeholder="Your full legal name"
               value={form.name}
               onChange={(event) => updateField("name", event.target.value)}
               required
@@ -122,15 +161,65 @@ export function ClaimForm({ artist }: ClaimFormProps) {
               className="h-11 rounded-xl"
             />
           </div>
+          <div className="space-y-2">
+  <Label htmlFor="how-found">
+    How did you find us?
+    <span className="ml-1 text-destructive">*</span>
+  </Label>
+
+  <Select
+    value={form.howFound}
+    onValueChange={handleHowFoundChange}
+  >
+    <SelectTrigger
+      id="how-found"
+      className="h-11 w-full rounded-xl"
+    >
+      <SelectValue placeholder="Select an option" />
+    </SelectTrigger>
+
+    <SelectContent>
+  {DISCOVERY_SOURCE_OPTIONS.map((option) => (
+    <SelectItem key={option.value} value={option.value}>
+      {option.label}
+    </SelectItem>
+  ))}
+</SelectContent>
+  </Select>
+  {error === "Please select how you found us." && (
+  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+    {error}
+  </p>
+)}
+</div>
+{form.howFound === "other" && (
+  <div className="space-y-2">
+    <Label htmlFor="how-found-other">
+      Please specify
+      <span className="ml-1 text-destructive">*</span>
+    </Label>
+
+    <Input
+      id="how-found-other"
+      type="text"
+      placeholder="Enter how you found us..."
+      value={form.howFoundOther}
+      onChange={(event) =>
+        updateField("howFoundOther", event.target.value)
+      }
+      required
+      maxLength={200}
+      autoComplete="off"
+      className="h-11 rounded-xl"
+    />
+
+    <p className="text-xs text-muted-foreground">
+      Maximum 200 characters.
+    </p>
+  </div>
+)}
         </div>
       </section>
-
-      {error ? (
-        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <button
         type="submit"
         disabled={submitting}
