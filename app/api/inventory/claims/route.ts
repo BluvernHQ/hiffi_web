@@ -9,22 +9,26 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Partial<InventoryClaimSubmit>
 
-    if (!body.username?.trim() || !body.name?.trim() || !body.email?.trim()) {
-      return NextResponse.json(
-        { success: false, error: "username, name, and email are required." },
-        { status: 400 },
-      )
-    }
+    if (!body.username?.trim() || !body.name?.trim() || !body.email?.trim() || !body.discovery_source) {
+  return NextResponse.json(
+    { success: false, error: "username, name, email, and discovery_source are required." },
+    { status: 400 },
+  )
+}
 
     const username = body.username.trim().toLowerCase()
     const res = await fetch(`${getApiBaseUrl()}/inventory/claims`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username,
-        name: body.name.trim(),
-        email: body.email.trim(),
-      }),
+  username,
+  name: body.name.trim(),
+  email: body.email.trim(),
+  discovery_source: body.discovery_source,
+  ...(body.discovery_source === "other" && body.discovery_source_other?.trim()
+    ? { discovery_source_other: body.discovery_source_other.trim() }
+    : {}),
+}),
     })
 
     const payload = await res.json()
