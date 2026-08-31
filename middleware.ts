@@ -66,7 +66,8 @@ export function middleware(req: NextRequest) {
     normalizedPathname.startsWith("/llms-md") ||
     normalizedPathname.startsWith("/sitemap") ||
     normalizedPathname.startsWith("/sitemaps") ||
-    normalizedPathname.startsWith("/appbarlogo") // allow logo used on maintenance page
+    normalizedPathname.startsWith("/appbarlogo") || // allow logo used on maintenance page
+    normalizedPathname.startsWith("/mail-template")
 
   if (isAllowed) {
     return nextWithJoyjam(req)

@@ -57,7 +57,7 @@ export const MARKETING_PAGE_PATHS = [
 ] as const
 
 /** Lead / marketing forms that use the same minimal chrome as content pages. */
-export const MINIMAL_CHROME_PATHS = ["/collaborate"] as const
+export const MINIMAL_CHROME_PATHS = ["/collaborate", "/feature-request", "/book-walkthrough"] as const
 
 export const CONTENT_PAGE_PATHS = [
   ...CONTENT_PAGE_LINKS.map((link) => link.href),
@@ -89,6 +89,7 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   { path: "/advertising", changeFrequency: "monthly", priority: 0.72 },
   { path: "/creators-for-change", changeFrequency: "monthly", priority: 0.72 },
   { path: "/collaborate", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/feature-request", changeFrequency: "monthly", priority: 0.68 },
   { path: "/community-guidelines", changeFrequency: "yearly", priority: 0.55 },
   { path: "/copyright", changeFrequency: "yearly", priority: 0.5 },
   { path: "/hiffi-500", changeFrequency: "weekly", priority: 0.94 },
