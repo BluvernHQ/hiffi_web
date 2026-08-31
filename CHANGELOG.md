@@ -8,7 +8,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ### Notes
 
-- Track next work here after **v2.3.1** ships
+- Track next work here after **v2.3.2** ships
+
+## [2.3.2] — 2026-08-31
+
+Release notes: [docs/releases/web-v2.3.2.md](docs/releases/web-v2.3.2.md) (business-friendly summary; **shipped August 31, 2026**)
+
+### Added
+
+- **Discovery source** on Artist Index claims — required dropdown on the claim form (search, email, Instagram, ChatGPT, other); stored on submit and visible in the admin inventory claims table
+
+### Notes
+
+- Latest **`/top-artists`** (Hip-Hop 500) remains out of scope for communications — hold for a dedicated ranking release
 
 ## [2.3.1] — 2026-08-15
 

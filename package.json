@@ -1,6 +1,6 @@
 {
   "name": "my-hiffi-project",
-  "version": "2.3.0",
+  "version": "2.3.2",
   "private": true,
   "engines": {
     "node": ">=20.9.0"

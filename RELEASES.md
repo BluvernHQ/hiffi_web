@@ -6,7 +6,7 @@ This runbook implements the versioning model in the Hiffi Web Versioning spec.
 
 | Identifier | Source | Example | When it changes |
 |------------|--------|---------|-----------------|
-| **Release version** (semver) | `package.json` → `NEXT_PUBLIC_APP_VERSION` | `2.3.0` | Intentionally at cut/release time |
+| **Release version** (semver) | `package.json` → `NEXT_PUBLIC_APP_VERSION` | `2.3.2` | Intentionally at cut/release time |
 | **Build ID** | `NEXT_PUBLIC_APP_BUILD_ID` at build time | `19d0b1f` | Every deploy/build |
 
 Verify what is live:
