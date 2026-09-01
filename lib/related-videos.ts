@@ -64,6 +64,12 @@ export function setCachedRelatedVideos(videoId: string, videos: any[]): void {
   relatedVideosCache.set(videoId, videos.slice(0, RELATED_DISPLAY))
 }
 
+/** Bust cached recommendations (e.g. after resetSeed on player next). */
+export function clearRelatedVideosCache(): void {
+  relatedVideosCache.clear()
+  inFlightRelatedVideos.clear()
+}
+
 /**
  * Fetch related videos (deduped in-flight + memory cache).
  * Does not cache empty results so a transient failure can retry.

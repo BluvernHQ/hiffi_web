@@ -48,7 +48,11 @@ import { getPlayerVolume, setPlayerMuted, setPlayerVolume } from "@/lib/ux-prefs
 // Add declaration for videojs since we're loading it from CDN
 declare global {
   interface Window {
-    videojs: any
+    videojs: any & {
+      log?: {
+        level: (level?: string) => string
+      }
+    }
   }
 }
 
@@ -91,6 +95,33 @@ const WATCH_REPORT_INTERVAL_SECONDS = 10
 const EMPTY_PROFILES: string[] = []
 
 type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
+
+function getNextSuggestedVideo(
+  suggestedVideos: any[] | undefined,
+  currentVideoId: string | undefined,
+): any | undefined {
+  if (!suggestedVideos?.length) return undefined
+  const excludeId = (currentVideoId || "").trim()
+  return suggestedVideos.find((video) => {
+    const id = String(video.videoId || video.video_id || "").trim()
+    return id && id !== excludeId
+  })
+}
+
+/** Run player teardown without Video.js logging MEDIA_ERR for intentional clears. */
+function withVideoJsLogsSuppressed(run: () => void): void {
+  const log = typeof window !== "undefined" ? window.videojs?.log : undefined
+  const prevLevel =
+    log && typeof log.level === "function" ? log.level() : undefined
+  try {
+    if (log && typeof log.level === "function") log.level("off")
+    run()
+  } finally {
+    if (log && typeof log.level === "function" && prevLevel !== undefined) {
+      log.level(prevLevel)
+    }
+  }
+}
 
 /** Video.js throws if tech is torn down during navigation — never call player methods bare. */
 function readPlayerNumber(player: unknown, method: PlayerNumberMethod, fallback: number): number {
@@ -692,15 +723,13 @@ export function VideoPlayer({
       if (autoPlay) setAutoplayInProgress(true)
       const player = playerRef.current
       if (player) {
-        // Stop previous media immediately during a source switch
-        // to avoid old audio bleeding into the next load.
+        // Pause immediately; do not set src to "" — Video.js logs MEDIA_ERR_SRC_NOT_SUPPORTED.
         try {
-          player.pause()
-          player.muted(true)
-          // Explicitly clear source to prevent the old frame from showing
-          // when the player is trying to load a new one
-          player.src({ src: "", type: "" })
-          player.error(null)
+          withVideoJsLogsSuppressed(() => {
+            player.pause()
+            player.muted(true)
+            player.error(null)
+          })
         } catch (err) {
           console.log("[hiffi] Player cleanup failed:", err)
         }
@@ -709,6 +738,7 @@ export function VideoPlayer({
       baseUrlRef.current = ""
       lastProcessedUrlRef.current = ""
       signedVideoUrlRef.current = ""
+      setSignedVideoUrl("")
       setCurrentProfile(getPrimaryProfileKey(originalProfileRef.current))
       setIsPlaying(false)
       setIsBuffering(true)
@@ -1292,9 +1322,19 @@ export function VideoPlayer({
       const code = error.code
       const message = error.message
       const activeVideoId = videoIdRef.current
-      const currentSrc = (player.currentSrc() || signedVideoUrlRef.current || "").trim()
+      const playerSrc = (player.currentSrc() || "").trim()
+      const trackedSrc = (signedVideoUrlRef.current || "").trim()
+
+      const dismissError = () => {
+        try {
+          player.error(null)
+        } catch {
+          // Player may be mid-dispose during route changes.
+        }
+      }
 
       const tryMp4Fallback = (errorCode: number): boolean => {
+        const currentSrc = playerSrc || trackedSrc
         let baseUrl = baseUrlRef.current
         if (!baseUrl) {
           baseUrl = currentSrc.replace(/\/[^/]+$/, "")
@@ -1345,9 +1385,19 @@ export function VideoPlayer({
         return true
       }
 
-      // Ignore errors from intentional src clears while switching playlist tracks.
-      if (!currentSrc) return
-      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
+      // Ignore errors from intentional teardown or in-flight source switches.
+      if (isSourceSwitchingRef.current || !playerSrc) {
+        dismissError()
+        return
+      }
+      if (!trackedSrc) {
+        dismissError()
+        return
+      }
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) {
+        dismissError()
+        return
+      }
 
       // MEDIA_ERR_NETWORK (2) — often a 404 on a missing profile file
       if (code === 2) {
@@ -1833,10 +1883,8 @@ export function VideoPlayer({
       showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
       return
     }
-    const currentSuggestedVideos = suggestedVideosRef.current
-    if (!currentSuggestedVideos || currentSuggestedVideos.length === 0) return
-    const next = currentSuggestedVideos[0]
-    const nextId = next.videoId || next.video_id
+    const next = getNextSuggestedVideo(suggestedVideosRef.current, videoIdRef.current)
+    const nextId = next?.videoId || next?.video_id
     if (!nextId) return
 
     // Keep preference intact and retry unmuted play after the next source loads.
@@ -1895,6 +1943,7 @@ export function VideoPlayer({
     }
   }, [])
 
+  const nextUpVideo = getNextSuggestedVideo(suggestedVideos, videoId)
 
   return (
     <div
@@ -2332,9 +2381,9 @@ export function VideoPlayer({
     </div>
 
       {/* Next up: below the player on mobile, overlay on desktop (sibling so mobile does not cover video) */}
-      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
+      {showNextUpOverlay && nextUpVideo && (
         <NextUpOverlay
-          nextVideo={suggestedVideos[0]}
+          nextVideo={nextUpVideo}
           countdownDuration={5}
           onPlay={(trigger) => {
             if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -2346,8 +2395,7 @@ export function VideoPlayer({
             if (trigger === "click") {
               markUserGestureVideoNav()
             }
-            const next = suggestedVideos[0]
-            const nextId = next?.videoId || next?.video_id
+            const nextId = nextUpVideo.videoId || nextUpVideo.video_id
             if (nextId) {
               setPendingPlaybackContext({
                 videoId: String(nextId),

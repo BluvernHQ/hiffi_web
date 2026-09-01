@@ -4,7 +4,6 @@ import type React from "react"
 
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { flushSync } from "react-dom"
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -48,7 +47,8 @@ let _activeHoverSetter: ((v: boolean) => void) | null = null
 function claimHover(setter: (v: boolean) => void): void {
   if (_activeHoverSetter && _activeHoverSetter !== setter) {
     pauseActiveHoverPreview()
-    flushSync(() => _activeHoverSetter!(false))
+    const prev = _activeHoverSetter
+    queueMicrotask(() => prev(false))
   }
   _activeHoverSetter = setter
 }
@@ -222,13 +222,13 @@ export function VideoCard({
 
     const onEnter = () => {
       claimHover(setIsHovering)
-      flushSync(() => setIsHovering(true))
+      queueMicrotask(() => setIsHovering(true))
       feedPreview.requestPreview(videoId)
     }
     const onLeave = () => {
       pauseActiveHoverPreview()
       releaseHover(setIsHovering)
-      flushSync(() => setIsHovering(false))
+      queueMicrotask(() => setIsHovering(false))
       feedPreview.releasePreview(videoId)
     }
     const onMouseDown = () => {

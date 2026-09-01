@@ -28,6 +28,7 @@ import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import {
+  clearRelatedVideosCache,
   getCachedRelatedVideos,
   getInstantRelatedFromHomeFeed,
   getRelatedVideosOnce,
@@ -306,6 +307,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const handlePlayerNext = (nextId: string) => {
     // Use a fresh recommendation seed whenever the user advances to next.
     resetSeed()
+    clearRelatedVideosCache()
     if (playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
       const nextIndex = playlistContext.currentIndex + 1
       const playlistNextId = playlistContext.videoIds[nextIndex]
@@ -569,7 +571,22 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   // Memoize sliced suggested videos to prevent unnecessary re-renders and glitches 
   // when toggling description or other UI states.
   // Show more videos in YouTube-style compact layout
-  const sidebarSuggestedVideos = useMemo(() => visibleRelatedVideos.slice(0, 20), [visibleRelatedVideos])
+  const excludeFromQueue = useCallback(
+    (videos: typeof relatedVideos) => {
+      const skip = new Set<string>()
+      if (currentVideoId) skip.add(currentVideoId)
+      for (const id of videoHistoryRef.current) skip.add(id)
+      return videos.filter((v) => {
+        const id = v.videoId || v.video_id
+        return id && !skip.has(id)
+      })
+    },
+    [currentVideoId, playerBackStackEpoch],
+  )
+  const sidebarSuggestedVideos = useMemo(
+    () => excludeFromQueue(visibleRelatedVideos.slice(0, 20)),
+    [excludeFromQueue, visibleRelatedVideos],
+  )
   const playerSuggestedVideos = useMemo(() => {
     const playlistQueue =
       playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1
@@ -586,11 +603,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         : []
 
     if (playlistQueue.length > 0) {
-      return playlistQueue
+      return excludeFromQueue(playlistQueue)
     }
 
-    return visibleRelatedVideos.slice(0, 8)
-  }, [playlistContext, playlistVideoMeta, visibleRelatedVideos])
+    return excludeFromQueue(visibleRelatedVideos.slice(0, 8))
+  }, [playlistContext, playlistVideoMeta, visibleRelatedVideos, excludeFromQueue])
 
   useEffect(() => {
     currentVideoIdRef.current = video ? (video.video_id || video.videoId) : null
@@ -1223,17 +1240,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     if (!currentVideoId || lastFetchedRelatedIdRef.current === currentVideoId) return
     const videoId = currentVideoId
 
-    // Warm cache from home-feed seed so later navigations hit memory.
-    if (relatedVideos.length > 0) {
-      setCachedRelatedVideos(videoId, relatedVideos)
-    }
-
     async function fetchRelated() {
-      const hadInstantRelated = relatedVideos.length > 0
+      // Only treat the visible list as an instant seed when it already belongs to this video.
+      const hadInstantRelatedForCurrent =
+        lastFetchedRelatedIdRef.current === videoId && relatedVideos.length > 0
       latestRelatedRequestIdRef.current = videoId
       try {
-        // Only show skeleton when we have nothing to paint yet.
-        if (!hadInstantRelated) {
+        if (!hadInstantRelatedForCurrent) {
           setIsRelatedLoading(true)
         }
 
@@ -1241,39 +1254,27 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         const nextRelatedVideos = await getRelatedVideosOnce(videoId)
         if (latestRelatedRequestIdRef.current !== videoId) return
         if (!nextRelatedVideos.length) {
-          // Keep instant home-feed seed if the API returned nothing.
-          if (hadInstantRelated) {
+          if (hadInstantRelatedForCurrent) {
             lastFetchedRelatedIdRef.current = videoId
           }
           return
         }
 
-        if (!hadInstantRelated) {
-          setRelatedVideos(nextRelatedVideos)
-          lastFetchedRelatedIdRef.current = videoId
-        } else {
-          // Soft-replace: keep the instant list visible, then swap when fresh data arrives.
-          if (pendingVideoIdRef.current === videoId) {
-            setPendingVideo((pending) => {
-              if (!pending || pending.videoId !== videoId) return pending
-              return {
-                ...pending,
-                recommendations: nextRelatedVideos,
-              }
-            })
-          } else if (currentVideoIdRef.current === videoId || !pendingVideoIdRef.current) {
-            setRelatedVideos(nextRelatedVideos)
-            lastFetchedRelatedIdRef.current = videoId
-          }
-        }
+        setRelatedVideos(nextRelatedVideos)
+        lastFetchedRelatedIdRef.current = videoId
+        setCachedRelatedVideos(videoId, nextRelatedVideos)
+
+        setPendingVideo((pending) => {
+          if (!pending || pending.videoId !== videoId) return pending
+          return { ...pending, recommendations: nextRelatedVideos }
+        })
       } catch (suggestionsError) {
         debugWarn("[hiffi] Failed to fetch related videos:", suggestionsError)
-        // Allow reconnect/refetch attempt for this video.
         if (lastFetchedRelatedIdRef.current === videoId) {
           lastFetchedRelatedIdRef.current = null
         }
       } finally {
-        if (!hadInstantRelated) {
+        if (!hadInstantRelatedForCurrent) {
           setIsRelatedLoading(false)
         }
       }
@@ -1727,12 +1728,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       }
     }
 
-    // Autoplay next video from suggested videos
+    // Autoplay next video from suggested videos (in-place to preserve player state)
     if (sidebarSuggestedVideos && sidebarSuggestedVideos.length > 0) {
       const nextVideo = sidebarSuggestedVideos[0]
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
         resetSeed()
+        clearRelatedVideosCache()
         setPendingPlaybackContext({
           videoId: nextVideoId,
           openSource: "recommended",
@@ -1741,7 +1743,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           isAutoplay: true,
         })
         debugLog("[hiffi] Autoplaying next video:", nextVideoId)
-        router.push(`/watch/${nextVideoId}`)
+        navigateToVideo(nextVideoId)
       }
     }
   }

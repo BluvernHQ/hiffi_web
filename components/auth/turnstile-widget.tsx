@@ -11,9 +11,10 @@ import {
 /**
  * Cloudflare Turnstile widget (explicit render mode).
  *
- * When NEXT_PUBLIC_TURNSTILE_SITE_KEY is not set the widget renders nothing
- * and forms must treat the challenge as disabled — this keeps local dev and
- * preview environments working before keys are provisioned.
+ * When NEXT_PUBLIC_TURNSTILE_SITE_KEY is not set, or the app is running on
+ * localhost, the widget renders nothing and forms must treat the challenge as
+ * disabled — this keeps local dev and preview environments working before keys
+ * are provisioned.
  *
  * Tokens are single-use and expire (~5 min): after a failed submit the parent
  * must call reset() via ref so the user gets a fresh token.
@@ -76,9 +77,19 @@ export function getTurnstileSiteKey(): string {
   return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
 }
 
+function isLocalDevHost(): boolean {
+  if (typeof window === "undefined") {
+    return process.env.NODE_ENV === "development"
+  }
+  const host = window.location.hostname
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]"
+}
+
 /** True when a site key is configured and forms should require a token. */
 export function isTurnstileEnabled(): boolean {
-  return getTurnstileSiteKey() !== ""
+  if (getTurnstileSiteKey() === "") return false
+  if (isLocalDevHost()) return false
+  return true
 }
 
 export interface TurnstileWidgetHandle {
@@ -112,7 +123,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
 
     useEffect(() => {
       const siteKey = getTurnstileSiteKey()
-      if (!siteKey) return
+      if (!siteKey || isLocalDevHost()) return
 
       let cancelled = false
 
