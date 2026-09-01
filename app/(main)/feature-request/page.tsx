@@ -1,4 +1,5 @@
 import { FeatureRequestForm } from "@/components/feature-request/feature-request-form"
+import { FeatureRequestGate } from "@/components/feature-request/feature-request-gate"
 
 export default function FeatureRequestPage() {
   return (
@@ -17,7 +18,9 @@ export default function FeatureRequestPage() {
           </p>
         </header>
 
-        <FeatureRequestForm />
+        <FeatureRequestGate>
+          <FeatureRequestForm />
+        </FeatureRequestGate>
       </div>
     </div>
   )

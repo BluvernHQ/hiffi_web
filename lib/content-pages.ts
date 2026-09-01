@@ -57,7 +57,12 @@ export const MARKETING_PAGE_PATHS = [
 ] as const
 
 /** Lead / marketing forms that use the same minimal chrome as content pages. */
-export const MINIMAL_CHROME_PATHS = ["/collaborate", "/feature-request", "/book-walkthrough"] as const
+export const MINIMAL_CHROME_PATHS = [
+  "/collaborate",
+  "/feature-request",
+  "/book-walkthrough",
+  "/hiffi-discovery-form",
+] as const
 
 export const CONTENT_PAGE_PATHS = [
   ...CONTENT_PAGE_LINKS.map((link) => link.href),

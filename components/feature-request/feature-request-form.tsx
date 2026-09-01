@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { APP_VERSION } from "@/lib/app-version"
 import { cn } from "@/lib/utils"
@@ -22,8 +21,6 @@ const fieldClass =
 
 export function FeatureRequestForm() {
   const { toast } = useToast()
-  const { user } = useAuth()
-  const isSignedIn = Boolean(user)
 
   const [title, setTitle] = useState("")
   const [idea, setIdea] = useState("")
@@ -84,7 +81,7 @@ export function FeatureRequestForm() {
       setSubmitting(true)
       await apiClient.submitFeedback({
         description,
-        allow_contact: isSignedIn && allowContact,
+        allow_contact: allowContact,
         context: {
           page_url: window.location.href,
           user_agent: navigator.userAgent,
@@ -173,20 +170,18 @@ export function FeatureRequestForm() {
         )}
       </div>
 
-      {isSignedIn ? (
-        <div className="flex items-start gap-2">
-          <Checkbox
-            id="feature-allow-contact"
-            checked={allowContact}
-            onCheckedChange={(checked) => setAllowContact(checked === true)}
-            disabled={submitting}
-            className="mt-0.5"
-          />
-          <Label htmlFor="feature-allow-contact" className="font-normal leading-snug">
-            Hiffi can email me if we have questions about this idea
-          </Label>
-        </div>
-      ) : null}
+      <div className="flex items-start gap-2">
+        <Checkbox
+          id="feature-allow-contact"
+          checked={allowContact}
+          onCheckedChange={(checked) => setAllowContact(checked === true)}
+          disabled={submitting}
+          className="mt-0.5"
+        />
+        <Label htmlFor="feature-allow-contact" className="font-normal leading-snug">
+          Hiffi can email me if we have questions about this idea
+        </Label>
+      </div>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
         Submissions may include your page URL and browser info so we can follow up. See our{" "}
@@ -196,7 +191,11 @@ export function FeatureRequestForm() {
         .
       </p>
 
-      <Button type="submit" disabled={submitting || !idea.trim()} data-analytics-name="feature-request-submitted">
+      <Button
+        type="submit"
+        disabled={submitting || !idea.trim()}
+        data-analytics-name="feature-request-submitted"
+      >
         {submitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

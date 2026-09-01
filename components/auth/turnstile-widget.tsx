@@ -11,9 +11,8 @@ import {
 /**
  * Cloudflare Turnstile widget (explicit render mode).
  *
- * When NEXT_PUBLIC_TURNSTILE_SITE_KEY is not set the widget renders nothing
- * and forms must treat the challenge as disabled — this keeps local dev and
- * preview environments working before keys are provisioned.
+ * When Turnstile is disabled (no site key, or `next dev`) the widget renders
+ * nothing and forms must not require a token — auth calls omit turnstile_token.
  *
  * Tokens are single-use and expire (~5 min): after a failed submit the parent
  * must call reset() via ref so the user gets a fresh token.
@@ -76,9 +75,16 @@ export function getTurnstileSiteKey(): string {
   return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
 }
 
-/** True when a site key is configured and forms should require a token. */
+/**
+ * True when a site key is configured and forms should require a token.
+ *
+ * Disabled during `next dev` so localhost login/signup work without Cloudflare
+ * domain allowlisting. The token is optional in auth payloads when this is false.
+ */
 export function isTurnstileEnabled(): boolean {
-  return getTurnstileSiteKey() !== ""
+  if (!getTurnstileSiteKey()) return false
+  if (process.env.NODE_ENV === "development") return false
+  return true
 }
 
 export interface TurnstileWidgetHandle {
