@@ -414,7 +414,7 @@ function AdminDashboardContent() {
                     <div className="shrink-0">
                       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Feedback</h1>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Review in-app feedback submissions from users
+                        Review in-app feedback and structured feature requests from creators
                       </p>
                     </div>
                   )}

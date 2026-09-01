@@ -12,9 +12,17 @@ import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import type { FeedbackPlatform, FeedbackSubmission } from "@/lib/types/feedback"
+import {
+  feedbackListPreview,
+  feedbackListTitle,
+  isFeatureRequestDescription,
+  parseFeedbackDescription,
+} from "@/lib/feedback/parse-feature-request"
+import { FeedbackTypeBadge } from "@/components/admin/feedback-type-badge"
 import { cn } from "@/lib/utils"
 
 const PLATFORMS: FeedbackPlatform[] = ["web", "ios", "android"]
+type FeedbackKindFilter = "" | "feature" | "feedback"
 
 function platformBadgeClass(platform: string): string {
   if (platform === "ios") return "bg-blue-500/15 text-blue-700 dark:text-blue-400"
@@ -42,6 +50,7 @@ export function AdminFeedbackTable() {
   const [filterAllowContact, setFilterAllowContact] = useState("")
   const [filterEmailSent, setFilterEmailSent] = useState("")
   const [filterUserId, setFilterUserId] = useState("")
+  const [filterKind, setFilterKind] = useState<FeedbackKindFilter>("")
 
   const fetchFeedback = useCallback(async () => {
     if (guardOfflineBeforeFetch()) {
@@ -100,9 +109,30 @@ export function AdminFeedbackTable() {
     return <AdminOfflineState message={networkError} onRetry={() => fetchFeedback()} />
   }
 
+  const visibleSubmissions = submissions.filter((submission) => {
+    if (!filterKind) return true
+    const isFeature = isFeatureRequestDescription(submission.description)
+    return filterKind === "feature" ? isFeature : !isFeature
+  })
+
   return (
     <div className="flex flex-col gap-4 min-h-0">
       <div className="flex flex-wrap gap-3 items-end p-4 rounded-lg border bg-muted/20">
+        <div className="space-y-1 min-w-[150px]">
+          <Label htmlFor="filter-kind" className="text-xs">
+            Type
+          </Label>
+          <select
+            id="filter-kind"
+            value={filterKind}
+            onChange={(e) => setFilterKind(e.target.value as FeedbackKindFilter)}
+            className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+          >
+            <option value="">All</option>
+            <option value="feature">Feature requests</option>
+            <option value="feedback">General feedback</option>
+          </select>
+        </div>
         <div className="space-y-1 min-w-[140px]">
           <Label htmlFor="filter-platform" className="text-xs">
             Platform
@@ -174,7 +204,8 @@ export function AdminFeedbackTable() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">Feedback</th>
+                <th className="text-left px-4 py-3 font-medium">Submission</th>
+                <th className="text-left px-4 py-3 font-medium">Type</th>
                 <th className="text-left px-4 py-3 font-medium">Email</th>
                 <th className="text-left px-4 py-3 font-medium">Platform</th>
                 <th className="text-left px-4 py-3 font-medium">Contact</th>
@@ -184,29 +215,42 @@ export function AdminFeedbackTable() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </td>
                 </tr>
-              ) : submissions.length === 0 ? (
+              ) : visibleSubmissions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                     No feedback matches your filters.
                   </td>
                 </tr>
               ) : (
-                submissions.map((submission) => (
+                visibleSubmissions.map((submission) => {
+                  const parsed = parseFeedbackDescription(submission.description)
+                  const title = feedbackListTitle(submission.description, { email: submission.email })
+                  const preview = feedbackListPreview(submission.description)
+
+                  return (
                   <tr key={submission.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 max-w-[320px]">
+                    <td className="px-4 py-3 max-w-[360px]">
                       <Link
                         href={`/admin/dashboard?section=feedback&feedbackId=${encodeURIComponent(submission.id)}`}
-                        className="block text-foreground hover:text-primary line-clamp-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                        className="block space-y-1.5"
                       >
-                        {submission.description || "—"}
+                        <p className="font-medium text-foreground hover:text-primary line-clamp-1 break-words [overflow-wrap:anywhere]">
+                          {title}
+                        </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                          {preview}
+                        </p>
                       </Link>
                       {submission.screenshot_url && (
-                        <p className="text-xs text-muted-foreground mt-0.5">Screenshot attached</p>
+                        <p className="text-xs text-muted-foreground mt-1.5">Screenshot attached</p>
                       )}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <FeedbackTypeBadge parsed={parsed} />
                     </td>
                     <td className="px-4 py-3 max-w-[200px]">
                       {submission.email ? (
@@ -240,7 +284,8 @@ export function AdminFeedbackTable() {
                         : "—"}
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -250,7 +295,8 @@ export function AdminFeedbackTable() {
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">
           Page {page}
-          {submissions.length > 0 && ` · ${submissions.length} shown`}
+          {visibleSubmissions.length > 0 && ` · ${visibleSubmissions.length} shown`}
+          {filterKind ? " on this page" : null}
         </p>
         <div className="flex gap-2">
           <Button

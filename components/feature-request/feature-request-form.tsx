@@ -70,7 +70,7 @@ export function FeatureRequestForm() {
 
     const description = [
       "[Feature request]",
-      trimmedTitle ? `Title: ${trimmedTitle}` : null,
+      trimmedTitle ? `Feature name: ${trimmedTitle}` : null,
       "",
       trimmedIdea,
     ]
@@ -124,13 +124,19 @@ export function FeatureRequestForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-border/60 bg-card/40 p-6 sm:p-8">
+    <form
+      onSubmit={handleSubmit}
+      autoComplete="off"
+      className="space-y-6 rounded-xl border border-border/60 bg-card/40 p-6 sm:p-8"
+    >
       <div className="space-y-2.5">
-        <Label htmlFor="feature-title" className="text-[13px] font-medium text-foreground/85">
+        <Label htmlFor="feature-name" className="text-[13px] font-medium text-foreground/85">
           Feature name <span className="text-muted-foreground">(optional)</span>
         </Label>
         <Input
-          id="feature-title"
+          id="feature-name"
+          name="feature-name"
+          autoComplete="off"
           value={title}
           onChange={(event) => {
             setTitle(event.target.value)
@@ -150,6 +156,8 @@ export function FeatureRequestForm() {
         </Label>
         <Textarea
           id="feature-idea"
+          name="feature-idea"
+          autoComplete="off"
           value={idea}
           onChange={(event) => {
             setIdea(event.target.value)
