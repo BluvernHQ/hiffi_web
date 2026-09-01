@@ -44,7 +44,7 @@ function playlistHref(id: string) {
 export function CuratedPlaylistsPanel() {
   const router = useRouter()
   const { toast } = useToast()
-  const { canCurate } = useAdminPermissions()
+  const { canCuratedWrite } = useAdminPermissions()
   const [playlists, setPlaylists] = useState<CuratedPlaylistSummary[]>([])
   const [count, setCount] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -121,7 +121,7 @@ export function CuratedPlaylistsPanel() {
         <p className="text-sm text-muted-foreground">
           {loading ? "Loading…" : `${count} playlist${count !== 1 ? "s" : ""}`}
         </p>
-        {canCurate && (
+        {canCuratedWrite && (
           <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto shrink-0">
             <Plus className="h-4 w-4 mr-2" />
             Create playlist
@@ -142,7 +142,7 @@ export function CuratedPlaylistsPanel() {
           <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
             Create an editorial playlist with a seed video. It will appear in the consumer app sidebar.
           </p>
-          {canCurate && (
+          {canCuratedWrite && (
             <Button className="mt-5" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create your first playlist

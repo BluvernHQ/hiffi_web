@@ -45,7 +45,7 @@ function when(value?: string | null) {
 export function CreatorDetail({ username }: { username: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { canWrite } = useAdminPermissions()
+  const { canCreatorsWrite } = useAdminPermissions()
   const { toast } = useToast()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
@@ -158,8 +158,8 @@ export function CreatorDetail({ username }: { username: string }) {
     ...row,
     label: row.month ? format(parseISO(row.month), "MMM yyyy") : row.month,
   }))
-  const canSuspend = canWrite && profile.creator_status === "approved"
-  const canUnsuspend = canWrite && profile.creator_status === "suspended"
+  const canSuspend = canCreatorsWrite && profile.creator_status === "approved"
+  const canUnsuspend = canCreatorsWrite && profile.creator_status === "suspended"
 
   return (
     <div className="space-y-6">

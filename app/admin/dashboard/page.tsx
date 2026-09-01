@@ -17,7 +17,7 @@ import { Loader2, Shield, LogOut, Menu } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRequireAdmin } from "@/hooks/use-require-admin"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
-import { canAdminAccessSection, getFirstAllowedSection } from "@/lib/auth"
+import { canAdminAccessSection, getFirstAllowedSection, PERMS } from "@/lib/auth"
 import { AdminUsersTable } from "@/components/admin/users-table"
 import { AdminVideosTable } from "@/components/admin/videos-table"
 import { AdminCommentsTable } from "@/components/admin/comments-table"
@@ -291,7 +291,7 @@ function AdminDashboardContent() {
         >
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-full mx-auto">
-              {displaySection === "overview" && can("admin:overview") && (
+              {displaySection === "overview" && can(PERMS.analyticsRead) && (
                 <div className="space-y-4 sm:space-y-6">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -301,7 +301,7 @@ function AdminDashboardContent() {
         </div>
             {showSectionBody ? (
               <div className="space-y-4 sm:space-y-6">
-                {can("admin:creators") && <CreatorsDashboardSnapshot />}
+                {can(PERMS.creatorsRead) && <CreatorsDashboardSnapshot />}
                 <Card className="border-2 shadow-lg">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-xl">Platform Analytics</CardTitle>
@@ -320,7 +320,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "users" && can("admin:users") && (
+              {displaySection === "users" && can(PERMS.usersRead) && (
                 <div className="h-full flex flex-col min-h-0">
                   <div className="mb-4 shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
@@ -334,7 +334,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "creators" && can("admin:creators") && (
+              {displaySection === "creators" && can(PERMS.creatorsRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Creators</h1>
@@ -348,7 +348,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "videos" && can("admin:videos") && (
+              {displaySection === "videos" && can(PERMS.usersRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Videos</h1>
@@ -360,7 +360,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "comments" && can("admin:comments") && (
+              {displaySection === "comments" && can(PERMS.usersRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Comments</h1>
@@ -372,7 +372,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "replies" && can("admin:replies") && (
+              {displaySection === "replies" && can(PERMS.usersRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Replies</h1>
@@ -384,7 +384,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "flags" && can("admin:flags") && (
+              {displaySection === "flags" && can(PERMS.flagsRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!flagId && (
                     <div className="shrink-0">
@@ -408,7 +408,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "feedback" && can("admin:feedback") && (
+              {displaySection === "feedback" && can(PERMS.feedbackRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!feedbackId && (
                     <div className="shrink-0">
@@ -432,7 +432,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "journeys" && can("admin:journeys") && (
+              {displaySection === "journeys" && can(PERMS.analyticsRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
@@ -447,7 +447,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "referrals" && can("admin:referrals") && (
+              {displaySection === "referrals" && can(PERMS.usersRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Referrals</h1>
@@ -459,7 +459,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "followers" && can("admin:followers") && (
+              {displaySection === "followers" && can(PERMS.usersRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Followers</h1>
@@ -473,7 +473,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "searches" && can("admin:searches") && (
+              {displaySection === "searches" && can(PERMS.analyticsRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Recorded Searches</h1>
@@ -487,7 +487,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "utm_polls" && can("admin:utm") && (
+              {displaySection === "utm_polls" && can(PERMS.analyticsRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">UTM campaigns</h1>
@@ -499,7 +499,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "collaboration" && can("admin:collaboration") && (
+              {displaySection === "collaboration" && can(PERMS.collaborationRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Collaboration inquiries</h1>
@@ -511,7 +511,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "migrations" && can("admin:migrations") && (
+              {displaySection === "migrations" && can(PERMS.migrationRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Migration Requests</h1>
@@ -525,7 +525,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "curated_playlists" && can("admin:curated") && (
+              {displaySection === "curated_playlists" && can(PERMS.curatedRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   {!playlistId && (
                     <div className="shrink-0">
@@ -549,7 +549,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "artist_inventory" && can("admin:inventory") && (
+              {displaySection === "artist_inventory" && can(PERMS.inventoryRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Artist Inventory</h1>
@@ -563,7 +563,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "ranking_anomalies" && can("admin:inventory") && (
+              {displaySection === "ranking_anomalies" && can(PERMS.inventoryRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
@@ -579,7 +579,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "admins" && can("admin:admins") && (
+              {displaySection === "admins" && can(PERMS.adminsRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Accounts</h1>
@@ -593,7 +593,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "tools" && can("admin:tools") && (
+              {displaySection === "tools" && can(PERMS.youtubeKeysRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tools</h1>

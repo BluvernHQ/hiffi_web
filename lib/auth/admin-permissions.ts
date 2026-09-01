@@ -1,99 +1,138 @@
-import type { AdminRole, AdminSession } from "./admin-types"
+import type { AdminSession } from "./admin-types"
 
 /**
- * Admin dashboard RBAC. Backend enforces access (403); this controls nav and UI only.
+ * Admin dashboard RBAC v2. Backend enforces access (403); this controls nav and UI only.
+ * Gate on permissions[], not role names.
  */
-export const ADMIN_PERMISSIONS = {
-  "admin:access": ["super_admin", "read_only"],
-  "admin:overview": ["super_admin", "read_only"],
-  "admin:users": ["super_admin", "read_only"],
-  "admin:videos": ["super_admin", "read_only"],
-  "admin:comments": ["super_admin", "read_only"],
-  "admin:replies": ["super_admin", "read_only"],
-  "admin:flags": ["super_admin", "read_only"],
-  "admin:feedback": ["super_admin", "read_only"],
-  "admin:activity": ["super_admin", "read_only"],
-  "admin:journeys": ["super_admin", "read_only"],
-  "admin:referrals": ["super_admin", "read_only"],
-  "admin:followers": ["super_admin", "read_only"],
-  "admin:searches": ["super_admin", "read_only"],
-  "admin:utm": ["super_admin", "read_only"],
-  "admin:collaboration": ["super_admin", "read_only"],
-  "admin:migrations": ["super_admin", "read_only"],
-  "admin:write": ["super_admin"],
-  "admin:curated": ["super_admin", "curator"],
-  "admin:curated_write": ["super_admin", "curator"],
-  "admin:admins": ["super_admin"],
-  "admin:inventory": ["super_admin", "read_only"],
-  "admin:inventory_upload": ["super_admin"],
-  "admin:inventory_claims": ["super_admin", "read_only"],
-  "admin:creators": ["super_admin", "read_only"],
-  "admin:tools": ["super_admin", "read_only"],
-} as const satisfies Record<string, readonly AdminRole[]>
+export const PERMS = {
+  analyticsRead: "analytics:read",
+  analyticsWrite: "analytics:write",
+  usersRead: "users:read",
+  usersWrite: "users:write",
+  creatorsRead: "creators:read",
+  creatorsWrite: "creators:write",
+  curatedRead: "curated:read",
+  curatedWrite: "curated:write",
+  inventoryRead: "inventory:read",
+  inventoryWrite: "inventory:write",
+  flagsRead: "flags:read",
+  flagsWrite: "flags:write",
+  migrationRead: "migration:read",
+  migrationWrite: "migration:write",
+  youtubeKeysRead: "youtube_keys:read",
+  youtubeKeysWrite: "youtube_keys:write",
+  feedbackRead: "feedback:read",
+  collaborationRead: "collaboration:read",
+  adminsRead: "admins:read",
+  adminsWrite: "admins:write",
+  rolesWrite: "roles:write",
+} as const
 
-export type AdminPermission = keyof typeof ADMIN_PERMISSIONS
+export type Permission = (typeof PERMS)[keyof typeof PERMS]
 
-export function adminCan(admin: AdminSession | null | undefined, permission: AdminPermission): boolean {
-  if (!admin) return false
-  const allowed = ADMIN_PERMISSIONS[permission] as readonly AdminRole[]
-  return allowed.includes(admin.role)
+const ALL_PERMISSIONS = Object.values(PERMS) as Permission[]
+const ALL_READ_PERMISSIONS = ALL_PERMISSIONS.filter((p) => p.endsWith(":read"))
+
+/** Fallback for sessions stored before RBAC v2 (no permissions[] in localStorage). */
+function derivePermissionsFromRole(role: string): Permission[] {
+  switch (role) {
+    case "super_admin":
+      return ALL_PERMISSIONS
+    case "read_only":
+      return ALL_READ_PERMISSIONS
+    case "curator":
+      return [PERMS.curatedRead, PERMS.curatedWrite]
+    case "support":
+      return [
+        PERMS.usersRead,
+        PERMS.creatorsRead,
+        PERMS.feedbackRead,
+        PERMS.collaborationRead,
+        PERMS.flagsRead,
+        PERMS.migrationRead,
+      ]
+    case "inventory_ops":
+      return [PERMS.inventoryRead, PERMS.inventoryWrite]
+    case "platform_ops":
+      return [
+        PERMS.analyticsRead,
+        PERMS.analyticsWrite,
+        PERMS.usersRead,
+        PERMS.usersWrite,
+        PERMS.creatorsRead,
+        PERMS.creatorsWrite,
+        PERMS.flagsRead,
+        PERMS.flagsWrite,
+        PERMS.migrationRead,
+        PERMS.migrationWrite,
+      ]
+    default:
+      return []
+  }
 }
 
-export function adminCanWrite(admin: AdminSession | null | undefined): boolean {
-  return adminCan(admin, "admin:write")
+export function getEffectivePermissions(admin: AdminSession | null | undefined): Permission[] {
+  if (!admin) return []
+  if (admin.permissions?.length) return admin.permissions as Permission[]
+  return derivePermissionsFromRole(admin.role)
 }
 
-export function adminCanCurate(admin: AdminSession | null | undefined): boolean {
-  return adminCan(admin, "admin:curated_write")
+export function hasPermission(
+  permissions: string[] | undefined,
+  perm: Permission,
+): boolean {
+  return permissions?.includes(perm) ?? false
 }
 
-export function isCuratorOnlyAdmin(admin: AdminSession | null | undefined): boolean {
-  return admin?.role === "curator"
+export function hasAnyPermission(
+  permissions: string[] | undefined,
+  perms: Permission[],
+): boolean {
+  return perms.some((p) => hasPermission(permissions, p))
 }
 
-export const ADMIN_SECTION_PERMISSION: Record<string, AdminPermission> = {
-  overview: "admin:overview",
-  users: "admin:users",
-  videos: "admin:videos",
-  comments: "admin:comments",
-  replies: "admin:replies",
-  flags: "admin:flags",
-  activity: "admin:journeys",
-  journeys: "admin:journeys",
-  feedback: "admin:feedback",
-  referrals: "admin:referrals",
-  followers: "admin:followers",
-  searches: "admin:searches",
-  utm_polls: "admin:utm",
-  collaboration: "admin:collaboration",
-  migrations: "admin:migrations",
-  curated_playlists: "admin:curated",
-  admins: "admin:admins",
-  artist_inventory: "admin:inventory",
-  ranking_anomalies: "admin:inventory",
-  creators: "admin:creators",
-  tools: "admin:tools",
+export function adminCan(admin: AdminSession | null | undefined, permission: Permission): boolean {
+  return hasPermission(getEffectivePermissions(admin), permission)
+}
+
+export const ADMIN_SECTION_PERMISSION: Record<string, Permission> = {
+  overview: PERMS.analyticsRead,
+  users: PERMS.usersRead,
+  videos: PERMS.usersRead,
+  comments: PERMS.usersRead,
+  replies: PERMS.usersRead,
+  flags: PERMS.flagsRead,
+  feedback: PERMS.feedbackRead,
+  activity: PERMS.analyticsRead,
+  journeys: PERMS.analyticsRead,
+  referrals: PERMS.usersRead,
+  followers: PERMS.usersRead,
+  searches: PERMS.analyticsRead,
+  utm_polls: PERMS.analyticsRead,
+  collaboration: PERMS.collaborationRead,
+  migrations: PERMS.migrationRead,
+  curated_playlists: PERMS.curatedRead,
+  admins: PERMS.adminsRead,
+  artist_inventory: PERMS.inventoryRead,
+  ranking_anomalies: PERMS.inventoryRead,
+  creators: PERMS.creatorsRead,
+  tools: PERMS.youtubeKeysRead,
 }
 
 export function canAccessAdminSection(admin: AdminSession | null | undefined, section: string): boolean {
   if (!admin) return false
-  if (admin.role === "curator") {
-    return section === "curated_playlists"
-  }
   const permission = ADMIN_SECTION_PERMISSION[section]
-  if (!permission) return adminCan(admin, "admin:access")
+  if (!permission) return getEffectivePermissions(admin).length > 0
   return adminCan(admin, permission)
 }
 
-export function getDefaultSectionForAdmin(admin: AdminSession): string {
-  if (admin.role === "curator") return "curated_playlists"
-  return "overview"
-}
-
 export function getFirstAllowedSection(admin: AdminSession): string {
-  if (admin.role === "curator") return "curated_playlists"
   for (const [section, permission] of Object.entries(ADMIN_SECTION_PERMISSION)) {
     if (adminCan(admin, permission)) return section
   }
   return "overview"
+}
+
+export function getDefaultSectionForAdmin(admin: AdminSession): string {
+  return getFirstAllowedSection(admin)
 }

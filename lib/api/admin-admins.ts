@@ -1,5 +1,5 @@
 import type { AdminApiClientContext } from "./context"
-import type { AdminRole, AdminSession } from "@/lib/auth/admin-types"
+import type { AdminSession } from "@/lib/auth/admin-types"
 import { unwrapSuccessData } from "./envelope"
 
 export type AdminRow = AdminSession & {
@@ -13,7 +13,7 @@ export async function adminInviteAdmin(
     username: string
     email: string
     password: string
-    role: AdminRole
+    role: string
   },
 ): Promise<{ success: boolean; data?: { id: string } }> {
   return ctx.request(

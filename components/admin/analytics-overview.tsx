@@ -38,7 +38,7 @@ interface AnalyticsData {
 }
 
 export function AnalyticsOverview() {
-  const { canWrite } = useAdminPermissions()
+  const { canAnalyticsWrite } = useAdminPermissions()
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [resyncing, setResyncing] = useState(false)
@@ -261,7 +261,7 @@ export function AnalyticsOverview() {
             <RefreshCw className="h-4 w-4 mr-1.5" />
             Refresh
           </Button>
-          {canWrite && (
+          {canAnalyticsWrite && (
           <Button variant="outline" size="sm" onClick={() => setResyncDialogOpen(true)} disabled={resyncing}>
             <RotateCcw className="h-4 w-4 mr-1.5" />
             Resync counters

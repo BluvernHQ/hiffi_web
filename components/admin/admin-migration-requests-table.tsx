@@ -73,7 +73,7 @@ interface DetailPanelProps {
 
 function DetailPanel({ request, onBack, onUpdated }: DetailPanelProps) {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
+  const { canMigrationWrite } = useAdminPermissions()
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<MigrationRequestStatus>(request.status)
   const [adminNotes, setAdminNotes] = useState(request.admin_notes ?? "")
@@ -228,7 +228,7 @@ function DetailPanel({ request, onBack, onUpdated }: DetailPanelProps) {
               />
             </div>
 
-            {canWrite && (
+            {canMigrationWrite && (
             <Button
               onClick={handleSave}
               disabled={saving || !isDirty}

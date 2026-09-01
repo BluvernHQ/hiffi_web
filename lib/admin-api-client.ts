@@ -67,6 +67,10 @@ import {
   type AdminRow,
 } from "./api/admin-admins"
 import {
+  adminListRoles as apiAdminListRoles,
+  type AdminRoleRow,
+} from "./api/admin-roles"
+import {
   adminListYoutubeApiKeys as apiAdminListYoutubeApiKeys,
   adminCreateYoutubeApiKey as apiAdminCreateYoutubeApiKey,
   adminUpdateYoutubeApiKey as apiAdminUpdateYoutubeApiKey,
@@ -325,6 +329,10 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListAdmins(params?: { limit?: number; offset?: number }) {
     return apiAdminListAdmins(this, params)
+  }
+
+  async adminListRoles() {
+    return apiAdminListRoles(this)
   }
 
   // ─── Tools / YouTube API keys ───────────────────────────────────────────────

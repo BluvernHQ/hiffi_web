@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { adminApiClient } from "@/lib/admin-api-client"
 import type { AdminRow } from "@/lib/admin-api-client"
-import type { AdminRole } from "@/lib/auth/admin-types"
+import type { AdminRoleRow } from "@/lib/api/admin-roles"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,12 +20,11 @@ import { Badge } from "@/components/ui/badge"
 import { Copy, Loader2, UserPlus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-const ROLES: AdminRole[] = ["super_admin", "curator", "read_only"]
-
 export function AdminsPanel() {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
+  const { canAdminsWrite } = useAdminPermissions()
   const [admins, setAdmins] = useState<AdminRow[]>([])
+  const [roles, setRoles] = useState<AdminRoleRow[]>([])
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviting, setInviting] = useState(false)
@@ -33,13 +32,18 @@ export function AdminsPanel() {
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<AdminRole>("curator")
+  const [role, setRole] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await adminApiClient.adminListAdmins({ limit: 100 })
-      setAdmins(res.admins)
+      const [adminsRes, rolesRes] = await Promise.all([
+        adminApiClient.adminListAdmins({ limit: 100 }),
+        adminApiClient.adminListRoles(),
+      ])
+      setAdmins(adminsRes.admins)
+      setRoles(rolesRes.roles)
+      setRole((current) => current || rolesRes.roles[0]?.role_key || "")
     } catch (err: unknown) {
       toast({
         title: "Failed to load admins",
@@ -59,12 +63,12 @@ export function AdminsPanel() {
     setUsername("")
     setEmail("")
     setPassword("")
-    setRole("curator")
+    setRole(roles[0]?.role_key ?? "")
     setInviteResult(null)
   }
 
   const handleInvite = async () => {
-    if (!username.trim() || !email.trim() || !password.trim()) {
+    if (!username.trim() || !email.trim() || !password.trim() || !role) {
       toast({ title: "All fields are required", variant: "destructive" })
       return
     }
@@ -110,7 +114,7 @@ export function AdminsPanel() {
 
   return (
     <div className="space-y-4">
-      {canWrite && (
+      {canAdminsWrite && (
         <div className="flex justify-end">
           <Button
             onClick={() => {
@@ -220,12 +224,13 @@ export function AdminsPanel() {
                   <Label>Role</Label>
                   <select
                     value={role}
-                    onChange={(e) => setRole(e.target.value as AdminRole)}
+                    onChange={(e) => setRole(e.target.value)}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    disabled={roles.length === 0}
                   >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r} className="capitalize">
-                        {r.replace("_", " ")}
+                    {roles.map((r) => (
+                      <option key={r.role_key} value={r.role_key}>
+                        {r.display_name}
                       </option>
                     ))}
                   </select>
@@ -235,7 +240,7 @@ export function AdminsPanel() {
                 <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={inviting}>
                   Cancel
                 </Button>
-                <Button onClick={handleInvite} disabled={inviting}>
+                <Button onClick={handleInvite} disabled={inviting || roles.length === 0}>
                   {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send invite"}
                 </Button>
               </DialogFooter>

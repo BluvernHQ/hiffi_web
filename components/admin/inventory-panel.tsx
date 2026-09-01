@@ -7,6 +7,7 @@ import { InventoryClaimsTable } from "@/components/admin/inventory-claims-table"
 import { InventoryTable } from "@/components/admin/inventory-table"
 import { InventoryUploadPanel } from "@/components/admin/inventory-upload-panel"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
+import { PERMS } from "@/lib/auth/admin-permissions"
 import {
   Dialog,
   DialogContent,
@@ -40,8 +41,8 @@ export function InventoryPanel() {
   const [isTabPending, startTabTransition] = useTransition()
   const [pendingTab, setPendingTab] = useState<InventoryTab | null>(null)
 
-  const canUpload = can("admin:inventory_upload")
-  const canClaims = can("admin:inventory_claims")
+  const canUpload = can(PERMS.inventoryWrite)
+  const canClaims = can(PERMS.inventoryRead)
 
   const activeTab = useMemo((): InventoryTab => {
     const raw = searchParams.get(TAB_QUERY)

@@ -183,7 +183,7 @@ export function AnalyticsJourneyFunnelsPanel({
   onOpenSession: (sessionId: string) => void
 }) {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
+  const { canAnalyticsWrite } = useAdminPermissions()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
 
   const [chains, setChains] = useState<JourneyChain[]>([])
@@ -443,7 +443,7 @@ export function AnalyticsJourneyFunnelsPanel({
             {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
             Detect matches
           </Button>
-          {canWrite ? (
+          {canAnalyticsWrite ? (
             <Button type="button" size="sm" className="gap-1.5" onClick={() => void openCreate()}>
               <Plus className="h-4 w-4" />
               New chain
@@ -482,7 +482,7 @@ export function AnalyticsJourneyFunnelsPanel({
             Save an ordered event-tag chain (seed → next → …), run detect on recent sessions, then read enter / exit
             drop-off here.
           </p>
-          {canWrite ? (
+          {canAnalyticsWrite ? (
             <Button className="mt-5 gap-1.5" onClick={() => void openCreate()}>
               <Plus className="h-4 w-4" />
               Create first chain

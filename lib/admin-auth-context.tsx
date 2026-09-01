@@ -115,7 +115,7 @@ export function useAdminAuthOptional(): AdminAuthContextValue | null {
 }
 
 export function redirectAfterAdminLogin(admin: AdminSession, router: { replace: (path: string) => void }) {
-  const section = getDefaultAdminSection(admin.role)
+  const section = getDefaultAdminSection(admin)
   router.replace(`/admin/dashboard?section=${section}`)
 }
 

@@ -56,7 +56,7 @@ function ReportTypeIcon({ reportType }: { reportType: string }) {
 }
 
 export function AdminFlagDetail({ flagId }: { flagId: string }) {
-  const { canWrite } = useAdminPermissions()
+  const { canFlagsWrite } = useAdminPermissions()
   const router = useRouter()
   const { toast } = useToast()
   const [flag, setFlag] = useState<ContentFlag | null>(null)
@@ -436,7 +436,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as ContentFlagStatus)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs"
-                  disabled={saving || !canWrite}
+                  disabled={saving || !canFlagsWrite}
                 >
                   {statuses.map((s) => (
                     <option key={s} value={s}>
@@ -469,7 +469,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                   }}
                   rows={4}
                   placeholder="Internal notes for your team…"
-                  disabled={saving || !canWrite}
+                  disabled={saving || !canFlagsWrite}
                   maxLength={MAX_RESOLUTION_NOTES_LENGTH}
                   className="resize-none"
                 />
@@ -488,7 +488,7 @@ export function AdminFlagDetail({ flagId }: { flagId: string }) {
                   <p className="text-xs text-destructive">{notesValidationError}</p>
                 )}
               </div>
-              {canWrite && (
+              {canFlagsWrite && (
               <div className="flex flex-col gap-2 pt-1">
                 <Button onClick={handleSave} disabled={saving || !hasChanges} className="w-full">
                   {saving ? (
