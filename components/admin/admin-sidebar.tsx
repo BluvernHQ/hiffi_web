@@ -17,6 +17,7 @@ import {
   Compass,
   Shield,
   ShieldCheck,
+  KeyRound,
   X,
   ChevronLeft,
   ChevronRight,
@@ -77,7 +78,7 @@ const navSections: NavSection[] = [
   {
     title: "Overview",
     items: [
-      { icon: BarChart3, label: "Dashboard", value: "overview", permission: PERMS.analyticsRead },
+      { icon: BarChart3, label: "Dashboard", value: "overview", permission: PERMS.dashboardRead },
     ],
   },
   {
@@ -93,7 +94,7 @@ const navSections: NavSection[] = [
         icon: Activity,
         label: "Score Anomalies",
         value: "ranking_anomalies",
-        permission: PERMS.inventoryRead,
+        permission: PERMS.rankingAnomaliesRead,
       },
     ],
   },
@@ -106,9 +107,9 @@ const navSections: NavSection[] = [
   {
     title: "Moderation",
     items: [
-      { icon: Video, label: "Videos", value: "videos", permission: PERMS.usersRead },
-      { icon: MessageSquare, label: "Comments", value: "comments", permission: PERMS.usersRead },
-      { icon: Reply, label: "Replies", value: "replies", permission: PERMS.usersRead },
+      { icon: Video, label: "Videos", value: "videos", permission: PERMS.videosRead },
+      { icon: MessageSquare, label: "Comments", value: "comments", permission: PERMS.commentsRead },
+      { icon: Reply, label: "Replies", value: "replies", permission: PERMS.repliesRead },
       { icon: Flag, label: "Reports", value: "flags", permission: PERMS.flagsRead },
       { icon: MessageCircle, label: "Feedback", value: "feedback", permission: PERMS.feedbackRead },
     ],
@@ -118,16 +119,16 @@ const navSections: NavSection[] = [
     items: [
       { icon: Users, label: "Users", value: "users", permission: PERMS.usersRead },
       { icon: Clapperboard, label: "Creators", value: "creators", permission: PERMS.creatorsRead },
-      { icon: UserPlus, label: "Followers", value: "followers", permission: PERMS.usersRead },
-      { icon: UsersRound, label: "Referrals", value: "referrals", permission: PERMS.usersRead },
+      { icon: UserPlus, label: "Followers", value: "followers", permission: PERMS.followersRead },
+      { icon: UsersRound, label: "Referrals", value: "referrals", permission: PERMS.referralsRead },
     ],
   },
   {
     title: "Insights",
     items: [
-      { icon: Route, label: "Journeys", value: "journeys", permission: PERMS.analyticsRead },
-      { icon: SearchIcon, label: "Searches", value: "searches", permission: PERMS.analyticsRead },
-      { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: PERMS.analyticsRead },
+      { icon: Route, label: "Journeys", value: "journeys", permission: PERMS.journeysRead },
+      { icon: SearchIcon, label: "Searches", value: "searches", permission: PERMS.searchesRead },
+      { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: PERMS.utmRead },
       { icon: Handshake, label: "Collaboration", value: "collaboration", permission: PERMS.collaborationRead },
       {
         icon: Compass,
@@ -144,9 +145,10 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: "Administration",
+    title: "Access",
     items: [
-      { icon: ShieldCheck, label: "Admins", value: "admins", permission: PERMS.adminsRead },
+      { icon: ShieldCheck, label: "Team", value: "admins", permission: PERMS.adminsRead },
+      { icon: KeyRound, label: "Roles", value: "admin_roles", permission: PERMS.rolesWrite },
       { icon: Wrench, label: "Tools", value: "tools", permission: PERMS.youtubeKeysRead },
     ],
   },

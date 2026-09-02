@@ -5,7 +5,6 @@ import type { AdminSession } from "./auth/admin-types"
 import { isValidAdminSession } from "./auth/admin-types"
 import {
   adminLogin as authAdminLogin,
-  adminVerifyInvite as authAdminVerifyInvite,
   adminRequestPasswordReset,
   adminVerifyPasswordReset,
   type AdminLoginResponse,
@@ -64,10 +63,14 @@ import {
 import {
   adminInviteAdmin as apiAdminInviteAdmin,
   adminListAdmins as apiAdminListAdmins,
+  adminUpdateAdmin as apiAdminUpdateAdmin,
   type AdminRow,
 } from "./api/admin-admins"
 import {
+  adminCreateRole as apiAdminCreateRole,
+  adminDeleteRole as apiAdminDeleteRole,
   adminListRoles as apiAdminListRoles,
+  adminUpdateRole as apiAdminUpdateRole,
   type AdminRoleRow,
 } from "./api/admin-roles"
 import {
@@ -305,20 +308,37 @@ class AdminApiClient implements AdminApiClientContext {
 
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
-  async login(username: string, password: string): Promise<AdminLoginResponse> {
-    return authAdminLogin(this, { username, password })
+  async login(
+    username: string,
+    password: string,
+    turnstileToken?: string | null,
+  ): Promise<AdminLoginResponse> {
+    return authAdminLogin(this, {
+      username,
+      password,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    })
   }
 
-  async verifyInvite(id: string, otp: string): Promise<AdminLoginResponse> {
-    return authAdminVerifyInvite(this, { id, otp })
+  async requestPasswordReset(email: string, turnstileToken?: string | null) {
+    return adminRequestPasswordReset(this, {
+      email,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    })
   }
 
-  async requestPasswordReset(email: string) {
-    return adminRequestPasswordReset(this, email)
-  }
-
-  async verifyPasswordReset(data: { id: string; otp: string; new_password: string }) {
-    return adminVerifyPasswordReset(this, data)
+  async verifyPasswordReset(data: {
+    id: string
+    otp: string
+    new_password: string
+    turnstile_token?: string | null
+  }) {
+    return adminVerifyPasswordReset(this, {
+      id: data.id,
+      otp: data.otp,
+      new_password: data.new_password,
+      ...(data.turnstile_token ? { turnstile_token: data.turnstile_token } : {}),
+    })
   }
 
   async getVideo(videoId: string) {
@@ -344,8 +364,41 @@ class AdminApiClient implements AdminApiClientContext {
     return apiAdminListAdmins(this, params)
   }
 
+  async adminUpdateAdmin(
+    adminId: string,
+    body: {
+      role?: string
+      disabled?: boolean
+      password?: string
+    },
+  ) {
+    return apiAdminUpdateAdmin(this, adminId, body)
+  }
+
   async adminListRoles() {
     return apiAdminListRoles(this)
+  }
+
+  async adminCreateRole(body: {
+    role_key: string
+    display_name: string
+    permissions: string[]
+  }) {
+    return apiAdminCreateRole(this, body)
+  }
+
+  async adminUpdateRole(
+    roleKey: string,
+    body: {
+      display_name?: string
+      permissions?: string[]
+    },
+  ) {
+    return apiAdminUpdateRole(this, roleKey, body)
+  }
+
+  async adminDeleteRole(roleKey: string) {
+    return apiAdminDeleteRole(this, roleKey)
   }
 
   // ─── Tools / YouTube API keys ───────────────────────────────────────────────

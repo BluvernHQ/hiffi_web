@@ -41,6 +41,7 @@ import { AdminMigrationRequestsTable } from "@/components/admin/admin-migration-
 import { CuratedPlaylistsPanel } from "@/components/admin/curated-playlists-panel"
 import { CuratedPlaylistDetail } from "@/components/admin/curated-playlist-detail"
 import { AdminsPanel } from "@/components/admin/admins-panel"
+import { AdminRolesPanel } from "@/components/admin/admin-roles-panel"
 import { AdminToolsPanel } from "@/components/admin/admin-tools-panel"
 import { InventoryPanel } from "@/components/admin/inventory-panel"
 import { RankingAnomaliesPanel } from "@/components/admin/ranking-anomalies-panel"
@@ -292,7 +293,7 @@ function AdminDashboardContent() {
         >
           <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <div className="max-w-full mx-auto">
-              {displaySection === "overview" && can(PERMS.analyticsRead) && (
+              {displaySection === "overview" && can(PERMS.dashboardRead) && (
                 <div className="space-y-4 sm:space-y-6">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -349,7 +350,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "videos" && can(PERMS.usersRead) && (
+              {displaySection === "videos" && can(PERMS.videosRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Videos</h1>
@@ -361,7 +362,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "comments" && can(PERMS.usersRead) && (
+              {displaySection === "comments" && can(PERMS.commentsRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Comments</h1>
@@ -373,7 +374,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "replies" && can(PERMS.usersRead) && (
+              {displaySection === "replies" && can(PERMS.repliesRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Replies</h1>
@@ -433,7 +434,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "journeys" && can(PERMS.analyticsRead) && (
+              {displaySection === "journeys" && can(PERMS.journeysRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
@@ -448,7 +449,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "referrals" && can(PERMS.usersRead) && (
+              {displaySection === "referrals" && can(PERMS.referralsRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Referrals</h1>
@@ -460,7 +461,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "followers" && can(PERMS.usersRead) && (
+              {displaySection === "followers" && can(PERMS.followersRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Followers</h1>
@@ -474,7 +475,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "searches" && can(PERMS.analyticsRead) && (
+              {displaySection === "searches" && can(PERMS.searchesRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Recorded Searches</h1>
@@ -488,7 +489,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "utm_polls" && can(PERMS.analyticsRead) && (
+              {displaySection === "utm_polls" && can(PERMS.utmRead) && (
                 <div className="space-y-4">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">UTM campaigns</h1>
@@ -579,7 +580,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "ranking_anomalies" && can(PERMS.inventoryRead) && (
+              {displaySection === "ranking_anomalies" && can(PERMS.rankingAnomaliesRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
@@ -598,13 +599,27 @@ function AdminDashboardContent() {
               {displaySection === "admins" && can(PERMS.adminsRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Accounts</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Team</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Invite and manage dashboard administrators
+                      Invite and manage dashboard access for your team
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">
                     {showSectionBody ? <AdminsPanel /> : <TableSkeleton />}
+                  </div>
+                </div>
+              )}
+
+              {displaySection === "admin_roles" && can(PERMS.rolesWrite) && (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="shrink-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Roles</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Create and manage custom permission roles
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    {showSectionBody ? <AdminRolesPanel /> : <TableSkeleton />}
                   </div>
                 </div>
               )}

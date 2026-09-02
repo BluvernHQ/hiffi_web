@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAdminAuth, redirectAfterAdminLogin } from "@/lib/admin-auth-context"
@@ -11,6 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Shield, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/auth/turnstile-widget"
+import { isTurnstileEnabled } from "@/lib/turnstile/config"
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("")
@@ -18,6 +23,8 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null)
   const { admin, loading: authLoading, login } = useAdminAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -46,18 +53,24 @@ export default function AdminLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError("Please complete the security check.")
+      return
+    }
     setIsLoading(true)
     setError("")
 
     try {
-      const session = await login(username, password)
+      const session = await login(username, password, turnstileToken)
       redirectAfterAdminLogin(session, router)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Invalid username or password"
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
       if (message.toLowerCase().includes("disabled")) {
         toast({
           title: "Account disabled",
-          description: "This admin account has been disabled. Contact a super admin.",
+          description: "This account has been disabled. Contact a super admin.",
           variant: "destructive",
         })
         setError("")
@@ -133,7 +146,17 @@ export default function AdminLoginPage() {
                   <p className="text-sm text-destructive font-medium">{error}</p>
                 </div>
               )}
-              <Button type="submit" className="w-full h-11" disabled={isLoading}>
+              <TurnstileWidget
+                ref={turnstileRef}
+                action="admin_login"
+                onToken={setTurnstileToken}
+                className="flex justify-center"
+              />
+              <Button
+                type="submit"
+                className="w-full h-11"
+                disabled={isLoading || (isTurnstileEnabled() && !turnstileToken)}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

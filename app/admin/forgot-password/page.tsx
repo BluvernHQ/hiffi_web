@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
@@ -11,6 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Shield, Eye, EyeOff, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/auth/turnstile-widget"
+import { isTurnstileEnabled } from "@/lib/turnstile/config"
 
 function AdminForgotPasswordForm() {
   const [email, setEmail] = useState("")
@@ -23,23 +28,37 @@ function AdminForgotPasswordForm() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null)
   const router = useRouter()
   const { toast } = useToast()
 
+  const resetTurnstile = () => {
+    turnstileRef.current?.reset()
+    setTurnstileToken(null)
+  }
+
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError("Please complete the security check.")
+      return
+    }
     setIsRequesting(true)
     setError("")
     try {
-      const res = await adminApiClient.requestPasswordReset(email.trim())
+      const res = await adminApiClient.requestPasswordReset(email.trim(), turnstileToken)
       if (!res.success || !res.data?.id) {
         setError("Failed to send reset code.")
+        resetTurnstile()
         return
       }
       setResetId(res.data.id)
+      resetTurnstile()
       toast({ title: "Reset code sent", description: "Check your email for the OTP." })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Request failed")
+      resetTurnstile()
     } finally {
       setIsRequesting(false)
     }
@@ -52,6 +71,10 @@ function AdminForgotPasswordForm() {
       setError("Passwords do not match")
       return
     }
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError("Please complete the security check.")
+      return
+    }
     setIsVerifying(true)
     setError("")
     try {
@@ -59,14 +82,17 @@ function AdminForgotPasswordForm() {
         id: resetId,
         otp,
         new_password: newPassword,
+        turnstile_token: turnstileToken,
       })
       if (!res.success) {
         setError("Password reset failed")
+        resetTurnstile()
         return
       }
       setIsSuccess(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Verification failed")
+      resetTurnstile()
     } finally {
       setIsVerifying(false)
     }
@@ -106,7 +132,9 @@ function AdminForgotPasswordForm() {
           <CardHeader>
             <CardTitle>{resetId ? "Enter OTP" : "Request reset"}</CardTitle>
             <CardDescription>
-              {resetId ? "Enter the code from your email and choose a new password." : "We will email you a one-time code."}
+              {resetId
+                ? "Enter the code from your email and choose a new password."
+                : "We will email you a one-time code."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -122,8 +150,18 @@ function AdminForgotPasswordForm() {
                     required
                   />
                 </div>
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  action="admin_reset_password_request"
+                  onToken={setTurnstileToken}
+                  className="flex justify-center"
+                />
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isRequesting}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isRequesting || (isTurnstileEnabled() && !turnstileToken)}
+                >
                   {isRequesting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send code"}
                 </Button>
               </form>
@@ -162,8 +200,18 @@ function AdminForgotPasswordForm() {
                     required
                   />
                 </div>
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  action="admin_reset_password_verify"
+                  onToken={setTurnstileToken}
+                  className="flex justify-center"
+                />
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isVerifying}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isVerifying || (isTurnstileEnabled() && !turnstileToken)}
+                >
                   {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset password"}
                 </Button>
               </form>

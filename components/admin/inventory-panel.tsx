@@ -42,7 +42,7 @@ export function InventoryPanel() {
   const [pendingTab, setPendingTab] = useState<InventoryTab | null>(null)
 
   const canUpload = can(PERMS.inventoryWrite)
-  const canClaims = can(PERMS.inventoryRead)
+  const canClaims = can(PERMS.inventoryClaimsRead)
 
   const activeTab = useMemo((): InventoryTab => {
     const raw = searchParams.get(TAB_QUERY)

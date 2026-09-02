@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog"
 
 export function AdminVideosTable() {
-  const { canUsersWrite } = useAdminPermissions()
+  const { canVideosWrite } = useAdminPermissions()
   const searchParams = useSearchParams()
   const router = useRouter()
   const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
@@ -764,7 +764,7 @@ export function AdminVideosTable() {
               />
             </div>
             
-            {canUsersWrite && selectedVideoIds.length > 0 && (
+            {canVideosWrite && selectedVideoIds.length > 0 && (
               <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                 <span className="text-sm font-medium text-muted-foreground">
                   {selectedVideoIds.length} selected
@@ -959,7 +959,7 @@ export function AdminVideosTable() {
                             <Button variant="ghost" size="sm" asChild className="hover:bg-primary/10">
                               <Link href={`/watch/${videoId}`}>View</Link>
                             </Button>
-                            {canUsersWrite && (
+                            {canVideosWrite && (
                             <Button
                               variant="ghost"
                               size="sm"

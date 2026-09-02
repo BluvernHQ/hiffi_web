@@ -124,7 +124,7 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
 
 export function InventoryClaimsTable() {
   const { toast } = useToast()
-  const { canInventoryWrite } = useAdminPermissions()
+  const { canInventoryClaimsWrite } = useAdminPermissions()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])
   const [hasLoaded, setHasLoaded] = useState(false)
@@ -261,7 +261,7 @@ export function InventoryClaimsTable() {
     usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
-  const colSpan = canInventoryWrite ? 8 : 7
+  const colSpan = canInventoryClaimsWrite ? 8 : 7
 
   if (isInitialLoad) {
     return (
@@ -420,7 +420,7 @@ export function InventoryClaimsTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Updated
                 </th>
-                {canInventoryWrite ? (
+                {canInventoryClaimsWrite ? (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Actions
                   </th>
@@ -465,7 +465,7 @@ export function InventoryClaimsTable() {
                     <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                       {formatTimestamp(row.updated_at)}
                     </td>
-                    {canInventoryWrite ? (
+                    {canInventoryClaimsWrite ? (
                       <td className="px-4 py-3 text-right">
                         {row.status === "pending" ? (
                           <Button

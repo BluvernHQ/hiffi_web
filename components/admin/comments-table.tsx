@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { AdminReturnBanner } from "@/components/admin/admin-return-banner"
 import { readAdminTableUrlFilters, hasAdminTableDeepLink, stripAdminTableFilterParams } from "@/lib/report/admin-table-url-filters"
@@ -29,6 +30,7 @@ import { SortableHeader, SortDirection } from "./sortable-header"
 export function AdminCommentsTable() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { canCommentsWrite } = useAdminPermissions()
   const urlFilters = useMemo(() => readAdminTableUrlFilters(searchParams), [searchParams])
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -458,6 +460,7 @@ export function AdminCommentsTable() {
                             <Link href={`/watch/${videoId}`}>View</Link>
                           </Button>
                         )}
+                          {canCommentsWrite ? (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -471,6 +474,7 @@ export function AdminCommentsTable() {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

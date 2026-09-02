@@ -11,7 +11,7 @@ type AdminAuthContextValue = {
   admin: AdminSession | null
   adminToken: string | null
   loading: boolean
-  login: (username: string, password: string) => Promise<AdminSession>
+  login: (username: string, password: string, turnstileToken?: string | null) => Promise<AdminSession>
   logout: () => void
   refreshAdmin: () => AdminSession | null
 }
@@ -27,7 +27,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const handleUnauthorized = useCallback(() => {
     setAdmin(null)
     setAdminToken(null)
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/verify-invite")) {
+    if (typeof window !== "undefined") {
       router.replace("/admin")
     }
   }, [router])
@@ -72,8 +72,12 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, [hydrate])
 
   const login = useCallback(
-    async (username: string, password: string): Promise<AdminSession> => {
-      const response = await adminApiClient.login(username, password)
+    async (
+      username: string,
+      password: string,
+      turnstileToken?: string | null,
+    ): Promise<AdminSession> => {
+      const response = await adminApiClient.login(username, password, turnstileToken)
       if (!response.success || !response.data?.admin) {
         throw new Error("Login failed")
       }

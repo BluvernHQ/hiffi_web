@@ -25,7 +25,6 @@ const WELCOME_MAIL_RELATIVE_PATHS = [
 /** Merge tags left for the ESP (Customer.io, etc.). */
 export type WelcomeMailMergeTags = {
   firstName?: string
-  unsubscribeUrl?: string
 }
 
 /** Document merge tags for ESP copy/paste. */
@@ -40,7 +39,6 @@ export const WELCOME_MAIL_PATH_TAGS = {
   SUPPORT_URL: "/support",
   PRIVACY_URL: "/privacy-policy",
   TERMS_URL: "/terms-of-use",
-  UNSUBSCRIBE_URL: "{{UNSUBSCRIBE_URL}}",
 } as const
 
 function expandRelativeUrls(html: string, origin: string): string {
@@ -67,17 +65,6 @@ export async function loadWelcomeMailTemplate(
   )
 
   output = output.replaceAll("{{DISCOVERY_SURVEY_URL}}", "/hiffi-discovery-form")
-
-  if (merge.unsubscribeUrl?.trim()) {
-    output = output.replaceAll("{{UNSUBSCRIBE_URL}}", merge.unsubscribeUrl.trim())
-  } else if (options?.absolute && options.origin) {
-    output = output.replaceAll(
-      "{{UNSUBSCRIBE_URL}}",
-      absoluteUrlForOrigin(options.origin, "/support"),
-    )
-  } else {
-    output = output.replaceAll("{{UNSUBSCRIBE_URL}}", "/support")
-  }
 
   if (options?.absolute && options.origin) {
     output = expandRelativeUrls(output, options.origin)

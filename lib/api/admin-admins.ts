@@ -7,6 +7,18 @@ export type AdminRow = AdminSession & {
   created_at?: string
 }
 
+export type AdminInviteResponse = {
+  success: boolean
+  data?: {
+    admin_id?: string
+    username?: string
+    email?: string
+    role?: string
+    admin?: AdminSession
+    message?: string
+  }
+}
+
 export async function adminInviteAdmin(
   ctx: AdminApiClientContext,
   body: {
@@ -15,11 +27,30 @@ export async function adminInviteAdmin(
     password: string
     role: string
   },
-): Promise<{ success: boolean; data?: { id: string } }> {
+): Promise<AdminInviteResponse> {
   return ctx.request(
     "/admin/admins/invite",
     {
       method: "POST",
+      body: JSON.stringify(body),
+    },
+    true,
+  )
+}
+
+export async function adminUpdateAdmin(
+  ctx: AdminApiClientContext,
+  adminId: string,
+  body: {
+    role?: string
+    disabled?: boolean
+    password?: string
+  },
+): Promise<{ success: boolean }> {
+  return ctx.request(
+    `/admin/admins/${encodeURIComponent(adminId)}`,
+    {
+      method: "PATCH",
       body: JSON.stringify(body),
     },
     true,

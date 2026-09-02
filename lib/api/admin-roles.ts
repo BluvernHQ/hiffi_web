@@ -36,3 +36,32 @@ export async function adminCreateRole(
     true,
   )
 }
+
+export async function adminUpdateRole(
+  ctx: AdminApiClientContext,
+  roleKey: string,
+  body: {
+    display_name?: string
+    permissions?: string[]
+  },
+): Promise<{ success: boolean }> {
+  return ctx.request(
+    `/admin/roles/${encodeURIComponent(roleKey)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    },
+    true,
+  )
+}
+
+export async function adminDeleteRole(
+  ctx: AdminApiClientContext,
+  roleKey: string,
+): Promise<{ success: boolean }> {
+  return ctx.request(
+    `/admin/roles/${encodeURIComponent(roleKey)}`,
+    { method: "DELETE" },
+    true,
+  )
+}
