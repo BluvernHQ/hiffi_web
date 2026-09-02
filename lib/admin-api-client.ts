@@ -119,6 +119,11 @@ import type {
 import {
   adminListCollaborationInquiries as collaborationAdminList,
 } from "./api/collaboration"
+import {
+  adminDeleteDiscoverySourceSubmission as discoveryAdminDelete,
+  adminListDiscoverySourceSubmissions as discoveryAdminList,
+  type AdminListDiscoverySourceParams,
+} from "./api/admin-discovery-source"
 import { getFlagsConfig as flagsGetFlagsConfig } from "./api/flags"
 import type {
   AdminListCollaborationInquiriesParams,
@@ -635,6 +640,14 @@ class AdminApiClient implements AdminApiClientContext {
     params?: AdminListCollaborationInquiriesParams,
   ): Promise<CollaborationInquiryListResponse> {
     return collaborationAdminList(this, params)
+  }
+
+  async adminListDiscoverySourceSubmissions(params?: AdminListDiscoverySourceParams) {
+    return discoveryAdminList(this, params)
+  }
+
+  async adminDeleteDiscoverySourceSubmission(id: string) {
+    return discoveryAdminDelete(this, id)
   }
 
   async adminListMigrationRequests(params?: AdminListMigrationRequestsParams) {

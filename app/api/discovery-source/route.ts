@@ -6,6 +6,8 @@ import {
   DISCOVERY_SOURCE_MAX_NAME,
 } from "@/lib/discovery-source/constants"
 import { isValidEmailFormat } from "@/lib/auth-utils"
+import { getClientIpFromRequest } from "@/lib/turnstile/client-ip"
+import { verifyTurnstileToken } from "@/lib/turnstile/verify-server"
 
 export const dynamic = "force-dynamic"
 
@@ -24,6 +26,14 @@ export async function POST(request: Request) {
     const email = body.email?.trim() ?? ""
     const howFindUs = body.how_find_us?.trim() ?? ""
     const turnstileToken = body.turnstile_token?.trim() ?? ""
+
+    const turnstile = await verifyTurnstileToken(turnstileToken, {
+      expectedAction: "discovery_source",
+      remoteIp: getClientIpFromRequest(request),
+    })
+    if (!turnstile.ok) {
+      return NextResponse.json({ success: false, error: turnstile.error }, { status: turnstile.status })
+    }
 
     if (!name) {
       return NextResponse.json({ success: false, error: "name is required" }, { status: 400 })

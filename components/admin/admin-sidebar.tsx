@@ -14,6 +14,7 @@ import {
   Handshake,
   Flag,
   MessageCircle,
+  Compass,
   Shield,
   ShieldCheck,
   X,
@@ -128,6 +129,12 @@ const navSections: NavSection[] = [
       { icon: SearchIcon, label: "Searches", value: "searches", permission: PERMS.analyticsRead },
       { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: PERMS.analyticsRead },
       { icon: Handshake, label: "Collaboration", value: "collaboration", permission: PERMS.collaborationRead },
+      {
+        icon: Compass,
+        label: "Discovery survey",
+        value: "discovery_source",
+        permission: PERMS.discoverySourceRead,
+      },
     ],
   },
   {

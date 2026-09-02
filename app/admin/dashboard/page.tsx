@@ -27,6 +27,7 @@ import { AdminFollowersTable } from "@/components/admin/followers-table"
 import { AdminSearchesTable } from "@/components/admin/searches-table"
 import { AdminUtmPollsPanel } from "@/components/admin/utm-polls-panel"
 import { AdminCollaborationInquiriesTable } from "@/components/admin/collaboration-inquiries-table"
+import { AdminDiscoverySourceTable } from "@/components/admin/discovery-source-table"
 import { AdminFlagsTable } from "@/components/admin/flags-table"
 import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
 import { AdminFeedbackTable } from "@/components/admin/feedback-table"
@@ -508,6 +509,21 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showSectionBody ? <AdminCollaborationInquiriesTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {displaySection === "discovery_source" && can(PERMS.discoverySourceRead) && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Discovery survey</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      &ldquo;How did you find us?&rdquo; responses from the welcome email and{" "}
+                      <Link href="/hiffi-discovery-form" className="text-primary hover:underline" target="_blank">
+                        /hiffi-discovery-form
+                      </Link>
+                    </p>
+                  </div>
+                  {showSectionBody ? <AdminDiscoverySourceTable /> : <TableSkeleton />}
                 </div>
               )}
 

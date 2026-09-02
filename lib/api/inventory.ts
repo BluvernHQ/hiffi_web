@@ -22,14 +22,15 @@ export async function submitInventoryClaim(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-  username: payload.username.trim().toLowerCase(),
-  name: payload.name.trim(),
-  email: payload.email.trim(),
-  discovery_source: payload.discovery_source,
-  ...(payload.discovery_source === "other" && {
-    discovery_source_other: payload.discovery_source_other?.trim(),
-  }),
-}),
+      username: payload.username.trim().toLowerCase(),
+      name: payload.name.trim(),
+      email: payload.email.trim(),
+      discovery_source: payload.discovery_source,
+      ...(payload.discovery_source === "other" && {
+        discovery_source_other: payload.discovery_source_other?.trim(),
+      }),
+      ...(payload.turnstile_token ? { turnstile_token: payload.turnstile_token } : {}),
+    }),
   })
 
   const body = (await res.json()) as

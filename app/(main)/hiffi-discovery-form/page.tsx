@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { DiscoverySourceForm } from "@/components/discovery-source/discovery-source-form"
+import { sanitizeDiscoveryPrefill } from "@/lib/discovery-source/sanitize-prefill"
 import { routeMetadata } from "@/lib/seo/route-metadata"
 
 export const metadata: Metadata = routeMetadata({
@@ -46,8 +47,8 @@ export default async function HiffiDiscoveryFormPage({
         </div>
 
         <DiscoverySourceForm
-          initialName={params.name?.trim() ?? ""}
-          initialEmail={params.email?.trim() ?? ""}
+          initialName={sanitizeDiscoveryPrefill(params.name)}
+          initialEmail={sanitizeDiscoveryPrefill(params.email)}
         />
       </div>
     </div>

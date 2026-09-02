@@ -80,6 +80,7 @@ export interface InventoryClaimSubmit {
   email: string
   discovery_source: DiscoverySource
   discovery_source_other?: string
+  turnstile_token?: string
 }
 
 export interface InventoryClaimSubmitResponse {

@@ -71,21 +71,12 @@ function loadTurnstileScript(): Promise<void> {
   return scriptPromise
 }
 
-export function getTurnstileSiteKey(): string {
-  return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
-}
+import {
+  getTurnstileSiteKey,
+  isTurnstileEnabled,
+} from "@/lib/turnstile/config"
 
-/**
- * True when a site key is configured and forms should require a token.
- *
- * Disabled during `next dev` so localhost login/signup work without Cloudflare
- * domain allowlisting. The token is optional in auth payloads when this is false.
- */
-export function isTurnstileEnabled(): boolean {
-  if (!getTurnstileSiteKey()) return false
-  if (process.env.NODE_ENV === "development") return false
-  return true
-}
+export { getTurnstileSiteKey, isTurnstileEnabled }
 
 export interface TurnstileWidgetHandle {
   /** Force a fresh challenge (required after any failed submit — tokens are single-use). */

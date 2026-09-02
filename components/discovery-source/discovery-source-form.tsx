@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import {
   DiscoverySourceError,
@@ -18,11 +18,8 @@ import {
 } from "@/lib/types/inventory"
 import { isValidEmailFormat } from "@/lib/auth-utils"
 import { artistButtonSolid } from "@/components/artists/artist-styles"
-import {
-  TurnstileWidget,
-  type TurnstileWidgetHandle,
-  isTurnstileEnabled,
-} from "@/components/auth/turnstile-widget"
+import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
+import { useTurnstileForm } from "@/hooks/use-turnstile-form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -59,8 +56,13 @@ export function DiscoverySourceForm({
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null)
+  const {
+    turnstileRef,
+    setTurnstileToken,
+    submitBlocked,
+    resetTurnstile,
+    getTurnstileTokenForSubmit,
+  } = useTurnstileForm("discovery_source")
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -117,8 +119,9 @@ export function DiscoverySourceForm({
       return
     }
 
-    if (isTurnstileEnabled() && !turnstileToken) {
-      setError("Please complete the verification check.")
+    const turnstile = getTurnstileTokenForSubmit()
+    if (!turnstile.ok) {
+      setError(turnstile.error)
       return
     }
 
@@ -130,12 +133,11 @@ export function DiscoverySourceForm({
         name,
         email,
         how_find_us: howFindUs,
-        ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+        ...(turnstile.token ? { turnstile_token: turnstile.token } : {}),
       })
       setSubmitted(true)
     } catch (caught) {
-      turnstileRef.current?.reset()
-      setTurnstileToken(null)
+      resetTurnstile()
       if (caught instanceof DiscoverySourceError) {
         setError(caught.message)
       } else {
@@ -244,14 +246,11 @@ export function DiscoverySourceForm({
         </div>
       </section>
 
-      {isTurnstileEnabled() ? (
-        <TurnstileWidget
-          ref={turnstileRef}
-          action="discovery_source"
-          onToken={setTurnstileToken}
-          className="flex justify-center"
-        />
-      ) : null}
+      <TurnstileFormField
+        action="discovery_source"
+        widgetRef={turnstileRef}
+        onToken={setTurnstileToken}
+      />
 
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -261,7 +260,7 @@ export function DiscoverySourceForm({
 
       <button
         type="submit"
-        disabled={submitting || (isTurnstileEnabled() && !turnstileToken)}
+        disabled={submitting || submitBlocked}
         className={cn(artistButtonSolid, "w-full sm:w-auto disabled:opacity-60")}
       >
         {submitting ? "Submitting…" : "Submit"}

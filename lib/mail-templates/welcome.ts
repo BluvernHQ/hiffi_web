@@ -15,6 +15,7 @@ const WELCOME_MAIL_RELATIVE_PATHS = [
   "/appbarlogo.png",
   "/studio/tools/migrate",
   "/feature-request",
+  "/hiffi-discovery-form",
   "/studio",
   "/support",
   "/privacy-policy",
@@ -33,6 +34,7 @@ export const WELCOME_MAIL_PATH_TAGS = {
   LOGO_URL: "/appbarlogo.png",
   MIGRATE_URL: "/studio/tools/migrate",
   FEATURE_REQUEST_URL: "/feature-request",
+  DISCOVERY_SURVEY_URL: "/hiffi-discovery-form",
   CALENDLY_WALKTHROUGH_URL: getCreatorWalkthroughCalendlyUrl(),
   STUDIO_URL: "/studio",
   SUPPORT_URL: "/support",
@@ -63,6 +65,8 @@ export async function loadWelcomeMailTemplate(
     "{{CALENDLY_WALKTHROUGH_URL}}",
     getCreatorWalkthroughCalendlyUrl(),
   )
+
+  output = output.replaceAll("{{DISCOVERY_SURVEY_URL}}", "/hiffi-discovery-form")
 
   if (merge.unsubscribeUrl?.trim()) {
     output = output.replaceAll("{{UNSUBSCRIBE_URL}}", merge.unsubscribeUrl.trim())

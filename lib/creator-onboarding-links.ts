@@ -1,6 +1,7 @@
 import { absoluteUrl } from "@/lib/seo/site"
 
 export const FEATURE_REQUEST_PATH = "/feature-request"
+export const DISCOVERY_SURVEY_PATH = "/hiffi-discovery-form"
 export const BOOK_WALKTHROUGH_PATH = "/book-walkthrough"
 
 /** Default Calendly event for creator onboarding walkthroughs. */
@@ -15,6 +16,10 @@ export function getCreatorWalkthroughCalendlyUrl(): string {
 
 export function getFeatureRequestUrl(): string {
   return absoluteUrl(FEATURE_REQUEST_PATH)
+}
+
+export function getDiscoverySurveyUrl(): string {
+  return absoluteUrl(DISCOVERY_SURVEY_PATH)
 }
 
 export function getBookWalkthroughUrl(): string {

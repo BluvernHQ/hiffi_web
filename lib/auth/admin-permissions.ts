@@ -23,6 +23,7 @@ export const PERMS = {
   youtubeKeysWrite: "youtube_keys:write",
   feedbackRead: "feedback:read",
   collaborationRead: "collaboration:read",
+  discoverySourceRead: "discovery-source:read",
   adminsRead: "admins:read",
   adminsWrite: "admins:write",
   rolesWrite: "roles:write",
@@ -48,6 +49,7 @@ function derivePermissionsFromRole(role: string): Permission[] {
         PERMS.creatorsRead,
         PERMS.feedbackRead,
         PERMS.collaborationRead,
+        PERMS.discoverySourceRead,
         PERMS.flagsRead,
         PERMS.migrationRead,
       ]
@@ -110,6 +112,7 @@ export const ADMIN_SECTION_PERMISSION: Record<string, Permission> = {
   searches: PERMS.analyticsRead,
   utm_polls: PERMS.analyticsRead,
   collaboration: PERMS.collaborationRead,
+  discovery_source: PERMS.discoverySourceRead,
   migrations: PERMS.migrationRead,
   curated_playlists: PERMS.curatedRead,
   admins: PERMS.adminsRead,
