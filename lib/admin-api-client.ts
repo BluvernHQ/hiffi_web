@@ -124,6 +124,14 @@ import {
   adminListDiscoverySourceSubmissions as discoveryAdminList,
   type AdminListDiscoverySourceParams,
 } from "./api/admin-discovery-source"
+import {
+  getTraffic as trafficAdminGet,
+  getTrafficBreakdown as trafficAdminGetBreakdown,
+  type BreakdownDimension,
+  type TrafficBreakdownData,
+  type TrafficRange,
+  type TrafficSeriesData,
+} from "./api/admin-traffic"
 import { getFlagsConfig as flagsGetFlagsConfig } from "./api/flags"
 import type {
   AdminListCollaborationInquiriesParams,
@@ -648,6 +656,18 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminDeleteDiscoverySourceSubmission(id: string) {
     return discoveryAdminDelete(this, id)
+  }
+
+  async adminGetTraffic(range: TrafficRange = "7d"): Promise<TrafficSeriesData> {
+    return trafficAdminGet(this, range)
+  }
+
+  async adminGetTrafficBreakdown(
+    dimension: BreakdownDimension,
+    range: TrafficRange = "7d",
+    limit = 20,
+  ): Promise<TrafficBreakdownData> {
+    return trafficAdminGetBreakdown(this, dimension, range, limit)
   }
 
   async adminListMigrationRequests(params?: AdminListMigrationRequestsParams) {

@@ -145,13 +145,18 @@ function buildStaticEntries(
 }
 
 async function buildArtistIndexProfileEntries(): Promise<MetadataRoute.Sitemap> {
-  const artists = await getArtists()
-  return artists.map((artist) => ({
-    url: absoluteUrl(`/artist-index/${artist.slug}`),
-    lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
-    changeFrequency: "monthly" as const,
-    priority: 0.75,
-  }))
+  try {
+    const artists = await getArtists()
+    return artists.map((artist) => ({
+      url: absoluteUrl(`/artist-index/${artist.slug}`),
+      lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
+      changeFrequency: "monthly" as const,
+      priority: 0.75,
+    }))
+  } catch {
+    // Build / offline API: keep static sitemap entries without artist profiles.
+    return []
+  }
 }
 
 function buildProfileLastModifiedByUsername(entries: SitemapVideoEntry[]): Map<string, Date> {
