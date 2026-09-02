@@ -61,6 +61,7 @@ export const ADMIN_SECTION_PERMISSION: Record<string, AdminPermission> = {
   activity: "admin:journeys",
   journeys: "admin:journeys",
   feedback: "admin:feedback",
+  discovery_source: "admin:feedback",
   referrals: "admin:referrals",
   followers: "admin:followers",
   searches: "admin:searches",

@@ -3,7 +3,7 @@ import type { ApiClientContext } from "./context"
 export type RegisterResponseData = {
   id?: number
   uid?: string
-  token: string
+  token?: string
   expires_in?: number
   user: { name: string; uid: string; username: string }
 }
@@ -73,6 +73,7 @@ export async function register(
 
   if (response.success && response.data?.token) {
     ctx.setAuthToken(response.data.token)
+    ctx.setCredentials(data.username, data.password)
   }
 
   return response

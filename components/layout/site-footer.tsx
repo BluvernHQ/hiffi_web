@@ -58,6 +58,7 @@ const columns: FooterColumn[] = [
       { label: "Hiffi Artists", href: "/artists" },
       { label: "Creator Playbook", href: "/creator-playbook" },
       { label: "Apply as creator", href: "/creator/apply" },
+      { label: "Request a feature", href: "/feature-request" },
     ],
   },
   {

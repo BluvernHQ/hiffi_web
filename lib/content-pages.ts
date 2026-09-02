@@ -24,6 +24,7 @@ export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
   { href: "/advertising", label: "Advertising" },
   { href: "/creators-for-change", label: "Creators for Change" },
   { href: "/creator-playbook", label: "Creator Playbook" },
+  { href: "/feature-request", label: "Request a feature" },
   { href: "/hip-hop", label: "Hip-Hop" },
   { href: "/artist-index", label: "Artist Index" },
   { href: "/top-artists", label: "Hiffi 500" },

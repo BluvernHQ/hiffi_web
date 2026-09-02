@@ -5,6 +5,8 @@
  * - Fetch only ~16 videos (sidebar shows ≤12–20), not 50
  * - Instantly seed from the home feed session when opening a video from home
  * - Prefetch on feed card hover so the list is warm before watch mounts
+ * - Prefer /videos/recommend; fall back to /videos/list if recommend is empty
+ * - Share one pool request across hover prefetches (avoid N identical calls)
  */
 
 import { apiClient } from "@/lib/api-client"
@@ -17,6 +19,10 @@ const RELATED_FETCH_TIMEOUT_MS = 8000
 
 const relatedVideosCache = new Map<string, any[]>()
 const inFlightRelatedVideos = new Map<string, Promise<any[]>>()
+
+/** Shared candidate pool — one network round-trip for many hover prefetches. */
+let relatedPool: any[] | null = null
+let relatedPoolInFlight: Promise<any[]> | null = null
 
 function videoKey(v: any): string {
   return String(v?.video_id || v?.videoId || "")
@@ -68,6 +74,54 @@ export function setCachedRelatedVideos(videoId: string, videos: any[]): void {
 export function clearRelatedVideosCache(): void {
   relatedVideosCache.clear()
   inFlightRelatedVideos.clear()
+  relatedPool = null
+  relatedPoolInFlight = null
+}
+
+async function fetchRelatedPool(): Promise<any[]> {
+  if (relatedPool && relatedPool.length > 0) return relatedPool
+  if (relatedPoolInFlight) return relatedPoolInFlight
+
+  relatedPoolInFlight = (async () => {
+    const withTimeout = <T,>(promise: Promise<T>): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Related videos request timed out")),
+            RELATED_FETCH_TIMEOUT_MS,
+          ),
+        ),
+      ])
+
+    try {
+      const recommended = await withTimeout(
+        apiClient.getVideoRecommendations({
+          offset: 0,
+          limit: RELATED_LIMIT,
+        }),
+      )
+      const fromRecommend = recommended.videos || []
+      if (fromRecommend.length > 0) {
+        relatedPool = fromRecommend
+        return fromRecommend
+      }
+    } catch {
+      // Fall through to /videos/list
+    }
+
+    const seed = getSeed()
+    const listed = await withTimeout(
+      apiClient.getVideoList({ offset: 0, limit: RELATED_LIMIT, seed }),
+    )
+    const fromList = listed.videos || []
+    relatedPool = fromList
+    return fromList
+  })().finally(() => {
+    relatedPoolInFlight = null
+  })
+
+  return relatedPoolInFlight
 }
 
 /**
@@ -82,16 +136,8 @@ export async function getRelatedVideosOnce(videoId: string): Promise<any[]> {
   if (inFlight) return inFlight
 
   const request = (async () => {
-    const seed = getSeed()
-    const videosResponse = await Promise.race([
-      apiClient.getVideoList({ offset: 0, limit: RELATED_LIMIT, seed }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Related videos request timed out")), RELATED_FETCH_TIMEOUT_MS),
-      ),
-    ])
-
-    const videosArray = videosResponse.videos || []
-    const filtered = excludeAndTake(shuffleInPlace([...videosArray]), videoId, RELATED_DISPLAY)
+    const pool = await fetchRelatedPool()
+    const filtered = excludeAndTake(shuffleInPlace([...pool]), videoId, RELATED_DISPLAY)
 
     if (filtered.length > 0) {
       relatedVideosCache.set(videoId, filtered)

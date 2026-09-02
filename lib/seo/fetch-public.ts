@@ -430,12 +430,13 @@ export const fetchUserVideosInitial = cache(
  * within one render; the no-store request still gets fresh data per page request.
  */
 export const fetchHomeFeedInitial = cache(
-  async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
+  async (limit = 10, _seed?: string): Promise<HomeFeedVideo[]> => {
     try {
-      const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
-      const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
+      const qs = new URLSearchParams({ limit: String(limit), offset: "0" })
+      const res = await fetch(`${getApiBaseUrl()}/videos/recommend?${qs.toString()}`, {
         headers: { "Content-Type": "application/json" },
-        cache: "no-store",
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(2500),
       })
       if (!res.ok) return []
       const json = await res.json()

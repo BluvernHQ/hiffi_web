@@ -26,6 +26,8 @@ export type HomeFeedPersistedState = {
   activeMood: string | null
   /** #main-content scrollTop when the feed was last saved. */
   scrollTop: number
+  /** Whether the feed was saved while the user was logged in. */
+  authenticated?: boolean
   timestamp: number
 }
 
@@ -133,6 +135,7 @@ export function saveHomeFeedPersistedState(
     hasMore: state.hasMore,
     seed: state.seed,
     activeMood: state.activeMood,
+    authenticated: state.authenticated,
     scrollTop,
     timestamp: Date.now(),
   }

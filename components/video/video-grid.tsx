@@ -62,6 +62,8 @@ interface VideoGridProps {
   suppressEmptyState?: boolean
   /** Custom empty-state title when the grid has no items. */
   emptyTitle?: string
+  /** Optional description shown under `emptyTitle`. */
+  emptyDescription?: string
   /** Apply DM Sans to card metadata (title, artist, views). */
   metadataFontDmSans?: boolean
   /** Skip CSS fade-in on cards (use when GSAP handles entrance). */
@@ -85,6 +87,7 @@ export function VideoGrid({
   hideTimestamp = false,
   suppressEmptyState = false,
   emptyTitle,
+  emptyDescription,
   metadataFontDmSans = false,
   skipCardEntrance = false,
   playlistNavigation,
@@ -257,9 +260,12 @@ export function VideoGrid({
 
       {!loading && safeVideos.length === 0 && !suppressEmptyState && (
         emptyTitle ? (
-          <p className="py-20 text-center text-sm text-[#555555] font-[family-name:var(--font-dm-sans)]">
-            {emptyTitle}
-          </p>
+          <div className="py-20 text-center font-[family-name:var(--font-dm-sans)]">
+            <p className="text-sm text-[#555555]">{emptyTitle}</p>
+            {emptyDescription ? (
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{emptyDescription}</p>
+            ) : null}
+          </div>
         ) : (
           <EmptyVideoState />
         )

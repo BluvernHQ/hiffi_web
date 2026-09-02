@@ -31,6 +31,7 @@ import { AdminFlagsTable } from "@/components/admin/flags-table"
 import { AdminFlagDetail } from "@/components/admin/admin-flag-detail"
 import { AdminFeedbackTable } from "@/components/admin/feedback-table"
 import { AdminFeedbackDetail } from "@/components/admin/admin-feedback-detail"
+import { AdminDiscoverySourceTable } from "@/components/admin/discovery-source-table"
 import { AnalyticsOverview } from "@/components/admin/analytics-overview"
 import { AnalyticsJourneysPanel } from "@/components/admin/analytics-journeys-panel"
 import { AnalyticsSkeleton } from "@/components/admin/analytics-skeleton"
@@ -414,7 +415,7 @@ function AdminDashboardContent() {
                     <div className="shrink-0">
                       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Feedback</h1>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Review in-app feedback submissions from users
+                        Review in-app feedback and structured feature requests from creators
                       </p>
                     </div>
                   )}
@@ -508,6 +509,21 @@ function AdminDashboardContent() {
                     </p>
                   </div>
                   {showSectionBody ? <AdminCollaborationInquiriesTable /> : <TableSkeleton />}
+                </div>
+              )}
+
+              {displaySection === "discovery_source" && can("admin:feedback") && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Discovery survey</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      &ldquo;How did you find us?&rdquo; responses from the welcome email and{" "}
+                      <Link href="/hiffi-discovery-form" className="text-primary hover:underline" target="_blank">
+                        /hiffi-discovery-form
+                      </Link>
+                    </p>
+                  </div>
+                  {showSectionBody ? <AdminDiscoverySourceTable /> : <TableSkeleton />}
                 </div>
               )}
 

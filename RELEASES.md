@@ -63,9 +63,9 @@ Tags are prefixed with `web-` to namespace from backend/mobile:
 | MINOR | `web-v1.1.0` | Backward-compatible features on a frozen line (rare) |
 | PATCH | `web-v1.0.1` | Bugfixes on an already-released line — no new scope |
 
-Existing tags: `web-v1.0.0`, `web-v1.0.1`, `web-v2.1.0`, `web-v2.2.0` … `web-v2.2.4`, `web-v2.3.0` … `web-v2.3.3` (latest patch as of 1 Sep 2026).
+Existing tags: `web-v1.0.0`, `web-v1.0.1`, `web-v2.1.0`, `web-v2.2.0` … `web-v2.2.4`, `web-v2.3.0` … `web-v2.3.3`, `web-v3.0.0` (latest as of 2 Sep 2026).
 
-Release notes for tagged versions live under `docs/releases/` (e.g. [web-v2.3.3.md](docs/releases/web-v2.3.3.md), [web-v2.3.0.md](docs/releases/web-v2.3.0.md), [web-v2.2.4.md](docs/releases/web-v2.2.4.md)).
+Release notes for tagged versions live under `docs/releases/` (e.g. [web-v3.0.0.md](docs/releases/web-v3.0.0.md), [web-v2.3.3.md](docs/releases/web-v2.3.3.md), [web-v2.3.0.md](docs/releases/web-v2.3.0.md), [web-v2.2.4.md](docs/releases/web-v2.2.4.md)).
 
 ## Consolidation pipeline
 

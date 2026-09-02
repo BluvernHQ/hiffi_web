@@ -163,6 +163,31 @@ export interface VideoListItem {
   following: boolean
 }
 
+function flattenVideoListItems(rawVideos: unknown[]): Video[] {
+  return (rawVideos || []).map((item: any) => {
+    if (item?.video) {
+      const videoData: Video & Record<string, unknown> = {
+        ...item.video,
+        following: item.following || false,
+      }
+      if (item.profile_picture) {
+        videoData.user_profile_picture = item.profile_picture
+      }
+      if (item.user?.profile_picture) {
+        videoData.user_profile_picture = item.user.profile_picture
+      }
+      if (item.video.user?.profile_picture) {
+        videoData.user_profile_picture = item.video.user.profile_picture
+      }
+      if (item.video.profile_picture) {
+        videoData.user_profile_picture = item.video.profile_picture
+      }
+      return videoData
+    }
+    return item as Video
+  })
+}
+
 // Cookie utilities
 function setCookie(name: string, value: string, days: number = 30): void {
   if (typeof document === "undefined") return
@@ -1449,37 +1474,7 @@ class ApiClient {
       const responseCount = response.data?.count || response.count
       const responseSeed = response.data?.seed || response.seed
       
-      // Transform videos array to flatten structure and include following status
-      // New API format: [{ video: {...}, following: boolean, profile_picture: string }]
-      // Transform to: [{ ...video, following: boolean, user_profile_picture: string }]
-      // Also preserve any user profile picture data
-      const videos = rawVideos.map((item: any) => {
-        // If item has 'video' property, it's the new format
-        if (item.video) {
-          const videoData: any = {
-            ...item.video,
-            following: item.following || false,
-          }
-          // Preserve user profile picture from the response
-          // API returns profile_picture at the same level as video and following
-          if (item.profile_picture) {
-            videoData.user_profile_picture = item.profile_picture
-          }
-          // Also check other possible locations for backward compatibility
-          if (item.user?.profile_picture) {
-            videoData.user_profile_picture = item.user.profile_picture
-          }
-          if (item.video.user?.profile_picture) {
-            videoData.user_profile_picture = item.video.user.profile_picture
-          }
-          if (item.video.profile_picture) {
-            videoData.user_profile_picture = item.video.profile_picture
-          }
-          return videoData
-        }
-        // Otherwise, it's already in the old format (backward compatibility)
-        return item
-      })
+      const videos = flattenVideoListItems(rawVideos)
       
       return {
         success: true,
@@ -1497,6 +1492,70 @@ class ApiClient {
       videos: [],
       limit: limit,
       offset: offset,
+      count: 0,
+    }
+  }
+
+  // GET /videos/recommend - Personalized home/discovery feed (optional auth)
+  async getVideoRecommendations(data: { offset?: number; limit?: number } = {}): Promise<{
+    success: boolean
+    videos: Video[]
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const limit = data.limit || 20
+    const offset = data.offset !== undefined ? data.offset : 0
+
+    const params = new URLSearchParams()
+    params.append("offset", offset.toString())
+    params.append("limit", limit.toString())
+
+    const url = `/videos/recommend?${params.toString()}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: VideoListItem[] | null
+        limit?: number
+        offset?: number
+        count?: number
+      }
+      videos?: VideoListItem[] | null
+      limit?: number
+      offset?: number
+      count?: number
+    }>(
+      url,
+      { method: "GET" },
+      true, // Send Bearer token when logged in; endpoint works without auth
+    )
+
+    const isSuccess = response.status === "success" || response.success
+
+    if (isSuccess) {
+      const rawVideos = response.data?.videos ?? response.videos ?? []
+      const responseLimit = response.data?.limit ?? response.limit
+      const responseOffset = response.data?.offset ?? response.offset
+      const responseCount = response.data?.count ?? response.count
+
+      const videos = flattenVideoListItems(Array.isArray(rawVideos) ? rawVideos : [])
+
+      return {
+        success: true,
+        videos,
+        limit: responseLimit ?? limit,
+        offset: responseOffset ?? offset,
+        count: responseCount ?? videos.length,
+      }
+    }
+
+    return {
+      success: false,
+      videos: [],
+      limit,
+      offset,
       count: 0,
     }
   }

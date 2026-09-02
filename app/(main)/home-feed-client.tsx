@@ -12,9 +12,15 @@ import {
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
-import { MoodPickerCard } from "@/components/home/mood-picker-card"
-import { ActiveMoodBar } from "@/components/home/active-mood-bar"
+import { pauseActiveHoverPreview } from "@/components/video/video-card-hover-preview"
+import { HeroCarousel } from "@/components/home/hero-carousel"
+import { HeroCarouselSkeleton } from "@/components/home/hero-carousel-skeleton"
+import { MoodMixChips } from "@/components/home/mood-mix-chips"
 import { MoodFeedAnimated } from "@/components/home/mood-feed-animated"
+import { mapVideosToHeroCards, type HeroCarouselCard } from "@/lib/home/hero-carousel-data"
+import { fetchCuratedHeroCards } from "@/lib/home/fetch-curated-hero"
+import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
+import { OPENED_VIDEO_FROM_HOME_HERO } from "@/lib/analytics/video-analytics-names"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
 import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
@@ -53,6 +59,7 @@ import {
   buildPlaylistWatchPath,
   playlistVideoMetaFromFeedVideos,
 } from "@/lib/playlist-session"
+import { cn } from "@/lib/utils"
 import { getThumbnailUrl } from "@/lib/storage"
 
 const VIDEOS_PER_PAGE = 10
@@ -102,7 +109,7 @@ function playlistItemsToVideos(items: Array<{ video: Record<string, unknown> }>)
 
 export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFeedClientProps) {
   const router = useRouter()
-  const { userData } = useAuth()
+  const { user, userData, loading: authLoading } = useAuth()
   const [videos, setVideos] = useState<any[]>(() => initialVideos)
   // Cold mount has no SSR videos now — start in loading so VideoGrid shows
   // skeletons instead of the “No videos yet” empty state before fetch/restore.
@@ -112,12 +119,13 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
   const [isFetching, setIsFetching] = useState(false)
   const [feedError, setFeedError] = useState<string | null>(null)
   const [feedSeed, setFeedSeed] = useState(seed)
+  const [recommendEmpty, setRecommendEmpty] = useState(false)
 
   const [activeMood, setActiveMood] = useState<string | null>(null)
   const [moodEmpty, setMoodEmpty] = useState(false)
   const [pendingMoodQuery, setPendingMoodQuery] = useState<string | null>(null)
-  const [pickerOpen, setPickerOpen] = useState(true)
   const [hydrated, setHydrated] = useState(false)
+  const [heroReloadToken, setHeroReloadToken] = useState(0)
 
   const allFeedCache = useRef<FeedCache>({
     videos: initialVideos,
@@ -134,12 +142,95 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
   const hasMoreRef = useRef(hasMore)
   const activeMoodRef = useRef(activeMood)
   const feedSeedRef = useRef(feedSeed)
+  const userRef = useRef(user)
+  const wasAuthenticatedRef = useRef<boolean | null>(null)
+  const sessionSavedAuthenticatedRef = useRef<boolean | null>(null)
   const restoredFromSessionRef = useRef(false)
   const pendingRestoreScrollRef = useRef<number | null>(null)
+  /** When false, block page-0 recommend refetch if a cached feed exists (watch → back). */
+  const forceRecommendFetchRef = useRef(false)
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
+  const isMoodFeed = activeMood !== null
+  // Always start false so SSR HTML matches the first client render. Session restore
+  // flips this in useLayoutEffect before paint (reading sessionStorage here caused
+  // Suspense vs MoodFeedAnimated hydration mismatches).
+  const skipSsrSnapshotRef = useRef(false)
+
+  const [heroCards, setHeroCards] = useState<HeroCarouselCard[]>(() =>
+    mapVideosToHeroCards(initialVideos as Array<Record<string, unknown>>, 5),
+  )
+  const [heroSource, setHeroSource] = useState<"pending" | "curated" | "discover">(() =>
+    initialVideos.length > 0 ? "discover" : "pending",
+  )
+  /** Scroll gate: Discover hover previews off while hero is meaningfully on screen. */
+  const [heroInView, setHeroInView] = useState(true)
+  const curatedHeroIdsRef = useRef<string | null>(null)
+
+  const discoverHeroFallback = useMemo(() => {
+    const source =
+      allFeedCache.current.videos.length > 0 ? allFeedCache.current.videos : videos
+    return mapVideosToHeroCards(source, 5)
+  }, [videos])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      const curated = await fetchCuratedHeroCards(5)
+      if (cancelled) return
+
+      if (curated.cards.length > 0) {
+        curatedHeroIdsRef.current = curated.playlistId
+        setHeroCards(curated.cards)
+        setHeroSource("curated")
+        return
+      }
+
+      curatedHeroIdsRef.current = null
+      setHeroSource("discover")
+    }
+
+    void load()
+
+    const onCuratedUpdated = () => {
+      void load()
+    }
+    window.addEventListener(CURATED_PLAYLISTS_UPDATED_EVENT, onCuratedUpdated)
+    return () => {
+      cancelled = true
+      window.removeEventListener(CURATED_PLAYLISTS_UPDATED_EVENT, onCuratedUpdated)
+    }
+  }, [heroReloadToken])
+
+  useEffect(() => {
+    if (heroSource !== "discover") return
+    setHeroCards(discoverHeroFallback)
+  }, [heroSource, discoverHeroFallback])
+
+  const handleHeroCardChange = useCallback((_index: number, card: HeroCarouselCard) => {
+    if (typeof window !== "undefined" && "HifiAnalytics" in window) {
+      try {
+        ;(window as Window & { HifiAnalytics?: { track?: (n: string, p?: object) => void } })
+          .HifiAnalytics?.track?.("home_hero_card_impression", {
+            video_id: card.id,
+            handle: card.handle,
+            playlist_id: curatedHeroIdsRef.current,
+          })
+      } catch {
+        // analytics optional
+      }
+    }
+  }, [])
+
+  const handleHeroInViewChange = useCallback((inView: boolean) => {
+    setHeroInView(inView)
+    if (inView) pauseActiveHoverPreview()
+  }, [])
+
   const showInitialSnapshot =
     Boolean(initialSnapshot) &&
+    !skipSsrSnapshotRef.current &&
     videos.length === 0 &&
     loading &&
     activeMood === null &&
@@ -160,6 +251,10 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
   useEffect(() => {
     feedSeedRef.current = feedSeed
   }, [feedSeed])
+
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
 
   // Keep home scroll in memory continuously — watch page zeroes #main-content on enter,
   // which would otherwise wipe the DOM value before home unmount cleanup runs.
@@ -182,19 +277,34 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
           hasMore: hasMoreRef.current,
           seed: feedSeedRef.current,
           activeMood: activeMoodRef.current,
+          authenticated: Boolean(userRef.current),
           scrollTop: mainContent.scrollTop,
         })
       }
+    }
+
+    const onPageHide = () => {
+      if (videosRef.current.length === 0) return
+      saveHomeFeedPersistedState({
+        videos: videosRef.current,
+        hasMore: hasMoreRef.current,
+        seed: feedSeedRef.current,
+        activeMood: activeMoodRef.current,
+        authenticated: Boolean(userRef.current),
+        scrollTop: getLastKnownHomeScrollTop() || mainContent.scrollTop,
+      })
     }
 
     onScroll()
     mainContent.addEventListener("scroll", onScroll, { passive: true })
     mainContent.addEventListener("mousedown", onPointerDown, { capture: true })
     mainContent.addEventListener("touchstart", onPointerDown, { passive: true, capture: true })
+    window.addEventListener("pagehide", onPageHide)
     return () => {
       mainContent.removeEventListener("scroll", onScroll)
       mainContent.removeEventListener("mousedown", onPointerDown, { capture: true })
       mainContent.removeEventListener("touchstart", onPointerDown, { capture: true })
+      window.removeEventListener("pagehide", onPageHide)
     }
   }, [])
 
@@ -254,6 +364,15 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     async (currentOffset: number, isInitialLoad = false) => {
       if (isFetchingRef.current) return
 
+      if (
+        isInitialLoad &&
+        currentOffset === 0 &&
+        !forceRecommendFetchRef.current &&
+        (restoredFromSessionRef.current || loadHomeFeedPersistedState())
+      ) {
+        return
+      }
+
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         setFeedError(userFacingNetworkMessage())
         setIsFetching(false)
@@ -270,25 +389,27 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
       try {
         setFeedError(null)
         setMoodEmpty(false)
+        setRecommendEmpty(false)
         setIsFetching(true)
         if (isInitialLoad) setLoading(true)
         else setLoadingMore(true)
 
-        const response = await apiClient.getVideoList({
+        const response = await apiClient.getVideoRecommendations({
           offset: currentOffset,
           limit: VIDEOS_PER_PAGE,
-          seed: feedSeedRef.current,
         })
         if (generation !== fetchGeneration.current) return
 
         const videosArray = response.videos || []
         const enhanced = enhanceVideos(videosArray, userData)
-        const pageHasMore = enhanced.length === VIDEOS_PER_PAGE
+        const returnedCount = response.count ?? enhanced.length
+        const pageHasMore = returnedCount === VIDEOS_PER_PAGE
 
         const merged = currentOffset === 0 ? enhanced : mergeVideos(videosRef.current, enhanced)
 
         setVideos(merged)
         setHasMore(pageHasMore)
+        setRecommendEmpty(currentOffset === 0 && merged.length === 0 && response.success)
 
         const scrollTop = currentOffset === 0 ? readMainScrollTop() : allFeedCache.current.scrollTop
         writeCache(null, {
@@ -297,6 +418,17 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
           hasMore: pageHasMore,
           scrollTop,
         })
+
+        if (currentOffset === 0) {
+          saveHomeFeedPersistedState({
+            videos: merged,
+            hasMore: pageHasMore,
+            seed: feedSeedRef.current,
+            activeMood: activeMoodRef.current,
+            authenticated: Boolean(userRef.current),
+            scrollTop,
+          })
+        }
       } catch (err) {
         if (generation !== fetchGeneration.current) return
         console.error("[hiffi] Failed to fetch videos:", err)
@@ -304,6 +436,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         else {
           setVideos([])
           setHasMore(false)
+          setRecommendEmpty(false)
           setFeedError(
             isConnectivityError(err) ? userFacingNetworkMessage() : "Could not load videos. Please try again.",
           )
@@ -320,6 +453,21 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     },
     [userData, writeCache, restoreScrollPosition],
   )
+
+  /** Refetch recommend when auth changes (login: co-watch → history; logout: reverse). */
+  const refreshRecommendFeedForAuthChange = useCallback(() => {
+    forceRecommendFetchRef.current = true
+    restoredFromSessionRef.current = false
+    sessionSavedAuthenticatedRef.current = Boolean(userRef.current)
+    clearHomeFeedPersistedState()
+    allFeedCache.current = { videos: [], offset: 0, hasMore: true, scrollTop: 0 }
+    setRecommendEmpty(false)
+    setFeedError(null)
+    setVideos([])
+    setHasMore(true)
+    setLoading(true)
+    void fetchDefaultFeed(0, true)
+  }, [fetchDefaultFeed])
 
   const fetchMoodFeed = useCallback(
     async (moodQuery: string, currentOffset: number, isInitialLoad = false) => {
@@ -456,15 +604,14 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     const q = query || pendingMoodQuery
     if (!q) return
     applyMood(q)
-    setPickerOpen(false)
   }
 
   const restoreMoodMixUi = useCallback(() => {
-    setPickerOpen(true)
     setPendingMoodQuery(null)
   }, [])
 
   const hardReloadHomeFeed = useCallback(() => {
+    forceRecommendFetchRef.current = true
     consumeHomeHardReloadFlag()
     const nextSeed = resetSeed()
     setFeedSeed(nextSeed)
@@ -475,9 +622,13 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     setPersistedActiveMood(null)
     setActiveMood(null)
     setPendingMoodQuery(null)
-    setPickerOpen(true)
     setMoodEmpty(false)
+    setRecommendEmpty(false)
     setFeedError(null)
+    setHeroCards([])
+    setHeroSource("pending")
+    curatedHeroIdsRef.current = null
+    setHeroReloadToken((token) => token + 1)
     clearHomeFeedPersistedState()
     clearHomeScrollPersistence()
     moodFeedCaches.current.clear()
@@ -512,6 +663,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     if (cached && cached.videos.length > 0) {
       applyCacheToUi(cached)
     } else {
+      forceRecommendFetchRef.current = true
       void fetchDefaultFeed(0, true)
     }
 
@@ -533,7 +685,14 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
 
     const restored = loadHomeFeedPersistedState()
     if (restored) {
+      skipSsrSnapshotRef.current = true
       restoredFromSessionRef.current = true
+      sessionSavedAuthenticatedRef.current =
+        restored.authenticated === true
+          ? true
+          : restored.authenticated === false
+            ? false
+            : null
       setFeedSeed(restored.seed)
       feedSeedRef.current = restored.seed
       const scrollTop = restored.scrollTop > 0 ? restored.scrollTop : getLastKnownHomeScrollTop()
@@ -548,7 +707,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
       if (restored.activeMood && moodByQuery(restored.activeMood)) {
         setActiveMood(restored.activeMood)
         setPendingMoodQuery(restored.activeMood)
-        setPickerOpen(false)
         setPersistedActiveMood(restored.activeMood)
         moodFeedCaches.current.set(restored.activeMood, cache)
         allFeedCache.current = {
@@ -559,7 +717,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         }
       } else {
         setActiveMood(null)
-        setPickerOpen(true)
         setPersistedActiveMood(null)
         allFeedCache.current = cache
       }
@@ -578,7 +735,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     if (persisted && moodByQuery(persisted)) {
       setActiveMood(persisted)
       setPendingMoodQuery(persisted)
-      setPickerOpen(false)
       allFeedCache.current = {
         videos: initialVideos,
         offset: initialVideos.length,
@@ -590,7 +746,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
       setHasMore(true)
       void fetchMoodFeed(persisted, 0, true)
     } else {
-      setPickerOpen(true)
       try {
         // Keep SSR seed for this session so pagination matches the hydrated first page.
         sessionStorage.setItem("hiffi_video_seed", seed)
@@ -625,12 +780,13 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
       hasMore,
       seed: feedSeed,
       activeMood,
+      authenticated: Boolean(user),
       scrollTop:
         pendingScroll != null && pendingScroll > 0
           ? pendingScroll
           : getLastKnownHomeScrollTop() || readMainScrollTop(),
     })
-  }, [hydrated, videos, hasMore, feedSeed, activeMood])
+  }, [hydrated, videos, hasMore, feedSeed, activeMood, user])
 
   // After restored videos paint, re-apply scroll (content height may still be growing).
   useLayoutEffect(() => {
@@ -675,6 +831,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         hasMore: hasMoreRef.current,
         seed: feedSeedRef.current,
         activeMood: activeMoodRef.current,
+        authenticated: Boolean(userRef.current),
         scrollTop: getLastKnownHomeScrollTop(),
       })
     }
@@ -688,6 +845,31 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated])
+
+  // Refetch only when auth changes while the user is already on home — never after watch → back restore.
+  useEffect(() => {
+    if (!hydrated || activeMood !== null || authLoading) return
+
+    const isAuth = Boolean(user)
+
+    if (restoredFromSessionRef.current) {
+      if (wasAuthenticatedRef.current === null) {
+        wasAuthenticatedRef.current = isAuth
+      }
+      return
+    }
+
+    const prev = wasAuthenticatedRef.current
+    if (prev === null) {
+      wasAuthenticatedRef.current = isAuth
+      return
+    }
+
+    wasAuthenticatedRef.current = isAuth
+    if (prev === isAuth) return
+
+    refreshRecommendFeedForAuthChange()
+  }, [user, authLoading, hydrated, activeMood, refreshRecommendFeedForAuthChange])
 
   useEffect(() => {
     if (!userData?.username || !userData?.profile_picture) return
@@ -734,8 +916,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     [readCache, writeCache],
   )
 
-  const isMoodFeed = activeMood !== null
-
   const moodPlaylistNavigation = useMemo(() => {
     if (!activeMood || !activeMoodDef) return undefined
     const videoIds = videos
@@ -768,27 +948,51 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
 
   return (
     <div className="w-full">
-      {activeMoodDef && !pickerOpen ? (
-        <div className="sticky top-0 z-10">
-          <ActiveMoodBar
-            mood={activeMoodDef}
-            onPlay={handlePlayMood}
-            onClose={handleShowAll}
+      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
+        <div className="mb-4 sm:mb-5">
+          <MoodMixChips
+            moods={MOODS}
+            activeQuery={activeMood}
+            loading={loading}
+            onSelectMood={(query) => handleStartMix(query)}
+            onSelectAll={handleShowAll}
+            onPlay={
+              moodPlaylistNavigation && moodPlaylistNavigation.videoIds.length > 0
+                ? handlePlayMood
+                : undefined
+            }
           />
         </div>
-      ) : null}
 
-      <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
-        {pickerOpen ? (
-          <div className="mb-5 sm:mb-6">
-            <MoodPickerCard
-              moods={MOODS}
-              selectedQuery={pendingMoodQuery}
-              onSelect={setPendingMoodQuery}
-              onStartMix={handleStartMix}
-              loading={loading && pendingMoodQuery !== null && !activeMood}
+        {!isMoodFeed && heroSource === "pending" && heroCards.length === 0 ? (
+          <div className="mb-3 sm:mb-4">
+            <HeroCarouselSkeleton />
+          </div>
+        ) : null}
+
+        {heroCards.length > 0 ? (
+          <div
+            className={cn("mb-3 sm:mb-4", isMoodFeed && "hidden")}
+            aria-hidden={isMoodFeed}
+          >
+            <HeroCarousel
+              cards={heroCards}
+              playbackActive={!isMoodFeed}
+              onCardChange={handleHeroCardChange}
+              onInViewChange={handleHeroInViewChange}
+              openVideoUiName={OPENED_VIDEO_FROM_HOME_HERO}
             />
           </div>
+        ) : null}
+
+        {!isMoodFeed && (heroSource === "pending" || heroCards.length > 0) ? (
+          <h2 className="mb-1.5 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            Discover
+          </h2>
+        ) : isMoodFeed && activeMoodDef ? (
+          <h2 className="mb-1.5 text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            {activeMoodDef.label}
+          </h2>
         ) : null}
 
         {feedError && videos.length === 0 ? (
@@ -798,6 +1002,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
             description={feedError}
             onRetry={() => {
               setFeedError(null)
+              forceRecommendFetchRef.current = true
               if (activeMood === null) {
                 void fetchDefaultFeed(0, true)
               } else {
@@ -810,7 +1015,9 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         {showInitialSnapshot ? (
           initialSnapshot
         ) : (
-          <FeedVideoPreviewProvider>
+          <FeedVideoPreviewProvider
+            enabled={isMoodFeed || heroCards.length === 0 || !heroInView}
+          >
             <MoodFeedAnimated
               feedKey={activeMood ?? "all"}
               loading={loading || loadingMore || (!hydrated && videos.length === 0)}
@@ -834,7 +1041,18 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
                   !hydrated ||
                   (loading && videos.length === 0)
                 }
-                emptyTitle={moodEmpty && isMoodFeed ? "No tracks yet" : undefined}
+                emptyTitle={
+                  recommendEmpty && !isMoodFeed
+                    ? "No recommendations yet"
+                    : moodEmpty && isMoodFeed
+                      ? "No tracks yet"
+                      : undefined
+                }
+                emptyDescription={
+                  recommendEmpty && !isMoodFeed
+                    ? "Videos may still be indexing, or nothing matched yet. Try a mood mix above or check back soon."
+                    : undefined
+                }
                 onVideoDeleted={handleVideoDeleted}
               />
             </MoodFeedAnimated>

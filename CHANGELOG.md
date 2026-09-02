@@ -8,7 +8,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ### Notes
 
-- Track next work here after **v2.3.3** ships
+- Track next work here after **v3.0.0** ships
+
+## [3.0.0] — 2026-09-02
+
+Release notes: [docs/releases/web-v3.0.0.md](docs/releases/web-v3.0.0.md)
+
+### Added
+
+- Homepage **hero carousel** — curated editorial cards with inline playback; discover-feed fallback; skeleton while curated data loads
+- **Personalized discover feed** — home grid uses `GET /videos/recommend` instead of seeded `/videos/list`
+- Auth-aware **recommend refetch** on login/logout
+- **Mood mix chips** on home — horizontal mood selector with play action for the active mood queue
+- **`/feature-request`** — login-gated product idea form; footer + sidebar links
+- **`/hiffi-discovery-form`** — public discovery-source survey with Turnstile
+- Admin **feature request** triage — type filter, badges, parsed body, submitter username lookup
+- Admin **discovery source** panel — list/delete via same-origin proxies
+- **Instant sign-up** — register keeps session credentials; profile refresh can keep session on failure; redirect straight home
+
+### Changed
+
+- Related / Up Next prefetch prefers `/videos/recommend` (shared pool; falls back to `/videos/list`)
+- Discover empty state when recommend returns success with zero videos
+- Feed hover previews pause while the hero carousel is in view
+- SSR discover JSON-LD sourced from recommend
+
+### Fixed
+
+- Home SSR snapshot hydration mismatch when sessionStorage had a cached feed
+- Post-sign-up session no longer cleared by a brief profile 404 after register
+
+### Notes
+
+- Major release. Ensure backend `/videos/recommend` is live before production deploy.
 
 ## [2.3.3] — 2026-09-01
 
