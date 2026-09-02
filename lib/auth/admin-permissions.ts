@@ -1,247 +1,230 @@
 import type { AdminSession } from "./admin-types"
 
 /**
- * Admin dashboard RBAC v2 — module-level permissions.
+ * Admin dashboard RBAC v2 — sub-feature permissions (`module.subfeature:action`).
  * Backend enforces access (403); this controls nav and UI only.
  * Gate on permissions[], not role names.
- *
- * Legacy coarse keys (`analytics:read`, `users:read`, …) still work via LEGACY_GRANTS.
  */
 export const PERMS = {
-  // Insights — granular (preferred for role assignment)
-  dashboardRead: "dashboard:read",
-  dashboardWrite: "dashboard:write",
-  journeysRead: "journeys:read",
-  journeysWrite: "journeys:write",
-  searchesRead: "searches:read",
-  utmRead: "utm:read",
-  utmWrite: "utm:write",
-  /** @deprecated Legacy umbrella — implies all insight modules when checking access */
-  analyticsRead: "analytics:read",
-  analyticsWrite: "analytics:write",
-
-  // Community & moderation — granular
-  usersRead: "users:read",
-  usersWrite: "users:write",
-  videosRead: "videos:read",
-  videosWrite: "videos:write",
-  commentsRead: "comments:read",
-  commentsWrite: "comments:write",
-  repliesRead: "replies:read",
-  repliesWrite: "replies:write",
-  followersRead: "followers:read",
-  referralsRead: "referrals:read",
-
-  creatorsRead: "creators:read",
-  creatorsWrite: "creators:write",
-
-  curatedRead: "curated:read",
-  curatedWrite: "curated:write",
-
-  inventoryRead: "inventory:read",
-  inventoryWrite: "inventory:write",
-  inventoryClaimsRead: "inventory_claims:read",
-  inventoryClaimsWrite: "inventory_claims:write",
-  rankingAnomaliesRead: "ranking_anomalies:read",
-  rankingAnomaliesWrite: "ranking_anomalies:write",
-
-  flagsRead: "flags:read",
-  flagsWrite: "flags:write",
-  migrationRead: "migration:read",
-  migrationWrite: "migration:write",
-
-  youtubeKeysRead: "youtube_keys:read",
-  youtubeKeysWrite: "youtube_keys:write",
-
-  feedbackRead: "feedback:read",
-  collaborationRead: "collaboration:read",
-  discoverySourceRead: "discovery-source:read",
-  discoverySourceWrite: "discovery-source:write",
-
-  adminsRead: "admins:read",
-  adminsWrite: "admins:write",
-  rolesWrite: "roles:write",
+  adminsAccountsRead: "admins.accounts:read",
+  adminsAccountsWrite: "admins.accounts:write",
+  rolesManagementRead: "roles.management:read",
+  rolesManagementWrite: "roles.management:write",
+  usersBrowseRead: "users.browse:read",
+  usersModerationWrite: "users.moderation:write",
+  analyticsCountersRead: "analytics.counters:read",
+  analyticsCountersWrite: "analytics.counters:write",
+  analyticsUtmRead: "analytics.utm:read",
+  analyticsUtmWrite: "analytics.utm:write",
+  analyticsSearchesRead: "analytics.searches:read",
+  creatorsDashboardRead: "creators.dashboard:read",
+  creatorsModerationWrite: "creators.moderation:write",
+  curatedPlaylistsRead: "curated.playlists:read",
+  curatedPlaylistsWrite: "curated.playlists:write",
+  flagsReviewRead: "flags.review:read",
+  flagsReviewWrite: "flags.review:write",
+  migrationRequestsRead: "migration.requests:read",
+  migrationRequestsWrite: "migration.requests:write",
+  collaborationInquiriesRead: "collaboration.inquiries:read",
+  feedbackInboxRead: "feedback.inbox:read",
+  inventoryArtistsRead: "inventory.artists:read",
+  inventoryArtistsWrite: "inventory.artists:write",
+  inventoryClaimsRead: "inventory.claims:read",
+  inventoryClaimsWrite: "inventory.claims:write",
+  inventoryRankingRead: "inventory.ranking:read",
+  inventoryRankingWrite: "inventory.ranking:write",
+  youtubeKeysManageRead: "youtube_keys.manage:read",
+  youtubeKeysManageWrite: "youtube_keys.manage:write",
 } as const
 
 export type Permission = (typeof PERMS)[keyof typeof PERMS]
 
-const ALL_PERMISSIONS = Object.values(PERMS) as Permission[]
+export const ALL_PERMISSIONS = Object.values(PERMS) as Permission[]
 
-/** Permissions accepted by `POST/PATCH /admin/roles` (integration guide §12). */
-export const BACKEND_PERMISSIONS = [
-  PERMS.analyticsRead,
-  PERMS.analyticsWrite,
-  PERMS.usersRead,
-  PERMS.usersWrite,
-  PERMS.creatorsRead,
-  PERMS.creatorsWrite,
-  PERMS.curatedRead,
-  PERMS.curatedWrite,
-  PERMS.inventoryRead,
-  PERMS.inventoryWrite,
-  PERMS.flagsRead,
-  PERMS.flagsWrite,
-  PERMS.migrationRead,
-  PERMS.migrationWrite,
-  PERMS.youtubeKeysRead,
-  PERMS.youtubeKeysWrite,
-  PERMS.feedbackRead,
-  PERMS.collaborationRead,
-  PERMS.adminsRead,
-  PERMS.adminsWrite,
-  PERMS.rolesWrite,
-] as const
+const PERMISSION_SET = new Set<string>(ALL_PERMISSIONS)
 
-export type BackendPermission = (typeof BACKEND_PERMISSIONS)[number]
+export function isKnownPermission(value: string): value is Permission {
+  return PERMISSION_SET.has(value)
+}
 
-const BACKEND_PERMISSION_SET = new Set<string>(BACKEND_PERMISSIONS)
+/** Permissions accepted by `POST/PATCH /admin/roles`. */
+export const BACKEND_PERMISSIONS = ALL_PERMISSIONS
+
+export type BackendPermission = Permission
 
 export function isBackendPermission(value: string): value is BackendPermission {
-  return BACKEND_PERMISSION_SET.has(value)
+  return isKnownPermission(value)
 }
 
-export const INSIGHTS_READ_MODULES: Permission[] = [
-  PERMS.dashboardRead,
-  PERMS.journeysRead,
-  PERMS.searchesRead,
-  PERMS.utmRead,
+const ANALYTICS_READ: Permission[] = [
+  PERMS.analyticsCountersRead,
+  PERMS.analyticsUtmRead,
+  PERMS.analyticsSearchesRead,
 ]
 
-export const INSIGHTS_WRITE_MODULES: Permission[] = [
-  PERMS.dashboardWrite,
-  PERMS.journeysWrite,
-  PERMS.utmWrite,
+const ANALYTICS_WRITE: Permission[] = [
+  PERMS.analyticsCountersWrite,
+  PERMS.analyticsUtmWrite,
 ]
 
-export const USERS_CONTENT_READ_MODULES: Permission[] = [
-  PERMS.usersRead,
-  PERMS.videosRead,
-  PERMS.commentsRead,
-  PERMS.repliesRead,
-  PERMS.followersRead,
-  PERMS.referralsRead,
-]
-
-export const USERS_CONTENT_WRITE_MODULES: Permission[] = [
-  PERMS.usersWrite,
-  PERMS.videosWrite,
-  PERMS.commentsWrite,
-  PERMS.repliesWrite,
-]
-
-export const INVENTORY_READ_MODULES: Permission[] = [
-  PERMS.inventoryRead,
+const INVENTORY_READ: Permission[] = [
+  PERMS.inventoryArtistsRead,
   PERMS.inventoryClaimsRead,
-  PERMS.rankingAnomaliesRead,
+  PERMS.inventoryRankingRead,
 ]
 
-export const INVENTORY_WRITE_MODULES: Permission[] = [
-  PERMS.inventoryWrite,
+const INVENTORY_WRITE: Permission[] = [
+  PERMS.inventoryArtistsWrite,
   PERMS.inventoryClaimsWrite,
-  PERMS.rankingAnomaliesWrite,
+  PERMS.inventoryRankingWrite,
 ]
 
-/** Granular permission implied by a legacy coarse grant on the session. */
-const LEGACY_GRANTS: Partial<Record<Permission, readonly Permission[]>> = {
-  [PERMS.dashboardRead]: [PERMS.analyticsRead],
-  [PERMS.dashboardWrite]: [PERMS.analyticsWrite],
-  [PERMS.journeysRead]: [PERMS.analyticsRead],
-  [PERMS.journeysWrite]: [PERMS.analyticsWrite],
-  [PERMS.searchesRead]: [PERMS.analyticsRead],
-  [PERMS.utmRead]: [PERMS.analyticsRead],
-  [PERMS.utmWrite]: [PERMS.analyticsWrite],
+/** Legacy session / role keys that satisfy a v2 permission check. */
+const LEGACY_GRANTS: Partial<Record<Permission, readonly string[]>> = {
+  [PERMS.analyticsCountersRead]: [
+    "analytics:read",
+    "dashboard:read",
+    "journeys:read",
+    "analytics.counters:read",
+  ],
+  [PERMS.analyticsCountersWrite]: [
+    "analytics:write",
+    "dashboard:write",
+    "journeys:write",
+    "analytics.counters:write",
+  ],
+  [PERMS.analyticsSearchesRead]: ["analytics:read", "searches:read", "analytics.searches:read"],
+  [PERMS.analyticsUtmRead]: ["analytics:read", "utm:read", "analytics.utm:read"],
+  [PERMS.analyticsUtmWrite]: ["analytics:write", "utm:write", "analytics.utm:write"],
 
-  [PERMS.videosRead]: [PERMS.usersRead],
-  [PERMS.videosWrite]: [PERMS.usersWrite],
-  [PERMS.commentsRead]: [PERMS.usersRead],
-  [PERMS.commentsWrite]: [PERMS.usersWrite],
-  [PERMS.repliesRead]: [PERMS.usersRead],
-  [PERMS.repliesWrite]: [PERMS.usersWrite],
-  [PERMS.followersRead]: [PERMS.usersRead],
-  [PERMS.referralsRead]: [PERMS.usersRead],
+  [PERMS.usersBrowseRead]: [
+    "users:read",
+    "users.browse:read",
+    "videos:read",
+    "comments:read",
+    "replies:read",
+    "followers:read",
+    "referrals:read",
+  ],
+  [PERMS.usersModerationWrite]: [
+    "users:write",
+    "users.moderation:write",
+    "videos:write",
+    "comments:write",
+    "replies:write",
+  ],
 
-  [PERMS.inventoryClaimsRead]: [PERMS.inventoryRead],
-  [PERMS.inventoryClaimsWrite]: [PERMS.inventoryWrite],
-  [PERMS.rankingAnomaliesRead]: [PERMS.inventoryRead],
-  [PERMS.rankingAnomaliesWrite]: [PERMS.inventoryWrite],
+  [PERMS.creatorsDashboardRead]: ["creators:read", "creators.dashboard:read"],
+  [PERMS.creatorsModerationWrite]: ["creators:write", "creators.moderation:write"],
 
-  [PERMS.discoverySourceWrite]: [PERMS.adminsWrite],
+  [PERMS.curatedPlaylistsRead]: ["curated:read", "curated.playlists:read"],
+  [PERMS.curatedPlaylistsWrite]: ["curated:write", "curated.playlists:write"],
+
+  [PERMS.inventoryArtistsRead]: ["inventory:read", "inventory.artists:read"],
+  [PERMS.inventoryArtistsWrite]: ["inventory:write", "inventory.artists:write"],
+  [PERMS.inventoryClaimsRead]: [
+    "inventory:read",
+    "inventory_claims:read",
+    "inventory.claims:read",
+  ],
+  [PERMS.inventoryClaimsWrite]: [
+    "inventory:write",
+    "inventory_claims:write",
+    "inventory.claims:write",
+  ],
+  [PERMS.inventoryRankingRead]: [
+    "inventory:read",
+    "ranking_anomalies:read",
+    "inventory.ranking:read",
+  ],
+  [PERMS.inventoryRankingWrite]: [
+    "inventory:write",
+    "ranking_anomalies:write",
+    "inventory.ranking:write",
+  ],
+
+  [PERMS.flagsReviewRead]: ["flags:read", "flags.review:read"],
+  [PERMS.flagsReviewWrite]: ["flags:write", "flags.review:write"],
+  [PERMS.migrationRequestsRead]: ["migration:read", "migration.requests:read"],
+  [PERMS.migrationRequestsWrite]: ["migration:write", "migration.requests:write"],
+  [PERMS.feedbackInboxRead]: ["feedback:read", "feedback.inbox:read"],
+  [PERMS.collaborationInquiriesRead]: [
+    "collaboration:read",
+    "collaboration.inquiries:read",
+  ],
+
+  [PERMS.youtubeKeysManageRead]: ["youtube_keys:read", "youtube_keys.manage:read"],
+  [PERMS.youtubeKeysManageWrite]: ["youtube_keys:write", "youtube_keys.manage:write"],
+  [PERMS.adminsAccountsRead]: [
+    "admins:read",
+    "admins.accounts:read",
+    "discovery-source:read",
+  ],
+  [PERMS.adminsAccountsWrite]: [
+    "admins:write",
+    "admins.accounts:write",
+    "discovery-source:write",
+  ],
+  [PERMS.rolesManagementRead]: ["roles.management:read", "roles:write", "roles.management:write"],
+  [PERMS.rolesManagementWrite]: ["roles:write", "roles.management:write"],
 }
 
-const LEGACY_UMBRELLA_CHECKS: Partial<
-  Record<Permission, readonly Permission[]>
-> = {
-  [PERMS.analyticsRead]: INSIGHTS_READ_MODULES,
-  [PERMS.analyticsWrite]: INSIGHTS_WRITE_MODULES,
-  [PERMS.usersRead]: USERS_CONTENT_READ_MODULES,
-  [PERMS.usersWrite]: USERS_CONTENT_WRITE_MODULES,
-  [PERMS.inventoryRead]: INVENTORY_READ_MODULES,
-  [PERMS.inventoryWrite]: INVENTORY_WRITE_MODULES,
+/** Legacy umbrella keys expanded to v2 permissions (role editor display). */
+const LEGACY_EXPANSIONS: Record<string, readonly Permission[]> = {
+  "analytics:read": ANALYTICS_READ,
+  "analytics:write": ANALYTICS_WRITE,
+  "users:read": [PERMS.usersBrowseRead],
+  "users:write": [PERMS.usersModerationWrite],
+  "inventory:read": INVENTORY_READ,
+  "inventory:write": INVENTORY_WRITE,
+  "dashboard:read": [PERMS.analyticsCountersRead],
+  "dashboard:write": [PERMS.analyticsCountersWrite],
+  "journeys:read": [PERMS.analyticsCountersRead],
+  "journeys:write": [PERMS.analyticsCountersWrite],
+  "searches:read": [PERMS.analyticsSearchesRead],
+  "utm:read": [PERMS.analyticsUtmRead],
+  "utm:write": [PERMS.analyticsUtmWrite],
+  "videos:read": [PERMS.usersBrowseRead],
+  "videos:write": [PERMS.usersModerationWrite],
+  "comments:read": [PERMS.usersBrowseRead],
+  "comments:write": [PERMS.usersModerationWrite],
+  "replies:read": [PERMS.usersBrowseRead],
+  "replies:write": [PERMS.usersModerationWrite],
+  "followers:read": [PERMS.usersBrowseRead],
+  "referrals:read": [PERMS.usersBrowseRead],
+  "creators:read": [PERMS.creatorsDashboardRead],
+  "creators:write": [PERMS.creatorsModerationWrite],
+  "curated:read": [PERMS.curatedPlaylistsRead],
+  "curated:write": [PERMS.curatedPlaylistsWrite],
+  "inventory_claims:read": [PERMS.inventoryClaimsRead],
+  "inventory_claims:write": [PERMS.inventoryClaimsWrite],
+  "ranking_anomalies:read": [PERMS.inventoryRankingRead],
+  "ranking_anomalies:write": [PERMS.inventoryRankingWrite],
+  "flags:read": [PERMS.flagsReviewRead],
+  "flags:write": [PERMS.flagsReviewWrite],
+  "migration:read": [PERMS.migrationRequestsRead],
+  "migration:write": [PERMS.migrationRequestsWrite],
+  "feedback:read": [PERMS.feedbackInboxRead],
+  "collaboration:read": [PERMS.collaborationInquiriesRead],
+  "discovery-source:read": [PERMS.adminsAccountsRead],
+  "discovery-source:write": [PERMS.adminsAccountsWrite],
+  "youtube_keys:read": [PERMS.youtubeKeysManageRead],
+  "youtube_keys:write": [PERMS.youtubeKeysManageWrite],
+  "admins:read": [PERMS.adminsAccountsRead],
+  "admins:write": [PERMS.adminsAccountsWrite],
+  "roles:write": [PERMS.rolesManagementWrite],
 }
 
-/**
- * Collapse module-level UI selections into backend role API permission strings.
- * The backend does not yet accept granular keys like `dashboard:read`.
- */
-export function compressPermissionsForBackend(
-  selected: Permission[],
-): BackendPermission[] {
-  const out = new Set<BackendPermission>()
-
-  const hasAny = (mods: readonly Permission[]) =>
-    mods.some((m) => selected.includes(m))
-
-  if (hasAny(INSIGHTS_READ_MODULES)) out.add(PERMS.analyticsRead)
-  if (hasAny(INSIGHTS_WRITE_MODULES)) out.add(PERMS.analyticsWrite)
-
-  if (hasAny(USERS_CONTENT_READ_MODULES)) out.add(PERMS.usersRead)
-  if (hasAny(USERS_CONTENT_WRITE_MODULES)) out.add(PERMS.usersWrite)
-
-  if (hasAny(INVENTORY_READ_MODULES)) out.add(PERMS.inventoryRead)
-  if (hasAny(INVENTORY_WRITE_MODULES)) out.add(PERMS.inventoryWrite)
-
-  const passthrough: BackendPermission[] = [
-    PERMS.creatorsRead,
-    PERMS.creatorsWrite,
-    PERMS.curatedRead,
-    PERMS.curatedWrite,
-    PERMS.flagsRead,
-    PERMS.flagsWrite,
-    PERMS.migrationRead,
-    PERMS.migrationWrite,
-    PERMS.youtubeKeysRead,
-    PERMS.youtubeKeysWrite,
-    PERMS.feedbackRead,
-    PERMS.collaborationRead,
-    PERMS.adminsRead,
-    PERMS.adminsWrite,
-    PERMS.rolesWrite,
-  ]
-
-  for (const p of passthrough) {
-    if (selected.includes(p)) out.add(p)
-  }
-
-  // Frontend extension — backend has no discovery-source keys yet.
-  if (hasAny([PERMS.discoverySourceRead, PERMS.discoverySourceWrite])) {
-    out.add(PERMS.adminsRead)
-  }
-  if (selected.includes(PERMS.discoverySourceWrite)) {
-    out.add(PERMS.adminsWrite)
-  }
-
-  return [...out]
-}
-
-/** Expand legacy umbrella permissions for role editor display. */
+/** Expand legacy umbrella / granular keys for role editor display. */
 export function expandLegacyPermissions(permissions: string[]): Permission[] {
   const set = new Set<string>(permissions)
-  for (const [umbrella, modules] of Object.entries(LEGACY_UMBRELLA_CHECKS)) {
-    if (set.has(umbrella)) {
-      for (const mod of modules) set.add(mod)
+  for (const p of permissions) {
+    const expanded = LEGACY_EXPANSIONS[p]
+    if (expanded) {
+      for (const perm of expanded) set.add(perm)
     }
   }
-  return [...set] as Permission[]
+  return [...set].filter(isKnownPermission)
 }
 
 export function hasPermission(
@@ -253,9 +236,6 @@ export function hasPermission(
 
   const legacy = LEGACY_GRANTS[perm]
   if (legacy?.some((p) => permissions.includes(p))) return true
-
-  const umbrellaModules = LEGACY_UMBRELLA_CHECKS[perm]
-  if (umbrellaModules?.some((m) => permissions.includes(m))) return true
 
   return false
 }
@@ -275,48 +255,30 @@ function derivePermissionsFromRole(role: string): Permission[] {
     case "read_only":
       return ALL_PERMISSIONS.filter((p) => p.endsWith(":read"))
     case "curator":
-      return [PERMS.curatedRead, PERMS.curatedWrite]
+      return [PERMS.curatedPlaylistsRead, PERMS.curatedPlaylistsWrite]
     case "support":
       return [
-        PERMS.usersRead,
-        PERMS.videosRead,
-        PERMS.commentsRead,
-        PERMS.repliesRead,
-        PERMS.followersRead,
-        PERMS.referralsRead,
-        PERMS.creatorsRead,
-        PERMS.feedbackRead,
-        PERMS.collaborationRead,
-        PERMS.flagsRead,
-        PERMS.migrationRead,
+        PERMS.usersBrowseRead,
+        PERMS.creatorsDashboardRead,
+        PERMS.feedbackInboxRead,
+        PERMS.collaborationInquiriesRead,
+        PERMS.flagsReviewRead,
+        PERMS.migrationRequestsRead,
       ]
     case "inventory_ops":
-      return [
-        PERMS.inventoryRead,
-        PERMS.inventoryWrite,
-        PERMS.inventoryClaimsRead,
-        PERMS.inventoryClaimsWrite,
-        PERMS.rankingAnomaliesRead,
-        PERMS.rankingAnomaliesWrite,
-      ]
+      return [...INVENTORY_READ, ...INVENTORY_WRITE]
     case "platform_ops":
       return [
-        ...INSIGHTS_READ_MODULES,
-        ...INSIGHTS_WRITE_MODULES,
-        PERMS.usersRead,
-        PERMS.usersWrite,
-        PERMS.videosRead,
-        PERMS.videosWrite,
-        PERMS.commentsRead,
-        PERMS.commentsWrite,
-        PERMS.repliesRead,
-        PERMS.repliesWrite,
-        PERMS.creatorsRead,
-        PERMS.creatorsWrite,
-        PERMS.flagsRead,
-        PERMS.flagsWrite,
-        PERMS.migrationRead,
-        PERMS.migrationWrite,
+        ...ANALYTICS_READ,
+        ...ANALYTICS_WRITE,
+        PERMS.usersBrowseRead,
+        PERMS.usersModerationWrite,
+        PERMS.creatorsDashboardRead,
+        PERMS.creatorsModerationWrite,
+        PERMS.flagsReviewRead,
+        PERMS.flagsReviewWrite,
+        PERMS.migrationRequestsRead,
+        PERMS.migrationRequestsWrite,
       ]
     default:
       return []
@@ -334,29 +296,29 @@ export function adminCan(admin: AdminSession | null | undefined, permission: Per
 }
 
 export const ADMIN_SECTION_PERMISSION: Record<string, Permission> = {
-  overview: PERMS.dashboardRead,
-  users: PERMS.usersRead,
-  videos: PERMS.videosRead,
-  comments: PERMS.commentsRead,
-  replies: PERMS.repliesRead,
-  flags: PERMS.flagsRead,
-  feedback: PERMS.feedbackRead,
-  activity: PERMS.journeysRead,
-  journeys: PERMS.journeysRead,
-  referrals: PERMS.referralsRead,
-  followers: PERMS.followersRead,
-  searches: PERMS.searchesRead,
-  utm_polls: PERMS.utmRead,
-  collaboration: PERMS.collaborationRead,
-  discovery_source: PERMS.discoverySourceRead,
-  migrations: PERMS.migrationRead,
-  curated_playlists: PERMS.curatedRead,
-  admins: PERMS.adminsRead,
-  admin_roles: PERMS.rolesWrite,
-  artist_inventory: PERMS.inventoryRead,
-  ranking_anomalies: PERMS.rankingAnomaliesRead,
-  creators: PERMS.creatorsRead,
-  tools: PERMS.youtubeKeysRead,
+  overview: PERMS.analyticsCountersRead,
+  users: PERMS.usersBrowseRead,
+  videos: PERMS.usersBrowseRead,
+  comments: PERMS.usersBrowseRead,
+  replies: PERMS.usersBrowseRead,
+  flags: PERMS.flagsReviewRead,
+  feedback: PERMS.feedbackInboxRead,
+  activity: PERMS.analyticsCountersRead,
+  journeys: PERMS.analyticsCountersRead,
+  referrals: PERMS.usersBrowseRead,
+  followers: PERMS.usersBrowseRead,
+  searches: PERMS.analyticsSearchesRead,
+  utm_polls: PERMS.analyticsUtmRead,
+  collaboration: PERMS.collaborationInquiriesRead,
+  discovery_source: PERMS.adminsAccountsRead,
+  migrations: PERMS.migrationRequestsRead,
+  curated_playlists: PERMS.curatedPlaylistsRead,
+  admins: PERMS.adminsAccountsRead,
+  admin_roles: PERMS.rolesManagementRead,
+  artist_inventory: PERMS.inventoryArtistsRead,
+  ranking_anomalies: PERMS.inventoryRankingRead,
+  creators: PERMS.creatorsDashboardRead,
+  tools: PERMS.youtubeKeysManageRead,
 }
 
 export function canAccessAdminSection(admin: AdminSession | null | undefined, section: string): boolean {

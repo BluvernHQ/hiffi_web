@@ -41,7 +41,7 @@ export function InventoryPanel() {
   const [isTabPending, startTabTransition] = useTransition()
   const [pendingTab, setPendingTab] = useState<InventoryTab | null>(null)
 
-  const canUpload = can(PERMS.inventoryWrite)
+  const canUpload = can(PERMS.inventoryArtistsWrite)
   const canClaims = can(PERMS.inventoryClaimsRead)
 
   const activeTab = useMemo((): InventoryTab => {

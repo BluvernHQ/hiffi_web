@@ -74,6 +74,10 @@ import {
   type AdminRoleRow,
 } from "./api/admin-roles"
 import {
+  adminGetPermissionsCatalog as apiAdminGetPermissionsCatalog,
+  type AdminPermissionsCatalog,
+} from "./api/admin-permissions-catalog"
+import {
   adminListYoutubeApiKeys as apiAdminListYoutubeApiKeys,
   adminCreateYoutubeApiKey as apiAdminCreateYoutubeApiKey,
   adminUpdateYoutubeApiKey as apiAdminUpdateYoutubeApiKey,
@@ -377,6 +381,10 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListRoles() {
     return apiAdminListRoles(this)
+  }
+
+  async adminGetPermissionsCatalog(): Promise<AdminPermissionsCatalog> {
+    return apiAdminGetPermissionsCatalog(this)
   }
 
   async adminCreateRole(body: {

@@ -78,13 +78,13 @@ const navSections: NavSection[] = [
   {
     title: "Overview",
     items: [
-      { icon: BarChart3, label: "Dashboard", value: "overview", permission: PERMS.dashboardRead },
+      { icon: BarChart3, label: "Dashboard", value: "overview", permission: PERMS.analyticsCountersRead },
     ],
   },
   {
     title: "Artist Index",
     items: [
-      { icon: Mic2, label: "Artist Inventory", value: "artist_inventory", permission: PERMS.inventoryRead },
+      { icon: Mic2, label: "Artist Inventory", value: "artist_inventory", permission: PERMS.inventoryArtistsRead },
     ],
   },
   {
@@ -94,62 +94,62 @@ const navSections: NavSection[] = [
         icon: Activity,
         label: "Score Anomalies",
         value: "ranking_anomalies",
-        permission: PERMS.rankingAnomaliesRead,
+        permission: PERMS.inventoryRankingRead,
       },
     ],
   },
   {
     title: "Editorial",
     items: [
-      { icon: ListMusic, label: "Curated Playlists", value: "curated_playlists", permission: PERMS.curatedRead },
+      { icon: ListMusic, label: "Curated Playlists", value: "curated_playlists", permission: PERMS.curatedPlaylistsRead },
     ],
   },
   {
     title: "Moderation",
     items: [
-      { icon: Video, label: "Videos", value: "videos", permission: PERMS.videosRead },
-      { icon: MessageSquare, label: "Comments", value: "comments", permission: PERMS.commentsRead },
-      { icon: Reply, label: "Replies", value: "replies", permission: PERMS.repliesRead },
-      { icon: Flag, label: "Reports", value: "flags", permission: PERMS.flagsRead },
-      { icon: MessageCircle, label: "Feedback", value: "feedback", permission: PERMS.feedbackRead },
+      { icon: Video, label: "Videos", value: "videos", permission: PERMS.usersBrowseRead },
+      { icon: MessageSquare, label: "Comments", value: "comments", permission: PERMS.usersBrowseRead },
+      { icon: Reply, label: "Replies", value: "replies", permission: PERMS.usersBrowseRead },
+      { icon: Flag, label: "Reports", value: "flags", permission: PERMS.flagsReviewRead },
+      { icon: MessageCircle, label: "Feedback", value: "feedback", permission: PERMS.feedbackInboxRead },
     ],
   },
   {
     title: "Community",
     items: [
-      { icon: Users, label: "Users", value: "users", permission: PERMS.usersRead },
-      { icon: Clapperboard, label: "Creators", value: "creators", permission: PERMS.creatorsRead },
-      { icon: UserPlus, label: "Followers", value: "followers", permission: PERMS.followersRead },
-      { icon: UsersRound, label: "Referrals", value: "referrals", permission: PERMS.referralsRead },
+      { icon: Users, label: "Users", value: "users", permission: PERMS.usersBrowseRead },
+      { icon: Clapperboard, label: "Creators", value: "creators", permission: PERMS.creatorsDashboardRead },
+      { icon: UserPlus, label: "Followers", value: "followers", permission: PERMS.usersBrowseRead },
+      { icon: UsersRound, label: "Referrals", value: "referrals", permission: PERMS.usersBrowseRead },
     ],
   },
   {
     title: "Insights",
     items: [
-      { icon: Route, label: "Journeys", value: "journeys", permission: PERMS.journeysRead },
-      { icon: SearchIcon, label: "Searches", value: "searches", permission: PERMS.searchesRead },
-      { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: PERMS.utmRead },
-      { icon: Handshake, label: "Collaboration", value: "collaboration", permission: PERMS.collaborationRead },
+      { icon: Route, label: "Journeys", value: "journeys", permission: PERMS.analyticsCountersRead },
+      { icon: SearchIcon, label: "Searches", value: "searches", permission: PERMS.analyticsSearchesRead },
+      { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: PERMS.analyticsUtmRead },
+      { icon: Handshake, label: "Collaboration", value: "collaboration", permission: PERMS.collaborationInquiriesRead },
       {
         icon: Compass,
         label: "Discovery survey",
         value: "discovery_source",
-        permission: PERMS.discoverySourceRead,
+        permission: PERMS.adminsAccountsRead,
       },
     ],
   },
   {
     title: "Operations",
     items: [
-      { icon: ArrowDownToLine, label: "Migration Requests", value: "migrations", permission: PERMS.migrationRead },
+      { icon: ArrowDownToLine, label: "Migration Requests", value: "migrations", permission: PERMS.migrationRequestsRead },
     ],
   },
   {
     title: "Access",
     items: [
-      { icon: ShieldCheck, label: "Team", value: "admins", permission: PERMS.adminsRead },
-      { icon: KeyRound, label: "Roles", value: "admin_roles", permission: PERMS.rolesWrite },
-      { icon: Wrench, label: "Tools", value: "tools", permission: PERMS.youtubeKeysRead },
+      { icon: ShieldCheck, label: "Team", value: "admins", permission: PERMS.adminsAccountsRead },
+      { icon: KeyRound, label: "Roles", value: "admin_roles", permission: PERMS.rolesManagementRead },
+      { icon: Wrench, label: "Tools", value: "tools", permission: PERMS.youtubeKeysManageRead },
     ],
   },
 ]

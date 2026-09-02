@@ -7,11 +7,14 @@ import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { AdminPermissionPicker } from "@/components/admin/admin-permission-picker"
 import {
   ALL_ASSIGNABLE_PERMISSIONS,
+  catalogToPermissionGroups,
+  FALLBACK_PERMISSION_GROUPS,
   isValidRoleKey,
+  type PermissionGroup,
 } from "@/lib/auth/admin-permission-catalog"
 import {
-  compressPermissionsForBackend,
   expandLegacyPermissions,
+  isKnownPermission,
   type Permission,
 } from "@/lib/auth/admin-permissions"
 import { Button } from "@/components/ui/button"
@@ -34,13 +37,16 @@ type RoleDialogMode = "create" | "edit" | null
 function normalizePermissions(permissions: string[]): Permission[] {
   const expanded = expandLegacyPermissions(permissions)
   const allowed = new Set(ALL_ASSIGNABLE_PERMISSIONS)
-  return expanded.filter((p): p is Permission => allowed.has(p))
+  return expanded.filter((p): p is Permission => allowed.has(p) || isKnownPermission(p))
 }
 
 export function AdminRolesPanel() {
   const { toast } = useToast()
   const { canRolesWrite } = useAdminPermissions()
   const [roles, setRoles] = useState<AdminRoleRow[]>([])
+  const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>(
+    FALLBACK_PERMISSION_GROUPS,
+  )
   const [loading, setLoading] = useState(true)
   const [dialogMode, setDialogMode] = useState<RoleDialogMode>(null)
   const [saving, setSaving] = useState(false)
@@ -55,8 +61,15 @@ export function AdminRolesPanel() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await adminApiClient.adminListRoles()
-      setRoles(res.roles)
+      const [rolesRes, catalogRes] = await Promise.all([
+        adminApiClient.adminListRoles(),
+        adminApiClient.adminGetPermissionsCatalog().catch(() => null),
+      ])
+      setRoles(rolesRes.roles)
+      if (catalogRes?.modules?.length) {
+        const groups = catalogToPermissionGroups(catalogRes)
+        if (groups.length > 0) setPermissionGroups(groups)
+      }
     } catch (err: unknown) {
       toast({
         title: "Failed to load roles",
@@ -120,8 +133,6 @@ export function AdminRolesPanel() {
       }
     }
 
-    const apiPermissions = compressPermissionsForBackend(permissions)
-
     setSaving(true)
     try {
       if (dialogMode === "create") {
@@ -129,13 +140,13 @@ export function AdminRolesPanel() {
         await adminApiClient.adminCreateRole({
           role_key: key,
           display_name: name,
-          permissions: apiPermissions,
+          permissions,
         })
         toast({ title: "Role created" })
       } else if (dialogMode === "edit" && editingRole) {
         await adminApiClient.adminUpdateRole(editingRole.role_key, {
           display_name: name,
-          permissions: apiPermissions,
+          permissions,
         })
         toast({ title: "Role updated" })
       }
@@ -291,7 +302,11 @@ export function AdminRolesPanel() {
 
             <div className="space-y-2">
               <Label>Permissions</Label>
-              <AdminPermissionPicker value={permissions} onChange={setPermissions} />
+              <AdminPermissionPicker
+                value={permissions}
+                onChange={setPermissions}
+                groups={permissionGroups}
+              />
             </div>
           </div>
 

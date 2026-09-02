@@ -3,8 +3,9 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
-  ADMIN_PERMISSION_GROUPS,
+  FALLBACK_PERMISSION_GROUPS,
   permissionsForGroup,
+  type PermissionGroup,
   type PermissionOption,
 } from "@/lib/auth/admin-permission-catalog"
 import type { Permission } from "@/lib/auth/admin-permissions"
@@ -15,6 +16,7 @@ type AdminPermissionPickerProps = {
   onChange: (permissions: Permission[]) => void
   disabled?: boolean
   className?: string
+  groups?: PermissionGroup[]
 }
 
 function togglePermission(
@@ -92,11 +94,12 @@ export function AdminPermissionPicker({
   onChange,
   disabled = false,
   className,
+  groups = FALLBACK_PERMISSION_GROUPS,
 }: AdminPermissionPickerProps) {
   return (
     <div className={cn("space-y-5", className)}>
-      {ADMIN_PERMISSION_GROUPS.map((group) => {
-        const groupPerms = permissionsForGroup(group.id)
+      {groups.map((group) => {
+        const groupPerms = permissionsForGroup(group.id, groups)
         const groupState = groupCheckState(value, groupPerms)
 
         return (

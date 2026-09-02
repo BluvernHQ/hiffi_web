@@ -1,14 +1,13 @@
 import {
   expandLegacyPermissions,
-  INVENTORY_READ_MODULES,
-  INVENTORY_WRITE_MODULES,
-  INSIGHTS_READ_MODULES,
-  INSIGHTS_WRITE_MODULES,
+  isKnownPermission,
   PERMS,
-  USERS_CONTENT_READ_MODULES,
-  USERS_CONTENT_WRITE_MODULES,
   type Permission,
 } from "@/lib/auth/admin-permissions"
+import type {
+  AdminPermissionsCatalog,
+  CatalogModule,
+} from "@/lib/api/admin-permissions-catalog"
 
 export type PermissionOption = {
   value: Permission
@@ -22,178 +21,122 @@ export type PermissionGroup = {
   permissions: PermissionOption[]
 }
 
-function optionsFor(
-  modules: Permission[],
-  labels: Partial<Record<Permission, { label: string; description?: string }>>,
-): PermissionOption[] {
-  return modules.map((value) => ({
-    value,
-    label: labels[value]?.label ?? value,
-    description: labels[value]?.description,
-  }))
-}
-
-/** Module-level permissions for the role editor — one checkbox per dashboard area. */
-export const ADMIN_PERMISSION_GROUPS: PermissionGroup[] = [
+/** Static fallback when the catalog API is unavailable. Mirrors `GET /admin/permissions/catalog`. */
+export const FALLBACK_PERMISSION_GROUPS: PermissionGroup[] = [
   {
-    id: "insights",
-    label: "Insights & analytics",
-    permissions: optionsFor(
-      [...INSIGHTS_READ_MODULES, ...INSIGHTS_WRITE_MODULES],
-      {
-        [PERMS.dashboardRead]: {
-          label: "Dashboard",
-          description: "Platform counters and overview metrics",
-        },
-        [PERMS.dashboardWrite]: {
-          label: "Dashboard — manage",
-          description: "Resync platform counters",
-        },
-        [PERMS.journeysRead]: {
-          label: "Journeys",
-          description: "Funnels and session timelines",
-        },
-        [PERMS.journeysWrite]: {
-          label: "Journeys — manage",
-          description: "Run funnel detection and journey tools",
-        },
-        [PERMS.searchesRead]: {
-          label: "Searches",
-          description: "Search query logs",
-        },
-        [PERMS.utmRead]: {
-          label: "UTM campaigns",
-          description: "UTM polls and campaign URLs",
-        },
-        [PERMS.utmWrite]: {
-          label: "UTM campaigns — manage",
-          description: "Create UTM URLs and campaign actions",
-        },
-      },
-    ),
+    id: "admins",
+    label: "Admins",
+    permissions: [
+      { value: PERMS.adminsAccountsRead, label: "View admin accounts" },
+      { value: PERMS.adminsAccountsWrite, label: "Create / update admin accounts" },
+      { value: PERMS.rolesManagementRead, label: "View roles" },
+      { value: PERMS.rolesManagementWrite, label: "Manage roles" },
+    ],
   },
   {
-    id: "community",
-    label: "Community",
-    permissions: optionsFor(
-      [
-        PERMS.usersRead,
-        PERMS.usersWrite,
-        PERMS.videosRead,
-        PERMS.videosWrite,
-        PERMS.commentsRead,
-        PERMS.commentsWrite,
-        PERMS.repliesRead,
-        PERMS.repliesWrite,
-        PERMS.followersRead,
-        PERMS.referralsRead,
-      ],
-      {
-        [PERMS.usersRead]: { label: "Users", description: "User accounts list" },
-        [PERMS.usersWrite]: { label: "Users — manage", description: "Disable / enable users" },
-        [PERMS.videosRead]: { label: "Videos", description: "Video moderation list" },
-        [PERMS.videosWrite]: { label: "Videos — manage", description: "Delete videos" },
-        [PERMS.commentsRead]: { label: "Comments", description: "Comment moderation" },
-        [PERMS.commentsWrite]: { label: "Comments — manage", description: "Delete comments" },
-        [PERMS.repliesRead]: { label: "Replies", description: "Reply moderation" },
-        [PERMS.repliesWrite]: { label: "Replies — manage", description: "Delete replies" },
-        [PERMS.followersRead]: { label: "Followers", description: "Follow relationships" },
-        [PERMS.referralsRead]: { label: "Referrals", description: "Referral activity" },
-      },
-    ),
+    id: "users",
+    label: "Users",
+    permissions: [
+      { value: PERMS.usersBrowseRead, label: "Browse users and content lists" },
+      { value: PERMS.usersModerationWrite, label: "Moderate users and content" },
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    permissions: [
+      { value: PERMS.analyticsCountersRead, label: "View platform counters" },
+      { value: PERMS.analyticsCountersWrite, label: "Resync platform counters" },
+      { value: PERMS.analyticsUtmRead, label: "View UTM polls and URLs" },
+      { value: PERMS.analyticsUtmWrite, label: "Create UTM URLs" },
+      { value: PERMS.analyticsSearchesRead, label: "View search logs" },
+    ],
   },
   {
     id: "creators",
     label: "Creators",
     permissions: [
-      { value: PERMS.creatorsRead, label: "Creators", description: "Creator directory and detail" },
-      {
-        value: PERMS.creatorsWrite,
-        label: "Creators — manage",
-        description: "Suspend / unsuspend creators",
-      },
+      { value: PERMS.creatorsDashboardRead, label: "View creator metrics" },
+      { value: PERMS.creatorsModerationWrite, label: "Suspend / unsuspend creators" },
     ],
   },
   {
-    id: "editorial",
-    label: "Editorial",
+    id: "curated",
+    label: "Curated",
     permissions: [
-      { value: PERMS.curatedRead, label: "Curated playlists" },
-      { value: PERMS.curatedWrite, label: "Curated playlists — manage" },
+      { value: PERMS.curatedPlaylistsRead, label: "View curated playlists" },
+      { value: PERMS.curatedPlaylistsWrite, label: "Manage curated playlists" },
     ],
+  },
+  {
+    id: "flags",
+    label: "Flags",
+    permissions: [
+      { value: PERMS.flagsReviewRead, label: "View content reports" },
+      { value: PERMS.flagsReviewWrite, label: "Update report status" },
+    ],
+  },
+  {
+    id: "migration",
+    label: "Migration",
+    permissions: [
+      { value: PERMS.migrationRequestsRead, label: "View migration requests" },
+      { value: PERMS.migrationRequestsWrite, label: "Update migration requests" },
+    ],
+  },
+  {
+    id: "collaboration",
+    label: "Collaboration",
+    permissions: [
+      { value: PERMS.collaborationInquiriesRead, label: "View collaboration inquiries" },
+    ],
+  },
+  {
+    id: "feedback",
+    label: "Feedback",
+    permissions: [{ value: PERMS.feedbackInboxRead, label: "View feedback inbox" }],
   },
   {
     id: "inventory",
-    label: "Artist index & Hiffi 500",
-    permissions: optionsFor(
-      [...INVENTORY_READ_MODULES, ...INVENTORY_WRITE_MODULES],
-      {
-        [PERMS.inventoryRead]: {
-          label: "Artist inventory",
-          description: "Browse and export artist profiles",
-        },
-        [PERMS.inventoryWrite]: {
-          label: "Artist inventory — manage",
-          description: "Upload and edit inventory",
-        },
-        [PERMS.inventoryClaimsRead]: {
-          label: "Inventory claims",
-          description: "Artist claim requests",
-        },
-        [PERMS.inventoryClaimsWrite]: {
-          label: "Inventory claims — manage",
-          description: "Approve or reject claims",
-        },
-        [PERMS.rankingAnomaliesRead]: {
-          label: "Score anomalies",
-          description: "Hiffi 500 ranking anomalies",
-        },
-        [PERMS.rankingAnomaliesWrite]: {
-          label: "Score anomalies — manage",
-          description: "Scan and close anomalies",
-        },
-      },
-    ),
-  },
-  {
-    id: "moderation",
-    label: "Reports & operations",
+    label: "Inventory",
     permissions: [
-      { value: PERMS.flagsRead, label: "Content reports" },
-      { value: PERMS.flagsWrite, label: "Content reports — manage" },
-      { value: PERMS.migrationRead, label: "Migration requests" },
-      { value: PERMS.migrationWrite, label: "Migration requests — manage" },
+      { value: PERMS.inventoryArtistsRead, label: "View artist inventory" },
+      { value: PERMS.inventoryArtistsWrite, label: "Manage artist inventory" },
+      { value: PERMS.inventoryClaimsRead, label: "View inventory claims" },
+      { value: PERMS.inventoryClaimsWrite, label: "Approve inventory claims" },
+      { value: PERMS.inventoryRankingRead, label: "View ranking anomalies" },
+      { value: PERMS.inventoryRankingWrite, label: "Scan / close ranking anomalies" },
     ],
   },
   {
-    id: "inbox",
-    label: "Inbox",
+    id: "youtube",
+    label: "YouTube",
     permissions: [
-      { value: PERMS.feedbackRead, label: "Feedback" },
-      { value: PERMS.collaborationRead, label: "Collaboration inquiries" },
-      { value: PERMS.discoverySourceRead, label: "Discovery survey" },
-      {
-        value: PERMS.discoverySourceWrite,
-        label: "Discovery survey — manage",
-        description: "Delete survey responses",
-      },
-    ],
-  },
-  {
-    id: "access",
-    label: "Access & tools",
-    permissions: [
-      { value: PERMS.adminsRead, label: "Team & roles list" },
-      { value: PERMS.adminsWrite, label: "Team — manage", description: "Invite and edit team members" },
-      { value: PERMS.rolesWrite, label: "Roles — manage", description: "Create and edit custom roles" },
-      { value: PERMS.youtubeKeysRead, label: "YouTube API keys" },
-      { value: PERMS.youtubeKeysWrite, label: "YouTube API keys — manage" },
+      { value: PERMS.youtubeKeysManageRead, label: "View YouTube API keys" },
+      { value: PERMS.youtubeKeysManageWrite, label: "Manage YouTube API keys" },
     ],
   },
 ]
 
-/** Permissions shown in the role editor (module-level only). */
-export const ALL_ASSIGNABLE_PERMISSIONS: Permission[] = ADMIN_PERMISSION_GROUPS.flatMap((g) =>
+export function catalogToPermissionGroups(catalog: AdminPermissionsCatalog): PermissionGroup[] {
+  return catalog.modules
+    .map((module: CatalogModule) => ({
+      id: module.key,
+      label: module.label,
+      permissions: module.sub_features.flatMap((sub) =>
+        sub.permissions
+          .filter((p) => isKnownPermission(p.key))
+          .map((p) => ({
+            value: p.key as Permission,
+            label: p.label,
+          })),
+      ),
+    }))
+    .filter((group) => group.permissions.length > 0)
+}
+
+/** Permissions shown in the role editor. */
+export const ALL_ASSIGNABLE_PERMISSIONS: Permission[] = FALLBACK_PERMISSION_GROUPS.flatMap((g) =>
   g.permissions.map((p) => p.value),
 )
 
@@ -220,7 +163,10 @@ export function rolesAssignableToAdmin<T extends { role_key: string }>(
   return roles.filter((r) => r.role_key !== "super_admin")
 }
 
-export function permissionsForGroup(groupId: string): Permission[] {
-  const group = ADMIN_PERMISSION_GROUPS.find((g) => g.id === groupId)
+export function permissionsForGroup(
+  groupId: string,
+  groups: PermissionGroup[] = FALLBACK_PERMISSION_GROUPS,
+): Permission[] {
+  const group = groups.find((g) => g.id === groupId)
   return group?.permissions.map((p) => p.value) ?? []
 }
