@@ -81,6 +81,7 @@ export interface InventoryClaimSubmit {
   email: string
   discovery_source: DiscoverySource
   discovery_source_other?: string
+  turnstile_token?: string
 }
 
 export interface InventoryClaimSubmitResponse {
@@ -95,6 +96,12 @@ export interface InventoryClaimSubmitResponse {
 
 export type InventoryClaimStatus = "pending" | "approved" | "rejected"
 
+export type OnboardingStatus =
+  | "awaiting_email"
+  | "email_sent"
+  | "link_opened"
+  | "activated"
+
 export interface InventoryClaim {
   id: string
   username: string
@@ -106,6 +113,12 @@ export interface InventoryClaim {
   discovery_source_other?: string
   discovery_source_label?: string
   client_ip?: string
+  /** Approved claims only (derived). */
+  onboarding_status?: OnboardingStatus
+  welcome_email_sent_at?: string
+  onboard_verified_at?: string
+  password_set_at?: string
+  last_login_at?: string
   created_at: string
   updated_at: string
 }
@@ -114,12 +127,31 @@ export interface InventoryClaimApproveResponse {
   claim: InventoryClaim
   rejected_count: number
   user_updated: boolean
+  user_uid?: string
+  email_sent: boolean
 }
 
 export interface InventoryClaimDeleteResponse {
   deleted: true
   id: string
   claim: InventoryClaim
+}
+
+export interface ClaimOnboardVerifyResponse {
+  valid: true
+  username: string
+  name: string
+  email: string
+}
+
+export interface ClaimOnboardCompleteResponse {
+  token: string
+  expires_in: number
+  user: {
+    uid: string
+    username: string
+    name: string
+  }
 }
 
 export interface InventoryEntry {
@@ -204,6 +236,24 @@ function normalizeClaimReviewStatus(value: unknown): InventoryClaimStatus {
   return "pending"
 }
 
+function normalizeOnboardingStatus(value: unknown): OnboardingStatus | undefined {
+  const status = String(value ?? "").trim().toLowerCase()
+  if (
+    status === "awaiting_email" ||
+    status === "email_sent" ||
+    status === "link_opened" ||
+    status === "activated"
+  ) {
+    return status
+  }
+  return undefined
+}
+
+function optionalTimestamp(value: unknown): string | undefined {
+  const raw = value != null ? String(value).trim() : ""
+  return raw || undefined
+}
+
 export function normalizeInventoryClaim(raw: Record<string, unknown>): InventoryClaim {
   const artistName =
     raw.artist_name != null && String(raw.artist_name).trim()
@@ -229,6 +279,8 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
       ? String(raw.discovery_source_label).trim()
       : undefined
 
+  const onboardingStatus = normalizeOnboardingStatus(raw.onboarding_status)
+
   return {
     id: String(raw.id ?? "").trim(),
     username: String(raw.username ?? "").trim().toLowerCase(),
@@ -242,6 +294,19 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
     discovery_source: discoverySource,
     discovery_source_other: discoverySourceOther,
     discovery_source_label: discoverySourceLabel,
+    ...(onboardingStatus ? { onboarding_status: onboardingStatus } : {}),
+    ...(optionalTimestamp(raw.welcome_email_sent_at)
+      ? { welcome_email_sent_at: optionalTimestamp(raw.welcome_email_sent_at) }
+      : {}),
+    ...(optionalTimestamp(raw.onboard_verified_at)
+      ? { onboard_verified_at: optionalTimestamp(raw.onboard_verified_at) }
+      : {}),
+    ...(optionalTimestamp(raw.password_set_at)
+      ? { password_set_at: optionalTimestamp(raw.password_set_at) }
+      : {}),
+    ...(optionalTimestamp(raw.last_login_at)
+      ? { last_login_at: optionalTimestamp(raw.last_login_at) }
+      : {}),
   }
 }
 
@@ -252,11 +317,17 @@ export function normalizeInventoryClaimApproveResponse(
     raw.claim && typeof raw.claim === "object" && !Array.isArray(raw.claim)
       ? (raw.claim as Record<string, unknown>)
       : {}
+  const userUid =
+    raw.user_uid != null && String(raw.user_uid).trim()
+      ? String(raw.user_uid).trim()
+      : undefined
 
   return {
     claim: normalizeInventoryClaim(claimRaw),
     rejected_count: Number(raw.rejected_count ?? 0),
     user_updated: Boolean(raw.user_updated),
+    ...(userUid ? { user_uid: userUid } : {}),
+    email_sent: Boolean(raw.email_sent),
   }
 }
 

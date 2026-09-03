@@ -14,7 +14,11 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
-import type { InventoryClaim, InventoryClaimStatus } from "@/lib/types/inventory"
+import type {
+  InventoryClaim,
+  InventoryClaimStatus,
+  OnboardingStatus,
+} from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -44,12 +48,154 @@ const STATUS_OPTIONS: Array<{ value: "" | InventoryClaimStatus; label: string }>
   { value: "rejected", label: "Rejected" },
   { value: "", label: "All statuses" },
 ]
+const ONBOARDING_OPTIONS: Array<{ value: "" | OnboardingStatus; label: string }> = [
+  { value: "", label: "Any onboarding" },
+  { value: "awaiting_email", label: "Awaiting email" },
+  { value: "email_sent", label: "Email sent" },
+  { value: "link_opened", label: "Link opened" },
+  { value: "activated", label: "Activated" },
+]
 
-function formatTimestamp(value: string): string {
+function formatTimestamp(value?: string): string {
   if (!value) return "—"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return format(date, "MMM d, yyyy · h:mm a")
+}
+
+function formatFunnelTime(value?: string): string {
+  if (!value) return "Pending"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return format(date, "MMM d · h:mm a")
+}
+
+const FUNNEL_STEPS = [
+  { key: "email", label: "Email sent", field: "welcome_email_sent_at" as const },
+  { key: "opened", label: "Link opened", field: "onboard_verified_at" as const },
+  { key: "password", label: "Password set", field: "password_set_at" as const },
+  { key: "login", label: "Logged in", field: "last_login_at" as const },
+]
+
+function OnboardingFunnelCell({ claim }: { claim: InventoryClaim }) {
+  const steps = FUNNEL_STEPS.map((step) => ({
+    ...step,
+    at: claim[step.field],
+  }))
+  const doneCount = steps.filter((step) => Boolean(step.at)).length
+  const complete = doneCount === steps.length
+  const nextStep = steps.find((step) => !step.at)
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "group flex w-full min-w-[168px] flex-col gap-1.5 rounded-lg border px-2.5 py-2 text-left transition-colors",
+            "hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            complete ? "border-emerald-200 bg-emerald-50/50" : "border-border bg-background",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={cn(
+                "text-[11px] font-semibold tabular-nums",
+                complete ? "text-emerald-700" : "text-foreground",
+              )}
+            >
+              {doneCount}/{steps.length}
+            </span>
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground group-hover:text-foreground">
+              Details
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1" aria-hidden>
+            {steps.map((step) => (
+              <span
+                key={step.key}
+                title={step.label}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full",
+                  step.at ? (complete ? "bg-emerald-500" : "bg-primary") : "bg-muted",
+                )}
+              />
+            ))}
+          </div>
+
+          <p className="truncate text-[11px] text-muted-foreground">
+            {complete
+              ? "Onboarding complete"
+              : nextStep
+                ? `Next: ${nextStep.label}`
+                : "No progress yet"}
+          </p>
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent align="start" className="w-72 p-3">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Onboarding funnel</p>
+            <p className="text-xs text-muted-foreground">@{claim.username}</p>
+          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              "shrink-0",
+              complete
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-border text-muted-foreground",
+            )}
+          >
+            {doneCount}/{steps.length}
+          </Badge>
+        </div>
+
+        <ol className="space-y-2.5">
+          {steps.map((step, index) => {
+            const done = Boolean(step.at)
+            const isLast = index === steps.length - 1
+            return (
+              <li key={step.key} className="relative flex items-start gap-2.5">
+                {!isLast ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute left-[7px] top-4 h-[calc(100%-2px)] w-px",
+                      done ? "bg-emerald-300" : "bg-border",
+                    )}
+                  />
+                ) : null}
+                <span
+                  className={cn(
+                    "relative z-[1] mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border",
+                    done
+                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      : "border-muted-foreground/30 bg-background",
+                  )}
+                >
+                  {done ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                </span>
+                <div className="min-w-0 leading-tight">
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      done ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {step.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatFunnelTime(step.at)}</p>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 function discoverySourceDisplay(claim: InventoryClaim): {
@@ -96,6 +242,36 @@ function statusBadgeClass(status: InventoryClaimStatus): string {
   }
 }
 
+function onboardingLabel(status?: OnboardingStatus): string {
+  switch (status) {
+    case "awaiting_email":
+      return "Awaiting email"
+    case "email_sent":
+      return "Email sent"
+    case "link_opened":
+      return "Link opened"
+    case "activated":
+      return "Activated"
+    default:
+      return "—"
+  }
+}
+
+function onboardingBadgeClass(status?: OnboardingStatus): string {
+  switch (status) {
+    case "activated":
+      return "bg-emerald-100 text-emerald-800 border-emerald-200"
+    case "link_opened":
+      return "bg-sky-100 text-sky-800 border-sky-200"
+    case "email_sent":
+      return "bg-amber-100 text-amber-900 border-amber-200"
+    case "awaiting_email":
+      return "bg-orange-100 text-orange-900 border-orange-200"
+    default:
+      return "bg-muted text-muted-foreground border-border"
+  }
+}
+
 function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
   const source = discoverySourceDisplay(claim)
 
@@ -127,7 +303,7 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
 export function InventoryClaimsTable() {
   const { toast } = useToast()
   const { can } = useAdminPermissions()
-  const canWriteClaims = can("inventory.claims:write")
+  const canInventoryClaimsWrite = can("inventory.claims:write")
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])
@@ -139,6 +315,7 @@ export function InventoryClaimsTable() {
   const [debouncedUsername, setDebouncedUsername] = useState("")
   const [debouncedEmail, setDebouncedEmail] = useState("")
   const [statusFilter, setStatusFilter] = useState<"" | InventoryClaimStatus>("pending")
+  const [onboardingFilter, setOnboardingFilter] = useState<"" | OnboardingStatus>("")
   const [limit, setLimit] = useState(20)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
@@ -179,6 +356,7 @@ export function InventoryClaimsTable() {
         ...(debouncedUsername ? { username: debouncedUsername } : {}),
         ...(debouncedEmail ? { email: debouncedEmail } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(onboardingFilter ? { onboarding_status: onboardingFilter } : {}),
       })
       setRows(response.items)
       setCount(response.count)
@@ -201,7 +379,7 @@ export function InventoryClaimsTable() {
 
   useEffect(() => {
     void fetchRows()
-  }, [limit, offset, debouncedUsername, debouncedEmail, statusFilter])
+  }, [limit, offset, debouncedUsername, debouncedEmail, statusFilter, onboardingFilter])
 
   const applyApproveToLocalRows = (approved: InventoryClaim) => {
     const now = approved.updated_at || new Date().toISOString()
@@ -216,7 +394,6 @@ export function InventoryClaimsTable() {
           }
           return row
         })
-        // When viewing Pending, remove rows that are no longer pending so the queue looks correct.
         .filter((row) => (statusFilter === "pending" ? row.status === "pending" : true)),
     )
   }
@@ -231,15 +408,20 @@ export function InventoryClaimsTable() {
           ? ` · ${result.rejected_count} other pending claim${result.rejected_count === 1 ? "" : "s"} rejected`
           : ""
       const userNote = result.user_updated ? " · linked user updated" : ""
+      const emailNote = result.email_sent
+        ? " · welcome email sent"
+        : " · welcome email not sent (funnel: awaiting email)"
 
       applyApproveToLocalRows(result.claim)
       setClaimToApprove(null)
       setOffset(0)
       setStatusFilter("approved")
+      setOnboardingFilter("")
 
       toast({
         title: "Claim approved",
-        description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}. Public profile claim_status is claimed.`,
+        description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}${emailNote}.`,
+        variant: result.email_sent ? "default" : "destructive",
       })
 
       void fetch("/api/artist-index/revalidate", {
@@ -290,7 +472,9 @@ export function InventoryClaimsTable() {
     usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
-  const colSpan = canWriteClaims ? 8 : 7
+  const showOnboardingColumns = statusFilter === "approved" || statusFilter === ""
+  const baseCols = showOnboardingColumns ? 9 : 7
+  const colSpan = canInventoryClaimsWrite ? baseCols + 1 : baseCols
   const actionInFlight = approvingId != null || deletingId != null
 
   if (isInitialLoad) {
@@ -318,15 +502,14 @@ export function InventoryClaimsTable() {
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         <p>
           <span className="font-medium text-foreground">Pending</span> → review queue.{" "}
-          <span className="font-medium text-foreground">Approve</span> sets that claim to Approved,
-          rejects other pending claims for the same username, and updates the linked creator when
-          present.{" "}
-          <span className="font-medium text-foreground">Delete</span> permanently removes a row
-          (spam / duplicates) without rejecting siblings.
+          <span className="font-medium text-foreground">Approve</span> emails the artist an
+          onboarding link, rejects sibling pending claims, and marks the profile claimed.{" "}
+          <span className="font-medium text-foreground">Delete</span> removes a row without
+          rejecting siblings.
         </p>
         <p className="mt-1">
-          There is no standalone reject endpoint yet — competitors become Rejected only when another
-          claim for the same username is approved.
+          Track stuck artists with Approved + onboarding filters (email sent / link opened). Resend
+          email is not available yet.
         </p>
       </div>
 
@@ -341,6 +524,9 @@ export function InventoryClaimsTable() {
                 onClick={() => {
                   setOffset(0)
                   setStatusFilter(option.value)
+                  if (option.value !== "approved" && option.value !== "") {
+                    setOnboardingFilter("")
+                  }
                 }}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
@@ -354,6 +540,32 @@ export function InventoryClaimsTable() {
             )
           })}
         </div>
+
+        {statusFilter === "approved" || statusFilter === "" ? (
+          <div className="flex flex-wrap gap-2">
+            {ONBOARDING_OPTIONS.map((option) => {
+              const active = onboardingFilter === option.value
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => {
+                    setOffset(0)
+                    setOnboardingFilter(option.value)
+                  }}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="relative">
@@ -433,7 +645,7 @@ export function InventoryClaimsTable() {
         />
       ) : (
         <div className="rounded-lg border bg-background shadow-sm overflow-auto">
-          <table className={cn("w-full min-w-[960px] transition-opacity", fetching && "opacity-60")}>
+          <table className={cn("w-full min-w-[1100px] transition-opacity", fetching && "opacity-60")}>
             <thead className="sticky top-0 z-10 bg-muted/50">
               <tr className="border-b">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -451,13 +663,20 @@ export function InventoryClaimsTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Status
                 </th>
+                {showOnboardingColumns ? (
+                  <>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Onboarding
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Funnel
+                    </th>
+                  </>
+                ) : null}
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Submitted
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Updated
-                </th>
-                {canWriteClaims ? (
+                {canInventoryClaimsWrite ? (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Actions
                   </th>
@@ -498,13 +717,33 @@ export function InventoryClaimsTable() {
                           {statusLabel(row.status)}
                         </Badge>
                       </td>
+                      {showOnboardingColumns ? (
+                        <>
+                          <td className="px-4 py-3 text-sm">
+                            {row.status === "approved" ? (
+                              <Badge
+                                variant="outline"
+                                className={cn(onboardingBadgeClass(row.onboarding_status))}
+                              >
+                                {onboardingLabel(row.onboarding_status)}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            {row.status === "approved" ? (
+                              <OnboardingFunnelCell claim={row} />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </>
+                      ) : null}
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                         {formatTimestamp(row.created_at)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                        {formatTimestamp(row.updated_at)}
-                      </td>
-                      {canWriteClaims ? (
+                      {canInventoryClaimsWrite ? (
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center justify-end gap-2">
                             {row.status === "pending" ? (
@@ -585,9 +824,8 @@ export function InventoryClaimsTable() {
               {claimToApprove ? (
                 <>
                   Approve <strong>{claimToApprove.name}</strong> ({claimToApprove.email}) for{" "}
-                  <strong>@{claimToApprove.username}</strong>. Status becomes{" "}
-                  <strong>Approved</strong>; other pending claims for this profile become{" "}
-                  <strong>Rejected</strong>.
+                  <strong>@{claimToApprove.username}</strong>. Other pending claims for this profile
+                  become Rejected, and a welcome email with an onboarding link is sent when possible.
                 </>
               ) : null}
             </DialogDescription>

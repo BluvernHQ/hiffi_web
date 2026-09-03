@@ -27,6 +27,7 @@ declare global {
           sitekey: string
           action?: string
           theme?: "light" | "dark" | "auto"
+          size?: "normal" | "compact" | "flexible"
           callback: (token: string) => void
           "expired-callback"?: () => void
           "error-callback"?: () => void
@@ -89,10 +90,12 @@ export interface TurnstileWidgetProps {
   /** Called with a token when solved, and with null when the token expires or errors. */
   onToken: (token: string | null) => void
   className?: string
+  /** Prefer compact in narrow sidebars (e.g. profile About). */
+  size?: "normal" | "compact" | "flexible"
 }
 
 export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
-  function TurnstileWidget({ action, onToken, className }, ref) {
+  function TurnstileWidget({ action, onToken, className, size = "normal" }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const widgetIdRef = useRef<string | null>(null)
     const onTokenRef = useRef(onToken)
@@ -121,6 +124,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
             sitekey: siteKey,
             action,
             theme: "light",
+            size,
             callback: (token) => onTokenRef.current(token),
             "expired-callback": () => onTokenRef.current(null),
             "error-callback": () => onTokenRef.current(null),
@@ -137,7 +141,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
           widgetIdRef.current = null
         }
       }
-    }, [action])
+    }, [action, size])
 
     if (!isTurnstileEnabled()) return null
 

@@ -1,6 +1,6 @@
 import { format } from "date-fns"
 import Link from "next/link"
-import { Calendar, Check, Copy, Edit, Flag, Mail, Share2, UserCheck, UserPlus } from "lucide-react"
+import { Calendar, Check, Copy, Edit, Flag, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { VideoGrid } from "@/components/video/video-grid"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
+import { ProfileEmailReveal } from "@/components/profile/profile-email-reveal"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
@@ -232,20 +233,14 @@ export function ProfilePublicView(props: {
                       </p>
                     ) : null}
 
-                    {/* Email display below bio */}
+                    {/* Email — gated for visitors (login + captcha); owners see it directly */}
                     {(profileUser.email || (isOwnProfile && currentUserData?.email)) && (
-                      <div className="pt-3 border-t">
-                        <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Email</Label>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <a
-                            href={`mailto:${profileUser.email || currentUserData?.email}`}
-                            className="text-xs sm:text-sm font-medium text-foreground hover:text-primary transition-colors break-all"
-                          >
-                            {profileUser.email || currentUserData?.email}
-                          </a>
-                        </div>
-                      </div>
+                      <ProfileEmailReveal
+                        username={username}
+                        email={String(profileUser.email || currentUserData?.email || "")}
+                        isOwnProfile={isOwnProfile}
+                        onRequestSignIn={() => setAuthDialogOpen(true)}
+                      />
                     )}
 
                     {isOwnProfile && (

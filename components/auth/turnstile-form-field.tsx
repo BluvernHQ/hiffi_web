@@ -10,6 +10,7 @@ type TurnstileFormFieldProps = {
   widgetRef: RefObject<TurnstileWidgetHandle | null>
   onToken: (token: string | null) => void
   className?: string
+  size?: "normal" | "compact" | "flexible"
 }
 
 /** Cloudflare Turnstile block for public forms. Renders nothing when disabled (local dev). */
@@ -18,12 +19,13 @@ export function TurnstileFormField({
   widgetRef,
   onToken,
   className,
+  size = "normal",
 }: TurnstileFormFieldProps) {
   if (!isTurnstileEnabled()) return null
 
   return (
-    <div className={cn("flex justify-center", className)}>
-      <TurnstileWidget ref={widgetRef} action={action} onToken={onToken} />
+    <div className={cn("flex justify-center max-w-full overflow-x-auto", className)}>
+      <TurnstileWidget ref={widgetRef} action={action} onToken={onToken} size={size} />
     </div>
   )
 }

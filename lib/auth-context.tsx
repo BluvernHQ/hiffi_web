@@ -45,6 +45,11 @@ interface AuthContextType {
     referralCodeOverride?: string | null,
     turnstileToken?: string | null,
   ) => Promise<{ success: boolean; error?: string }>
+  /** Persist JWT from claim onboarding (or similar) and hydrate session. */
+  establishSession: (payload: {
+    token: string
+    user: { uid: string; username: string; name: string }
+  }) => Promise<any | null>
   logout: () => Promise<void>
   refreshUserData: (
     forceRefresh?: boolean,
@@ -637,6 +642,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const establishSession = useCallback(
+    async (payload: { token: string; user: { uid: string; username: string; name: string } }) => {
+      const token = payload.token.trim()
+      if (!token) throw new Error("Missing session token")
+
+      const sessionUser = {
+        uid: payload.user.uid,
+        username: payload.user.username,
+        name: payload.user.name,
+      }
+
+      apiClient.setAuthToken(token)
+      setUser(sessionUser)
+      setUserData(normalizeUserProfilePictureFields(sessionUser))
+      identifyAnalyticsUser(sessionUser.username || null)
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(sessionUser)))
+        localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
+      }
+
+      return refreshUserData(true, { keepSessionOnFailure: true })
+    },
+    [refreshUserData],
+  )
+
   const logout = async () => {
     try {
       debugLog("[hiffi] Attempting logout")
@@ -770,6 +801,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       login,
       signup,
+      establishSession,
       logout,
       refreshUserData,
       clearProfilePhoto,
@@ -780,6 +812,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       login,
       signup,
+      establishSession,
       logout,
       refreshUserData,
       clearProfilePhoto,

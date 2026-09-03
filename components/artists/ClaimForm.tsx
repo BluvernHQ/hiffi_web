@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
+import { useTurnstileForm } from "@/hooks/use-turnstile-form"
 
 type ClaimFormProps = {
   artist: Artist
@@ -43,6 +45,13 @@ export function ClaimForm({ artist }: ClaimFormProps) {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const {
+    turnstileRef,
+    setTurnstileToken,
+    submitBlocked,
+    resetTurnstile,
+    getTurnstileTokenForSubmit,
+  } = useTurnstileForm("inventory_claim")
 
   const updateField = <K extends keyof ClaimFormState>(key: K, value: ClaimFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -71,24 +80,33 @@ if (form.howFound === "other" && !form.howFoundOther.trim()) {
   setError("Please specify how you found us.")
   return
 }
+
+    const turnstile = getTurnstileTokenForSubmit()
+    if (!turnstile.ok) {
+      setError(turnstile.error)
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
     try {
       // Same inventory claim endpoint — queues another pending claim for admin review.
       await submitInventoryClaim({
-  username: artist.slug,
-  name: form.name,
-  email: form.email,
-  discovery_source: form.howFound,
-  ...(form.howFound === "other" && {
-    discovery_source_other: form.howFoundOther.trim(),
-  }),
-})
+        username: artist.slug,
+        name: form.name,
+        email: form.email,
+        discovery_source: form.howFound,
+        ...(form.howFound === "other" && {
+          discovery_source_other: form.howFoundOther.trim(),
+        }),
+        ...(turnstile.token ? { turnstile_token: turnstile.token } : {}),
+      })
       setSubmitted(true)
       // Claims BFF already revalidates inventory tags; refresh RSC tree so CTAs update.
       router.refresh()
     } catch (caught) {
+      resetTurnstile()
       if (caught instanceof InventoryClaimError) {
         if (caught.status === 409) {
           setError("This profile has already been claimed.")
@@ -220,9 +238,22 @@ if (form.howFound === "other" && !form.howFoundOther.trim()) {
 )}
         </div>
       </section>
+
+      <TurnstileFormField
+        action="inventory_claim"
+        widgetRef={turnstileRef}
+        onToken={setTurnstileToken}
+      />
+
+      {error && error !== "Please select how you found us." ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          {error}
+        </p>
+      ) : null}
+
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || submitBlocked}
         className={cn(artistButtonSolid, "w-full sm:w-auto disabled:opacity-60")}
       >
         {submitting

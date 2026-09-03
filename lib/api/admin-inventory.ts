@@ -8,6 +8,7 @@ import type {
   InventoryListResponse,
   InventoryUploadResult,
   InventoryClaimStatus,
+  OnboardingStatus,
 } from "@/lib/types/inventory"
 import {
   normalizeInventoryClaim,
@@ -147,6 +148,7 @@ export async function adminListInventoryClaims(
     username?: string
     email?: string
     status?: InventoryClaimStatus
+    onboarding_status?: OnboardingStatus
   } = {},
 ): Promise<InventoryClaimListResponse> {
   const sp = new URLSearchParams()
@@ -155,6 +157,7 @@ export async function adminListInventoryClaims(
   if (params.username?.trim()) sp.set("username", params.username.trim())
   if (params.email?.trim()) sp.set("email", params.email.trim())
   if (params.status) sp.set("status", params.status)
+  if (params.onboarding_status) sp.set("onboarding_status", params.onboarding_status)
 
   const endpoint = `/admin/inventory/claims${sp.toString() ? `?${sp.toString()}` : ""}`
   const raw = await ctx.request<unknown>(endpoint, { method: "GET" }, true)
