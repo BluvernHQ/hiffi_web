@@ -2,10 +2,23 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Check, ChevronLeft, ChevronRight, Info, Loader2, RefreshCw, Search } from "lucide-react"
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Loader2,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
-import type { InventoryClaim, InventoryClaimStatus } from "@/lib/types/inventory"
+import type {
+  InventoryClaim,
+  InventoryClaimStatus,
+  OnboardingStatus,
+} from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -35,8 +48,15 @@ const STATUS_OPTIONS: Array<{ value: "" | InventoryClaimStatus; label: string }>
   { value: "rejected", label: "Rejected" },
   { value: "", label: "All statuses" },
 ]
+const ONBOARDING_OPTIONS: Array<{ value: "" | OnboardingStatus; label: string }> = [
+  { value: "", label: "Any onboarding" },
+  { value: "awaiting_email", label: "Awaiting email" },
+  { value: "email_sent", label: "Email sent" },
+  { value: "link_opened", label: "Link opened" },
+  { value: "activated", label: "Activated" },
+]
 
-function formatTimestamp(value: string): string {
+function formatTimestamp(value?: string): string {
   if (!value) return "—"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -47,10 +67,6 @@ function discoverySourceDisplay(claim: InventoryClaim): {
   label: string
   detail?: string
 } {
-  if (!claim.discovery_source) {
-    return { label: "Unknown" }
-  }
-
   if (claim.discovery_source === "other") {
     const detail =
       claim.discovery_source_other?.trim() ||
@@ -66,7 +82,7 @@ function discoverySourceDisplay(claim: InventoryClaim): {
     return { label: claim.discovery_source_label.trim() }
   }
 
-  return { label: claim.discovery_source }
+  return { label: "Unknown" }
 }
 
 function statusLabel(status: InventoryClaimStatus): string {
@@ -91,6 +107,36 @@ function statusBadgeClass(status: InventoryClaimStatus): string {
   }
 }
 
+function onboardingLabel(status?: OnboardingStatus): string {
+  switch (status) {
+    case "awaiting_email":
+      return "Awaiting email"
+    case "email_sent":
+      return "Email sent"
+    case "link_opened":
+      return "Link opened"
+    case "activated":
+      return "Activated"
+    default:
+      return "—"
+  }
+}
+
+function onboardingBadgeClass(status?: OnboardingStatus): string {
+  switch (status) {
+    case "activated":
+      return "bg-emerald-100 text-emerald-800 border-emerald-200"
+    case "link_opened":
+      return "bg-sky-100 text-sky-800 border-sky-200"
+    case "email_sent":
+      return "bg-amber-100 text-amber-900 border-amber-200"
+    case "awaiting_email":
+      return "bg-orange-100 text-orange-900 border-orange-200"
+    default:
+      return "bg-muted text-muted-foreground border-border"
+  }
+}
+
 function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
   const source = discoverySourceDisplay(claim)
 
@@ -111,10 +157,7 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
           </PopoverTrigger>
 
           <PopoverContent align="start" side="top" className="w-72 rounded-lg border bg-background p-3 shadow-lg">
-            
-            <p className="mt-1 text-sm leading-5 text-foreground">
-              {source.detail}
-            </p>
+            <p className="mt-1 text-sm leading-5 text-foreground">{source.detail}</p>
           </PopoverContent>
         </Popover>
       ) : null}
@@ -125,7 +168,8 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
 export function InventoryClaimsTable() {
   const { toast } = useToast()
   const { canInventoryClaimsWrite } = useAdminPermissions()
-  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
+    useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])
   const [hasLoaded, setHasLoaded] = useState(false)
   const [fetching, setFetching] = useState(false)
@@ -135,12 +179,15 @@ export function InventoryClaimsTable() {
   const [debouncedUsername, setDebouncedUsername] = useState("")
   const [debouncedEmail, setDebouncedEmail] = useState("")
   const [statusFilter, setStatusFilter] = useState<"" | InventoryClaimStatus>("pending")
+  const [onboardingFilter, setOnboardingFilter] = useState<"" | OnboardingStatus>("")
   const [limit, setLimit] = useState(20)
   const [offset, setOffset] = useState(0)
   const [count, setCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [claimToApprove, setClaimToApprove] = useState<InventoryClaim | null>(null)
+  const [claimToDelete, setClaimToDelete] = useState<InventoryClaim | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedUsername(usernameQuery.trim()), 300)
@@ -173,6 +220,7 @@ export function InventoryClaimsTable() {
         ...(debouncedUsername ? { username: debouncedUsername } : {}),
         ...(debouncedEmail ? { email: debouncedEmail } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(onboardingFilter ? { onboarding_status: onboardingFilter } : {}),
       })
       setRows(response.items)
       setCount(response.count)
@@ -184,7 +232,8 @@ export function InventoryClaimsTable() {
       setHasMore(false)
       handleFetchError(error, {
         genericMessage: "Failed to load profile claims",
-        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+        onGenericError: (description) =>
+          toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setFetching(false)
@@ -194,7 +243,7 @@ export function InventoryClaimsTable() {
 
   useEffect(() => {
     void fetchRows()
-  }, [limit, offset, debouncedUsername, debouncedEmail, statusFilter])
+  }, [limit, offset, debouncedUsername, debouncedEmail, statusFilter, onboardingFilter])
 
   const applyApproveToLocalRows = (approved: InventoryClaim) => {
     const now = approved.updated_at || new Date().toISOString()
@@ -209,7 +258,6 @@ export function InventoryClaimsTable() {
           }
           return row
         })
-        // When viewing Pending, remove rows that are no longer pending so the queue looks correct.
         .filter((row) => (statusFilter === "pending" ? row.status === "pending" : true)),
     )
   }
@@ -224,19 +272,22 @@ export function InventoryClaimsTable() {
           ? ` · ${result.rejected_count} other pending claim${result.rejected_count === 1 ? "" : "s"} rejected`
           : ""
       const userNote = result.user_updated ? " · linked user updated" : ""
+      const emailNote = result.email_sent
+        ? " · welcome email sent"
+        : " · welcome email not sent (funnel: awaiting email)"
 
-      // Update local badges immediately, then move to Approved so the new status is visible.
       applyApproveToLocalRows(result.claim)
       setClaimToApprove(null)
       setOffset(0)
       setStatusFilter("approved")
+      setOnboardingFilter("")
 
       toast({
         title: "Claim approved",
-        description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}. Public profile claim_status is claimed.`,
+        description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}${emailNote}.`,
+        variant: result.email_sent ? "default" : "destructive",
       })
 
-      // Bust artist-index inventory cache so public pages show verified immediately.
       void fetch("/api/artist-index/revalidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -247,10 +298,34 @@ export function InventoryClaimsTable() {
     } catch (error) {
       handleFetchError(error, {
         genericMessage: "Failed to approve claim",
-        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+        onGenericError: (description) =>
+          toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setApprovingId(null)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!claimToDelete) return
+    setDeletingId(claimToDelete.id)
+    try {
+      const result = await adminApiClient.adminDeleteInventoryClaim(claimToDelete.id)
+      setRows((prev) => prev.filter((row) => row.id !== result.id))
+      setCount((prev) => Math.max(0, prev - 1))
+      setClaimToDelete(null)
+      toast({
+        title: "Claim deleted",
+        description: `Removed claim for @${result.claim.username || claimToDelete.username}.`,
+      })
+    } catch (error) {
+      handleFetchError(error, {
+        genericMessage: "Failed to delete claim",
+        onGenericError: (description) =>
+          toast({ title: "Error", description, variant: "destructive" }),
+      })
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -261,7 +336,10 @@ export function InventoryClaimsTable() {
     usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
-  const colSpan = canInventoryClaimsWrite ? 8 : 7
+  const showOnboardingColumns = statusFilter === "approved" || statusFilter === ""
+  const baseCols = showOnboardingColumns ? 9 : 7
+  const colSpan = canInventoryClaimsWrite ? baseCols + 1 : baseCols
+  const actionInFlight = approvingId != null || deletingId != null
 
   if (isInitialLoad) {
     return (
@@ -288,13 +366,14 @@ export function InventoryClaimsTable() {
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         <p>
           <span className="font-medium text-foreground">Pending</span> → review queue.{" "}
-          <span className="font-medium text-foreground">Approve</span> sets that claim to Approved,
-          rejects other pending claims for the same username, updates the linked creator when
-          present, and sets public inventory <code className="text-xs">claim_status</code> to{" "}
-          <code className="text-xs">claimed</code>.
+          <span className="font-medium text-foreground">Approve</span> emails the artist an
+          onboarding link, rejects sibling pending claims, and marks the profile claimed.{" "}
+          <span className="font-medium text-foreground">Delete</span> removes a row without
+          rejecting siblings.
         </p>
         <p className="mt-1">
-          Standalone reject and claim-completion (password / magic link) are not available yet.
+          Track stuck artists with Approved + onboarding filters (email sent / link opened). Resend
+          email is not available yet.
         </p>
       </div>
 
@@ -309,6 +388,9 @@ export function InventoryClaimsTable() {
                 onClick={() => {
                   setOffset(0)
                   setStatusFilter(option.value)
+                  if (option.value !== "approved" && option.value !== "") {
+                    setOnboardingFilter("")
+                  }
                 }}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
@@ -322,6 +404,32 @@ export function InventoryClaimsTable() {
             )
           })}
         </div>
+
+        {statusFilter === "approved" || statusFilter === "" ? (
+          <div className="flex flex-wrap gap-2">
+            {ONBOARDING_OPTIONS.map((option) => {
+              const active = onboardingFilter === option.value
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => {
+                    setOffset(0)
+                    setOnboardingFilter(option.value)
+                  }}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="relative">
@@ -379,7 +487,12 @@ export function InventoryClaimsTable() {
                   statusFilter ? statusLabel(statusFilter) : "All statuses"
                 }`}
           </p>
-          <Button variant="outline" size="sm" onClick={() => void fetchRows(true)} disabled={refreshing || fetching}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchRows(true)}
+            disabled={refreshing || fetching}
+          >
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             <span className="ml-1">Refresh</span>
           </Button>
@@ -396,7 +509,7 @@ export function InventoryClaimsTable() {
         />
       ) : (
         <div className="rounded-lg border bg-background shadow-sm overflow-auto">
-          <table className={cn("w-full min-w-[960px] transition-opacity", fetching && "opacity-60")}>
+          <table className={cn("w-full min-w-[1100px] transition-opacity", fetching && "opacity-60")}>
             <thead className="sticky top-0 z-10 bg-muted/50">
               <tr className="border-b">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -409,16 +522,23 @@ export function InventoryClaimsTable() {
                   Email
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Discovery Source
+                  How they found us
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Status
                 </th>
+                {showOnboardingColumns ? (
+                  <>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Onboarding
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Funnel
+                    </th>
+                  </>
+                ) : null}
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Submitted
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Updated
                 </th>
                 {canInventoryClaimsWrite ? (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -435,59 +555,101 @@ export function InventoryClaimsTable() {
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium">{row.artist_name || row.username}</div>
-                      <Link
-                        href={`/artist-index/${encodeURIComponent(row.username)}`}
-                        className="text-primary hover:underline text-xs"
-                        target="_blank"
-                      >
-                        @{row.username}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{row.name}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
-                      {row.email}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      <DiscoverySourceCell claim={row} />
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>
-                        {statusLabel(row.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(row.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(row.updated_at)}
-                    </td>
-                    {canInventoryClaimsWrite ? (
-                      <td className="px-4 py-3 text-right">
-                        {row.status === "pending" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={approvingId === row.id}
-                            onClick={() => setClaimToApprove(row)}
-                          >
-                            {approvingId === row.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                            <span className="ml-1">Approve</span>
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                rows.map((row) => {
+                  const rowBusy = approvingId === row.id || deletingId === row.id
+                  return (
+                    <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm">
+                        <div className="font-medium">{row.artist_name || row.username}</div>
+                        <Link
+                          href={`/artist-index/${encodeURIComponent(row.username)}`}
+                          className="text-primary hover:underline text-xs"
+                          target="_blank"
+                        >
+                          @{row.username}
+                        </Link>
                       </td>
-                    ) : null}
-                  </tr>
-                ))
+                      <td className="px-4 py-3 text-sm">{row.name}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
+                        {row.email}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <DiscoverySourceCell claim={row} />
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>
+                          {statusLabel(row.status)}
+                        </Badge>
+                      </td>
+                      {showOnboardingColumns ? (
+                        <>
+                          <td className="px-4 py-3 text-sm">
+                            {row.status === "approved" ? (
+                              <Badge
+                                variant="outline"
+                                className={cn(onboardingBadgeClass(row.onboarding_status))}
+                              >
+                                {onboardingLabel(row.onboarding_status)}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {row.status === "approved" ? (
+                              <div className="space-y-0.5">
+                                <div>Email: {formatTimestamp(row.welcome_email_sent_at)}</div>
+                                <div>Opened: {formatTimestamp(row.onboard_verified_at)}</div>
+                                <div>Password: {formatTimestamp(row.password_set_at)}</div>
+                                <div>Login: {formatTimestamp(row.last_login_at)}</div>
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </>
+                      ) : null}
+                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                        {formatTimestamp(row.created_at)}
+                      </td>
+                      {canInventoryClaimsWrite ? (
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            {row.status === "pending" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={rowBusy || actionInFlight}
+                                onClick={() => setClaimToApprove(row)}
+                              >
+                                {approvingId === row.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                                <span className="ml-1">Approve</span>
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={rowBusy || actionInFlight}
+                              onClick={() => setClaimToDelete(row)}
+                              aria-label={`Delete claim from ${row.name}`}
+                            >
+                              {deletingId === row.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -531,9 +693,8 @@ export function InventoryClaimsTable() {
               {claimToApprove ? (
                 <>
                   Approve <strong>{claimToApprove.name}</strong> ({claimToApprove.email}) for{" "}
-                  <strong>@{claimToApprove.username}</strong>. Status becomes{" "}
-                  <strong>Approved</strong>; other pending claims for this profile become{" "}
-                  <strong>Rejected</strong>; public inventory moves to <strong>claimed</strong>.
+                  <strong>@{claimToApprove.username}</strong>. Other pending claims for this profile
+                  become Rejected, and a welcome email with an onboarding link is sent when possible.
                 </>
               ) : null}
             </DialogDescription>
@@ -549,6 +710,45 @@ export function InventoryClaimsTable() {
             <Button onClick={() => void handleApproveConfirm()} disabled={!!approvingId}>
               {approvingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               <span className={approvingId ? "ml-2" : undefined}>Approve claim</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!claimToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) setClaimToDelete(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this claim permanently?</DialogTitle>
+            <DialogDescription>
+              {claimToDelete ? (
+                <>
+                  Removes the claim from <strong>{claimToDelete.name}</strong> (
+                  {claimToDelete.email}) for <strong>@{claimToDelete.username}</strong>. This does
+                  not reject sibling claims or revert a linked user&apos;s name/email.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setClaimToDelete(null)}
+              disabled={!!deletingId}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDeleteConfirm()}
+              disabled={!!deletingId}
+            >
+              {deletingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <span className={deletingId ? "ml-2" : undefined}>Delete claim</span>
             </Button>
           </DialogFooter>
         </DialogContent>

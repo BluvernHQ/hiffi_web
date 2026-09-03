@@ -3,14 +3,17 @@ import type { AdminApiClientContext } from "./context"
 import { unwrapSuccessData } from "./envelope"
 import type {
   InventoryClaimApproveResponse,
+  InventoryClaimDeleteResponse,
   InventoryClaimListResponse,
   InventoryListResponse,
   InventoryUploadResult,
   InventoryClaimStatus,
+  OnboardingStatus,
 } from "@/lib/types/inventory"
 import {
   normalizeInventoryClaim,
   normalizeInventoryClaimApproveResponse,
+  normalizeInventoryClaimDeleteResponse,
   normalizeInventoryEntry,
 } from "@/lib/types/inventory"
 
@@ -145,6 +148,7 @@ export async function adminListInventoryClaims(
     username?: string
     email?: string
     status?: InventoryClaimStatus
+    onboarding_status?: OnboardingStatus
   } = {},
 ): Promise<InventoryClaimListResponse> {
   const sp = new URLSearchParams()
@@ -153,6 +157,7 @@ export async function adminListInventoryClaims(
   if (params.username?.trim()) sp.set("username", params.username.trim())
   if (params.email?.trim()) sp.set("email", params.email.trim())
   if (params.status) sp.set("status", params.status)
+  if (params.onboarding_status) sp.set("onboarding_status", params.onboarding_status)
 
   const endpoint = `/admin/inventory/claims${sp.toString() ? `?${sp.toString()}` : ""}`
   const raw = await ctx.request<unknown>(endpoint, { method: "GET" }, true)
@@ -186,6 +191,22 @@ export async function adminApproveInventoryClaim(
   )
   const data = unwrapSuccessData<Record<string, unknown>>(raw)
   return normalizeInventoryClaimApproveResponse(data)
+}
+
+export async function adminDeleteInventoryClaim(
+  ctx: AdminApiClientContext,
+  claimID: string,
+): Promise<InventoryClaimDeleteResponse> {
+  const id = claimID.trim()
+  if (!id) throw new Error("claim id is required")
+
+  const raw = await ctx.request<unknown>(
+    `/admin/inventory/claims/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    true,
+  )
+  const data = unwrapSuccessData<Record<string, unknown>>(raw)
+  return normalizeInventoryClaimDeleteResponse(data)
 }
 
 function parseContentDispositionFilename(header: string | null, fallback: string): string {

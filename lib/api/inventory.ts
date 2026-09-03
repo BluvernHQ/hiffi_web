@@ -1,6 +1,8 @@
 import type {
   ApiError,
   ApiSuccess,
+  ClaimOnboardCompleteResponse,
+  ClaimOnboardVerifyResponse,
   InventoryClaimSubmit,
   InventoryClaimSubmitResponse,
 } from "@/lib/types/inventory"
@@ -43,6 +45,66 @@ export async function submitInventoryClaim(
       ("error" in body && body.error) ||
       ("message" in body && body.message) ||
       `Could not submit claim (HTTP ${res.status})`
+    throw new InventoryClaimError(message, res.status)
+  }
+
+  return body.data
+}
+
+export async function verifyClaimOnboard(
+  code: string,
+  turnstileToken?: string,
+): Promise<ClaimOnboardVerifyResponse> {
+  const res = await fetch("/api/inventory/claims/onboard/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: code.trim(),
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    }),
+  })
+
+  const body = (await res.json()) as
+    | ApiSuccess<ClaimOnboardVerifyResponse>
+    | ApiError
+    | { success: false; error?: string; message?: string }
+
+  if (!res.ok || !body.success) {
+    const message =
+      ("error" in body && body.error) ||
+      ("message" in body && body.message) ||
+      `Could not verify onboarding link (HTTP ${res.status})`
+    throw new InventoryClaimError(message, res.status)
+  }
+
+  return body.data
+}
+
+export async function completeClaimOnboard(
+  code: string,
+  password: string,
+  turnstileToken?: string,
+): Promise<ClaimOnboardCompleteResponse> {
+  const res = await fetch("/api/inventory/claims/onboard/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: code.trim(),
+      password,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    }),
+  })
+
+  const body = (await res.json()) as
+    | ApiSuccess<ClaimOnboardCompleteResponse>
+    | ApiError
+    | { success: false; error?: string; message?: string }
+
+  if (!res.ok || !body.success) {
+    const message =
+      ("error" in body && body.error) ||
+      ("message" in body && body.message) ||
+      `Could not complete onboarding (HTTP ${res.status})`
     throw new InventoryClaimError(message, res.status)
   }
 
