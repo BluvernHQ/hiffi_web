@@ -63,6 +63,141 @@ function formatTimestamp(value?: string): string {
   return format(date, "MMM d, yyyy · h:mm a")
 }
 
+function formatFunnelTime(value?: string): string {
+  if (!value) return "Pending"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return format(date, "MMM d · h:mm a")
+}
+
+const FUNNEL_STEPS = [
+  { key: "email", label: "Email sent", field: "welcome_email_sent_at" as const },
+  { key: "opened", label: "Link opened", field: "onboard_verified_at" as const },
+  { key: "password", label: "Password set", field: "password_set_at" as const },
+  { key: "login", label: "Logged in", field: "last_login_at" as const },
+]
+
+function OnboardingFunnelCell({ claim }: { claim: InventoryClaim }) {
+  const steps = FUNNEL_STEPS.map((step) => ({
+    ...step,
+    at: claim[step.field],
+  }))
+  const doneCount = steps.filter((step) => Boolean(step.at)).length
+  const complete = doneCount === steps.length
+  const nextStep = steps.find((step) => !step.at)
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "group flex w-full min-w-[168px] flex-col gap-1.5 rounded-lg border px-2.5 py-2 text-left transition-colors",
+            "hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            complete ? "border-emerald-200 bg-emerald-50/50" : "border-border bg-background",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={cn(
+                "text-[11px] font-semibold tabular-nums",
+                complete ? "text-emerald-700" : "text-foreground",
+              )}
+            >
+              {doneCount}/{steps.length}
+            </span>
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground group-hover:text-foreground">
+              Details
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1" aria-hidden>
+            {steps.map((step) => (
+              <span
+                key={step.key}
+                title={step.label}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full",
+                  step.at ? (complete ? "bg-emerald-500" : "bg-primary") : "bg-muted",
+                )}
+              />
+            ))}
+          </div>
+
+          <p className="truncate text-[11px] text-muted-foreground">
+            {complete
+              ? "Onboarding complete"
+              : nextStep
+                ? `Next: ${nextStep.label}`
+                : "No progress yet"}
+          </p>
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent align="start" className="w-72 p-3">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Onboarding funnel</p>
+            <p className="text-xs text-muted-foreground">@{claim.username}</p>
+          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              "shrink-0",
+              complete
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-border text-muted-foreground",
+            )}
+          >
+            {doneCount}/{steps.length}
+          </Badge>
+        </div>
+
+        <ol className="space-y-2.5">
+          {steps.map((step, index) => {
+            const done = Boolean(step.at)
+            const isLast = index === steps.length - 1
+            return (
+              <li key={step.key} className="relative flex items-start gap-2.5">
+                {!isLast ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute left-[7px] top-4 h-[calc(100%-2px)] w-px",
+                      done ? "bg-emerald-300" : "bg-border",
+                    )}
+                  />
+                ) : null}
+                <span
+                  className={cn(
+                    "relative z-[1] mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border",
+                    done
+                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      : "border-muted-foreground/30 bg-background",
+                  )}
+                >
+                  {done ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                </span>
+                <div className="min-w-0 leading-tight">
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      done ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {step.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatFunnelTime(step.at)}</p>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function discoverySourceDisplay(claim: InventoryClaim): {
   label: string
   detail?: string
@@ -595,16 +730,11 @@ export function InventoryClaimsTable() {
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                          <td className="px-4 py-3 align-top">
                             {row.status === "approved" ? (
-                              <div className="space-y-0.5">
-                                <div>Email: {formatTimestamp(row.welcome_email_sent_at)}</div>
-                                <div>Opened: {formatTimestamp(row.onboard_verified_at)}</div>
-                                <div>Password: {formatTimestamp(row.password_set_at)}</div>
-                                <div>Login: {formatTimestamp(row.last_login_at)}</div>
-                              </div>
+                              <OnboardingFunnelCell claim={row} />
                             ) : (
-                              "—"
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </td>
                         </>
