@@ -23,6 +23,22 @@ type ProfileEmailRevealProps = {
   className?: string
 }
 
+async function readJsonSafe(res: Response): Promise<{
+  success?: boolean
+  error?: string
+}> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text) as { success?: boolean; error?: string }
+  } catch {
+    throw new Error(
+      res.ok
+        ? "Could not reveal email. Please try again."
+        : `Could not reveal email (${res.status}). Refresh the page and try again.`,
+    )
+  }
+}
+
 export function ProfileEmailReveal({
   username,
   email,
@@ -58,10 +74,11 @@ export function ProfileEmailReveal({
     setSubmitting(true)
     try {
       const token = apiClient.getAuthToken()
-      const res = await fetch("/api/profile/reveal-email", {
+      const res = await fetch("/api/users/reveal-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
@@ -69,13 +86,9 @@ export function ProfileEmailReveal({
           ...(challenge.token ? { turnstile_token: challenge.token } : {}),
         }),
       })
-      const body = (await res.json()) as {
-        success?: boolean
-        data?: { email?: string }
-        error?: string
-      }
+      const body = await readJsonSafe(res)
 
-      if (!res.ok || !body.success || !body.data?.email) {
+      if (!res.ok || !body.success) {
         if (res.status === 401) {
           onRequestSignIn?.()
           setPhase("idle")
@@ -84,7 +97,7 @@ export function ProfileEmailReveal({
         throw new Error(body.error || "Could not reveal email")
       }
 
-      setRevealedEmail(body.data.email)
+      setRevealedEmail(email)
       setPhase("revealed")
       resetTurnstile()
     } catch (err) {
@@ -109,11 +122,11 @@ export function ProfileEmailReveal({
   }
 
   return (
-    <div className={cn("pt-3 border-t", className)}>
+    <div className={cn("pt-3 border-t min-w-0", className)}>
       <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Email</Label>
 
       {phase === "revealed" && displayEmail ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           <a
             href={`mailto:${displayEmail}`}
@@ -152,16 +165,18 @@ export function ProfileEmailReveal({
       ) : null}
 
       {phase === "challenge" ? (
-        <div className="flex items-start gap-2">
-          <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-1" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <TurnstileFormField
-              action={TURNSTILE_ACTION}
-              widgetRef={turnstileRef}
-              onToken={setTurnstileToken}
-            />
-            {error ? <p className="text-xs text-destructive">{error}</p> : null}
-            <div className="flex flex-wrap gap-2">
+        <div className="space-y-3 min-w-0">
+          <div className="flex items-start gap-2 min-w-0">
+            <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-1" />
+            <div className="min-w-0 flex-1 space-y-2 overflow-hidden">
+              <TurnstileFormField
+                action={TURNSTILE_ACTION}
+                widgetRef={turnstileRef}
+                onToken={setTurnstileToken}
+                size="compact"
+                className="justify-start"
+              />
+              {error ? <p className="text-xs text-destructive break-words">{error}</p> : null}
               <Button
                 type="button"
                 size="sm"
@@ -172,25 +187,14 @@ export function ProfileEmailReveal({
                 {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 <span className={submitting ? "ml-1.5" : undefined}>Submit</span>
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={submitting}
-                onClick={() => {
-                  setPhase("idle")
-                  setError("")
-                  resetTurnstile()
-                }}
-              >
-                Cancel
-              </Button>
             </div>
           </div>
         </div>
       ) : null}
 
-      {phase === "idle" && error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+      {phase === "idle" && error ? (
+        <p className="mt-2 text-xs text-destructive break-words">{error}</p>
+      ) : null}
     </div>
   )
 }
