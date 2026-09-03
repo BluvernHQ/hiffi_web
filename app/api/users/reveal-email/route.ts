@@ -12,10 +12,16 @@ type Body = {
 /**
  * Confirms the viewer is signed in and passed Turnstile before the client
  * reveals a profile email. Does not return the email (already gated in UI).
+ *
+ * Auth uses `X-Hiffi-Authorization` (not `Authorization`) so nginx Basic Auth
+ * on staging is not overwritten by the user JWT.
  */
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization")?.trim() ?? ""
+    const authHeader =
+      request.headers.get("x-hiffi-authorization")?.trim() ||
+      request.headers.get("authorization")?.trim() ||
+      ""
     if (!authHeader.toLowerCase().startsWith("bearer ")) {
       return NextResponse.json(
         { success: false, error: "Sign in to see this email address." },

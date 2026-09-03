@@ -79,7 +79,8 @@ export function ProfileEmailReveal({
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          // Avoid Authorization: Bearer — it conflicts with nginx Basic Auth on staging.
+          ...(token ? { "X-Hiffi-Authorization": `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           username,
