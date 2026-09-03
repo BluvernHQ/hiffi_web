@@ -84,6 +84,7 @@ import {
   adminListInventory as apiAdminListInventory,
   adminListInventoryClaims as apiAdminListInventoryClaims,
   adminApproveInventoryClaim as apiAdminApproveInventoryClaim,
+  adminDeleteInventoryClaim as apiAdminDeleteInventoryClaim,
   adminUploadInventory as apiAdminUploadInventory,
   adminDownloadInventoryTemplate as apiAdminDownloadInventoryTemplate,
   adminExportInventory as apiAdminExportInventory,
@@ -375,6 +376,10 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminApproveInventoryClaim(claimID: string) {
     return apiAdminApproveInventoryClaim(this, claimID)
+  }
+
+  async adminDeleteInventoryClaim(claimID: string) {
+    return apiAdminDeleteInventoryClaim(this, claimID)
   }
 
   async adminDownloadInventoryTemplate() {

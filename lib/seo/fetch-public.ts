@@ -474,6 +474,7 @@ export async function fetchVideoEntriesForSitemap(maxVideos = 50_000): Promise<S
       const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
         headers: { "Content-Type": "application/json" },
         next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) break
 

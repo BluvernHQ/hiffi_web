@@ -26,7 +26,10 @@ export const ADMIN_PERMISSIONS = {
   "admin:admins": ["super_admin"],
   "admin:inventory": ["super_admin", "read_only"],
   "admin:inventory_upload": ["super_admin"],
+  /** @deprecated Prefer `inventory.claims:read` (catalog key). */
   "admin:inventory_claims": ["super_admin", "read_only"],
+  "inventory.claims:read": ["super_admin", "read_only"],
+  "inventory.claims:write": ["super_admin"],
   "admin:creators": ["super_admin", "read_only"],
   "admin:tools": ["super_admin", "read_only"],
 } as const satisfies Record<string, readonly AdminRole[]>

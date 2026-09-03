@@ -491,7 +491,7 @@ export function CreatorsOverview() {
                 label="Pending inventory claims"
                 value={funnel.applied.pending_claims}
                 hint="Stay open until an admin acts"
-                href="/admin/dashboard?section=artist_inventory"
+                href="/admin/dashboard?section=artist_inventory&inventory_tab=claims"
               />
               <QueueCard
                 label="Pending OTP upgrades"

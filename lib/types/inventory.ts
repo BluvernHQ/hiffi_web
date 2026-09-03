@@ -116,6 +116,12 @@ export interface InventoryClaimApproveResponse {
   user_updated: boolean
 }
 
+export interface InventoryClaimDeleteResponse {
+  deleted: true
+  id: string
+  claim: InventoryClaim
+}
+
 export interface InventoryEntry {
   id: number
   username: string
@@ -209,19 +215,19 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
       : undefined
 
   const discoverySource =
-  raw.discovery_source != null && String(raw.discovery_source).trim()
-    ? (String(raw.discovery_source).trim() as DiscoverySource)
-    : undefined
+    raw.discovery_source != null && String(raw.discovery_source).trim()
+      ? (String(raw.discovery_source).trim() as DiscoverySource)
+      : undefined
 
-const discoverySourceOther =
-  raw.discovery_source_other != null && String(raw.discovery_source_other).trim()
-    ? String(raw.discovery_source_other).trim()
-    : undefined
+  const discoverySourceOther =
+    raw.discovery_source_other != null && String(raw.discovery_source_other).trim()
+      ? String(raw.discovery_source_other).trim()
+      : undefined
 
-const discoverySourceLabel =
-  raw.discovery_source_label != null && String(raw.discovery_source_label).trim()
-    ? String(raw.discovery_source_label).trim()
-    : undefined
+  const discoverySourceLabel =
+    raw.discovery_source_label != null && String(raw.discovery_source_label).trim()
+      ? String(raw.discovery_source_label).trim()
+      : undefined
 
   return {
     id: String(raw.id ?? "").trim(),
@@ -251,6 +257,22 @@ export function normalizeInventoryClaimApproveResponse(
     claim: normalizeInventoryClaim(claimRaw),
     rejected_count: Number(raw.rejected_count ?? 0),
     user_updated: Boolean(raw.user_updated),
+  }
+}
+
+export function normalizeInventoryClaimDeleteResponse(
+  raw: Record<string, unknown>,
+): InventoryClaimDeleteResponse {
+  const claimRaw =
+    raw.claim && typeof raw.claim === "object" && !Array.isArray(raw.claim)
+      ? (raw.claim as Record<string, unknown>)
+      : {}
+  const id = String(raw.id ?? claimRaw.id ?? "").trim()
+
+  return {
+    deleted: true,
+    id,
+    claim: normalizeInventoryClaim(claimRaw),
   }
 }
 

@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
+  <meta name="x-apple-disable-message-reformatting">
 
   <title>Welcome to Hiffi</title>
 
@@ -77,20 +81,21 @@
       padding: 16px 22px;
     }
 
+    .button-ghost {
+      display: inline-block;
+      background: #ed171d;
+      color: #ffffff !important;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .2px;
+      padding: 11px 16px;
+      border: 1px solid #ed171d;
+      text-decoration: none;
+    }
+
     /* Side-by-side rows: text left, image right (all viewports) */
-    .hero-table,
-    .catalogue-table {
-      table-layout: fixed;
-    }
-
-    .hero-text,
-    .hero-image-cell,
-    .catalogue-text,
-    .catalogue-image-cell {
-      display: table-cell !important;
-      vertical-align: middle !important;
-    }
-
     .hero-image,
     .catalogue-image {
       display: block;
@@ -112,6 +117,25 @@
       max-width: 265px;
     }
 
+    /* Line break only on desktop — mobile stays one line (Gmail-safe default) */
+    .catalogue-title-br {
+      display: none !important;
+      max-height: 0 !important;
+      overflow: hidden !important;
+      font-size: 0 !important;
+      line-height: 0 !important;
+    }
+
+    @media only screen and (min-width: 601px) {
+      .catalogue-title-br {
+        display: inline !important;
+        max-height: none !important;
+        overflow: visible !important;
+        font-size: inherit !important;
+        line-height: inherit !important;
+      }
+    }
+
     /* -------------------------------
        MOBILE
     -------------------------------- */
@@ -123,20 +147,19 @@
         padding-right: 16px !important;
       }
 
-      /* HERO — keep image on the right */
+      /* HERO — column widths are handled by the fluid-hybrid max-width
+         on .hero-text / .hero-image-cell in the markup, not here */
 
       .hero-text {
-        width: 48% !important;
         padding-right: 10px !important;
       }
 
-      .hero-image-cell {
-        width: 52% !important;
-        text-align: right !important;
-        padding-left: 0 !important;
+      .hero-image-wrap {
+        max-width: 160px !important;
       }
 
-      .hero-image-wrap {
+      .hero-image {
+        width: 160px !important;
         max-width: 100% !important;
       }
 
@@ -167,22 +190,23 @@
         letter-spacing: 0 !important;
       }
 
-      /* CATALOGUE — keep image on the right */
+      /* CATALOGUE — column widths are handled by the fluid-hybrid max-width
+         on .catalogue-text / .catalogue-image-cell in the markup, not here */
 
       .catalogue-text {
-        width: 48% !important;
         padding: 16px 10px 16px 14px !important;
-        box-sizing: border-box !important;
       }
 
       .catalogue-image-cell {
-        width: 52% !important;
         padding: 8px 8px 8px 0 !important;
-        box-sizing: border-box !important;
-        text-align: right !important;
       }
 
       .catalogue-image-wrap {
+        max-width: 140px !important;
+      }
+
+      .catalogue-image {
+        width: 140px !important;
         max-width: 100% !important;
       }
 
@@ -192,7 +216,15 @@
 
       .catalogue-title {
         margin-top: 5px !important;
-        font-size: 18px !important;
+        font-size: 14px !important;
+        white-space: nowrap !important;
+      }
+
+      .catalogue-title-br {
+        display: none !important;
+        max-height: 0 !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
       }
 
       .catalogue-copy {
@@ -254,6 +286,11 @@
         font-size: 9px !important;
       }
 
+      .button-ghost {
+        font-size: 9px !important;
+        padding: 10px 12px !important;
+      }
+
       /* FOOTER */
 
       .footer-link {
@@ -269,12 +306,21 @@
 
 <body>
 
+<!-- Preheader: controls the inbox preview snippet in Gmail. Hidden visually, read by inbox preview + screen readers. -->
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#050505; opacity:0;">
+  Your artist space on Hiffi is ready — bring your music and start building your presence.
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+  &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+</div>
+
 <table
   class="email-wrapper"
   width="100%"
   cellpadding="0"
   cellspacing="0"
   bgcolor="#050505"
+  role="presentation"
 >
 
 <tr>
@@ -292,6 +338,7 @@
   cellpadding="0"
   cellspacing="0"
   bgcolor="#050505"
+  role="presentation"
 >
 
 
@@ -306,6 +353,8 @@
   style="
     padding-top:28px;
     padding-bottom:28px;
+    padding-left:20px;
+    padding-right:20px;
   "
 >
 
@@ -313,6 +362,7 @@
   width="100%"
   cellpadding="0"
   cellspacing="0"
+  role="presentation"
 >
 
 <tr>
@@ -322,7 +372,7 @@
   valign="middle"
 >
 
-<a href="https://dev.hiffi.com/">
+<a href="https://www.hiffi.com/">
 
 <img
   src="https://www.hiffi.com/appbarlogo.png"
@@ -377,38 +427,32 @@ Your stage.
   class="content"
   style="
     padding-bottom:36px;
+    padding-left:20px;
+    padding-right:20px;
   "
 >
 
-<table
+<!-- FLUID-HYBRID: inline-block columns with max-width instead of table cells with
+     percentage widths. This adapts to narrow screens using pure box-model wrapping,
+     so it works even in clients that ignore the @media rules above (e.g. Gmail's
+     mobile web/browser view, which renders the <style> block but not media queries). -->
+<div
   class="hero-table"
-  width="100%"
-  cellpadding="0"
-  cellspacing="0"
-  role="presentation"
-  dir="ltr"
->
-
-
-<tr>
-
-
-<!-- HERO TEXT -->
-
-<td
-  class="hero-text"
-  width="52%"
-  valign="middle"
-  align="left"
   style="
-    padding-right:24px;
+    font-size:0;
+    line-height:0;
+    text-align:left;
   "
 >
 
+<!-- HEADLINE: full-width row, not paired with the image. Keeping it out of the
+     text/image column means it never has to compete for horizontal space, and
+     it can't end up vertically centered against a much shorter image. -->
 <div
   class="hero-title"
   style="
-    font-size:58px;
+    font-size:34px;
+    font-size:clamp(34px, 9vw, 58px);
     line-height:.86;
     font-weight:900;
     letter-spacing:-2px;
@@ -419,25 +463,55 @@ Your stage.
 YOU'RE
 <br>
 
-<span class="red">
+<span class="red" style="color:#ed171d;">
 IN.
 </span>
 
 </div>
 
 
+<!-- FLUID-HYBRID: welcome + body text paired with the image, top-aligned so
+     they line up naturally whether they sit side by side or wrap to stack. -->
+<div
+  class="hero-table"
+  style="
+    margin-top:20px;
+    font-size:0;
+    line-height:0;
+    text-align:left;
+  "
+>
+
+<!-- HERO TEXT -->
+
+<div
+  class="hero-text"
+  style="
+    display:inline-block;
+    width:100%;
+    max-width:300px;
+    min-width:200px;
+    vertical-align:top;
+    font-size:14px;
+    line-height:normal;
+    padding-right:16px;
+    box-sizing:border-box;
+  "
+>
+
 <div
   class="hero-welcome"
   style="
-    margin-top:20px;
-    font-size:17px;
+    font-size:13px;
+    font-size:clamp(13px, 3.1vw, 17px);
     line-height:1.3;
     font-weight:700;
+    color:#ffffff;
   "
 >
 
 Welcome to Hiffi,
-<span class="red">
+<span class="red" style="color:#ed171d;">
 Hemangi
 </span>
 
@@ -448,7 +522,8 @@ Hemangi
   class="hero-body"
   style="
     margin-top:9px;
-    font-size:14px;
+    font-size:11px;
+    font-size:clamp(11px, 2.5vw, 14px);
     line-height:1.55;
     color:#a7a7a7;
   "
@@ -460,44 +535,61 @@ building your presence.
 
 </div>
 
-</td>
+</div>
 
 
 
 <!-- HERO IMAGE -->
 
-<td
+<div
   class="hero-image-cell"
-  width="48%"
-  valign="middle"
-  align="right"
   style="
+    display:inline-block;
+    width:100%;
+    max-width:260px;
+    vertical-align:top;
+    font-size:14px;
+    line-height:normal;
     text-align:right;
   "
 >
 
-<div class="hero-image-wrap">
+<div
+  class="hero-image-wrap"
+  style="
+    width:100%;
+    max-width:260px;
+    margin-left:auto;
+    line-height:0;
+  "
+>
   <img
     class="hero-image"
     src="https://res.cloudinary.com/unch5ixu/image/upload/v1788185870/image.jpg"
-    width="300"
+    width="260"
     alt="Hiffi artist performing"
     style="
       display:block;
-      width:100%;
+      width:260px;
       max-width:100%;
       height:auto;
-      margin-left:auto;
+      margin:0 0 0 auto;
+      border:0;
+      outline:none;
+      text-decoration:none;
     "
   >
 </div>
 
-</td>
 
+<!-- closes .hero-image-cell -->
+</div>
 
-</tr>
+<!-- closes inner fluid-hybrid row (welcome/body + image) -->
+</div>
 
-</table>
+<!-- closes outer .hero-table wrapper (headline + row) -->
+</div>
 
 </td>
 
@@ -515,33 +607,40 @@ building your presence.
   class="content"
   style="
     padding-bottom:36px;
+    padding-left:20px;
+    padding-right:20px;
   "
 >
 
 
-<table
+<!-- FLUID-HYBRID: same technique as the hero section above -->
+<div
   class="catalogue-table"
-  width="100%"
-  cellpadding="0"
-  cellspacing="0"
   bgcolor="#0b0b0b"
   style="
+    background:#0b0b0b;
     border:1px solid #2a2a2a;
+    font-size:0;
+    line-height:0;
+    text-align:left;
   "
 >
-
-
-<tr>
 
 
 <!-- TEXT -->
 
-<td
+<div
   class="catalogue-text"
-  width="55%"
-  valign="middle"
   style="
-    padding:26px;
+    display:inline-block;
+    width:100%;
+    max-width:300px;
+    min-width:200px;
+    vertical-align:middle;
+    font-size:14px;
+    line-height:normal;
+    padding:22px 14px 22px 18px;
+    box-sizing:border-box;
   "
 >
 
@@ -549,7 +648,8 @@ building your presence.
 <div
   class="catalogue-eyebrow"
   style="
-    font-size:11px;
+    font-size:9px;
+    font-size:clamp(9px, 2vw, 11px);
     font-weight:700;
     letter-spacing:.6px;
     color:#ed171d;
@@ -566,17 +666,17 @@ ALREADY HAVE MUSIC?
   class="catalogue-title"
   style="
     margin-top:7px;
-    font-size:27px;
+    font-size:18px;
+    font-size:clamp(18px, 5.5vw, 27px);
     line-height:.94;
     font-weight:900;
     letter-spacing:-.5px;
     text-transform:uppercase;
+    color:#ffffff;
   "
 >
 
-DON'T START
-<br>
-FROM ZERO.
+DON'T START<!--[if mso]><br><![endif]--><span class="catalogue-title-br" style="display:none;font-size:0;line-height:0;max-height:0;overflow:hidden;mso-hide:all;"><br></span> FROM ZERO.
 
 </div>
 
@@ -585,7 +685,8 @@ FROM ZERO.
   class="catalogue-copy"
   style="
     margin-top:12px;
-    font-size:14px;
+    font-size:11px;
+    font-size:clamp(11px, 2.5vw, 14px);
     line-height:1.5;
     color:#999999;
   "
@@ -600,11 +701,12 @@ to Hiffi in just a few clicks.
 <div class="catalogue-link" style="margin-top:18px;">
 
 <a
-  href="https://dev.hiffi.com/studio/tools/migrate"
+  href="https://www.hiffi.com/studio/tools/migrate"
   class="small-link"
   style="
     color:#ed171d;
-    font-size:12px;
+    font-size:9px;
+    font-size:clamp(9px, 2.2vw, 12px);
     font-weight:700;
     text-transform:uppercase;
   "
@@ -617,45 +719,57 @@ COPY MY CATALOGUE&nbsp; →
 </div>
 
 
-</td>
+</div>
 
 
 
 <!-- IMAGE -->
 
-<td
+<div
   class="catalogue-image-cell"
-  width="45%"
-  valign="middle"
-  align="right"
   style="
+    display:inline-block;
+    width:100%;
+    max-width:220px;
+    vertical-align:middle;
+    font-size:14px;
+    line-height:normal;
     padding:10px 12px 10px 6px;
+    box-sizing:border-box;
     text-align:right;
   "
 >
 
-<div class="catalogue-image-wrap">
+<div
+  class="catalogue-image-wrap"
+  style="
+    width:100%;
+    max-width:220px;
+    margin-left:auto;
+    line-height:0;
+  "
+>
   <img
     class="catalogue-image"
     src="https://res.cloudinary.com/unch5ixu/image/upload/v1788186803/image_2.jpg"
-    width="265"
+    width="220"
     alt="Import your Hiffi catalogue"
     style="
       display:block;
-      width:100%;
+      width:220px;
       max-width:100%;
       height:auto;
-      margin-left:auto;
+      margin:0 0 0 auto;
+      border:0;
+      outline:none;
+      text-decoration:none;
     "
   >
 </div>
 
-</td>
+</div>
 
-
-</tr>
-
-</table>
+</div>
 
 </td>
 
@@ -673,6 +787,8 @@ COPY MY CATALOGUE&nbsp; →
   class="content"
   style="
     padding-bottom:34px;
+    padding-left:20px;
+    padding-right:20px;
   "
 >
 
@@ -680,15 +796,17 @@ COPY MY CATALOGUE&nbsp; →
 <div
   align="center"
   style="
-    font-size:22px;
+    font-size:16px;
+    font-size:clamp(16px, 4vw, 22px);
     line-height:1.1;
     font-weight:900;
     text-transform:uppercase;
+    color:#ffffff;
   "
 >
 
 START HERE:
-<span class="red">
+<span class="red" style="color:#ed171d;">
 3 SIMPLE STEPS
 </span>
 
@@ -701,6 +819,7 @@ START HERE:
   width="100%"
   cellpadding="0"
   cellspacing="0"
+  role="presentation"
   style="
     margin-top:22px;
   "
@@ -725,7 +844,8 @@ START HERE:
 <div
   class="step-number"
   style="
-    font-size:25px;
+    font-size:21px;
+    font-size:clamp(21px, 4.5vw, 25px);
     line-height:1;
     font-weight:900;
     color:#ed171d;
@@ -739,9 +859,11 @@ START HERE:
   class="step-title"
   style="
     margin-top:7px;
-    font-size:11px;
+    font-size:9px;
+    font-size:clamp(9px, 2vw, 11px);
     font-weight:700;
     text-transform:uppercase;
+    color:#ffffff;
   "
 >
 BUILD PROFILE
@@ -752,7 +874,8 @@ BUILD PROFILE
   class="step-copy"
   style="
     margin-top:5px;
-    font-size:10px;
+    font-size:8px;
+    font-size:clamp(8px, 1.8vw, 10px);
     line-height:1.4;
     color:#777777;
   "
@@ -782,7 +905,8 @@ who you are.
 <div
   class="step-number"
   style="
-    font-size:25px;
+    font-size:21px;
+    font-size:clamp(21px, 4.5vw, 25px);
     line-height:1;
     font-weight:900;
     color:#ed171d;
@@ -796,9 +920,11 @@ who you are.
   class="step-title"
   style="
     margin-top:7px;
-    font-size:11px;
+    font-size:9px;
+    font-size:clamp(9px, 2vw, 11px);
     font-weight:700;
     text-transform:uppercase;
+    color:#ffffff;
   "
 >
 BRING MUSIC
@@ -809,7 +935,8 @@ BRING MUSIC
   class="step-copy"
   style="
     margin-top:5px;
-    font-size:10px;
+    font-size:8px;
+    font-size:clamp(8px, 1.8vw, 10px);
     line-height:1.4;
     color:#777777;
   "
@@ -837,7 +964,8 @@ catalogue.
 <div
   class="step-number"
   style="
-    font-size:25px;
+    font-size:21px;
+    font-size:clamp(21px, 4.5vw, 25px);
     line-height:1;
     font-weight:900;
     color:#ed171d;
@@ -851,9 +979,11 @@ catalogue.
   class="step-title"
   style="
     margin-top:7px;
-    font-size:11px;
+    font-size:9px;
+    font-size:clamp(9px, 2vw, 11px);
     font-weight:700;
     text-transform:uppercase;
+    color:#ffffff;
   "
 >
 START CREATING
@@ -864,7 +994,8 @@ START CREATING
   class="step-copy"
   style="
     margin-top:5px;
-    font-size:10px;
+    font-size:8px;
+    font-size:clamp(8px, 1.8vw, 10px);
     line-height:1.4;
     color:#777777;
   "
@@ -895,7 +1026,9 @@ space yours.
 <td
   class="content"
   style="
-    padding-bottom:34px;
+    padding-bottom:22px;
+    padding-left:20px;
+    padding-right:20px;
   "
 >
 
@@ -906,6 +1039,7 @@ space yours.
   cellpadding="0"
   cellspacing="0"
   bgcolor="#0a0a0a"
+  role="presentation"
   style="
     border:1px solid #252525;
   "
@@ -921,8 +1055,10 @@ space yours.
   class="support-cell"
   width="50%"
   valign="middle"
+  align="center"
   style="
-    padding:18px 20px;
+    padding:14px 16px;
+    text-align:center;
   "
 >
 
@@ -932,6 +1068,7 @@ space yours.
     font-size:10px;
     color:#777777;
     text-transform:uppercase;
+    letter-spacing:.4px;
   "
 >
 
@@ -940,20 +1077,27 @@ HAVE AN IDEA?
 </div>
 
 
+
 <a
-  href="https://dev.hiffi.com/feature-request"
-  class="support-link"
+  href="https://www.hiffi.com/feature-request"
+  class="button-ghost"
   style="
-    display:block;
-    margin-top:5px;
-    color:#ffffff;
-    font-size:12px;
+    display:inline-block;
+    margin-top:8px;
+    background:#ed171d;
+    color:#ffffff !important;
+    font-size:11px;
+    line-height:1;
     font-weight:700;
     text-transform:uppercase;
+    letter-spacing:.2px;
+    text-decoration:none;
+    padding:9px 14px;
+    border:1px solid #ed171d;
   "
 >
 
-REQUEST A FEATURE&nbsp; →
+Request a feature
 
 </a>
 
@@ -967,9 +1111,11 @@ REQUEST A FEATURE&nbsp; →
   class="support-cell"
   width="50%"
   valign="middle"
+  align="center"
   style="
-    padding:18px 20px;
+    padding:14px 16px;
     border-left:1px solid #252525;
+    text-align:center;
   "
 >
 
@@ -979,6 +1125,7 @@ REQUEST A FEATURE&nbsp; →
     font-size:10px;
     color:#777777;
     text-transform:uppercase;
+    letter-spacing:.4px;
   "
 >
 
@@ -987,20 +1134,27 @@ WE'D LOVE TO KNOW
 </div>
 
 
+
 <a
-  href="https://dev.hiffi.com/hiffi-discovery-form"
-  class="support-link"
+  href="https://www.hiffi.com/hiffi-discovery-form"
+  class="button-ghost"
   style="
-    display:block;
-    margin-top:5px;
-    color:#ffffff;
-    font-size:12px;
+    display:inline-block;
+    margin-top:8px;
+    background:#ed171d;
+    color:#ffffff !important;
+    font-size:11px;
+    line-height:1;
     font-weight:700;
     text-transform:uppercase;
+    letter-spacing:.2px;
+    text-decoration:none;
+    padding:9px 14px;
+    border:1px solid #ed171d;
   "
 >
 
-HOW DID YOU FIND US?&nbsp; →
+How you found us
 
 </a>
 
@@ -1021,7 +1175,7 @@ HOW DID YOU FIND US?&nbsp; →
   valign="middle"
   align="center"
   style="
-    padding:18px 20px;
+    padding:14px 16px;
     border-top:1px solid #252525;
     text-align:center;
   "
@@ -1033,28 +1187,36 @@ HOW DID YOU FIND US?&nbsp; →
     font-size:10px;
     color:#777777;
     text-transform:uppercase;
+    letter-spacing:.4px;
   "
 >
 
-Need help?
+NEED HELP?
 
 </div>
 
 
+
 <a
   href="https://calendly.com/hiffiapps/30min"
-  class="support-link"
+  class="button-ghost"
   style="
-    display:block;
-    margin-top:5px;
-    color:#ffffff;
-    font-size:12px;
+    display:inline-block;
+    margin-top:8px;
+    background:#ed171d;
+    color:#ffffff !important;
+    font-size:11px;
+    line-height:1;
     font-weight:700;
     text-transform:uppercase;
+    letter-spacing:.2px;
+    text-decoration:none;
+    padding:9px 14px;
+    border:1px solid #ed171d;
   "
 >
 
-Talk to us!&nbsp; 
+Talk to us
 
 </a>
 
@@ -1083,6 +1245,8 @@ Talk to us!&nbsp;
   style="
     padding-top:32px;
     padding-bottom:38px;
+    padding-left:20px;
+    padding-right:20px;
     border-top:1px solid #222222;
   "
 >
@@ -1090,10 +1254,12 @@ Talk to us!&nbsp;
 
 <div
   style="
-    font-size:28px;
+    font-size:20px;
+    font-size:clamp(20px, 5vw, 28px);
     line-height:1.05;
     font-weight:900;
     text-transform:uppercase;
+    color:#ffffff;
   "
 >
 
@@ -1105,7 +1271,8 @@ YOU MAKE THE MUSIC.
 <div
   style="
     margin-top:3px;
-    font-size:28px;
+    font-size:20px;
+    font-size:clamp(20px, 5vw, 28px);
     line-height:1.05;
     font-weight:900;
     color:#ed171d;
@@ -1133,9 +1300,23 @@ Your Hiffi space is ready.
 
 <div style="margin-top:19px;">
 
+<!-- Inline styles required: Gmail strips .button from <style> -->
 <a
   href="https://www.hiffi.com/studio"
   class="button"
+  style="
+    display:inline-block;
+    background:#ed171d;
+    color:#ffffff !important;
+    font-size:13px;
+    line-height:1;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.2px;
+    text-decoration:none;
+    padding:16px 22px;
+    border:1px solid #ed171d;
+  "
 >
 
 GO TO MY HIFFI&nbsp; →
@@ -1169,6 +1350,7 @@ GO TO MY HIFFI&nbsp; →
   cellpadding="0"
   cellspacing="0"
   align="center"
+  role="presentation"
 >
 
 <tr>
@@ -1286,4 +1468,4 @@ created or activated a Hiffi account.
 </table>
 
 </body>
-</html>		
+</html>

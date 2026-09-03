@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { Check, ChevronLeft, ChevronRight, Info, Loader2, RefreshCw, Search } from "lucide-react"
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Loader2,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
 import type { InventoryClaim, InventoryClaimStatus } from "@/lib/types/inventory"
@@ -47,10 +56,6 @@ function discoverySourceDisplay(claim: InventoryClaim): {
   label: string
   detail?: string
 } {
-  if (!claim.discovery_source) {
-    return { label: "Unknown" }
-  }
-
   if (claim.discovery_source === "other") {
     const detail =
       claim.discovery_source_other?.trim() ||
@@ -66,7 +71,7 @@ function discoverySourceDisplay(claim: InventoryClaim): {
     return { label: claim.discovery_source_label.trim() }
   }
 
-  return { label: claim.discovery_source }
+  return { label: "Unknown" }
 }
 
 function statusLabel(status: InventoryClaimStatus): string {
@@ -111,10 +116,7 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
           </PopoverTrigger>
 
           <PopoverContent align="start" side="top" className="w-72 rounded-lg border bg-background p-3 shadow-lg">
-            
-            <p className="mt-1 text-sm leading-5 text-foreground">
-              {source.detail}
-            </p>
+            <p className="mt-1 text-sm leading-5 text-foreground">{source.detail}</p>
           </PopoverContent>
         </Popover>
       ) : null}
@@ -124,8 +126,10 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
 
 export function InventoryClaimsTable() {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
-  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } = useAdminNetworkError()
+  const { can } = useAdminPermissions()
+  const canWriteClaims = can("inventory.claims:write")
+  const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
+    useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])
   const [hasLoaded, setHasLoaded] = useState(false)
   const [fetching, setFetching] = useState(false)
@@ -140,7 +144,9 @@ export function InventoryClaimsTable() {
   const [count, setCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [claimToApprove, setClaimToApprove] = useState<InventoryClaim | null>(null)
+  const [claimToDelete, setClaimToDelete] = useState<InventoryClaim | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedUsername(usernameQuery.trim()), 300)
@@ -184,7 +190,8 @@ export function InventoryClaimsTable() {
       setHasMore(false)
       handleFetchError(error, {
         genericMessage: "Failed to load profile claims",
-        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+        onGenericError: (description) =>
+          toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setFetching(false)
@@ -225,7 +232,6 @@ export function InventoryClaimsTable() {
           : ""
       const userNote = result.user_updated ? " · linked user updated" : ""
 
-      // Update local badges immediately, then move to Approved so the new status is visible.
       applyApproveToLocalRows(result.claim)
       setClaimToApprove(null)
       setOffset(0)
@@ -236,7 +242,6 @@ export function InventoryClaimsTable() {
         description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}. Public profile claim_status is claimed.`,
       })
 
-      // Bust artist-index inventory cache so public pages show verified immediately.
       void fetch("/api/artist-index/revalidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -247,10 +252,34 @@ export function InventoryClaimsTable() {
     } catch (error) {
       handleFetchError(error, {
         genericMessage: "Failed to approve claim",
-        onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
+        onGenericError: (description) =>
+          toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {
       setApprovingId(null)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!claimToDelete) return
+    setDeletingId(claimToDelete.id)
+    try {
+      const result = await adminApiClient.adminDeleteInventoryClaim(claimToDelete.id)
+      setRows((prev) => prev.filter((row) => row.id !== result.id))
+      setCount((prev) => Math.max(0, prev - 1))
+      setClaimToDelete(null)
+      toast({
+        title: "Claim deleted",
+        description: `Removed claim for @${result.claim.username || claimToDelete.username}.`,
+      })
+    } catch (error) {
+      handleFetchError(error, {
+        genericMessage: "Failed to delete claim",
+        onGenericError: (description) =>
+          toast({ title: "Error", description, variant: "destructive" }),
+      })
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -261,7 +290,8 @@ export function InventoryClaimsTable() {
     usernameQuery.trim() !== debouncedUsername || emailQuery.trim() !== debouncedEmail
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
-  const colSpan = canWrite ? 8 : 7
+  const colSpan = canWriteClaims ? 8 : 7
+  const actionInFlight = approvingId != null || deletingId != null
 
   if (isInitialLoad) {
     return (
@@ -289,12 +319,14 @@ export function InventoryClaimsTable() {
         <p>
           <span className="font-medium text-foreground">Pending</span> → review queue.{" "}
           <span className="font-medium text-foreground">Approve</span> sets that claim to Approved,
-          rejects other pending claims for the same username, updates the linked creator when
-          present, and sets public inventory <code className="text-xs">claim_status</code> to{" "}
-          <code className="text-xs">claimed</code>.
+          rejects other pending claims for the same username, and updates the linked creator when
+          present.{" "}
+          <span className="font-medium text-foreground">Delete</span> permanently removes a row
+          (spam / duplicates) without rejecting siblings.
         </p>
         <p className="mt-1">
-          Standalone reject and claim-completion (password / magic link) are not available yet.
+          There is no standalone reject endpoint yet — competitors become Rejected only when another
+          claim for the same username is approved.
         </p>
       </div>
 
@@ -379,7 +411,12 @@ export function InventoryClaimsTable() {
                   statusFilter ? statusLabel(statusFilter) : "All statuses"
                 }`}
           </p>
-          <Button variant="outline" size="sm" onClick={() => void fetchRows(true)} disabled={refreshing || fetching}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchRows(true)}
+            disabled={refreshing || fetching}
+          >
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             <span className="ml-1">Refresh</span>
           </Button>
@@ -409,7 +446,7 @@ export function InventoryClaimsTable() {
                   Email
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Discovery Source
+                  How they found us
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Status
@@ -420,7 +457,7 @@ export function InventoryClaimsTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Updated
                 </th>
-                {canWrite ? (
+                {canWriteClaims ? (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Actions
                   </th>
@@ -435,59 +472,76 @@ export function InventoryClaimsTable() {
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium">{row.artist_name || row.username}</div>
-                      <Link
-                        href={`/artist-index/${encodeURIComponent(row.username)}`}
-                        className="text-primary hover:underline text-xs"
-                        target="_blank"
-                      >
-                        @{row.username}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{row.name}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
-                      {row.email}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      <DiscoverySourceCell claim={row} />
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>
-                        {statusLabel(row.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(row.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(row.updated_at)}
-                    </td>
-                    {canWrite ? (
-                      <td className="px-4 py-3 text-right">
-                        {row.status === "pending" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={approvingId === row.id}
-                            onClick={() => setClaimToApprove(row)}
-                          >
-                            {approvingId === row.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                            <span className="ml-1">Approve</span>
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                rows.map((row) => {
+                  const rowBusy = approvingId === row.id || deletingId === row.id
+                  return (
+                    <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm">
+                        <div className="font-medium">{row.artist_name || row.username}</div>
+                        <Link
+                          href={`/artist-index/${encodeURIComponent(row.username)}`}
+                          className="text-primary hover:underline text-xs"
+                          target="_blank"
+                        >
+                          @{row.username}
+                        </Link>
                       </td>
-                    ) : null}
-                  </tr>
-                ))
+                      <td className="px-4 py-3 text-sm">{row.name}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
+                        {row.email}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <DiscoverySourceCell claim={row} />
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>
+                          {statusLabel(row.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                        {formatTimestamp(row.created_at)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                        {formatTimestamp(row.updated_at)}
+                      </td>
+                      {canWriteClaims ? (
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            {row.status === "pending" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={rowBusy || actionInFlight}
+                                onClick={() => setClaimToApprove(row)}
+                              >
+                                {approvingId === row.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                                <span className="ml-1">Approve</span>
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={rowBusy || actionInFlight}
+                              onClick={() => setClaimToDelete(row)}
+                              aria-label={`Delete claim from ${row.name}`}
+                            >
+                              {deletingId === row.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -533,7 +587,7 @@ export function InventoryClaimsTable() {
                   Approve <strong>{claimToApprove.name}</strong> ({claimToApprove.email}) for{" "}
                   <strong>@{claimToApprove.username}</strong>. Status becomes{" "}
                   <strong>Approved</strong>; other pending claims for this profile become{" "}
-                  <strong>Rejected</strong>; public inventory moves to <strong>claimed</strong>.
+                  <strong>Rejected</strong>.
                 </>
               ) : null}
             </DialogDescription>
@@ -549,6 +603,45 @@ export function InventoryClaimsTable() {
             <Button onClick={() => void handleApproveConfirm()} disabled={!!approvingId}>
               {approvingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               <span className={approvingId ? "ml-2" : undefined}>Approve claim</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!claimToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) setClaimToDelete(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this claim permanently?</DialogTitle>
+            <DialogDescription>
+              {claimToDelete ? (
+                <>
+                  Removes the claim from <strong>{claimToDelete.name}</strong> (
+                  {claimToDelete.email}) for <strong>@{claimToDelete.username}</strong>. This does
+                  not reject sibling claims or revert a linked user&apos;s name/email.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setClaimToDelete(null)}
+              disabled={!!deletingId}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDeleteConfirm()}
+              disabled={!!deletingId}
+            >
+              {deletingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <span className={deletingId ? "ml-2" : undefined}>Delete claim</span>
             </Button>
           </DialogFooter>
         </DialogContent>

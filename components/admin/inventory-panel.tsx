@@ -41,7 +41,7 @@ export function InventoryPanel() {
   const [pendingTab, setPendingTab] = useState<InventoryTab | null>(null)
 
   const canUpload = can("admin:inventory_upload")
-  const canClaims = can("admin:inventory_claims")
+  const canClaims = can("inventory.claims:read")
 
   const activeTab = useMemo((): InventoryTab => {
     const raw = searchParams.get(TAB_QUERY)

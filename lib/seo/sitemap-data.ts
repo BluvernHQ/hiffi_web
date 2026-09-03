@@ -145,13 +145,29 @@ function buildStaticEntries(
 }
 
 async function buildArtistIndexProfileEntries(): Promise<MetadataRoute.Sitemap> {
-  const artists = await getArtists()
-  return artists.map((artist) => ({
-    url: absoluteUrl(`/artist-index/${artist.slug}`),
-    lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
-    changeFrequency: "monthly" as const,
-    priority: 0.75,
-  }))
+  try {
+    const artists = await getArtists()
+    return artists.map((artist) => ({
+      url: absoluteUrl(`/artist-index/${artist.slug}`),
+      lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
+      changeFrequency: "monthly" as const,
+      priority: 0.75,
+    }))
+  } catch (error) {
+    console.warn("[hiffi] sitemap: skipping artist index profiles (API unavailable):", error)
+    return []
+  }
+}
+
+/** Static routes only — used when video/API fetches fail during build or runtime. */
+export async function buildStaticOnlyEntries(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
+    return buildStaticEntries(cityPages, genrePages)
+  } catch (error) {
+    console.warn("[hiffi] sitemap: static fallback without city/genre pages:", error)
+    return buildStaticEntries([], [])
+  }
 }
 
 function buildProfileLastModifiedByUsername(entries: SitemapVideoEntry[]): Map<string, Date> {
@@ -189,7 +205,12 @@ let cachedVideoEntries: SitemapVideoEntry[] | null = null
 
 export async function getAllVideoEntries(): Promise<SitemapVideoEntry[]> {
   if (!cachedVideoEntries) {
-    cachedVideoEntries = await fetchVideoEntriesForSitemap(getSitemapMaxVideos())
+    try {
+      cachedVideoEntries = await fetchVideoEntriesForSitemap(getSitemapMaxVideos())
+    } catch (error) {
+      console.warn("[hiffi] sitemap: skipping video entries (API unavailable):", error)
+      cachedVideoEntries = []
+    }
   }
   return cachedVideoEntries
 }
@@ -209,28 +230,36 @@ export async function getSitemapChunkIds(): Promise<number[]> {
 }
 
 export async function buildSitemapEntries(id: number): Promise<MetadataRoute.Sitemap> {
-  const now = new Date()
-  const entries = await getAllVideoEntries()
-  const chunkSize = getSitemapVideoChunkSize()
-  const profileDates = buildProfileLastModifiedByUsername(entries)
+  try {
+    const now = new Date()
+    const entries = await getAllVideoEntries()
+    const chunkSize = getSitemapVideoChunkSize()
+    const profileDates = buildProfileLastModifiedByUsername(entries)
 
-  if (id === 0) {
-    const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
-    const staticEntries = buildStaticEntries(cityPages, genrePages)
-    const profileEntries = buildProfileEntries(profileDates, now)
-    const artistIndexEntries = await buildArtistIndexProfileEntries()
+    if (id === 0) {
+      const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
+      const staticEntries = buildStaticEntries(cityPages, genrePages)
+      const profileEntries = buildProfileEntries(profileDates, now)
+      const artistIndexEntries = await buildArtistIndexProfileEntries()
 
-    if (entries.length <= chunkSize) {
-      return [...staticEntries, ...artistIndexEntries, ...buildVideoEntries(entries, now), ...profileEntries]
+      if (entries.length <= chunkSize) {
+        return [...staticEntries, ...artistIndexEntries, ...buildVideoEntries(entries, now), ...profileEntries]
+      }
+
+      return [...staticEntries, ...artistIndexEntries, ...profileEntries]
     }
 
-    return [...staticEntries, ...artistIndexEntries, ...profileEntries]
+    const chunkIndex = id - 1
+    const start = chunkIndex * chunkSize
+    const chunk = entries.slice(start, start + chunkSize)
+    return buildVideoEntries(chunk, now)
+  } catch (error) {
+    console.warn(`[hiffi] sitemap chunk ${id} failed, using static fallback:`, error)
+    if (id === 0) {
+      return buildStaticOnlyEntries()
+    }
+    return []
   }
-
-  const chunkIndex = id - 1
-  const start = chunkIndex * chunkSize
-  const chunk = entries.slice(start, start + chunkSize)
-  return buildVideoEntries(chunk, now)
 }
 
 export function escapeXml(value: string): string {
