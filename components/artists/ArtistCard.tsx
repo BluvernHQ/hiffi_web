@@ -79,7 +79,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
   return (
     <article
       className={cn(
-        "group relative flex h-full flex-col transition-shadow",
+        "group relative flex h-full min-w-0 max-w-full flex-col transition-shadow",
         artistCardShell,
         artistCardInset,
         "hover:shadow-md",

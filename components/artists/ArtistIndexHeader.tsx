@@ -25,14 +25,14 @@ export function ArtistIndexHeader({
 }: ArtistIndexHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      <div className="flex h-16 items-center justify-between px-2 sm:px-3 md:px-4">
-        <Link href="/" className="flex shrink-0 items-center">
+      <div className="flex h-16 min-w-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 shrink items-center">
           <Image
             src="/appbarlogo.png"
             alt="Hiffi logo"
             width={120}
             height={32}
-            className="h-8 w-auto"
+            className="h-8 w-auto max-w-full"
             style={{ width: "auto" }}
             priority
           />
@@ -44,7 +44,7 @@ export function ArtistIndexHeader({
       {breadcrumbs?.length ? (
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center justify-between gap-3 border-t border-border/40 px-2 pb-2.5 pt-2 text-xs sm:px-3 md:px-4"
+          className="flex items-center justify-between gap-3 border-t border-border/40 px-4 pb-2.5 pt-2 text-xs sm:px-6 lg:px-8"
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           {breadcrumbs.map((crumb, index) => (

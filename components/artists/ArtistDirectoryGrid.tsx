@@ -116,7 +116,8 @@ export function ArtistDirectoryGrid({
           ) : null}
           <div
             className={cn(
-              "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
+              // minmax(0, …) so flex cards cannot expand the track past the viewport on mobile
+              "grid gap-4 [grid-template-columns:minmax(0,1fr)] sm:gap-5 sm:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:gap-6 xl:[grid-template-columns:repeat(3,minmax(0,1fr))]",
               isPending && "pointer-events-none opacity-60",
             )}
             aria-busy={isPending || undefined}

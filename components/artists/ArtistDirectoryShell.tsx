@@ -18,14 +18,16 @@ export function ArtistDirectoryShell({
   breadcrumbTrailing,
 }: ArtistDirectoryShellProps) {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen overflow-x-clip bg-white">
       <ArtistIndexHeader
         claimHref={claimHref}
         claimLabel={claimLabel}
         breadcrumbs={breadcrumbs}
         breadcrumbTrailing={breadcrumbTrailing}
       />
-      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">{children}</main>
+      <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        {children}
+      </main>
       <SiteFooter />
     </div>
   )
