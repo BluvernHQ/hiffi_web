@@ -7,6 +7,7 @@ export type ContentPageLink = {
 export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
   { href: "/terms-of-use", label: "Terms of Use" },
   { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/cookie-policy", label: "Cookie Policy" },
   { href: "/payment-terms", label: "Payment Terms" },
   { href: "/copyright", label: "Copyright" },
   { href: "/community-guidelines", label: "Community Guidelines" },
@@ -34,6 +35,7 @@ export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
 export const SIDEBAR_FOOTER_LINKS: ContentPageLink[] = [
   { href: "/terms-of-use", label: "Terms" },
   { href: "/privacy-policy", label: "Privacy" },
+  { href: "/cookie-policy", label: "Cookies" },
   { href: "/payment-terms", label: "Payment" },
   { href: "/copyright", label: "Copyright" },
   { href: "/community-guidelines", label: "Guidelines" },

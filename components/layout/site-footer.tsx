@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CONTENT_PAGE_LINKS } from "@/lib/content-pages"
 import { HIFFI_SOCIAL_PROFILES } from "@/lib/seo/social"
+import { CookieSettingsButton } from "@/components/cookies/cookie-consent-banner"
 
 const socialLinks = [
   {
@@ -165,7 +166,7 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
 
         <div className={cn("mt-10 border-t pt-6", isApp ? "border-red-100" : "border-border/40")}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Image
                 src="/appbarlogo.png"
                 alt="Hiffi"
@@ -173,6 +174,13 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
                 height={40}
                 className="h-8 w-auto"
                 style={{ width: "auto" }}
+              />
+              <CookieSettingsButton
+                className={
+                  isApp
+                    ? "text-sm text-foreground/85 underline-offset-4 hover:text-primary hover:underline"
+                    : undefined
+                }
               />
             </div>
 

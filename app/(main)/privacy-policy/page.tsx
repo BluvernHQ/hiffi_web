@@ -169,7 +169,11 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">Cookies and Tracking Technologies</h2>
             <p className="leading-relaxed">
-              The Platform uses cookies and similar technologies to enhance user experience, perform analytics, and ensure security. These may include essential cookies (necessary for the functioning of the Platform), performance cookies (to measure and improve performance), and analytics cookies (to help us understand user behaviour). Where required by law, you will be prompted to give consent to non-essential cookies on your first visit to the Platform. You can manage your cookie preferences through your browser settings or our designated privacy controls.
+              The Platform uses cookies and similar technologies to enhance user experience, perform analytics, and ensure security. These may include essential cookies (necessary for the functioning of the Platform), functional cookies (preferences and similar features), and analytics cookies (to help us understand user behaviour). Where required by law, you will be prompted to give consent to non-essential cookies on your first visit to the Platform. You can manage your cookie preferences through our cookie settings control, your browser settings, or as described in our{" "}
+              <Link href="/cookie-policy" className="text-primary hover:underline">
+                Cookie Policy
+              </Link>
+              .
             </p>
           </section>
 

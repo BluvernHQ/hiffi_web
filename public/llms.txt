@@ -52,6 +52,7 @@ Contact and corrections: care@hiffi.com
 
 - [Terms of Use](https://www.hiffi.com/terms-of-use.md): Platform terms — eligibility, conduct, IP, arbitration
 - [Privacy Policy](https://www.hiffi.com/privacy-policy.md): Data collection, rights, CCPA/COPPA, contact
+- [Cookie Policy](https://www.hiffi.com/cookie-policy.md): Cookie categories, consent, and preference controls
 - [Payment Terms](https://www.hiffi.com/payment-terms.md): Tips, subscriptions, payouts, refunds, AML
 - [Copyright](https://www.hiffi.com/copyright.md): DMCA takedown and counter-notice process
 

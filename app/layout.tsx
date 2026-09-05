@@ -25,6 +25,7 @@ import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from '@/lib/app-download'
 import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
 import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
+import { CookieConsentBanner } from '@/components/cookies/cookie-consent-banner'
 import { analyticsUmamiDomains, isApiAnalyticsEnabled } from '@/lib/analytics/is-api-analytics-enabled'
 import { getAnalyticsBuildId } from '@/lib/app-version'
 import './globals.css'
@@ -266,6 +267,7 @@ export default async function RootLayout({
           </GuestConversionProvider>
         </AuthProvider>
         <Toaster />
+        <CookieConsentBanner />
         <Suspense fallback={null}>
           <UtmPoll />
         </Suspense>

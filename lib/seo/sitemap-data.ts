@@ -68,6 +68,12 @@ function buildStaticEntries(
       priority: 0.5,
     },
     {
+      url: absoluteUrl("/cookie-policy"),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
       url: absoluteUrl("/search"),
       lastModified: STATIC_LAST_MODIFIED,
       changeFrequency: "weekly",

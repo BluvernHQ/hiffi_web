@@ -1,8 +1,10 @@
 /**
  * Small first-party UX prefs: localStorage for client speed + cookies so
  * home hero and watch can share mute/mood across soft navigations.
- * Never store secrets here.
+ * Never store secrets here. Cookie writes require functional consent.
  */
+
+import { hasFunctionalConsent } from "@/lib/cookie-consent"
 
 const MUTED_KEY = "hiffi_player_muted"
 const VOLUME_KEY = "hiffi_player_volume"
@@ -22,7 +24,7 @@ function secureFlag(): string {
 }
 
 function writeCookie(name: string, value: string, maxAgeSeconds: number): void {
-  if (!canUseDom()) return
+  if (!canUseDom() || !hasFunctionalConsent()) return
   document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=${maxAgeSeconds};SameSite=Lax${secureFlag()}`
 }
 

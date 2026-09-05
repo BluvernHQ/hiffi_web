@@ -4,6 +4,7 @@ import type {
   GuestPlayedVideo,
 } from "./types"
 import { GUEST_CONVERSION_PRIORITY } from "./types"
+import { hasFunctionalConsent } from "@/lib/cookie-consent"
 
 const SESSION_KEY = "hiffi_guest_conversion_session"
 const PLAY_COUNT_COOKIE = "hiffi_guest_plays"
@@ -59,7 +60,9 @@ function writeSession(session: GuestConversionSession) {
   if (typeof window === "undefined") return
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
-    document.cookie = `${PLAY_COUNT_COOKIE}=${session.playCount}; path=/; SameSite=Lax`
+    if (hasFunctionalConsent()) {
+      document.cookie = `${PLAY_COUNT_COOKIE}=${session.playCount}; path=/; SameSite=Lax`
+    }
   } catch {
     // ignore quota errors
   }
