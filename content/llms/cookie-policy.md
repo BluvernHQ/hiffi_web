@@ -1,6 +1,6 @@
-# Cookie Policy
+# How Hiffi uses cookies
 
-> How Hiffi uses cookies and similar technologies, cookie categories, and how users manage preferences.
+> Purposes of cookies and similar technologies on Hiffi, and how users manage choices.
 
 **Last updated:** September 5, 2026  
 **Operator:** Kinimi Corporation / Hiffi  
@@ -8,19 +8,23 @@
 
 This markdown summary is for LLM discovery. The HTML page above is the authoritative document.
 
-## Related policies
+## Related
 
 - Privacy Policy: https://www.hiffi.com/privacy-policy
 - Terms of Use: https://www.hiffi.com/terms-of-use
 
-## Categories
+## What cookies are
 
-**Necessary (always on):** cookie preference storage (`hiffi_cookie_consent`), sign-in helpers (`hiffi_username`, `hiffi_password`), security (e.g. Cloudflare Turnstile).
+Small text (and similar storage) that help a site remember a visit — for sign-in, preferences, security, and (with consent) analytics.
 
-**Functional (consent):** player mute/volume/preview, mood mix, referral cookies, guest play count, app platform hint.
+## Purposes
 
-**Analytics (consent):** Umami, Google Analytics, Microsoft Clarity, and Hiffi first-party analytics when enabled.
+**Necessary and security:** Remember cookie choices, keep you signed in when you choose to stay signed in, and help protect against spam, abuse, and automated attacks. Needed for the service to work safely.
 
-## Control
+**Functionality (optional):** Playback prefs, mood mix, referrals, guest hints, app platform hint. Used only with consent.
 
-Users choose Accept all, Reject non-essential, or Customize on first visit. Preferences can be changed later via Cookie settings (linked from the Cookie Policy page and consent UI). Browser controls also apply.
+**Analytics (optional):** Understand usage and improve Hiffi, using our own analytics and trusted partner analytics services when enabled. Used only with consent.
+
+## Managing choices
+
+Accept all, reject optional, or customize on first visit; change later via Cookie settings. Browser controls also apply.

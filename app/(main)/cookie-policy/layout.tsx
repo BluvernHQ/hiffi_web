@@ -3,9 +3,9 @@ import { routeMetadata } from "@/lib/seo/route-metadata"
 import { SiteFooter } from "@/components/layout/site-footer"
 
 export const metadata = routeMetadata({
-  title: "Cookie Policy",
+  title: "How Hiffi uses cookies",
   description:
-    "How Hiffi uses cookies and similar technologies, what each category does, and how to manage your preferences.",
+    "How Hiffi uses cookies and similar technologies, why we use them, and how to manage your preferences.",
   path: "/cookie-policy",
 })
 

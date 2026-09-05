@@ -6,196 +6,121 @@ import { CookieSettingsButton } from "@/components/cookies/cookie-consent-banner
 export default function CookiePolicyPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-3xl font-bold text-foreground">Cookie Policy</h1>
+      <h1 className="mb-8 text-3xl font-bold text-foreground">How Hiffi uses cookies</h1>
 
       <div className="space-y-8 text-foreground/90">
         <p className="italic text-muted-foreground">Last updated: September 5, 2026</p>
 
         <section className="space-y-4">
           <p className="leading-relaxed">
-            This Cookie Policy explains how Kinimi Corporation (“Hiffi,” “we,” “our,” or “us”) uses
-            cookies and similar technologies on the Hiffi website and related services (the
-            “Platform”). It should be read together with our{" "}
-            <Link href="/privacy-policy" className="text-primary hover:underline">
-              Privacy Policy
-            </Link>
-            .
+            This page describes how Kinimi Corporation (“Hiffi,” “we,” “our,” or “us”) uses cookies
+            and similar technologies on the Hiffi website and related services. It also explains how
+            you can manage your choices.
           </p>
           <p className="leading-relaxed">
-            You can change your cookie preferences at any time using{" "}
+            Cookies are small pieces of text sent to your browser by a website you visit. They help
+            that website remember information about your visit, which can make it easier to use the
+            site again and make the service more useful to you. Similar technologies — such as local
+            storage and session storage — can perform the same kind of function.
+          </p>
+          <p className="leading-relaxed">
+            See our{" "}
+            <Link href="/privacy-policy" className="text-primary hover:underline">
+              Privacy Policy
+            </Link>{" "}
+            to learn how we protect your privacy when we use cookies and other information. You can
+            change your cookie preferences at any time using{" "}
             <CookieSettingsButton className="inline font-medium text-primary hover:underline" />.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">What are cookies?</h2>
+          <h2 className="text-xl font-semibold text-foreground">
+            Purposes of cookies and similar technologies used by Hiffi
+          </h2>
           <p className="leading-relaxed">
-            Cookies are small text files stored on your device when you visit a website. They help
-            the site remember your preferences, keep you signed in, measure performance, and
-            understand how the Platform is used. Similar technologies include local storage and
-            session storage in your browser.
+            Hiffi may store or use cookies or similar technologies in your browser for the purposes
+            described below. Necessary cookies are used so the Platform can function. Optional
+            cookies (functional and analytics) are used only after you accept them — either by
+            choosing Accept all or by customizing your preferences.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">How we use cookies</h2>
+          <h2 className="text-xl font-semibold text-foreground">Necessary and security</h2>
           <p className="leading-relaxed">
-            We use first-party cookies set by Hiffi and, when you allow analytics, third-party
-            cookies or scripts from providers such as analytics and security services. Necessary
-            cookies run so the Platform works. Functional and analytics cookies run only after you
-            accept them (Accept all, or via Customize).
+            Some cookies and similar technologies are needed to keep Hiffi working safely. We use
+            them to remember your cookie choices, keep you signed in on this device when you choose
+            to stay signed in, and help protect the Platform against spam, abuse, and automated
+            attacks on forms such as sign-up.
           </p>
           <p className="leading-relaxed">
-            If you reject non-essential cookies, core browsing and account features still work.
-            Preference features that rely on functional cookies (for example remembering mute or
-            referral attribution across visits) may not persist.
+            These technologies are treated as necessary for the service. Turning them off in your
+            browser may affect sign-in and security features.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">Cookie categories</h2>
-
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <h3 className="text-lg font-medium text-foreground">Necessary</h3>
-              <p className="leading-relaxed">
-                Required for security, authentication, and storing your cookie choice. These do not
-                require consent.
-              </p>
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[32rem] text-left text-sm">
-                  <thead className="bg-muted/50 text-foreground">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">Cookie</th>
-                      <th className="px-3 py-2 font-medium">Purpose</th>
-                      <th className="px-3 py-2 font-medium">Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border text-foreground/90">
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_cookie_consent</td>
-                      <td className="px-3 py-2">Stores your cookie preferences</td>
-                      <td className="px-3 py-2">1 year</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_username</td>
-                      <td className="px-3 py-2">Helps keep you signed in</td>
-                      <td className="px-3 py-2">30 days</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_password</td>
-                      <td className="px-3 py-2">Helps restore your session securely on this device</td>
-                      <td className="px-3 py-2">30 days</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Cloudflare Turnstile may set cookies for bot protection on sign-up and similar
-                forms. Session tokens may also be stored in browser local storage.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-lg font-medium text-foreground">Functional</h3>
-              <p className="leading-relaxed">
-                Remember preferences and light product features. Used only with your consent.
-              </p>
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[32rem] text-left text-sm">
-                  <thead className="bg-muted/50 text-foreground">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">Cookie</th>
-                      <th className="px-3 py-2 font-medium">Purpose</th>
-                      <th className="px-3 py-2 font-medium">Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border text-foreground/90">
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_player_muted</td>
-                      <td className="px-3 py-2">Remembers mute preference</td>
-                      <td className="px-3 py-2">1 year</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_player_volume</td>
-                      <td className="px-3 py-2">Remembers volume level</td>
-                      <td className="px-3 py-2">1 year</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_preview_audio</td>
-                      <td className="px-3 py-2">Hero / preview audio preference</td>
-                      <td className="px-3 py-2">1 year</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_active_mood</td>
-                      <td className="px-3 py-2">Saves selected mood mix</td>
-                      <td className="px-3 py-2">7 days</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">referral_code</td>
-                      <td className="px-3 py-2">Tracks who referred you</td>
-                      <td className="px-3 py-2">30 days</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">referral_redirect_profile</td>
-                      <td className="px-3 py-2">Where to send you after signup</td>
-                      <td className="px-3 py-2">1 day</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_guest_plays</td>
-                      <td className="px-3 py-2">Guest play count for signup nudges</td>
-                      <td className="px-3 py-2">Session</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-xs">hiffi_platform</td>
-                      <td className="px-3 py-2">App download page platform hint</td>
-                      <td className="px-3 py-2">30 minutes</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-lg font-medium text-foreground">Analytics</h3>
-              <p className="leading-relaxed">
-                Help us understand traffic and improve the product. Loaded only with your consent.
-                Providers may set their own cookies.
-              </p>
-              <ul className="list-disc space-y-2 pl-6">
-                <li>Umami (product analytics)</li>
-                <li>Google Analytics (when enabled)</li>
-                <li>Microsoft Clarity (when enabled)</li>
-                <li>Hiffi first-party analytics (when enabled)</li>
-              </ul>
-            </div>
-          </div>
+          <h2 className="text-xl font-semibold text-foreground">Functionality</h2>
+          <p className="leading-relaxed">
+            Cookies and similar technologies used for functionality help remember choices and
+            preferences that make Hiffi easier to use — for example playback mute and volume,
+            preview audio preferences, a selected mood mix, referral information after someone
+            shares Hiffi with you, guest viewing hints that encourage sign-up, and a short-lived
+            platform hint on the app download page.
+          </p>
+          <p className="leading-relaxed">
+            These are optional. If you reject them, you can still browse and use your account; some
+            preferences simply may not persist between visits.
+          </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">Managing your preferences</h2>
+          <h2 className="text-xl font-semibold text-foreground">Analytics</h2>
           <p className="leading-relaxed">
-            Use{" "}
+            We use cookies and similar technologies for analytics to understand how people interact
+            with Hiffi. This helps us measure engagement, find problems, and improve content,
+            quality, and features.
+          </p>
+          <p className="leading-relaxed">
+            Depending on your choices, this may include our own analytics and analytics services from
+            trusted partners. Those services may set their own cookies or identifiers when analytics
+            is allowed.
+          </p>
+          <p className="leading-relaxed">
+            Analytics cookies are optional and load only after you consent.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground">Managing your cookie choices</h2>
+          <p className="leading-relaxed">
+            When you first visit Hiffi, you can accept all cookies, reject optional cookies, or
+            customize categories. You can update that choice later with{" "}
             <CookieSettingsButton className="inline font-medium text-primary hover:underline" />{" "}
-            to accept, reject, or customize categories at any time. You can also control cookies
-            through your browser settings (block, delete, or alert on cookies). Blocking necessary
-            cookies may affect sign-in and security features.
+            (also linked from our site footer).
+          </p>
+          <p className="leading-relaxed">
+            Most browsers also let you manage how cookies are set, view or delete cookies, or block
+            them for specific sites. Browser controls vary; check your browser’s help pages for
+            details. Blocking all cookies, including necessary ones, may limit how Hiffi works for
+            you.
           </p>
         </section>
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Updates</h2>
           <p className="leading-relaxed">
-            We may update this Cookie Policy when our practices change. The “Last updated” date at
-            the top reflects the latest revision. Significant changes may prompt you to review your
-            preferences again.
+            We may update this page when our practices change. The “Last updated” date above shows
+            when it was last revised. If we make significant changes, we may ask you to review your
+            cookie preferences again.
           </p>
         </section>
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Contact</h2>
           <p className="leading-relaxed">
-            Questions about cookies or this policy:{" "}
+            Questions about cookies on Hiffi:{" "}
             <a href="mailto:care@hiffi.com" className="font-medium text-primary hover:underline">
               care@hiffi.com
             </a>
