@@ -18,9 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
 import { useTurnstileForm } from "@/hooks/use-turnstile-form"
+
+const CLAIM_VERIFICATION_EMAIL = "creator-noreply@hiffi.com"
 
 type ClaimFormProps = {
   artist: Artist
@@ -43,6 +53,7 @@ export function ClaimForm({ artist }: ClaimFormProps) {
   howFoundOther: "",
 })
   const [submitted, setSubmitted] = useState(false)
+  const [verificationOpen, setVerificationOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const {
@@ -103,6 +114,7 @@ if (form.howFound === "other" && !form.howFoundOther.trim()) {
         ...(turnstile.token ? { turnstile_token: turnstile.token } : {}),
       })
       setSubmitted(true)
+      setVerificationOpen(true)
       // Claims BFF already revalidates inventory tags; refresh RSC tree so CTAs update.
       router.refresh()
     } catch (caught) {
@@ -127,18 +139,44 @@ if (form.howFound === "other" && !form.howFoundOther.trim()) {
     }
   }
 
+  const verificationDialog = (
+    <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}>
+      <DialogContent className="sm:rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>Your profile is being verified</DialogTitle>
+          <DialogDescription>
+            Check your inbox for an email from{" "}
+            <strong className="font-medium text-foreground">{CLAIM_VERIFICATION_EMAIL}</strong>{" "}
+            for next steps.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <button
+            type="button"
+            className={cn(artistButtonSolid, "w-full sm:w-auto")}
+            onClick={() => setVerificationOpen(false)}
+          >
+            Got it
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 p-8 text-center">
-        <p className="text-lg font-semibold text-foreground">
-          {isOwnershipRequest ? "Ownership request submitted" : "Claim submitted"}
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Thanks — your request for <strong>{form.name}</strong> is under review for{" "}
-          <strong>@{artist.slug}</strong>. We&apos;ll follow up at <strong>{form.email}</strong>{" "}
-          within 24–48 hours.
-        </p>
-      </div>
+      <>
+        {verificationDialog}
+        <div className="rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 p-8 text-center">
+          <p className="text-lg font-semibold text-foreground">
+            {isOwnershipRequest ? "Ownership request submitted" : "Claim submitted"}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your profile is being verified. Check your inbox for an email from{" "}
+            <strong>{CLAIM_VERIFICATION_EMAIL}</strong> for next steps.
+          </p>
+        </div>
+      </>
     )
   }
 
