@@ -41,6 +41,8 @@ const NAV_ITEMS = [
   { id: "section-social", label: "Social Profiles" },
 ] as const
 
+type NavSectionId = (typeof NAV_ITEMS)[number]["id"]
+
 export type EditArtistProfileFormProps = {
   currentName: string
   currentUsername: string
@@ -161,14 +163,14 @@ export function EditArtistProfileForm({
   const [spotify, setSpotify] = useState(currentSpotify)
   const [appleMusic, setAppleMusic] = useState(currentAppleMusic)
   const [soundcloud, setSoundcloud] = useState(currentSoundcloud)
-  const [activeSection, setActiveSection] = useState<string>(NAV_ITEMS[0].id)
+  const [activeSection, setActiveSection] = useState<NavSectionId>(NAV_ITEMS[0].id)
   const [isLoading, setIsLoading] = useState(false)
   const [otpId, setOtpId] = useState<string | null>(null)
   const [otp, setOtp] = useState("")
   const [isVerifying, setIsVerifying] = useState(false)
   const mainScrollRef = useRef<HTMLDivElement>(null)
   const chipsScrollRef = useRef<HTMLDivElement>(null)
-  const scrollingToRef = useRef<string | null>(null)
+  const scrollingToRef = useRef<NavSectionId | null>(null)
   const router = useRouter()
   const { refreshUserData } = useAuth()
   const { toast } = useToast()
@@ -302,7 +304,7 @@ export function EditArtistProfileForm({
 
         const rootRect = root.getBoundingClientRect()
         const probe = rootRect.top + Math.min(140, rootRect.height * 0.35)
-        let current = NAV_ITEMS[0].id
+        let current: NavSectionId = NAV_ITEMS[0].id
 
         for (const item of NAV_ITEMS) {
           const el = document.getElementById(item.id)
@@ -360,7 +362,7 @@ export function EditArtistProfileForm({
     })
   }, [activeSection])
 
-  const scrollToSection = (id: string) => {
+  const scrollToSection = (id: NavSectionId) => {
     const root = mainScrollRef.current
     const el = document.getElementById(id)
     if (!root || !el) return
