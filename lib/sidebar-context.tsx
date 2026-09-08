@@ -16,6 +16,14 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
 
 const SIDEBAR_STORAGE_KEY = 'hiffi_sidebar_desktop_open'
 
+/** Routes that force the app sidebar closed without overwriting the saved preference. */
+function isSidebarForcedClosedPath(pathname: string | null): boolean {
+  if (!pathname) return false
+  if (pathname === "/app") return true
+  // /profile/{username}/edit
+  return /^\/profile\/[^/]+\/edit\/?$/.test(pathname)
+}
+
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
@@ -26,12 +34,13 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(false)
   const [desktopStateHydrated, setDesktopStateHydrated] = useState(false)
 
-  // Download page: desktop sidebar defaults closed. Other routes: restore from localStorage.
-  // Skip persisting while on /app so a visit here does not overwrite the global sidebar preference.
+  // Some routes force the sidebar closed. Elsewhere restore from localStorage.
+  // Skip persisting on forced-closed routes so a visit does not overwrite preference.
   useLayoutEffect(() => {
     try {
-      if (pathname === "/app") {
+      if (isSidebarForcedClosedPath(pathname)) {
         setIsDesktopSidebarOpen(false)
+        setIsSidebarOpen(false)
       } else {
         const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
         if (saved !== null) {
@@ -48,7 +57,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // Save desktop sidebar state to localStorage whenever it changes
   useEffect(() => {
     if (!desktopStateHydrated) return
-    if (pathname === "/app") return
+    if (isSidebarForcedClosedPath(pathname)) return
     try {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isDesktopSidebarOpen))
     } catch (error) {

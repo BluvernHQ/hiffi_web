@@ -1,5 +1,6 @@
 import { format } from "date-fns"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Calendar, Check, Copy, Edit, Flag, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,6 @@ import { VideoGrid } from "@/components/video/video-grid"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
 import { ProfileEmailReveal } from "@/components/profile/profile-email-reveal"
-import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { cn, getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
@@ -36,8 +36,6 @@ export function ProfilePublicView(props: {
   isLoading: boolean
   loadingMore: boolean
   hasMore: boolean
-  isEditDialogOpen: boolean
-  setIsEditDialogOpen: (open: boolean) => void
   isProfilePictureDialogOpen: boolean
   setIsProfilePictureDialogOpen: (open: boolean) => void
   authDialogOpen: boolean
@@ -47,7 +45,6 @@ export function ProfilePublicView(props: {
   handleFollow: () => void
   loadMoreVideos: () => void
   onVideoDeleted: (videoId: string) => void
-  onEditProfileUpdated: () => Promise<void>
   onProfilePictureUpdated: () => Promise<void>
   onReport?: () => void
 }) {
@@ -67,8 +64,6 @@ export function ProfilePublicView(props: {
     isLoading,
     loadingMore,
     hasMore,
-    isEditDialogOpen,
-    setIsEditDialogOpen,
     isProfilePictureDialogOpen,
     setIsProfilePictureDialogOpen,
     authDialogOpen,
@@ -78,10 +73,11 @@ export function ProfilePublicView(props: {
     handleFollow,
     loadMoreVideos,
     onVideoDeleted,
-    onEditProfileUpdated,
     onProfilePictureUpdated,
     onReport,
   } = props
+
+  const router = useRouter()
 
   const followerCount = getProfileFollowerCount(profileUser)
   const followingCount = getProfileFollowingCount(profileUser)
@@ -160,7 +156,11 @@ export function ProfilePublicView(props: {
 
               <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-3 sm:mt-0 sm:pb-4">
                 {isOwnProfile ? (
-                  <Button className="flex-1 sm:flex-none text-xs sm:text-sm" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+                  <Button
+                    className="flex-1 sm:flex-none text-xs sm:text-sm"
+                    size="sm"
+                    onClick={() => router.push(`/profile/${encodeURIComponent(username)}/edit`)}
+                  >
                     <Edit className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden xs:inline">Edit Details</span>
                     <span className="xs:hidden">Edit</span>
@@ -368,25 +368,14 @@ export function ProfilePublicView(props: {
 
         {/* Edit Profile Dialogs */}
         {isOwnProfile && profileUser && (
-          <>
-            <EditProfileDialog
-              open={isEditDialogOpen}
-              onOpenChange={setIsEditDialogOpen}
-              currentName={profileUser.name || profileUser.username || ""}
-              currentUsername={profileUser.username || username}
-              currentEmail={profileUser.email || currentUserData?.email || ""}
-              currentBio={profileUser.bio || ""}
-              onProfileUpdated={onEditProfileUpdated}
-            />
-            <ProfilePictureDialog
-              open={isProfilePictureDialogOpen}
-              onOpenChange={setIsProfilePictureDialogOpen}
-              currentProfilePicture={profileUser.profile_picture || ""}
-              currentName={profileUser.name || profileUser.username || ""}
-              currentUsername={profileUser.username || username}
-              onProfileUpdated={onProfilePictureUpdated}
-            />
-          </>
+          <ProfilePictureDialog
+            open={isProfilePictureDialogOpen}
+            onOpenChange={setIsProfilePictureDialogOpen}
+            currentProfilePicture={profileUser.profile_picture || ""}
+            currentName={profileUser.name || profileUser.username || ""}
+            currentUsername={profileUser.username || username}
+            onProfileUpdated={onProfilePictureUpdated}
+          />
         )}
         <AuthDialog
           open={authDialogOpen}

@@ -96,13 +96,13 @@ export function ArtistSocialLinks({ artist }: ArtistSocialLinksProps) {
   const links = PLATFORMS.filter((platform) => artist[platform.key])
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+    <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6 md:p-8">
       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
         Listen and follow
       </h2>
-      <div className="mt-4 border-t border-border" aria-hidden />
+      <div className="mt-3 border-t border-border sm:mt-4" aria-hidden />
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-4 space-y-2.5 sm:mt-6 sm:space-y-3">
         {links.length > 0 ? (
           links.map((platform) => {
             const href = artist[platform.key] as string
@@ -114,12 +114,12 @@ export function ArtistSocialLinks({ artist }: ArtistSocialLinksProps) {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 rounded-xl bg-muted/40 px-4 py-3.5 transition-colors hover:bg-muted/70"
+                className="flex min-h-12 items-center gap-3 rounded-xl bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70 sm:gap-4 sm:px-4 sm:py-3.5"
               >
                 <span
-                  className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${platform.iconClassName}`}
+                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-10 sm:w-10 ${platform.iconClassName}`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">{platform.label}</p>
@@ -131,7 +131,9 @@ export function ArtistSocialLinks({ artist }: ArtistSocialLinksProps) {
           })
         ) : (
           <p className="text-sm text-muted-foreground">
-            Official links will appear here once this profile is claimed.
+            {artist.claim_status === "claimed" || artist.verified
+              ? "No official links added yet."
+              : "Official links will appear here once this profile is claimed."}
           </p>
         )}
       </div>
