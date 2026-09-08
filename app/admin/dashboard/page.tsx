@@ -434,7 +434,7 @@ function AdminDashboardContent() {
                 </div>
               )}
 
-              {displaySection === "journeys" && can(PERMS.analyticsCountersRead) && (
+              {displaySection === "journeys" && can(PERMS.analyticsJourneysRead) && (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>

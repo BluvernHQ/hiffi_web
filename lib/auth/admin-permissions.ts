@@ -14,6 +14,8 @@ export const PERMS = {
   usersModerationWrite: "users.moderation:write",
   analyticsCountersRead: "analytics.counters:read",
   analyticsCountersWrite: "analytics.counters:write",
+  analyticsJourneysRead: "analytics.journeys:read",
+  analyticsJourneysWrite: "analytics.journeys:write",
   analyticsUtmRead: "analytics.utm:read",
   analyticsUtmWrite: "analytics.utm:write",
   analyticsSearchesRead: "analytics.searches:read",
@@ -58,12 +60,14 @@ export function isBackendPermission(value: string): value is BackendPermission {
 
 const ANALYTICS_READ: Permission[] = [
   PERMS.analyticsCountersRead,
+  PERMS.analyticsJourneysRead,
   PERMS.analyticsUtmRead,
   PERMS.analyticsSearchesRead,
 ]
 
 const ANALYTICS_WRITE: Permission[] = [
   PERMS.analyticsCountersWrite,
+  PERMS.analyticsJourneysWrite,
   PERMS.analyticsUtmWrite,
 ]
 
@@ -84,14 +88,22 @@ const LEGACY_GRANTS: Partial<Record<Permission, readonly string[]>> = {
   [PERMS.analyticsCountersRead]: [
     "analytics:read",
     "dashboard:read",
-    "journeys:read",
     "analytics.counters:read",
   ],
   [PERMS.analyticsCountersWrite]: [
     "analytics:write",
     "dashboard:write",
-    "journeys:write",
     "analytics.counters:write",
+  ],
+  [PERMS.analyticsJourneysRead]: [
+    "analytics:read",
+    "journeys:read",
+    "analytics.journeys:read",
+  ],
+  [PERMS.analyticsJourneysWrite]: [
+    "analytics:write",
+    "journeys:write",
+    "analytics.journeys:write",
   ],
   [PERMS.analyticsSearchesRead]: ["analytics:read", "searches:read", "analytics.searches:read"],
   [PERMS.analyticsUtmRead]: ["analytics:read", "utm:read", "analytics.utm:read"],
@@ -179,8 +191,8 @@ const LEGACY_EXPANSIONS: Record<string, readonly Permission[]> = {
   "inventory:write": INVENTORY_WRITE,
   "dashboard:read": [PERMS.analyticsCountersRead],
   "dashboard:write": [PERMS.analyticsCountersWrite],
-  "journeys:read": [PERMS.analyticsCountersRead],
-  "journeys:write": [PERMS.analyticsCountersWrite],
+  "journeys:read": [PERMS.analyticsJourneysRead],
+  "journeys:write": [PERMS.analyticsJourneysWrite],
   "searches:read": [PERMS.analyticsSearchesRead],
   "utm:read": [PERMS.analyticsUtmRead],
   "utm:write": [PERMS.analyticsUtmWrite],
@@ -303,8 +315,8 @@ export const ADMIN_SECTION_PERMISSION: Record<string, Permission> = {
   replies: PERMS.usersBrowseRead,
   flags: PERMS.flagsReviewRead,
   feedback: PERMS.feedbackInboxRead,
-  activity: PERMS.analyticsCountersRead,
-  journeys: PERMS.analyticsCountersRead,
+  activity: PERMS.analyticsJourneysRead,
+  journeys: PERMS.analyticsJourneysRead,
   referrals: PERMS.usersBrowseRead,
   followers: PERMS.usersBrowseRead,
   searches: PERMS.analyticsSearchesRead,

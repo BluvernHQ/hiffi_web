@@ -47,6 +47,8 @@ export const FALLBACK_PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { value: PERMS.analyticsCountersRead, label: "View platform counters" },
       { value: PERMS.analyticsCountersWrite, label: "Resync platform counters" },
+      { value: PERMS.analyticsJourneysRead, label: "View visitor journeys" },
+      { value: PERMS.analyticsJourneysWrite, label: "Manage journey funnels" },
       { value: PERMS.analyticsUtmRead, label: "View UTM polls and URLs" },
       { value: PERMS.analyticsUtmWrite, label: "Create UTM URLs" },
       { value: PERMS.analyticsSearchesRead, label: "View search logs" },

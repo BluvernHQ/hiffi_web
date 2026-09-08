@@ -25,7 +25,7 @@ export function useAdminPermissions() {
       has: (permission: Permission) => hasPermission(permissions, permission),
       hasAny: (perms: Permission[]) => hasAnyPermission(permissions, perms),
       canDashboardWrite: hasPermission(permissions, PERMS.analyticsCountersWrite),
-      canJourneysWrite: hasPermission(permissions, PERMS.analyticsCountersWrite),
+      canJourneysWrite: hasPermission(permissions, PERMS.analyticsJourneysWrite),
       canUtmWrite: hasPermission(permissions, PERMS.analyticsUtmWrite),
       canUsersWrite: hasPermission(permissions, PERMS.usersModerationWrite),
       canVideosWrite: hasPermission(permissions, PERMS.usersModerationWrite),
@@ -45,6 +45,7 @@ export function useAdminPermissions() {
       canRolesWrite: hasPermission(permissions, PERMS.rolesManagementWrite),
       canAnalyticsWrite: hasAnyPermission(permissions, [
         PERMS.analyticsCountersWrite,
+        PERMS.analyticsJourneysWrite,
         PERMS.analyticsUtmWrite,
       ]),
     }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { adminApiClient } from "@/lib/admin-api-client"
 import type { AdminRoleRow } from "@/lib/api/admin-roles"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { AdminPermissionPicker } from "@/components/admin/admin-permission-picker"
 import {
@@ -42,7 +43,8 @@ function normalizePermissions(permissions: string[]): Permission[] {
 
 export function AdminRolesPanel() {
   const { toast } = useToast()
-  const { canRolesWrite } = useAdminPermissions()
+  const { patchAdminSession } = useAdminAuth()
+  const { admin: currentAdmin, canRolesWrite } = useAdminPermissions()
   const [roles, setRoles] = useState<AdminRoleRow[]>([])
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>(
     FALLBACK_PERMISSION_GROUPS,
@@ -148,6 +150,9 @@ export function AdminRolesPanel() {
           display_name: name,
           permissions,
         })
+        if (currentAdmin?.role === editingRole.role_key) {
+          patchAdminSession({ permissions })
+        }
         toast({ title: "Role updated" })
       }
       closeDialog()

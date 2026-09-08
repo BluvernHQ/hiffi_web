@@ -13,7 +13,14 @@ type AdminAuthContextValue = {
   loading: boolean
   login: (username: string, password: string, turnstileToken?: string | null) => Promise<AdminSession>
   logout: () => void
+  /** Re-read session from localStorage (no network). */
   refreshAdmin: () => AdminSession | null
+  /**
+   * Update the cached session after a known local change (e.g. editing your own
+   * role). Permissions are resolved at login; remote changes still require re-login
+   * until the backend exposes a session/me endpoint.
+   */
+  patchAdminSession: (patch: Partial<AdminSession>) => AdminSession | null
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined)
@@ -98,9 +105,35 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAdmin = useCallback(() => hydrate(), [hydrate])
 
+  const patchAdminSession = useCallback((patch: Partial<AdminSession>): AdminSession | null => {
+    const current = adminApiClient.getAdminData()
+    if (!current) return null
+    const next: AdminSession = {
+      ...current,
+      ...patch,
+      admin_id: typeof patch.admin_id === "string" ? patch.admin_id : current.admin_id,
+      username: typeof patch.username === "string" ? patch.username : current.username,
+      email: typeof patch.email === "string" ? patch.email : current.email,
+      role: typeof patch.role === "string" ? patch.role : current.role,
+      permissions: Array.isArray(patch.permissions) ? patch.permissions : current.permissions,
+    }
+    if (!isValidAdminSession(next)) return current
+    adminApiClient.setAdminData(next)
+    setAdmin(next)
+    return next
+  }, [])
+
   const value = useMemo(
-    () => ({ admin, adminToken, loading, login, logout, refreshAdmin }),
-    [admin, adminToken, loading, login, logout, refreshAdmin],
+    () => ({
+      admin,
+      adminToken,
+      loading,
+      login,
+      logout,
+      refreshAdmin,
+      patchAdminSession,
+    }),
+    [admin, adminToken, loading, login, logout, refreshAdmin, patchAdminSession],
   )
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>

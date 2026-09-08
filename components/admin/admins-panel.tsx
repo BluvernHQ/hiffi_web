@@ -5,6 +5,7 @@ import { adminApiClient } from "@/lib/admin-api-client"
 import type { AdminRow } from "@/lib/admin-api-client"
 import type { AdminRoleRow } from "@/lib/api/admin-roles"
 import { rolesAssignableToAdmin } from "@/lib/auth/admin-permission-catalog"
+import { useAdminAuth } from "@/lib/admin-auth-context"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export function AdminsPanel() {
   const { toast } = useToast()
+  const { patchAdminSession } = useAdminAuth()
   const { admin: currentAdmin, canAdminsWrite } = useAdminPermissions()
   const [admins, setAdmins] = useState<AdminRow[]>([])
   const [roles, setRoles] = useState<AdminRoleRow[]>([])
@@ -155,6 +157,13 @@ export function AdminsPanel() {
         disabled: editDisabled,
         ...(trimmedPassword ? { password: trimmedPassword } : {}),
       })
+      if (isSelf) {
+        const roleRow = roles.find((r) => r.role_key === editRole)
+        patchAdminSession({
+          role: editRole,
+          ...(roleRow ? { permissions: roleRow.permissions } : {}),
+        })
+      }
       toast({
         title: "Team member updated",
         description: trimmedPassword
@@ -320,7 +329,8 @@ export function AdminsPanel() {
           <DialogHeader>
             <DialogTitle>Edit team member</DialogTitle>
             <DialogDescription>
-              Update role, password, or account status. Role changes take effect immediately.
+              Update role, password, or account status. Changing your own role updates this
+              session immediately; other admins need to sign in again to pick up permission changes.
             </DialogDescription>
           </DialogHeader>
 

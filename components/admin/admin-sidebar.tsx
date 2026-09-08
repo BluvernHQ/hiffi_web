@@ -126,7 +126,7 @@ const navSections: NavSection[] = [
   {
     title: "Insights",
     items: [
-      { icon: Route, label: "Journeys", value: "journeys", permission: PERMS.analyticsCountersRead },
+      { icon: Route, label: "Journeys", value: "journeys", permission: PERMS.analyticsJourneysRead },
       { icon: SearchIcon, label: "Searches", value: "searches", permission: PERMS.analyticsSearchesRead },
       { icon: Megaphone, label: "UTM Campaigns", value: "utm_polls", permission: PERMS.analyticsUtmRead },
       { icon: Handshake, label: "Collaboration", value: "collaboration", permission: PERMS.collaborationInquiriesRead },
