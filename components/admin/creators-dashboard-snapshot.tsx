@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type MouseEvent } from "react"
 import Link from "next/link"
-import { ArrowRight, Loader2, Users } from "lucide-react"
+import { ArrowRight, Info, Loader2, Users } from "lucide-react"
 import { adminApiClient } from "@/lib/admin-api-client"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,11 @@ import {
   kpiDirectoryParams,
 } from "@/lib/admin/creator-nav"
 import type { CreatorOverview, CreatorPopulation } from "@/lib/types/admin-creators"
+
+const ACTIVE_7D_INFO =
+  "Creators with at least one login, session, or upload in the last 7 days (based on last activity)."
+const ACTIVE_30D_INFO =
+  "Creators with at least one login, session, or upload in the last 30 days (based on last activity)."
 
 type SnapshotBlock = {
   population: CreatorPopulation
@@ -28,7 +33,13 @@ function PopulationSnapshot({ population, title, overview }: SnapshotBlock) {
       ? (overview.new_claims_this_week ?? overview.new_creators_this_week)
       : overview.new_creators_this_week
 
-  const cards = [
+  const cards: Array<{
+    href: string
+    label: string
+    value: string
+    warn?: boolean
+    info?: string
+  }> = [
     {
       href: creatorsDashboardHref(kpiDirectoryParams("total", population)),
       label: population === "claimed" ? "Claimed" : "Creators",
@@ -49,11 +60,13 @@ function PopulationSnapshot({ population, title, overview }: SnapshotBlock) {
       href: creatorsDashboardHref(kpiDirectoryParams("active_7d", population)),
       label: "Active 7d",
       value: formatCount(overview.active_7d),
+      info: ACTIVE_7D_INFO,
     },
     {
       href: creatorsDashboardHref(kpiDirectoryParams("active_30d", population)),
       label: "Active 30d",
       value: formatCount(overview.active_30d),
+      info: ACTIVE_30D_INFO,
     },
     {
       href: creatorsDashboardHref(kpiDirectoryParams("new", population)),
@@ -61,6 +74,11 @@ function PopulationSnapshot({ population, title, overview }: SnapshotBlock) {
       value: formatCount(newThisWeek),
     },
   ]
+
+  const stopInfoClick = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
 
   return (
     <div className="space-y-3">
@@ -100,7 +118,20 @@ function PopulationSnapshot({ population, title, overview }: SnapshotBlock) {
               card.warn ? "border-amber-200 bg-amber-50/50" : ""
             }`}
           >
-            <p className="text-[11px] text-muted-foreground">{card.label}</p>
+            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span>{card.label}</span>
+              {card.info ? (
+                <button
+                  type="button"
+                  title={card.info}
+                  aria-label={card.info}
+                  onClick={stopInfoClick}
+                  className="inline-flex rounded-full text-muted-foreground/80 hover:text-foreground"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              ) : null}
+            </p>
             <p className="text-xl font-semibold mt-1 tabular-nums">{card.value}</p>
           </Link>
         ))}

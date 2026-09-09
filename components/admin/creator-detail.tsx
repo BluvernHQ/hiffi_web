@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { creatorsDashboardHref } from "@/lib/admin/creator-nav"
+import { creatorsDashboardHref, parseCreatorsPopulation } from "@/lib/admin/creator-nav"
 import { getThumbnailUrl } from "@/lib/storage"
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
 import type { CreatorDetail } from "@/lib/types/admin-creators"
@@ -51,8 +51,11 @@ export function CreatorDetail({ username }: { username: string }) {
     useAdminNetworkError()
   const [detail, setDetail] = useState<CreatorDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [acting, setActing] = useState(false)
   const [confirm, setConfirm] = useState<"suspend" | "unsuspend" | null>(null)
+
+  const population = parseCreatorsPopulation(searchParams.get("creators_pop"))
 
   const backHref = useMemo(() => {
     const next = new URLSearchParams(searchParams.toString())
@@ -61,8 +64,10 @@ export function CreatorDetail({ username }: { username: string }) {
     if (!next.get("creators_view") && !next.get("segment") && !next.get("status")) {
       next.set("creators_view", "directory")
     }
+    if (population === "claimed") next.set("creators_pop", "claimed")
+    else next.delete("creators_pop")
     return `/admin/dashboard?${next.toString()}`
-  }, [searchParams])
+  }, [population, searchParams])
 
   const load = async () => {
     if (guardOfflineBeforeFetch()) {
@@ -71,10 +76,24 @@ export function CreatorDetail({ username }: { username: string }) {
     }
     try {
       setLoading(true)
+      setLoadError(null)
       clearNetworkError()
       setDetail(await adminApiClient.adminGetCreator(username))
     } catch (error) {
       setDetail(null)
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Creator not found."
+      const status =
+        error && typeof error === "object" && "status" in error
+          ? Number((error as { status?: number }).status)
+          : undefined
+      setLoadError(
+        status
+          ? `${message} (HTTP ${status} · GET /admin/creators/${encodeURIComponent(username)})`
+          : message,
+      )
       handleFetchError(error)
     } finally {
       setLoading(false)
@@ -144,7 +163,17 @@ export function CreatorDetail({ username }: { username: string }) {
             Back
           </Link>
         </Button>
-        <p className="text-sm text-muted-foreground">Creator not found.</p>
+        <p className="text-sm text-muted-foreground">
+          {loadError || "Creator not found."}
+        </p>
+        {population === "claimed" ? (
+          <p className="text-xs text-muted-foreground max-w-lg">
+            Claimed directory uses <code className="text-xs">GET /admin/creators/claimed</code>, but
+            detail always calls <code className="text-xs">GET /admin/creators/{"{username}"}</code>.
+            If this creator appears in Claimed but detail 404s, the backend detail lookup needs to
+            include claimed / inventory-linked users.
+          </p>
+        ) : null}
       </div>
     )
   }

@@ -12,7 +12,6 @@ import {
   Mail,
   MapPin,
   Music2,
-  Save,
   X,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -583,24 +582,6 @@ export function EditArtistProfileForm({
                 aria-label="Back to profile"
               >
                 <X className="h-4 w-4" />
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!hasChanges || isLoading}
-                className="h-9 bg-[#E8192C] px-3 hover:bg-[#d01528] sm:px-4"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">
-                      {emailChanged ? "Send OTP" : "Save Changes"}
-                    </span>
-                    <span className="sm:hidden">Save</span>
-                  </>
-                )}
               </Button>
             </div>
           </header>

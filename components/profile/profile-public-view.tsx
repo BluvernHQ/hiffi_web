@@ -344,6 +344,7 @@ export function ProfilePublicView(props: {
                       loading={isLoading || loadingMore}
                       hasMore={hasMore}
                       alwaysShowMoreMenu
+                      dense
                       showDeleteOption={isOwnProfile}
                       onLoadMore={loadMoreVideos}
                       onVideoDeleted={onVideoDeleted}

@@ -143,6 +143,9 @@ export function creatorsDashboardHref(params: Partial<CreatorsDirectoryQuery> = 
   sp.set("section", "creators")
   if (params.creator) {
     sp.set("creator", params.creator)
+    if (params.creators_pop && params.creators_pop !== "organic") {
+      sp.set("creators_pop", String(params.creators_pop))
+    }
     return `/admin/dashboard?${sp.toString()}`
   }
   const view = params.view ?? "dashboard"

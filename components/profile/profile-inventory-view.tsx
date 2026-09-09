@@ -283,7 +283,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                 id="profile-panel-videos"
                 role="tabpanel"
                 aria-labelledby="profile-tab-videos"
-                className="mt-4 focus-visible:outline-none sm:mt-6"
+                className="mt-3 focus-visible:outline-none sm:mt-6"
               >
               {userVideos.length > 0 ? (
                 <VideoGrid
@@ -291,6 +291,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                   loading={isLoading || loadingMore}
                   hasMore={hasMore}
                   alwaysShowMoreMenu
+                  dense
                   showDeleteOption={isOwnProfile}
                   onLoadMore={loadMoreVideos}
                   onVideoDeleted={onVideoDeleted}

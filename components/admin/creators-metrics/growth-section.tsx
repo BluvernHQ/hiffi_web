@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ChevronRight,
   Clock,
+  Info,
   Loader2,
   RefreshCw,
   Upload,
@@ -317,14 +318,14 @@ export function GrowthMetricsSection({
       key: "active_7d" as const,
       label: "Active 7d",
       value: overview.active_7d,
-      hint: "Activity in the 7 days ending at this date",
+      hint: "Login, session, or upload activity in the last 7 days",
       icon: UserCheck,
     },
     {
       key: "active_30d" as const,
       label: "Active 30d",
       value: overview.active_30d,
-      hint: "Activity in the 30 days ending at this date",
+      hint: "Login, session, or upload activity in the last 30 days",
       icon: Clock,
     },
   ]
@@ -508,7 +509,20 @@ export function GrowthMetricsSection({
               <Card className="border-2 h-full transition-all duration-200 hover:shadow-lg hover:border-primary/30">
                 <CardContent className="flex items-center justify-between py-5">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground">{card.label}</p>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      {card.label}
+                      <span
+                        title={card.hint}
+                        aria-label={card.hint}
+                        className="inline-flex text-muted-foreground/80"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                        }}
+                      >
+                        <Info className="h-3 w-3" />
+                      </span>
+                    </p>
                     <p className="text-2xl font-bold mt-1 tabular-nums">{formatCount(card.value)}</p>
                     <p className="text-[11px] text-muted-foreground mt-1">{card.hint}</p>
                   </div>

@@ -362,7 +362,10 @@ export function CreatorsDirectory() {
                 </tr>
               ) : (
                 rows.map((row) => {
-                  const href = creatorsDashboardHref({ creator: row.username })
+                  const href = creatorsDashboardHref({
+                    creator: row.username,
+                    creators_pop: population === "claimed" ? "claimed" : undefined,
+                  })
                   const lastUpload = formatWhen(row.last_upload)
                   const lastActivity = formatWhen(row.last_activity)
                   const joined = formatWhen(row.joined)

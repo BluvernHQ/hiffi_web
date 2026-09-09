@@ -21,8 +21,6 @@ import {
 } from "@/lib/admin/creator-nav"
 import {
   CREATOR_METRICS_SECTION_LABELS,
-  CREATOR_POPULATION_LABELS,
-  CREATOR_POPULATIONS,
   metricsSectionsForPopulation,
   type CreatorDateRange,
   type CreatorMetricsSection,
@@ -90,40 +88,13 @@ export function CreatorsOverview() {
 
   return (
     <div className="space-y-6 pb-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <p className="text-sm text-muted-foreground max-w-xl">
-          Metrics as of {asOf} UTC
-          {from_date ? ` · range from ${from_date}` : ""}. Organic and Claimed stay separate.
-          {population === "organic"
-            ? " Extended tabs (Acquisition–Cohorts) are on Claimed."
-            : " Click KPI numbers to open the matching list."}
-        </p>
-        <div className="inline-flex shrink-0 rounded-lg border bg-muted p-0.5 self-start">
-          {CREATOR_POPULATIONS.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                population === id
-                  ? "bg-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() =>
-                patchParams({
-                  creators_pop: id,
-                  // Avoid Organic hitting /admin/creators/activation as a username
-                  ...(id === "organic" && metrics !== "growth"
-                    ? { creators_metrics: null }
-                    : {}),
-                })
-              }
-            >
-              {CREATOR_POPULATION_LABELS[id]}
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="text-sm text-muted-foreground max-w-xl">
+        Metrics as of {asOf} UTC
+        {from_date ? ` · range from ${from_date}` : ""}. Organic and Claimed stay separate.
+        {population === "organic"
+          ? " Extended tabs (Acquisition–Cohorts) are on Claimed."
+          : " Click KPI numbers to open the matching list."}
+      </p>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border bg-background px-2.5 py-1.5">
