@@ -27,7 +27,7 @@ function saveScrollBeforeNavigate(storageKey: string, target?: Element | null) {
 }
 
 /**
- * Persists #main-content scroll for configured marketing pages (e.g. /hip-hop).
+ * Persists #main-content scroll for configured pages (home `/`, `/hip-hop`, etc.).
  * Mounted once in the main layout so save/restore survives route transitions and browser Back.
  */
 export function MainContentScrollCoordinator() {

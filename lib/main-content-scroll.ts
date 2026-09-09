@@ -4,6 +4,7 @@ const lastKnownScrollByKey = new Map<string, number>()
 
 /** Routes whose #main-content scroll should persist across client navigations. */
 export const MAIN_CONTENT_SCROLL_PERSIST_PATHS: Record<string, string> = {
+  "/": "/",
   "/hip-hop": "/hip-hop",
 }
 
@@ -18,6 +19,18 @@ export function getPersistedScrollStorageKey(pathname: string): string | null {
 export function getMainContentScrollTop(): number {
   if (typeof document === "undefined") return 0
   return document.getElementById(MAIN_CONTENT_ID)?.scrollTop ?? 0
+}
+
+/** Reset the app shell scroll container (and window) to the top. */
+export function scrollMainContentToTop(behavior: ScrollBehavior = "auto"): void {
+  if (typeof document === "undefined") return
+  const mainContent = document.getElementById(MAIN_CONTENT_ID)
+  if (mainContent && mainContent.scrollTop > 0) {
+    mainContent.scrollTo({ top: 0, left: 0, behavior })
+  }
+  if (typeof window !== "undefined" && window.scrollY > 0) {
+    window.scrollTo({ top: 0, left: 0, behavior })
+  }
 }
 
 export function setLastKnownMainContentScroll(storageKey: string, scrollTop: number): void {

@@ -1,4 +1,10 @@
-import type { CreatorSegment, FunnelComparePeriod } from "@/lib/types/admin-creators"
+import type {
+  CreatorMetricsSection,
+  CreatorPopulation,
+  CreatorSegment,
+  FunnelComparePeriod,
+} from "@/lib/types/admin-creators"
+import { isCreatorMetricsSection, isCreatorPopulation } from "@/lib/types/admin-creators"
 
 export type CreatorsView = "dashboard" | "directory"
 
@@ -13,8 +19,14 @@ export type CreatorsDirectoryQuery = {
   claim_status?: string
   stale_days?: string
   page?: string
-  /** Shared analytics calendar (`YYYY-MM-DD` UTC). */
+  /** Shared analytics end date (`YYYY-MM-DD` UTC). Alias for to_date in URL. */
   as_of?: string
+  from_date?: string
+  to_date?: string
+  /** Overview metrics sub-section. */
+  creators_metrics?: CreatorMetricsSection | string
+  /** Organic vs claimed dashboard. */
+  creators_pop?: CreatorPopulation | string
 }
 
 const DIRECTORY_KEYS = [
@@ -28,7 +40,7 @@ const DIRECTORY_KEYS = [
   "page",
 ] as const
 
-/** UTC calendar date as `YYYY-MM-DD` (API `as_of` format). */
+/** UTC calendar date as `YYYY-MM-DD` (API date format). */
 export function utcDateString(date = new Date()): string {
   const y = date.getUTCFullYear()
   const m = String(date.getUTCMonth() + 1).padStart(2, "0")
@@ -36,7 +48,7 @@ export function utcDateString(date = new Date()): string {
   return `${y}-${m}-${d}`
 }
 
-/** Validate / clamp an `as_of` string. Invalid → today UTC. Future → today UTC. */
+/** Validate / clamp a date string. Invalid → today UTC. Future → today UTC. */
 export function normalizeAsOf(value: string | null | undefined): string {
   const today = utcDateString()
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return today
@@ -58,34 +70,54 @@ export function formatDays(value: number | null | undefined): string {
   return `${value.toFixed(1)}d`
 }
 
+export function formatHours(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—"
+  return `${value.toFixed(1)}h`
+}
+
+export function parseCreatorsPopulation(
+  value: string | null | undefined,
+): CreatorPopulation {
+  return isCreatorPopulation(value) ? value : "organic"
+}
+
+export function parseCreatorsMetricsSection(
+  value: string | null | undefined,
+): CreatorMetricsSection {
+  return isCreatorMetricsSection(value) ? value : "growth"
+}
+
 export function kpiDirectoryParams(
-  card:
-    | "total"
-    | "uploads"
-    | "never"
-    | "new"
-    | "active_7d"
-    | "active_30d",
+  card: "total" | "uploads" | "never" | "new" | "active_7d" | "active_30d",
+  population: CreatorPopulation = "organic",
 ): Partial<CreatorsDirectoryQuery> {
+  const withPop = (
+    base: Partial<CreatorsDirectoryQuery>,
+  ): Partial<CreatorsDirectoryQuery> => ({
+    ...base,
+    creators_pop: population === "claimed" ? "claimed" : undefined,
+  })
+
   switch (card) {
     case "total":
-      return { view: "directory", status: "approved" }
+      return withPop({ view: "directory", status: "approved" })
     case "uploads":
-      return { view: "directory", segment: "has_uploads" }
+      return withPop({ view: "directory", segment: "has_uploads" })
     case "never":
-      return { view: "directory", segment: "never_uploaded" }
+      return withPop({ view: "directory", segment: "never_uploaded" })
     case "new":
-      return { view: "directory", segment: "new_this_week" }
+      return withPop({ view: "directory", segment: "new_this_week" })
     case "active_7d":
-      return { view: "directory", segment: "active_7d" }
+      return withPop({ view: "directory", segment: "active_7d" })
     case "active_30d":
-      return { view: "directory", segment: "active_30d" }
+      return withPop({ view: "directory", segment: "active_30d" })
   }
 }
 
 export function attentionDirectoryParams(
   key: string,
   staleDays?: number,
+  population: CreatorPopulation = "organic",
 ): Partial<CreatorsDirectoryQuery> {
   const map: Record<string, CreatorSegment | undefined> = {
     never_uploaded: "never_uploaded",
@@ -97,7 +129,10 @@ export function attentionDirectoryParams(
     new_creators_without_upload: "new_without_upload",
   }
   const segment = map[key]
-  const next: Partial<CreatorsDirectoryQuery> = { view: "directory" }
+  const next: Partial<CreatorsDirectoryQuery> = {
+    view: "directory",
+    creators_pop: population === "claimed" ? "claimed" : undefined,
+  }
   if (segment) next.segment = segment
   if (segment === "stale" && staleDays) next.stale_days = String(staleDays)
   return next
@@ -112,7 +147,17 @@ export function creatorsDashboardHref(params: Partial<CreatorsDirectoryQuery> = 
   }
   const view = params.view ?? "dashboard"
   if (view === "directory") sp.set("creators_view", "directory")
-  if (params.as_of) sp.set("as_of", params.as_of)
+
+  const toDate = params.to_date || params.as_of
+  if (toDate) sp.set("as_of", toDate)
+  if (params.from_date) sp.set("from_date", params.from_date)
+
+  if (params.creators_metrics && params.creators_metrics !== "growth") {
+    sp.set("creators_metrics", params.creators_metrics)
+  }
+  if (params.creators_pop && params.creators_pop !== "organic") {
+    sp.set("creators_pop", params.creators_pop)
+  }
   for (const key of DIRECTORY_KEYS) {
     const value = params[key]
     if (value) sp.set(key, value)

@@ -235,6 +235,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
           <ArtistDetailHero
             artist={artist}
             profilePath={profilePath}
+            username={profileUser?.username || username}
             hiffiVideoCount={hiffiVideoCount}
             actions={heroActions}
             hideStatusBadge

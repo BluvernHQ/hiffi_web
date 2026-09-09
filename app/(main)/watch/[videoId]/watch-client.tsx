@@ -45,6 +45,7 @@ import {
   onPlaylistTrackAdvanced,
 } from "@/lib/analytics/journey-tracking"
 import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
+import { scrollMainContentToTop } from "@/lib/main-content-scroll"
 import {
   PLAYLIST_QUEUE_CLICK,
   UP_NEXT_SIDEBAR_CLICK,
@@ -240,13 +241,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   // Main feed/content is rendered inside #main-content (custom scroll container),
   // so we must reset that container when entering or switching videos on watch.
   useLayoutEffect(() => {
-    const mainContent = document.getElementById("main-content")
-    if (mainContent && mainContent.scrollTop > 0) {
-      mainContent.scrollTo({ top: 0, left: 0, behavior: "auto" })
-    }
-    if (window.scrollY > 0) {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
-    }
+    scrollMainContentToTop("auto")
   }, [pathname, currentVideoId])
 
   // Sync currentVideoId when the URL param changes via real Next.js navigation

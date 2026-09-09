@@ -108,6 +108,14 @@ import {
   adminGetCreatorFunnel as apiAdminGetCreatorFunnel,
   adminGetCreatorAttention as apiAdminGetCreatorAttention,
   adminGetCreatorTrends as apiAdminGetCreatorTrends,
+  adminGetCreatorAcquisition as apiAdminGetCreatorAcquisition,
+  adminGetCreatorActivation as apiAdminGetCreatorActivation,
+  adminGetCreatorEngagement as apiAdminGetCreatorEngagement,
+  adminGetCreatorRetention as apiAdminGetCreatorRetention,
+  adminGetCreatorContent as apiAdminGetCreatorContent,
+  adminGetCreatorQuality as apiAdminGetCreatorQuality,
+  adminGetCreatorOps as apiAdminGetCreatorOps,
+  adminGetCreatorCohorts as apiAdminGetCreatorCohorts,
   adminListCreators as apiAdminListCreators,
   adminGetCreator as apiAdminGetCreator,
   adminSuspendCreator as apiAdminSuspendCreator,
@@ -278,7 +286,20 @@ class AdminApiClient implements AdminApiClientContext {
       }
     }
 
-    const response = await fetch(url, { ...options, headers })
+    let response: Response
+    try {
+      response = await fetch(url, { ...options, headers })
+    } catch (error) {
+      // Normalize browser network failures (CORS, DNS, server down) for callers.
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to fetch"
+      throw Object.assign(new Error(message), {
+        status: 0,
+        cause: error,
+      }) as ApiError
+    }
 
     if (response.status === 401 && requiresAuth) {
       this.clearSession()
@@ -503,27 +524,98 @@ class AdminApiClient implements AdminApiClientContext {
 
   // ─── Creators ────────────────────────────────────────────────────────────────
 
-  async adminGetCreatorOverview(asOf?: string) {
-    return apiAdminGetCreatorOverview(this, asOf)
+  async adminGetCreatorOverview(
+    range?: Parameters<typeof apiAdminGetCreatorOverview>[1],
+    population?: Parameters<typeof apiAdminGetCreatorOverview>[2],
+  ) {
+    return apiAdminGetCreatorOverview(this, range, population)
   }
 
   async adminGetCreatorFunnel(
     compare?: Parameters<typeof apiAdminGetCreatorFunnel>[1],
-    asOf?: string,
+    range?: Parameters<typeof apiAdminGetCreatorFunnel>[2],
+    population?: Parameters<typeof apiAdminGetCreatorFunnel>[3],
   ) {
-    return apiAdminGetCreatorFunnel(this, compare, asOf)
+    return apiAdminGetCreatorFunnel(this, compare, range, population)
   }
 
-  async adminGetCreatorAttention(staleDays?: number, asOf?: string) {
-    return apiAdminGetCreatorAttention(this, staleDays, asOf)
+  async adminGetCreatorAttention(
+    staleDays?: number,
+    range?: Parameters<typeof apiAdminGetCreatorAttention>[2],
+    population?: Parameters<typeof apiAdminGetCreatorAttention>[3],
+  ) {
+    return apiAdminGetCreatorAttention(this, staleDays, range, population)
   }
 
-  async adminGetCreatorTrends(asOf?: string) {
-    return apiAdminGetCreatorTrends(this, asOf)
+  async adminGetCreatorTrends(
+    range?: Parameters<typeof apiAdminGetCreatorTrends>[1],
+    population?: Parameters<typeof apiAdminGetCreatorTrends>[2],
+  ) {
+    return apiAdminGetCreatorTrends(this, range, population)
   }
 
-  async adminListCreators(params?: Parameters<typeof apiAdminListCreators>[1]) {
-    return apiAdminListCreators(this, params)
+  async adminGetCreatorAcquisition(
+    range?: Parameters<typeof apiAdminGetCreatorAcquisition>[1],
+    population?: Parameters<typeof apiAdminGetCreatorAcquisition>[2],
+  ) {
+    return apiAdminGetCreatorAcquisition(this, range, population)
+  }
+
+  async adminGetCreatorActivation(
+    range?: Parameters<typeof apiAdminGetCreatorActivation>[1],
+    population?: Parameters<typeof apiAdminGetCreatorActivation>[2],
+  ) {
+    return apiAdminGetCreatorActivation(this, range, population)
+  }
+
+  async adminGetCreatorEngagement(
+    staleDays?: number,
+    range?: Parameters<typeof apiAdminGetCreatorEngagement>[2],
+    population?: Parameters<typeof apiAdminGetCreatorEngagement>[3],
+  ) {
+    return apiAdminGetCreatorEngagement(this, staleDays, range, population)
+  }
+
+  async adminGetCreatorRetention(
+    range?: Parameters<typeof apiAdminGetCreatorRetention>[1],
+    population?: Parameters<typeof apiAdminGetCreatorRetention>[2],
+  ) {
+    return apiAdminGetCreatorRetention(this, range, population)
+  }
+
+  async adminGetCreatorContent(
+    range?: Parameters<typeof apiAdminGetCreatorContent>[1],
+    population?: Parameters<typeof apiAdminGetCreatorContent>[2],
+  ) {
+    return apiAdminGetCreatorContent(this, range, population)
+  }
+
+  async adminGetCreatorQuality(
+    range?: Parameters<typeof apiAdminGetCreatorQuality>[1],
+    population?: Parameters<typeof apiAdminGetCreatorQuality>[2],
+  ) {
+    return apiAdminGetCreatorQuality(this, range, population)
+  }
+
+  async adminGetCreatorOps(
+    range?: Parameters<typeof apiAdminGetCreatorOps>[1],
+    population?: Parameters<typeof apiAdminGetCreatorOps>[2],
+  ) {
+    return apiAdminGetCreatorOps(this, range, population)
+  }
+
+  async adminGetCreatorCohorts(
+    range?: Parameters<typeof apiAdminGetCreatorCohorts>[1],
+    population?: Parameters<typeof apiAdminGetCreatorCohorts>[2],
+  ) {
+    return apiAdminGetCreatorCohorts(this, range, population)
+  }
+
+  async adminListCreators(
+    params?: Parameters<typeof apiAdminListCreators>[1],
+    population?: Parameters<typeof apiAdminListCreators>[2],
+  ) {
+    return apiAdminListCreators(this, params, population)
   }
 
   async adminGetCreator(username: string) {

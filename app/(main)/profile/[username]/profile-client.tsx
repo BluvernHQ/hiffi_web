@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { VideoGrid } from '@/components/video/video-grid';
@@ -28,6 +28,7 @@ import { ProfileMemberView } from '@/components/profile/profile-member-view';
 import { ProfileInventoryView } from '@/components/profile/profile-inventory-view';
 import type { Artist } from '@/lib/artists';
 import { mapUserProfileToArtist } from '@/lib/artist-index/map-user-profile-to-artist';
+import { scrollMainContentToTop } from '@/lib/main-content-scroll';
 import { debugLog, debugWarn } from '@/lib/debug';
 
 const VIDEOS_PER_PAGE = 10;
@@ -103,6 +104,12 @@ export default function ProfilePage({
   userVideosRef.current = userVideos;
 
   const username = params.username as string;
+
+  // #main-content is a persistent scroll shell — reset so profile opens at the hero, not mid-feed.
+  useLayoutEffect(() => {
+    scrollMainContentToTop("auto")
+  }, [username])
+
   const isOwnProfile = currentUserData?.username === username;
   const reportViewer = user
     ? { uid: user.uid, username: currentUserData?.username ?? user.username }

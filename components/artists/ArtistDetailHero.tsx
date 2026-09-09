@@ -17,6 +17,8 @@ type ArtistDetailHeroProps = {
    * Used on `/profile/{username}` so we can show Follow / Edit instead of “Watch on Hiffi”.
    */
   actions?: ReactNode
+  /** Show @handle under the display name (profile pages). */
+  username?: string
   /** Hide the circular “Watch on Hiffi” link when already on the profile page. */
   hideWatchLink?: boolean
   /** Hide Verified / Unclaimed / Under Review chip (e.g. on `/profile`). */
@@ -31,6 +33,7 @@ export function ArtistDetailHero({
   profilePath,
   hiffiVideoCount = 0,
   actions,
+  username,
   hideWatchLink = false,
   hideStatusBadge = false,
   compact = false,
@@ -158,16 +161,23 @@ export function ArtistDetailHero({
               </div>
 
               <div className="min-w-0 space-y-2 pb-0.5 sm:space-y-3 sm:pb-1">
-                <h1
-                  className={cn(
-                    "max-w-3xl break-words font-bold uppercase leading-[0.95] tracking-tight",
-                    compact
-                      ? "text-2xl sm:text-4xl lg:text-5xl"
-                      : "text-3xl sm:text-4xl lg:text-5xl",
-                  )}
-                >
-                  {artist.name}
-                </h1>
+                <div className="min-w-0 space-y-1">
+                  <h1
+                    className={cn(
+                      "max-w-3xl break-words font-bold uppercase leading-[0.95] tracking-tight",
+                      compact
+                        ? "text-2xl sm:text-4xl lg:text-5xl"
+                        : "text-3xl sm:text-4xl lg:text-5xl",
+                    )}
+                  >
+                    {artist.name}
+                  </h1>
+                  {username?.trim() ? (
+                    <p className="truncate text-sm font-medium normal-case tracking-normal text-white/70 sm:text-base">
+                      @{username.trim().replace(/^@/, "")}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/75 sm:gap-x-5 sm:text-sm sm:tracking-[0.16em]">
                   {followerCount != null && followerCount > 0 ? (
                     <span>{formatTotalReach(followerCount, false)} Total Reach</span>

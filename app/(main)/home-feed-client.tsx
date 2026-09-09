@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { VideoGrid } from "@/components/video/video-grid"
 import { FeedVideoPreviewProvider } from "@/components/video/feed-video-preview-provider"
@@ -41,8 +41,13 @@ import {
 } from "@/lib/playlist-session"
 import { cn } from "@/lib/utils"
 import { getThumbnailUrl } from "@/lib/storage"
+import {
+  getMainContentScrollTop,
+  restoreMainContentScroll,
+} from "@/lib/main-content-scroll"
 
 const VIDEOS_PER_PAGE = 10
+const HOME_SCROLL_KEY = "/"
 
 type FeedCache = {
   videos: any[]
@@ -52,6 +57,21 @@ type FeedCache = {
   scrollTop: number
 }
 
+/** Survives remount when leaving home → profile (and back). */
+type HomeFeedSession = {
+  allFeed: FeedCache
+  moodFeeds: Map<string, FeedCache>
+  activeMood: string | null
+  pickerOpen: boolean
+  pendingMoodQuery: string | null
+}
+
+let homeFeedSession: HomeFeedSession | null = null
+
+function clearHomeFeedSession() {
+  homeFeedSession = null
+}
+
 function mergeVideos(prev: any[], incoming: any[]) {
   const seen = new Set(prev.map((v: any) => v.videoId || v.video_id))
   const fresh = incoming.filter((v: any) => !seen.has(v.videoId || v.video_id))
@@ -59,8 +79,7 @@ function mergeVideos(prev: any[], incoming: any[]) {
 }
 
 function readMainScrollTop(): number {
-  if (typeof document === "undefined") return 0
-  return document.getElementById("main-content")?.scrollTop ?? 0
+  return getMainContentScrollTop()
 }
 
 export interface HomeFeedClientProps {
@@ -100,6 +119,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const [pendingMoodQuery, setPendingMoodQuery] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(true)
   const [hydrated, setHydrated] = useState(false)
+  const restoredFromSessionRef = useRef(false)
 
   const allFeedCache = useRef<FeedCache>({
     videos: initialVideos,
@@ -115,6 +135,8 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   const videosRef = useRef(videos)
   const hasMoreRef = useRef(hasMore)
   const activeMoodRef = useRef(activeMood)
+  const pickerOpenRef = useRef(pickerOpen)
+  const pendingMoodQueryRef = useRef(pendingMoodQuery)
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
   const isMoodFeed = Boolean(activeMood)
@@ -205,6 +227,46 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     activeMoodRef.current = activeMood
   }, [activeMood])
 
+  useEffect(() => {
+    pickerOpenRef.current = pickerOpen
+  }, [pickerOpen])
+
+  useEffect(() => {
+    pendingMoodQueryRef.current = pendingMoodQuery
+  }, [pendingMoodQuery])
+
+  const persistHomeSession = useCallback(() => {
+    const moodKey = activeMoodRef.current
+    const fromDom = readMainScrollTop()
+    if (moodKey === null) {
+      const scrollTop = fromDom > 0 ? fromDom : allFeedCache.current.scrollTop
+      allFeedCache.current = {
+        ...allFeedCache.current,
+        videos: videosRef.current,
+        offset: videosRef.current.length,
+        hasMore: hasMoreRef.current,
+        scrollTop,
+      }
+    } else {
+      const prev = moodFeedCaches.current.get(moodKey)
+      const scrollTop = fromDom > 0 ? fromDom : (prev?.scrollTop ?? 0)
+      moodFeedCaches.current.set(moodKey, {
+        videos: videosRef.current,
+        offset: videosRef.current.length,
+        hasMore: hasMoreRef.current,
+        scrollTop,
+      })
+    }
+
+    homeFeedSession = {
+      allFeed: { ...allFeedCache.current },
+      moodFeeds: new Map(moodFeedCaches.current),
+      activeMood: activeMoodRef.current,
+      pickerOpen: pickerOpenRef.current,
+      pendingMoodQuery: pendingMoodQueryRef.current,
+    }
+  }, [])
+
   const restoreScrollPosition = useCallback(() => {
     if (scrollSnapshot.current === null) return
     const el = document.getElementById("main-content")
@@ -257,8 +319,72 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
     [scheduleScrollRestore],
   )
 
-  // Hydrate picker + persisted mood on client
+  // Restore in-memory session before paint when returning from another route (e.g. profile).
+  useLayoutEffect(() => {
+    const session = homeFeedSession
+    if (!session) return
+
+    allFeedCache.current = session.allFeed
+    moodFeedCaches.current = new Map(session.moodFeeds)
+    setActiveMood(session.activeMood)
+    setPendingMoodQuery(session.pendingMoodQuery)
+    setPickerOpen(session.pickerOpen)
+
+    const feed =
+      session.activeMood != null
+        ? session.moodFeeds.get(session.activeMood)
+        : session.allFeed
+
+    if (feed && feed.videos.length > 0) {
+      restoredFromSessionRef.current = true
+      setVideos(feed.videos)
+      setHasMore(feed.hasMore)
+      setMoodEmpty(session.activeMood != null && feed.videos.length === 0)
+      setLoading(false)
+      videosRef.current = feed.videos
+      hasMoreRef.current = feed.hasMore
+      scheduleScrollRestore(feed.scrollTop)
+      // Coordinator also retries until content height catches up.
+      restoreMainContentScroll(HOME_SCROLL_KEY)
+    }
+  }, [scheduleScrollRestore])
+
+  // Persist feed + scroll when leaving home so back-navigation can restore both.
   useEffect(() => {
+    return () => {
+      persistHomeSession()
+    }
+  }, [persistHomeSession])
+
+  // Keep scrollTop in the feed cache while browsing so unmount after scroll-reset still has it.
+  useEffect(() => {
+    const el = document.getElementById("main-content")
+    if (!el) return
+
+    const onScroll = () => {
+      const top = el.scrollTop
+      const mood = activeMoodRef.current
+      if (mood === null) {
+        if (allFeedCache.current.scrollTop === top) return
+        allFeedCache.current = { ...allFeedCache.current, scrollTop: top }
+        return
+      }
+      const prev = moodFeedCaches.current.get(mood)
+      if (!prev || prev.scrollTop === top) return
+      moodFeedCaches.current.set(mood, { ...prev, scrollTop: top })
+    }
+
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [])
+
+  // Hydrate picker + persisted mood on client (skip when we already restored a session).
+  useEffect(() => {
+    if (restoredFromSessionRef.current) {
+      setHydrated(true)
+      return
+    }
+
     const persisted = getPersistedActiveMood()
     if (persisted && moodByQuery(persisted)) {
       setActiveMood(persisted)
@@ -525,13 +651,17 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
   }
 
   useEffect(() => {
-    const onHomeReset = () => switchToFullFeed()
+    const onHomeReset = () => {
+      clearHomeFeedSession()
+      switchToFullFeed()
+    }
     window.addEventListener(HOME_FEED_RESET_EVENT, onHomeReset)
     return () => window.removeEventListener(HOME_FEED_RESET_EVENT, onHomeReset)
   }, [switchToFullFeed])
 
   useEffect(() => {
     if (!hydrated) return
+    if (restoredFromSessionRef.current) return
     if (initialVideos.length === 0 && activeMood === null) {
       void fetchDefaultFeed(0, true)
     }

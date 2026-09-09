@@ -181,6 +181,8 @@ export function CreatorDetail({ username }: { username: string }) {
                     : profile.creator_status}
               </Badge>
               {profile.disabled && <Badge variant="destructive">Account disabled</Badge>}
+              {profile.source === "inventory" && <Badge variant="outline">Inventory</Badge>}
+              {profile.source === "organic" && <Badge variant="secondary">Organic</Badge>}
               {profile.claim_status && <Badge variant="outline">Claim {profile.claim_status}</Badge>}
             </div>
           </div>
