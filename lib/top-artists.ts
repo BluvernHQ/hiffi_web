@@ -9,7 +9,8 @@
  * - Breakout 100: `GET /inventory/top/breakout`
  *
  * Ranking payload often omits photos — we enrich from /users/{username} when possible.
- * Score is YouTube-only today; the UI must disclose that.
+ * Overall / city charts blend YouTube + Instagram into `final_score`.
+ * Risers, breakout, and underground remain YouTube / mode-specific scores.
  */
 
 import { getArtistImageUrl } from "@/lib/artist-directory"
@@ -36,7 +37,12 @@ export interface TopArtist {
   /** Proxied profile photo when available (from ranking payload or /users enrichment). */
   image?: string | null
   claim_status: "unclaimed" | "pending" | "claimed"
-  youtube_score: number
+  /** Blended YouTube + Instagram score used for overall / city ranking. */
+  final_score: number
+  /** YouTube platform score; omitted when null. */
+  youtube_score?: number
+  /** Instagram platform score; omitted when null / not scraped. */
+  instagram_score?: number
   youtube_subscriber_count?: number
   youtube_view_count?: number
   youtube_video_count?: number
@@ -45,6 +51,13 @@ export interface TopArtist {
   youtube_momentum_7d?: number
   youtube_momentum_30d?: number
   youtube_momentum_90d?: number
+  instagram_follower_count?: number
+  instagram_recent_avg_likes?: number
+  instagram_post_velocity?: number
+  /** Fractional growth; `0` until history exists. */
+  instagram_momentum_7d: number
+  instagram_momentum_30d: number
+  instagram_momentum_90d: number
   /** When city charts re-number locally, preserve the global Hiffi 500 rank for share cards. */
   global_rank?: number
   /** Optional — present once weekly snapshots ship. */
@@ -271,10 +284,31 @@ type BreakoutEnvelope =
   | { success: true; data: BreakoutResponse }
   | { success: false; error: string }
 
+function coalesceScore(...candidates: Array<number | null | undefined>): number {
+  for (const value of candidates) {
+    if (value != null && !Number.isNaN(Number(value))) return Number(value)
+  }
+  return 0
+}
+
 function normalizeArtist(item: TopArtist): TopArtist {
+  const youtubeScore =
+    item.youtube_score != null && !Number.isNaN(Number(item.youtube_score))
+      ? Number(item.youtube_score)
+      : undefined
+  const instagramScore =
+    item.instagram_score != null && !Number.isNaN(Number(item.instagram_score))
+      ? Number(item.instagram_score)
+      : undefined
   return {
     ...item,
     image: item.image ?? getArtistImageUrl(item.banner_image) ?? null,
+    final_score: coalesceScore(item.final_score, youtubeScore, instagramScore),
+    youtube_score: youtubeScore,
+    instagram_score: instagramScore,
+    instagram_momentum_7d: item.instagram_momentum_7d ?? 0,
+    instagram_momentum_30d: item.instagram_momentum_30d ?? 0,
+    instagram_momentum_90d: item.instagram_momentum_90d ?? 0,
     rank_delta_7d: item.rank_delta_7d ?? null,
     rank_delta_30d: item.rank_delta_30d ?? null,
     previous_rank: item.previous_rank ?? null,
@@ -284,6 +318,7 @@ function normalizeArtist(item: TopArtist): TopArtist {
 
 /** Map risers API rows onto TopArtist so shared ranking list components can render them. */
 export function riserToTopArtist(item: RiserArtist): TopArtist {
+  const youtubeScore = item.youtube_score
   return normalizeArtist({
     rank: item.current_rank,
     username: item.username,
@@ -294,7 +329,8 @@ export function riserToTopArtist(item: RiserArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    youtube_score: item.youtube_score ?? 0,
+    final_score: coalesceScore(youtubeScore),
+    youtube_score: youtubeScore,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_view_count: item.youtube_view_count,
     youtube_video_count: item.youtube_video_count,
@@ -303,6 +339,9 @@ export function riserToTopArtist(item: RiserArtist): TopArtist {
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
     youtube_momentum_90d: item.youtube_momentum_90d,
+    instagram_momentum_7d: 0,
+    instagram_momentum_30d: 0,
+    instagram_momentum_90d: 0,
     previous_rank: item.prior_rank,
     rank_delta_7d: item.rank_delta,
     is_new_entry: false,
@@ -311,6 +350,7 @@ export function riserToTopArtist(item: RiserArtist): TopArtist {
 
 /** Map underground heat rows onto TopArtist for shared list UIs. */
 export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
+  const youtubeScore = item.youtube_score
   return normalizeArtist({
     rank: item.underground_rank,
     username: item.username,
@@ -321,13 +361,17 @@ export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    youtube_score: item.youtube_score ?? item.heat_score,
+    final_score: coalesceScore(youtubeScore, item.heat_score),
+    youtube_score: youtubeScore,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_recent_avg_views: item.youtube_recent_avg_views,
     youtube_upload_velocity: item.youtube_upload_velocity,
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
     youtube_momentum_90d: item.youtube_momentum_90d,
+    instagram_momentum_7d: 0,
+    instagram_momentum_30d: 0,
+    instagram_momentum_90d: 0,
     global_rank: item.youtube_rank,
     is_new_entry: false,
   })
@@ -335,6 +379,7 @@ export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
 
 /** Map breakout API rows onto TopArtist for shared list UIs. */
 export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
+  const youtubeScore = item.youtube_score
   return normalizeArtist({
     rank: item.breakout_rank,
     username: item.username,
@@ -345,11 +390,15 @@ export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    youtube_score: item.youtube_score ?? item.momentum_score,
+    final_score: coalesceScore(youtubeScore, item.momentum_score),
+    youtube_score: youtubeScore,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
     youtube_momentum_90d: item.youtube_momentum_90d,
+    instagram_momentum_7d: 0,
+    instagram_momentum_30d: 0,
+    instagram_momentum_90d: 0,
     global_rank: item.youtube_rank,
     is_new_entry: false,
   })
@@ -842,7 +891,7 @@ export function topArtistTier(rank: number): { label: string; highlight: boolean
 }
 
 /**
- * Public score band from YouTube score (v1) or future HPS.
+ * Public score band from blended final score (fallback: YouTube score).
  * Advisory: show bands, not raw metrics.
  */
 export function topArtistScoreBand(artist: TopArtist): {
@@ -850,7 +899,7 @@ export function topArtistScoreBand(artist: TopArtist): {
   short: string
   highlight: boolean
 } {
-  const score = artist.youtube_score
+  const score = coalesceScore(artist.final_score, artist.youtube_score)
   if (score >= 32) return { label: "Elite band", short: "Elite", highlight: true }
   if (score >= 28) return { label: "Strong band", short: "Strong", highlight: false }
   if (score >= 24) return { label: "Building band", short: "Building", highlight: false }

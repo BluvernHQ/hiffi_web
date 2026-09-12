@@ -137,9 +137,17 @@ function slimInventoryItem(item) {
     youtube_recent_avg_views: item.youtube_recent_avg_views ?? null,
     youtube_upload_velocity: item.youtube_upload_velocity ?? null,
     youtube_score: item.youtube_score ?? null,
+    final_score: item.final_score ?? null,
+    instagram_score: item.instagram_score ?? null,
     youtube_momentum_7d: item.youtube_momentum_7d ?? null,
     youtube_momentum_30d: item.youtube_momentum_30d ?? null,
     youtube_momentum_90d: item.youtube_momentum_90d ?? null,
+    instagram_follower_count: item.instagram_follower_count ?? null,
+    instagram_recent_avg_likes: item.instagram_recent_avg_likes ?? null,
+    instagram_post_velocity: item.instagram_post_velocity ?? null,
+    instagram_momentum_7d: item.instagram_momentum_7d ?? 0,
+    instagram_momentum_30d: item.instagram_momentum_30d ?? 0,
+    instagram_momentum_90d: item.instagram_momentum_90d ?? 0,
     heat_score: item.heat_score ?? null,
     engagement_score: item.engagement_score ?? null,
     momentum_score: item.momentum_score ?? null,
@@ -519,6 +527,22 @@ function formatVelocity(value) {
   return `${Number(value).toFixed(1)}/30d`;
 }
 
+function formatPostVelocity(value) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const n = Number(value);
+  const digits = Number.isInteger(n) ? 0 : 1;
+  return `${n.toFixed(digits)}/30d`;
+}
+
+function setDrawerMetric(id, text, { hidden = false, className = null } = {}) {
+  const el = $(id);
+  if (!el) return;
+  const cell = el.closest("div");
+  if (cell) cell.hidden = Boolean(hidden);
+  el.textContent = text;
+  if (className != null) el.className = className;
+}
+
 /** Fractional growth → percent label (e.g. 0.031 → +3.1%). */
 function formatMomentum(value) {
   if (value == null || Number.isNaN(Number(value))) return "—";
@@ -608,6 +632,22 @@ function mapArtist(item, index) {
     item.heat_score != null && !Number.isNaN(Number(item.heat_score))
       ? Number(item.heat_score)
       : null;
+  const finalScore =
+    item.final_score != null && !Number.isNaN(Number(item.final_score))
+      ? Number(item.final_score)
+      : null;
+  const youtubeScore =
+    item.youtube_score != null && !Number.isNaN(Number(item.youtube_score))
+      ? Number(item.youtube_score)
+      : null;
+  const instagramScore =
+    item.instagram_score != null && !Number.isNaN(Number(item.instagram_score))
+      ? Number(item.instagram_score)
+      : null;
+  const momentumScore =
+    item.momentum_score != null && !Number.isNaN(Number(item.momentum_score))
+      ? Number(item.momentum_score)
+      : null;
   return {
     rank: currentRank,
     globalRank,
@@ -623,17 +663,17 @@ function mapArtist(item, index) {
     videoCount: item.youtube_video_count ?? null,
     recentAvgViews: item.youtube_recent_avg_views ?? null,
     uploadVelocity: item.youtube_upload_velocity ?? null,
-    score: heatScore ?? item.momentum_score ?? item.youtube_score ?? null,
-    youtubeScore: item.youtube_score ?? null,
+    // Mode boards prefer heat/momentum; overall/city use blended final_score.
+    score: heatScore ?? momentumScore ?? finalScore ?? youtubeScore ?? null,
+    finalScore,
+    youtubeScore,
+    instagramScore,
     heatScore,
     engagementScore:
       item.engagement_score != null && !Number.isNaN(Number(item.engagement_score))
         ? Number(item.engagement_score)
         : null,
-    momentumScore:
-      item.momentum_score != null && !Number.isNaN(Number(item.momentum_score))
-        ? Number(item.momentum_score)
-        : null,
+    momentumScore,
     reachScore:
       item.reach_score != null && !Number.isNaN(Number(item.reach_score))
         ? Number(item.reach_score)
@@ -641,8 +681,15 @@ function mapArtist(item, index) {
     momentum7d: item.youtube_momentum_7d ?? null,
     momentum30d: item.youtube_momentum_30d ?? null,
     momentum90d: item.youtube_momentum_90d ?? null,
+    instagramFollowers: item.instagram_follower_count ?? null,
+    instagramRecentAvgLikes: item.instagram_recent_avg_likes ?? null,
+    instagramPostVelocity: item.instagram_post_velocity ?? null,
+    instagramMomentum7d: item.instagram_momentum_7d ?? 0,
+    instagramMomentum30d: item.instagram_momentum_30d ?? 0,
+    instagramMomentum90d: item.instagram_momentum_90d ?? 0,
     socials,
     youtubeUrl: socials.youtube || null,
+    instagramUrl: socials.instagram || null,
     previousRank: priorRank,
     priorRank,
     rankDelta,
@@ -665,27 +712,69 @@ function mapArtist(item, index) {
   };
 }
 
+/** Prefer momentum window matching the active sort; else 7d → 30d → 90d. */
+function momentumForMove(artist) {
+  if (!artist) return null;
+  if (state.sort === "momentum30d" && artist.momentum30d != null) return artist.momentum30d;
+  if (state.sort === "momentum90d" && artist.momentum90d != null) return artist.momentum90d;
+  if (state.sort === "momentum7d" && artist.momentum7d != null) return artist.momentum7d;
+  if (artist.momentum7d != null) return artist.momentum7d;
+  if (artist.momentum30d != null) return artist.momentum30d;
+  if (artist.momentum90d != null) return artist.momentum90d;
+  return null;
+}
+
 function movementMeta(artist) {
   let delta = null;
   if (artist.rankDelta != null) delta = artist.rankDelta;
   else if (artist.rankDelta7d != null) delta = artist.rankDelta7d;
   else if (artist.previousRank != null) delta = artist.previousRank - artist.rank;
 
-  if (delta == null) {
-    return { delta: 0, direction: "flat", symbol: "→", amount: 0, label: "No movement data", soft: true };
+  // Prefer real rank movement when weekly snapshots provide a non-zero delta.
+  if (delta != null && !Number.isNaN(Number(delta)) && Number(delta) !== 0) {
+    const n = Number(delta);
+    const direction = n > 0 ? "up" : "down";
+    const symbol = direction === "up" ? "↗" : "↘";
+    const amount = Math.abs(n);
+    const label = `${direction} ${amount} ${amount === 1 ? "place" : "places"}`;
+    return { delta: n, direction, symbol, amount, label, soft: false, source: "rank" };
   }
 
-  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-  const symbol = direction === "up" ? "↗" : direction === "down" ? "↘" : "→";
-  const amount = Math.abs(delta);
+  // Otherwise mirror momentum so Move matches the 7d / 30d / 90d columns.
+  const mom = momentumForMove(artist);
+  if (mom == null || Number.isNaN(Number(mom))) {
+    return {
+      delta: 0,
+      direction: "flat",
+      symbol: "→",
+      amount: 0,
+      label: "No movement data",
+      soft: true,
+      source: "none",
+    };
+  }
+
+  const tone = momentumTone(mom);
+  const symbol = tone === "up" ? "↗" : tone === "down" ? "↘" : "→";
   const label =
-    delta === 0 ? "No rank change" : `${direction} ${amount} ${amount === 1 ? "place" : "places"}`;
-  return { delta, direction, symbol, amount, label, soft: false };
+    tone === "flat"
+      ? `Flat momentum ${formatMomentum(mom)}`
+      : `${tone === "up" ? "Up" : "Down"} momentum ${formatMomentum(mom)}`;
+  return {
+    delta: Number(mom),
+    direction: tone,
+    symbol,
+    amount: 0,
+    label,
+    soft: tone === "flat",
+    source: "momentum",
+  };
 }
 
 function movementHTML(artist, compact = false) {
   const move = movementMeta(artist);
-  const amountHtml = !compact && !move.soft && move.delta !== 0 ? move.amount : "";
+  const amountHtml =
+    !compact && !move.soft && move.source === "rank" && move.delta !== 0 ? move.amount : "";
   return `<span class="movement movement-${move.direction}" aria-label="${move.label}"><span aria-hidden="true">${move.symbol}</span>${amountHtml}</span>`;
 }
 
@@ -1278,7 +1367,7 @@ function emptyRankingHTML() {
 }
 
 function renderLoading() {
-  $("#artistList").innerHTML = `<div class="empty-state"><b>Loading live ranking…</b><span>Fetching YouTube-ranked artists.</span></div>`;
+  $("#artistList").innerHTML = `<div class="empty-state"><b>Loading live ranking…</b><span>Fetching ranked artists.</span></div>`;
   $("#resultsCount").textContent = "Loading…";
   $("#loadMore").hidden = true;
   $("#topThree").innerHTML = "";
@@ -1974,7 +2063,37 @@ function openDrawer(rank, options = {}) {
     }
   }
   $("#drawerArtistName").textContent = artist.name;
+  const scoreLabel = $("#drawerScoreLabel");
+  if (scoreLabel) {
+    scoreLabel.textContent =
+      state.mode === "heat"
+        ? "Underground heat score"
+        : state.mode === "breakout"
+          ? "Breakout momentum score"
+          : "Composite score";
+  }
   $("#drawerScore").textContent = formatScore(artist.score);
+
+  const ytScoreWrap = $("#drawerYoutubeScoreWrap");
+  const igScoreWrap = $("#drawerInstagramScoreWrap");
+  const showPlatformScores =
+    state.mode === "overall" && (artist.youtubeScore != null || artist.instagramScore != null);
+  if (ytScoreWrap) {
+    ytScoreWrap.hidden = !showPlatformScores || artist.youtubeScore == null;
+    const ytScoreEl = $("#drawerYoutubeScore");
+    if (ytScoreEl) ytScoreEl.textContent = formatScore(artist.youtubeScore);
+  }
+  if (igScoreWrap) {
+    igScoreWrap.hidden = !showPlatformScores || artist.instagramScore == null;
+    const igScoreEl = $("#drawerInstagramScore");
+    if (igScoreEl) igScoreEl.textContent = formatScore(artist.instagramScore);
+  }
+  const platformScores = $("#drawerPlatformScores");
+  if (platformScores) {
+    platformScores.hidden =
+      !showPlatformScores || (artist.youtubeScore == null && artist.instagramScore == null);
+  }
+
   $("#drawerSubscribers").textContent = formatCount(artist.subscribers);
   $("#drawerViews").textContent = formatCount(artist.views);
   $("#drawerRecentAvg").textContent = formatCount(artist.recentAvgViews);
@@ -1990,6 +2109,39 @@ function openDrawer(rank, options = {}) {
   mom7.className = `momentum momentum-${momentumTone(artist.momentum7d)}`;
   mom30.className = `momentum momentum-${momentumTone(artist.momentum30d)}`;
   mom90.className = `momentum momentum-${momentumTone(artist.momentum90d)}`;
+
+  const hasIgReach =
+    artist.instagramFollowers != null ||
+    artist.instagramRecentAvgLikes != null ||
+    artist.instagramPostVelocity != null ||
+    artist.instagramScore != null;
+  const igSection = $("#drawerIgSection");
+  if (igSection) igSection.hidden = state.mode !== "overall";
+  setDrawerMetric("#drawerIgFollowers", formatCount(artist.instagramFollowers), {
+    hidden: artist.instagramFollowers == null,
+  });
+  setDrawerMetric("#drawerIgAvgLikes", formatCount(artist.instagramRecentAvgLikes), {
+    hidden: artist.instagramRecentAvgLikes == null,
+  });
+  setDrawerMetric("#drawerIgPostVelocity", formatPostVelocity(artist.instagramPostVelocity), {
+    hidden: artist.instagramPostVelocity == null,
+  });
+  setDrawerMetric("#drawerIgMomentum7d", formatMomentum(artist.instagramMomentum7d), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum7d)}`,
+  });
+  setDrawerMetric("#drawerIgMomentum30d", formatMomentum(artist.instagramMomentum30d), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum30d)}`,
+  });
+  setDrawerMetric("#drawerIgMomentum90d", formatMomentum(artist.instagramMomentum90d), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum90d)}`,
+  });
+  const igMetrics = $("#drawerIgMetrics");
+  if (igMetrics) igMetrics.hidden = !hasIgReach;
+  const igEmpty = $("#drawerIgEmpty");
+  if (igEmpty) {
+    igEmpty.hidden = hasIgReach;
+    igEmpty.textContent = hasIgReach ? "" : "Instagram metrics not scraped yet for this artist.";
+  }
 
   const claim = claimAction(artist);
   const claimLink = $("#drawerClaim");
@@ -2023,6 +2175,26 @@ function openDrawer(rank, options = {}) {
   } else {
     yt.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${artist.name} official`)}`;
     yt.innerHTML = `Find official channel <span>↗</span>`;
+  }
+  const ig = $("#drawerInstagram");
+  if (ig) {
+    ig.target = "_blank";
+    ig.rel = "noopener noreferrer";
+    if (artist.instagramUrl) {
+      ig.hidden = false;
+      ig.href = artist.instagramUrl;
+      ig.innerHTML = `Open Instagram <span>↗</span>`;
+    } else {
+      ig.hidden = true;
+      ig.removeAttribute("href");
+    }
+  }
+  const drawerNote = $("#drawerNote");
+  if (drawerNote) {
+    drawerNote.textContent =
+      state.mode === "overall"
+        ? "Metrics from Hiffi inventory ranking (YouTube + Instagram when available). Verify stats on each platform."
+        : "Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.";
   }
   syncSharePanel(artist);
   setSharePanelOpen(false);

@@ -5,11 +5,11 @@ import { absoluteUrl } from "@/lib/seo/site"
 
 export const metadata: Metadata = {
   title: "Hiffi Hip-Hop 500 — Live Signal Index",
-  description: "Live movement signals across the 500 biggest hip-hop artists on YouTube.",
+  description: "Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram.",
   alternates: { canonical: absoluteUrl("/top-artists") },
   openGraph: {
     title: "Hiffi Hip-Hop 500 — Live Signal Index",
-    description: "Live movement signals across the 500 biggest hip-hop artists on YouTube.",
+    description: "Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram.",
     url: absoluteUrl("/top-artists"),
     siteName: "Hiffi",
     type: "website",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Hiffi Hip-Hop 500 — Live Signal Index",
-    description: "Live movement signals across the 500 biggest hip-hop artists on YouTube.",
+    description: "Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram.",
     images: [absoluteUrl("/top-artists/share/og-default")],
   },
 }

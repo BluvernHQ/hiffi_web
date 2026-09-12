@@ -6,11 +6,11 @@ import { absoluteUrl } from "@/lib/seo/site"
 export const metadata: Metadata = {
   title: "How it works — Hiffi Hip-Hop 500",
   description:
-    "How the Hiffi Hip-Hop 500 ranking works — YouTube score weights, momentum windows, city charts, and update cadence.",
+    "How the Hiffi Hip-Hop 500 ranking works — blended YouTube + Instagram scores, momentum windows, city charts, and update cadence.",
   alternates: { canonical: absoluteUrl("/top-artists/how-it-works") },
   openGraph: {
     title: "How it works — Hiffi Hip-Hop 500",
-    description: "Plain-English methodology for the live YouTube Hip-Hop 500 ranking.",
+    description: "Plain-English methodology for the live Hip-Hop 500 ranking (YouTube + Instagram).",
     url: absoluteUrl("/top-artists/how-it-works"),
     type: "website",
   },
