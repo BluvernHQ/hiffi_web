@@ -37,7 +37,7 @@ export default async function TopArtistShareOgImage({ params }: Props) {
     if (artist) {
       name = artist.artist_name || artist.username
       rankLabel = `#${artist.global_rank ?? artist.rank}`
-      subline = artist.location || "YouTube public data"
+      subline = artist.location || "YouTube + Instagram signal"
       band = topArtistScoreBand(artist).label
     }
   } catch {

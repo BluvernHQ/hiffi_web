@@ -66,7 +66,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (!resolved) {
     return {
       title: "Hiffi Hip-Hop 500",
-      description: "Live YouTube hip-hop ranking on Hiffi.",
+      description: "Live YouTube + Instagram hip-hop ranking on Hiffi.",
     }
   }
 
@@ -80,8 +80,8 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       : `${name} is #${globalRank} on the Hiffi Hip-Hop 500`
   const description =
     scope === "city"
-      ? `${name} ranks #${rank} in ${cityLabel} (global #${globalRank}) — live YouTube signal index on Hiffi.`
-      : `${name} ranks #${globalRank} on the Hiffi Hip-Hop 500 — live YouTube signal index.`
+      ? `${name} ranks #${rank} in ${cityLabel} (global #${globalRank}) — live YouTube + Instagram signal index on Hiffi.`
+      : `${name} ranks #${globalRank} on the Hiffi Hip-Hop 500 — live YouTube + Instagram signal index.`
 
   const pathParams = new URLSearchParams()
   if (city) pathParams.set("city", city)

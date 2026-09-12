@@ -6,7 +6,7 @@ const INITIAL_VISIBLE = 20;
 const LOAD_MORE_STEP = 20;
 const ACCENTS = ["#ff2b2b", "#f4f1ea", "#7e7e83", "#ff2b2b", "#b8b6b1"];
 /** Ranking payload cache — localStorage/sessionStorage (cookies can't hold ~500 artists). */
-const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v8";
+const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v9";
 const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v1";
 const UI_KEY = "hiffi-top-artist-ui-v4";
 /** Scroll only — sessionStorage so a new browser session always starts at the top. */
@@ -2110,37 +2110,36 @@ function openDrawer(rank, options = {}) {
   mom30.className = `momentum momentum-${momentumTone(artist.momentum30d)}`;
   mom90.className = `momentum momentum-${momentumTone(artist.momentum90d)}`;
 
-  const hasIgReach =
-    artist.instagramFollowers != null ||
-    artist.instagramRecentAvgLikes != null ||
-    artist.instagramPostVelocity != null ||
-    artist.instagramScore != null;
   const igSection = $("#drawerIgSection");
   if (igSection) igSection.hidden = state.mode !== "overall";
-  setDrawerMetric("#drawerIgFollowers", formatCount(artist.instagramFollowers), {
-    hidden: artist.instagramFollowers == null,
+
+  // Always render IG rows on overall/city (same pattern as YouTube).
+  // Optional scrape fields show "—" until present; momentum is always returned (0 until history).
+  setDrawerMetric("#drawerIgFollowers", formatCount(artist.instagramFollowers));
+  setDrawerMetric("#drawerIgAvgLikes", formatCount(artist.instagramRecentAvgLikes));
+  setDrawerMetric("#drawerIgPostVelocity", formatPostVelocity(artist.instagramPostVelocity));
+  setDrawerMetric("#drawerIgMomentum7d", formatMomentum(artist.instagramMomentum7d ?? 0), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum7d ?? 0)}`,
   });
-  setDrawerMetric("#drawerIgAvgLikes", formatCount(artist.instagramRecentAvgLikes), {
-    hidden: artist.instagramRecentAvgLikes == null,
+  setDrawerMetric("#drawerIgMomentum30d", formatMomentum(artist.instagramMomentum30d ?? 0), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum30d ?? 0)}`,
   });
-  setDrawerMetric("#drawerIgPostVelocity", formatPostVelocity(artist.instagramPostVelocity), {
-    hidden: artist.instagramPostVelocity == null,
-  });
-  setDrawerMetric("#drawerIgMomentum7d", formatMomentum(artist.instagramMomentum7d), {
-    className: `momentum momentum-${momentumTone(artist.instagramMomentum7d)}`,
-  });
-  setDrawerMetric("#drawerIgMomentum30d", formatMomentum(artist.instagramMomentum30d), {
-    className: `momentum momentum-${momentumTone(artist.instagramMomentum30d)}`,
-  });
-  setDrawerMetric("#drawerIgMomentum90d", formatMomentum(artist.instagramMomentum90d), {
-    className: `momentum momentum-${momentumTone(artist.instagramMomentum90d)}`,
+  setDrawerMetric("#drawerIgMomentum90d", formatMomentum(artist.instagramMomentum90d ?? 0), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum90d ?? 0)}`,
   });
   const igMetrics = $("#drawerIgMetrics");
-  if (igMetrics) igMetrics.hidden = !hasIgReach;
+  if (igMetrics) igMetrics.hidden = false;
   const igEmpty = $("#drawerIgEmpty");
   if (igEmpty) {
-    igEmpty.hidden = hasIgReach;
-    igEmpty.textContent = hasIgReach ? "" : "Instagram metrics not scraped yet for this artist.";
+    const scraped =
+      artist.instagramFollowers != null ||
+      artist.instagramRecentAvgLikes != null ||
+      artist.instagramPostVelocity != null ||
+      artist.instagramScore != null;
+    igEmpty.hidden = scraped || state.mode !== "overall";
+    igEmpty.textContent = scraped
+      ? ""
+      : "Instagram is in the blend — reach metrics appear as scrape history fills in.";
   }
 
   const claim = claimAction(artist);
@@ -2193,8 +2192,8 @@ function openDrawer(rank, options = {}) {
   if (drawerNote) {
     drawerNote.textContent =
       state.mode === "overall"
-        ? "Metrics from Hiffi inventory ranking (YouTube + Instagram when available). Verify stats on each platform."
-        : "Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.";
+        ? "Ranked by blended YouTube + Instagram score. Verify stats on each platform."
+        : "Mode board uses YouTube inventory signals. Overall / city charts blend YouTube + Instagram.";
   }
   syncSharePanel(artist);
   setSharePanelOpen(false);
