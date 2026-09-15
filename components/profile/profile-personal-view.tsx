@@ -12,6 +12,7 @@ import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-inde
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import { resolveUserBannerUrl } from "@/lib/artist-directory"
 
 export function ProfilePersonalView(props: {
   profileUser: any
@@ -66,7 +67,7 @@ export function ProfilePersonalView(props: {
     <>
       <div className="bg-background w-full">
         <ProfileCoverBanner
-          coverUrl={profileUser.coverUrl}
+          coverUrl={resolveUserBannerUrl(profileUser as Record<string, unknown>)}
           coverAlt="Cover"
           displayName={
             (profileUser.name && profileUser.name.trim()) || profileUser.username || username || "Artist"

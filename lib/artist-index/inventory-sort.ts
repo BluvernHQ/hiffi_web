@@ -32,13 +32,27 @@ export function inventorySortUsesServerPagination(sort: InventorySort): boolean 
   return sort === "name"
 }
 
-/** `verified_first` uses claimed → pending → unclaimed slices — no full-catalog fetch. */
+/** `verified_first` uses recent-claimed → pending → unclaimed slices — no full-catalog fetch. */
 export function inventorySortUsesVerifiedFirstSlice(sort: InventorySort): boolean {
   return sort === "verified_first"
 }
 
 export function inventorySortNeedsFullCatalog(sort: InventorySort): boolean {
   return sort === "newest" || sort === "oldest" || sort === "name_desc"
+}
+
+/** Claimed: most recently updated first; other statuses: A→Z by name. */
+function compareWithinClaimStatus(
+  a: PublicInventoryProfile,
+  b: PublicInventoryProfile,
+): number {
+  if (a.claim_status === "claimed") {
+    const updatedDiff = parseTimestamp(b.updated_at) - parseTimestamp(a.updated_at)
+    if (updatedDiff !== 0) return updatedDiff
+    const createdDiff = parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
+    if (createdDiff !== 0) return createdDiff
+  }
+  return compareNames(a.artist_name, b.artist_name)
 }
 
 export function compareInventoryProfiles(
@@ -51,7 +65,7 @@ export function compareInventoryProfiles(
       const rankDiff =
         claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
       if (rankDiff !== 0) return rankDiff
-      return compareNames(a.artist_name, b.artist_name)
+      return compareWithinClaimStatus(a, b)
     }
     case "newest": {
       const diff = parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
@@ -85,6 +99,13 @@ export function compareArtistsByDisplaySort(a: Artist, b: Artist, sort: Inventor
       const rankDiff =
         claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
       if (rankDiff !== 0) return rankDiff
+      if (a.claim_status === "claimed") {
+        const updatedDiff =
+          parseTimestamp(b.updated_at ?? b.added_date) - parseTimestamp(a.updated_at ?? a.added_date)
+        if (updatedDiff !== 0) return updatedDiff
+        const createdDiff = parseTimestamp(b.added_date) - parseTimestamp(a.added_date)
+        if (createdDiff !== 0) return createdDiff
+      }
       return compareNames(a.name, b.name)
     }
     case "newest": {

@@ -11,6 +11,7 @@ import {
   getArtistProfileSubtitle,
   isArtistNew,
 } from "@/lib/artists"
+import { getArtistImageUrl } from "@/lib/artist-directory"
 import { ArtistCardAvatar } from "@/components/artists/ArtistCardAvatar"
 import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import {
@@ -75,6 +76,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
     : artist.claim_status === "pending"
       ? "Request ownership"
       : "Claim"
+  const bannerSrc = getArtistImageUrl(artist.banner_image)
 
   return (
     <article
@@ -96,17 +98,35 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
 
       <div className="pointer-events-none relative z-[1] flex flex-1 flex-col">
         <div className={cn(artistCardMedia, "h-28")}>
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/50 via-zinc-900 to-black"
-            aria-hidden
-          />
-          <p
-            className="absolute inset-0 flex items-center justify-center text-2xl font-bold uppercase tracking-[0.35em] text-[#E8192C]/70"
-            style={{ WebkitTextStroke: "1px rgba(232, 25, 44, 0.35)" }}
-            aria-hidden
-          >
-            HIFFI
-          </p>
+          {bannerSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={bannerSrc}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              aria-hidden
+            />
+          ) : (
+            <>
+              <div
+                className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/50 via-zinc-900 to-black"
+                aria-hidden
+              />
+              <p
+                className="absolute inset-0 flex items-center justify-center text-2xl font-bold uppercase tracking-[0.35em] text-[#E8192C]/70"
+                style={{ WebkitTextStroke: "1px rgba(232, 25, 44, 0.35)" }}
+                aria-hidden
+              >
+                HIFFI
+              </p>
+            </>
+          )}
+          {bannerSrc ? (
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10"
+              aria-hidden
+            />
+          ) : null}
           <div className="absolute right-3 top-3">
             <HeaderBadge artist={artist} />
           </div>

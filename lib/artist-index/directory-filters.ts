@@ -113,7 +113,7 @@ export function getAllDirectoryFilterOptions(): ArtistDirectoryFilterOption[] {
 
 /**
  * Map hub/city/genre UI state → GET /inventory filter params + client display sort.
- * Hub default display sort: verified (claimed) → under review (pending) → A→Z.
+ * Hub default: recently claimed → pending → unclaimed (A→Z within non-claimed).
  */
 export function buildDirectoryInventoryQuery(
   query: string,

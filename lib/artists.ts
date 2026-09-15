@@ -54,6 +54,8 @@ export type Artist = {
   verified: boolean
   featured: boolean
   added_date: string
+  /** Inventory `updated_at` — used for recent-claimed directory ordering. */
+  updated_at?: string
 }
 
 export function artistIndexHref(slug?: string): string {

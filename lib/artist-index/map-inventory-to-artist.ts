@@ -46,6 +46,7 @@ export function mapInventoryProfileToArtist(
   let followers = 0
   let contactEmail: string | null = null
   let addedDate = profile.created_at?.trim() || "1970-01-01T00:00:00.000Z"
+  let updatedAt = profile.updated_at?.trim() || undefined
   let { city, state } = parseCityState(profile.location ?? undefined)
   const genreLabel = profile.genre?.trim()
   const genres = genreLabel
@@ -77,11 +78,16 @@ export function mapInventoryProfileToArtist(
     const profilePicture = String(linked.profile_picture ?? linked.image ?? "").trim()
     const linkedImage = getArtistImageUrl(profilePicture)
     if (linkedImage) image = linkedImage
-    const linkedBanner = String(linked.banner_image ?? linked.cover_image ?? "").trim()
-    bannerImage = linkedBanner ? getArtistImageUrl(linkedBanner) : null
+    // Prefer the creator's uploaded banner when present so Artist Index matches /profile.
+    const linkedBanner = String(linked.banner_image ?? linked.cover_image ?? linked.coverUrl ?? "").trim()
+    if (linkedBanner) {
+      bannerImage = getArtistImageUrl(linkedBanner)
+    }
     followers = Number(linked.followers ?? 0)
     contactEmail = typeof linked.email === "string" ? linked.email.trim() || null : null
     addedDate = String(linked.created_at ?? addedDate)
+    const linkedUpdated = String(linked.updated_at ?? "").trim()
+    if (linkedUpdated) updatedAt = linkedUpdated
     ;({ city, state } = parseCityState(
       typeof linked.location === "string" ? linked.location : profile.location ?? undefined,
     ))
@@ -133,5 +139,6 @@ export function mapInventoryProfileToArtist(
     verified: profile.claim_status === "claimed",
     featured: false,
     added_date: addedDate,
+    ...(updatedAt ? { updated_at: updatedAt } : {}),
   }
 }

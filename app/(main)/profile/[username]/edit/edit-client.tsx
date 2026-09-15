@@ -11,12 +11,27 @@ import {
   socialsFromProfile,
 } from "@/components/profile/edit-artist-profile-form"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
+import { ProfileBannerDialog } from "@/components/profile/profile-banner-dialog"
 import type { Artist } from "@/lib/artists"
 import { Button } from "@/components/ui/button"
 
 type EditProfileClientProps = {
   initialProfileUser?: Record<string, unknown> | null
   initialArtist?: Artist | null
+}
+
+async function fetchArtistForUsername(username: string): Promise<Artist | null> {
+  try {
+    const response = await fetch(
+      `/api/artist-index/profile?slug=${encodeURIComponent(username.toLowerCase())}`,
+      { cache: "no-store" },
+    )
+    if (!response.ok) return null
+    const data = (await response.json()) as { artist?: Artist }
+    return data.artist ?? null
+  } catch {
+    return null
+  }
 }
 
 export default function EditProfileClient({
@@ -30,8 +45,10 @@ export default function EditProfileClient({
 
   const [profileUser, setProfileUser] = useState<any>(initialProfileUser)
   const [artist, setArtist] = useState<Artist | null>(initialArtist)
-  const [loading, setLoading] = useState(!initialProfileUser)
+  // SSR seed can be up to ~5 min stale — always refresh before treating the editor as ready.
+  const [loading, setLoading] = useState(true)
   const [pictureOpen, setPictureOpen] = useState(false)
+  const [bannerOpen, setBannerOpen] = useState(false)
 
   const isOwnProfile = Boolean(
     userData?.username &&
@@ -55,24 +72,15 @@ export default function EditProfileClient({
     let cancelled = false
 
     void (async () => {
+      setLoading(true)
       try {
-        if (!profileUser) {
-          const res = await apiClient.getUserByUsername(username)
-          if (!cancelled && res.user) setProfileUser(res.user)
-        }
-        if (!artist) {
-          try {
-            const response = await fetch(
-              `/api/artist-index/profile?slug=${encodeURIComponent(username.toLowerCase())}`,
-            )
-            if (response.ok) {
-              const data = (await response.json()) as { artist?: Artist }
-              if (!cancelled) setArtist(data.artist ?? null)
-            }
-          } catch {
-            if (!cancelled) setArtist(null)
-          }
-        }
+        const [userRes, nextArtist] = await Promise.all([
+          apiClient.getUserByUsername(username),
+          fetchArtistForUsername(username),
+        ])
+        if (cancelled) return
+        if (userRes.user) setProfileUser(userRes.user)
+        setArtist(nextArtist)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -81,11 +89,23 @@ export default function EditProfileClient({
     return () => {
       cancelled = true
     }
-  }, [username, profileUser, artist])
+  }, [username])
+
+  const refreshProfile = async () => {
+    await refreshUserData(true)
+    const [userRes, nextArtist] = await Promise.all([
+      apiClient.getUserByUsername(username),
+      fetchArtistForUsername(username),
+    ])
+    if (userRes.user) setProfileUser(userRes.user)
+    setArtist(nextArtist)
+    router.refresh()
+  }
 
   const socials = useMemo(() => {
     const base = socialsFromProfile(profileUser as Record<string, unknown>)
     if (!artist) return base
+    // Prefer live user fields; only fill gaps from Artist Index inventory.
     return {
       ...base,
       currentLocation:
@@ -124,20 +144,24 @@ export default function EditProfileClient({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <EditArtistProfileForm
+        key={String(profileUser.updated_at || profileUser.username || username)}
         currentName={profileUser.name || profileUser.username || ""}
         currentUsername={profileUser.username || username}
         currentEmail={profileUser.email || userData?.email || ""}
         currentBio={profileUser.bio || ""}
         currentProfilePicture={profileUser.profile_picture || ""}
+        currentBannerImage={
+          (typeof profileUser.banner_image === "string" && profileUser.banner_image) ||
+          (typeof profileUser.cover_image === "string" && profileUser.cover_image) ||
+          (typeof artist?.banner_image === "string" && artist.banner_image) ||
+          ""
+        }
         genreLabel={artist?.genre?.join(" / ") || "Rap / Hip-Hop"}
         verified={Boolean(artist?.verified)}
         {...socials}
         onOpenPictureEditor={() => setPictureOpen(true)}
-        onProfileUpdated={async () => {
-          await refreshUserData(true)
-          const res = await apiClient.getUserByUsername(username)
-          if (res.user) setProfileUser(res.user)
-        }}
+        onOpenBannerEditor={() => setBannerOpen(true)}
+        onProfileUpdated={refreshProfile}
       />
       <ProfilePictureDialog
         open={pictureOpen}
@@ -145,11 +169,17 @@ export default function EditProfileClient({
         currentProfilePicture={profileUser.profile_picture || ""}
         currentName={profileUser.name || profileUser.username || ""}
         currentUsername={profileUser.username || username}
-        onProfileUpdated={async () => {
-          await refreshUserData(true)
-          const res = await apiClient.getUserByUsername(username)
-          if (res.user) setProfileUser(res.user)
-        }}
+        onProfileUpdated={refreshProfile}
+      />
+      <ProfileBannerDialog
+        open={bannerOpen}
+        onOpenChange={setBannerOpen}
+        currentBannerImage={
+          (typeof profileUser.banner_image === "string" && profileUser.banner_image) ||
+          (typeof profileUser.cover_image === "string" && profileUser.cover_image) ||
+          ""
+        }
+        onProfileUpdated={refreshProfile}
       />
     </div>
   )

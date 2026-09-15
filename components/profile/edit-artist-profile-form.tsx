@@ -30,6 +30,7 @@ import {
   getProfilePictureProxyUrl,
   getProfilePictureUrl,
 } from "@/lib/utils"
+import { getArtistImageUrl } from "@/lib/artist-directory"
 
 const BIO_MAX = 2000
 
@@ -57,9 +58,11 @@ export type EditArtistProfileFormProps = {
   currentAppleMusic?: string
   currentSoundcloud?: string
   currentProfilePicture?: string
+  currentBannerImage?: string
   genreLabel?: string
   verified?: boolean
   onOpenPictureEditor?: () => void
+  onOpenBannerEditor?: () => void
   onProfileUpdated?: () => void | Promise<void>
 }
 
@@ -145,9 +148,11 @@ export function EditArtistProfileForm({
   currentAppleMusic = "",
   currentSoundcloud = "",
   currentProfilePicture = "",
+  currentBannerImage = "",
   genreLabel = "Rap / Hip-Hop",
   verified = false,
   onOpenPictureEditor,
+  onOpenBannerEditor,
   onProfileUpdated,
 }: EditArtistProfileFormProps) {
   const [name, setName] = useState(currentName)
@@ -263,8 +268,14 @@ export function EditArtistProfileForm({
   )
   const emailChanged = draft.email !== snapshot.email
 
+  const bannerPreviewSrc = useMemo(
+    () => getArtistImageUrl(currentBannerImage) || null,
+    [currentBannerImage],
+  )
+
   const completionChecks = [
     Boolean(currentProfilePicture?.trim()),
+    Boolean(currentBannerImage?.trim()),
     Boolean(name.trim()),
     Boolean(bio.trim()),
     Boolean(location.trim()),
@@ -442,11 +453,13 @@ export function EditArtistProfileForm({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
       })
-      setIsLoading(false)
-      router.push(profileHref)
-      Promise.all([refreshUserData(true), onProfileUpdated?.()]).catch((error) => {
+      try {
+        await Promise.all([refreshUserData(true), onProfileUpdated?.()])
+      } catch (error) {
         console.error("[hiffi] Error refreshing profile data:", error)
-      })
+      }
+      router.push(profileHref)
+      router.refresh()
     } catch (error: any) {
       toast({
         title: "Update failed",
@@ -478,11 +491,13 @@ export function EditArtistProfileForm({
         title: "Email verified",
         description: "Your email has been successfully updated.",
       })
-      setIsVerifying(false)
-      router.push(profileHref)
-      Promise.all([refreshUserData(true), onProfileUpdated?.()]).catch((error) => {
+      try {
+        await Promise.all([refreshUserData(true), onProfileUpdated?.()])
+      } catch (error) {
         console.error("[hiffi] Error refreshing profile data:", error)
-      })
+      }
+      router.push(profileHref)
+      router.refresh()
     } catch (error: any) {
       toast({
         title: "Verification failed",
@@ -746,16 +761,33 @@ export function EditArtistProfileForm({
                   id="section-artwork"
                   step={1}
                   title="Header Banner & Identity Artwork"
-                  description="Update the photo fans see on your profile. Banner upload is coming soon."
+                  description="Update the banner and avatar fans see on your profile."
                 >
-                  <div className="overflow-hidden rounded-xl border border-border bg-gradient-to-br from-[#E8192C]/80 via-[#8b0f1c] to-zinc-900 sm:rounded-2xl">
-                    <div className="flex h-24 items-end justify-between p-3 sm:h-36 sm:p-5">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80 sm:text-xs">
-                        Profile banner
-                      </p>
-                      <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur-sm sm:px-3 sm:text-[11px]">
-                        Coming soon
-                      </span>
+                  <div className="overflow-hidden rounded-xl border border-border sm:rounded-2xl">
+                    <div className="relative aspect-[3/1] w-full bg-gradient-to-br from-[#E8192C]/80 via-[#8b0f1c] to-zinc-900">
+                      {bannerPreviewSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={bannerPreviewSrc}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      ) : null}
+                      <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 to-transparent p-3 sm:p-5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90 sm:text-xs">
+                          Profile banner
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 rounded-full bg-white/90 text-xs font-semibold text-foreground hover:bg-white"
+                          onClick={() => onOpenBannerEditor?.()}
+                          disabled={!onOpenBannerEditor || isLoading}
+                        >
+                          {bannerPreviewSrc ? "Change banner" : "Upload banner"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -775,7 +807,7 @@ export function EditArtistProfileForm({
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground sm:text-base">Artist avatar photo</p>
                         <p className="text-[11px] text-muted-foreground sm:text-xs">
-                          Square JPG works best for cards and the profile hero.
+                          Square image works best for cards and the profile hero.
                         </p>
                       </div>
                     </div>
@@ -1020,15 +1052,47 @@ export function socialsFromProfile(user: Record<string, unknown> | null | undefi
       currentSoundcloud: "",
     }
   }
+  const other =
+    user.other_socials && typeof user.other_socials === "object" && !Array.isArray(user.other_socials)
+      ? (user.other_socials as Record<string, unknown>)
+      : {}
   return {
     currentLocation: pickSocial(user.location as string),
-    currentWebsite: pickSocial(user.website as string, user.website_url as string),
-    currentInstagram: pickSocial(user.instagram as string, user.instagram_url as string),
-    currentYoutube: pickSocial(user.youtube as string, user.youtube_url as string),
-    currentTiktok: pickSocial(user.tiktok as string, user.tiktok_url as string),
-    currentFacebook: pickSocial(user.facebook as string, user.facebook_url as string),
-    currentSpotify: pickSocial(user.spotify as string, user.spotify_url as string),
-    currentAppleMusic: pickSocial(user.apple_music as string, user.appleMusic as string),
-    currentSoundcloud: pickSocial(user.soundcloud as string),
+    currentWebsite: pickSocial(
+      user.website as string,
+      user.website_url as string,
+      other.website as string,
+    ),
+    currentInstagram: pickSocial(
+      user.instagram as string,
+      user.instagram_url as string,
+      other.instagram as string,
+    ),
+    currentYoutube: pickSocial(
+      user.youtube as string,
+      user.youtube_url as string,
+      other.youtube as string,
+    ),
+    currentTiktok: pickSocial(
+      user.tiktok as string,
+      user.tiktok_url as string,
+      other.tiktok as string,
+    ),
+    currentFacebook: pickSocial(
+      user.facebook as string,
+      user.facebook_url as string,
+      other.facebook as string,
+    ),
+    currentSpotify: pickSocial(
+      user.spotify as string,
+      user.spotify_url as string,
+      other.spotify as string,
+    ),
+    currentAppleMusic: pickSocial(
+      user.apple_music as string,
+      user.appleMusic as string,
+      other.apple_music as string,
+    ),
+    currentSoundcloud: pickSocial(user.soundcloud as string, other.soundcloud as string),
   }
 }

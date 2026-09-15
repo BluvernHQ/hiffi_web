@@ -119,3 +119,14 @@ export function getArtistImageUrl(image: string | null | undefined): string | nu
   if (trimmed.startsWith("/proxy/")) return null
   return getThumbnailUrl(trimmed) || null
 }
+
+/** Resolve profile cover/banner from user fields (banner_image preferred). */
+export function resolveUserBannerUrl(
+  user: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!user) return null
+  const raw = String(
+    user.banner_image ?? user.cover_image ?? user.coverUrl ?? "",
+  ).trim()
+  return raw ? getArtistImageUrl(raw) : null
+}

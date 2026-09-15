@@ -1,17 +1,20 @@
 import {
+  fetchAllInventoryProfiles,
   fetchInventoryPage,
   fetchInventoryTotal,
   type InventoryPageParams,
 } from "@/lib/artist-index/fetch-inventory"
+import { sortInventoryProfiles } from "@/lib/artist-index/inventory-sort"
 import type { PublicInventoryClaimStatus, PublicInventoryProfile } from "@/lib/types/inventory"
 
 type InventoryFilterParams = Omit<InventoryPageParams, "limit" | "offset" | "claim_status">
 
-const DISPLAY_SEGMENTS: PublicInventoryClaimStatus[] = ["claimed", "pending", "unclaimed"]
+/** After recently-claimed: pending (under review), then unclaimed — each A→Z. */
+const OTHER_SEGMENTS: PublicInventoryClaimStatus[] = ["pending", "unclaimed"]
 
 /**
- * Claimed profiles first, then pending (under review), then unclaimed — each segment A→Z.
- * Paginated via GET /inventory without loading the full catalog.
+ * Recently claimed profiles first (`updated_at` desc), then pending, then unclaimed.
+ * Claimed set is loaded fully (small); other segments paginate via GET /inventory.
  */
 export async function fetchVerifiedFirstInventorySlice(
   params: InventoryFilterParams,
@@ -23,20 +26,36 @@ export async function fetchVerifiedFirstInventorySlice(
     return { items: [], total, hasMore: offset < total }
   }
 
-  const segmentTotals = await Promise.all(
-    DISPLAY_SEGMENTS.map((claim_status) => fetchInventoryTotal({ ...params, claim_status })),
-  )
-  const catalogTotal = segmentTotals.reduce((sum, count) => sum + count, 0)
+  const [claimedRaw, otherTotals] = await Promise.all([
+    fetchAllInventoryProfiles({ ...params, claim_status: "claimed" }),
+    Promise.all(
+      OTHER_SEGMENTS.map((claim_status) => fetchInventoryTotal({ ...params, claim_status })),
+    ),
+  ])
+
+  const claimedSorted = sortInventoryProfiles(claimedRaw, "verified_first")
+  const claimedTotal = claimedSorted.length
+  const catalogTotal = claimedTotal + otherTotals.reduce((sum, count) => sum + count, 0)
 
   const items: PublicInventoryProfile[] = []
   let remainingOffset = offset
   let remainingLimit = limit
 
-  for (let index = 0; index < DISPLAY_SEGMENTS.length; index += 1) {
-    if (remainingLimit <= 0) break
+  if (remainingOffset < claimedTotal) {
+    const claimedSlice = claimedSorted.slice(
+      remainingOffset,
+      remainingOffset + remainingLimit,
+    )
+    items.push(...claimedSlice)
+    remainingLimit -= claimedSlice.length
+    remainingOffset = 0
+  } else {
+    remainingOffset -= claimedTotal
+  }
 
-    const claim_status = DISPLAY_SEGMENTS[index]
-    const segmentTotal = segmentTotals[index]
+  for (let index = 0; index < OTHER_SEGMENTS.length && remainingLimit > 0; index += 1) {
+    const claim_status = OTHER_SEGMENTS[index]
+    const segmentTotal = otherTotals[index]
 
     if (remainingOffset >= segmentTotal) {
       remainingOffset -= segmentTotal

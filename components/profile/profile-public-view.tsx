@@ -13,6 +13,7 @@ import { ProfileEmailReveal } from "@/components/profile/profile-email-reveal"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { cn, getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import { resolveUserBannerUrl } from "@/lib/artist-directory"
 import {
   getProfileFollowerCount,
   getProfileFollowingCount,
@@ -89,7 +90,7 @@ export function ProfilePublicView(props: {
     <>
       <div className="bg-background w-full">
         <ProfileCoverBanner
-          coverUrl={profileUser.coverUrl}
+          coverUrl={resolveUserBannerUrl(profileUser as Record<string, unknown>)}
           coverAlt="Cover"
           displayName={
             (profileUser.name && profileUser.name.trim()) || profileUser.username || username || "Artist"
