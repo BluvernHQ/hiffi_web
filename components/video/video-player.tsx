@@ -1920,13 +1920,13 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "relative flex w-full flex-col",
-        isFullscreen && isPlaying && !showControls && "cursor-none [&_*]:cursor-none",
-      )}
+      className="relative flex w-full flex-col"
     >
     <div
-      className="relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation"
+      className={cn(
+        "relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation",
+        isPlaying && !showControls && "cursor-none [&_*]:cursor-none",
+      )}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
       tabIndex={0}
