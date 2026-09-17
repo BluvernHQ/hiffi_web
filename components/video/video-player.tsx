@@ -572,6 +572,27 @@ export function VideoPlayer({
     }, 3000)
   }
 
+  // Entering fullscreen may not trigger mousemove. Start the same idle countdown
+  // so controls and the cursor disappear even when the pointer stays still.
+  useEffect(() => {
+    if (!isFullscreen || !isPlaying || isMobile) return
+
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false)
+    }, 3000)
+
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+        controlsTimeoutRef.current = null
+      }
+    }
+  }, [isFullscreen, isPlaying, isMobile])
+
   const setForcedMute = (value: boolean) => {
     isForcedMuteRef.current = value
     setIsForcedMute(value)
@@ -1948,7 +1969,10 @@ export function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className="relative flex w-full flex-col"
+      className={cn(
+        "relative flex w-full flex-col",
+        isFullscreen && isPlaying && !showControls && "cursor-none [&_*]:cursor-none",
+      )}
     >
     <div
       className="relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation"
