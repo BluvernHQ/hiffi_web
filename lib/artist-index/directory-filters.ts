@@ -1,6 +1,6 @@
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
 import { HUB_INLINE_FILTER_SPECS } from "@/lib/artist-directory"
-import type { InventorySort } from "@/lib/types/inventory"
+import type { InventorySort, PublicInventoryProfile } from "@/lib/types/inventory"
 
 /** Curated filters mapped to GET /inventory query params. */
 export type DirectoryFilterSpec = {
@@ -115,19 +115,50 @@ export function getAllDirectoryFilterOptions(): ArtistDirectoryFilterOption[] {
  * Map hub/city/genre UI state → GET /inventory filter params + client display sort.
  * Hub default: recently claimed → pending → unclaimed (A→Z within non-claimed).
  */
+export function getGenreFilterSlug(activeFilterIds: string[]): string | undefined {
+  for (const filterId of activeFilterIds) {
+    const filter = getDirectoryFilterById(filterId)
+    if (filter?.kind === "genre" && filter.genre) return filter.genre
+  }
+  return undefined
+}
+
+/** Matches UI default in mapInventoryProfileToArtist when inventory genre is unset. */
+export function getEffectiveInventoryGenre(profile: PublicInventoryProfile): string {
+  const raw = profile.genre?.trim().toLowerCase()
+  return raw || "rap"
+}
+
+/** Client-side genre filter — GET /inventory?genre= often returns 0 when genre is unset on profiles. */
+export function profileMatchesGenreFilter(
+  profile: PublicInventoryProfile,
+  genreSlug: string,
+): boolean {
+  const slug = genreSlug.trim().toLowerCase()
+  if (!slug) return true
+
+  const effective = getEffectiveInventoryGenre(profile)
+  if (effective === slug) return true
+
+  // Untagged profiles default to rap; show on rap and hip-hop genre hubs.
+  if (!profile.genre?.trim() && (slug === "rap" || slug === "hip-hop")) {
+    return true
+  }
+
+  return false
+}
+
 export function buildDirectoryInventoryQuery(
   query: string,
   activeFilterIds: string[],
 ): DirectoryInventoryQuery {
   const search = query.trim() || undefined
   let location: string | undefined
-  let genre: string | undefined
 
   for (const filterId of activeFilterIds) {
     const filter = getDirectoryFilterById(filterId)
     if (!filter) continue
     if (filter.kind === "city" && filter.location) location = filter.location
-    if (filter.kind === "genre" && filter.genre) genre = filter.genre
   }
 
   const sort: InventorySort = search ? "name" : "verified_first"
@@ -135,7 +166,6 @@ export function buildDirectoryInventoryQuery(
   return {
     ...(search ? { search } : {}),
     ...(location ? { location } : {}),
-    ...(genre ? { genre } : {}),
     sort,
   }
 }

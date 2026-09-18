@@ -104,22 +104,23 @@ function buildCityPage(filter: Awaited<ReturnType<typeof getArtistDirectoryFilte
 }
 
 function buildGenrePage(filter: Awaited<ReturnType<typeof getArtistDirectoryFilters>>[number]): ArtistGenrePage {
-  const genreLabel = filter.label.toLowerCase()
+  const genreLabel = filter.label
+  const genreLabelLower = genreLabel.toLowerCase()
 
-  // Genre filters span the full inventory; today that inventory is Atlanta-only (flagship market).
-  // TODO(city-expand): Make headline city-aware when a second city is indexed — e.g. "{City} {genre} artists".
   return {
     slug: filter.slug,
     label: filter.label,
     filterId: filter.id,
-    headline: `Atlanta ${genreLabel} artists`,
-    description: `Browse ${filter.count.toLocaleString()}+ Atlanta ${genreLabel} artists on the Hiffi Artist Index. Search by artist name.`,
+    headline: `${genreLabel} artists`,
+    description: `Discover ${genreLabelLower} artists across cities on the Hiffi Artist Index. Browse profiles, official links, and claimable listings.`,
     keywords: [
-      `Atlanta ${genreLabel} artists`,
-      "Atlanta hip-hop and rap artists",
-      `${genreLabel} artist directory`,
-      `independent Atlanta ${genreLabel} artists`,
-      `claim ${genreLabel} artist profile`,
+      `${genreLabelLower} artists`,
+      `${genreLabelLower} artist directory`,
+      `emerging ${genreLabelLower} artists`,
+      `independent ${genreLabelLower} artists`,
+      `claim ${genreLabelLower} artist profile`,
+      "hip-hop artist directory",
+      "rap artist directory",
     ],
   }
 }
