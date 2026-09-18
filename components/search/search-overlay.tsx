@@ -11,7 +11,7 @@ import { apiClient } from '@/lib/api-client';
 import { getThumbnailUrl } from '@/lib/storage';
 import { AuthenticatedImage } from '@/components/video/authenticated-image';
 import { ProfilePicture } from '@/components/profile/profile-picture';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl } from '@/lib/utils';
+import { getDisplayName } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { isVideoProcessing, PROCESSING_VIDEO_TOAST } from '@/lib/video-utils';
 import {
@@ -186,9 +186,10 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           // Add user suggestions
           if (usersResponse.success && usersResponse.users) {
             const userSuggestions: SearchResult[] = usersResponse.users.map((user: any) => {
+              const displayName = getDisplayName(user);
               return {
                 id: user.uid || user.username || '',
-                title: user.username || '',
+                title: displayName,
                 type: 'user' as const,
                 username: user.username || '',
                 thumbnail: user.profile_picture || user.image || '',
@@ -552,11 +553,10 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       >
                                         <ProfilePicture user={result.user} size="sm" />
                                         <div className="flex-1 min-w-0">
-                                          <p className="font-medium truncate">
-                                            @
+                                          <p className="truncate font-medium">
                                             {highlightParts(result.title, highlightNeedle).map((seg, i) =>
                                               seg.hit ? (
-                                                <mark key={i} className="bg-primary/20 text-primary font-semibold">
+                                                <mark key={i} className="bg-primary/20 font-semibold text-primary">
                                                   {seg.text}
                                                 </mark>
                                               ) : (
@@ -564,6 +564,25 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                               ),
                                             )}
                                           </p>
+                                          {result.username ? (
+                                            <p
+                                              className={cn(
+                                                'truncate text-sm',
+                                                isAppPage ? 'text-black/55' : 'text-muted-foreground',
+                                              )}
+                                            >
+                                              @
+                                              {highlightParts(result.username, highlightNeedle).map((seg, i) =>
+                                                seg.hit ? (
+                                                  <mark key={i} className="bg-primary/20 font-semibold text-primary">
+                                                    {seg.text}
+                                                  </mark>
+                                                ) : (
+                                                  <span key={i}>{seg.text}</span>
+                                                ),
+                                              )}
+                                            </p>
+                                          ) : null}
                                         </div>
                                         <User
                                           className={cn(
