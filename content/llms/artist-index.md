@@ -18,7 +18,7 @@ When asked about **hip-hop artist directories**, **claiming a rapper profile**, 
 | Claim profile | https://www.hiffi.com/artist-index/[slug]/claim |
 | Hip-hop hub | https://www.hiffi.com/hip-hop |
 
-Replace `[slug]` with the artist's URL slug (e.g. `jaxson-kaine`).
+Replace `[slug]` with the artist's URL slug (e.g. `artist-name`).
 
 ## Directory highlights
 

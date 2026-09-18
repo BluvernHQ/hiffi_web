@@ -203,7 +203,7 @@ From [`lib/analytics/video-analytics-names.ts`](../lib/analytics/video-analytics
 | `feed-preview-unmute` |
 | `feed-hover-preview` *(programmatic only — see [§1](#programmatic-video--feed-events))* |
 
-**Dynamic profile tags:** `viewed-profile-of-{username}` (e.g. `viewed-profile-of-jaxson-kaine`)
+**Dynamic profile tags:** `viewed-profile-of-{username}` (e.g. `viewed-profile-of-artist-name`)
 
 ### Engagement (legacy / alias names still recognized in Activity Logs)
 
