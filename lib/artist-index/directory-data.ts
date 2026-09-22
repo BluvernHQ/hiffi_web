@@ -7,14 +7,19 @@ import {
   fetchInventoryTotal,
 } from "@/lib/artist-index/fetch-inventory"
 import { fetchFeaturedInventorySlice } from "@/lib/artist-index/fetch-featured-inventory-slice"
-import { sortArtistsByDisplaySort } from "@/lib/artist-index/inventory-sort"
+import {
+  sortArtistsByDisplaySort,
+  sortInventoryProfiles,
+} from "@/lib/artist-index/inventory-sort"
 import {
   buildDirectoryInventoryQuery,
   DIRECTORY_CITY_FILTERS,
   DIRECTORY_GENRE_FILTERS,
   directoryFilterToOption,
   getDirectoryFilterById,
+  getGenreFilterSlug,
   getHubDirectoryFilterOptions,
+  profileMatchesGenreFilter,
   sanitizeDirectoryFilterIds,
 } from "@/lib/artist-index/directory-filters"
 import { ARTIST_INVENTORY_CACHE_TAG } from "@/lib/artist-index/inventory-cache-tags"
@@ -145,6 +150,7 @@ async function resolveArtistDirectoryPageImpl(options: {
   const activeFilterIds = sanitizeDirectoryFilterIds(options.activeFilterIds)
   const requestedPage = Math.max(1, options.page)
   const inventoryQuery = buildDirectoryInventoryQuery(query, activeFilterIds)
+  const genreFilter = getGenreFilterSlug(activeFilterIds)
   const { sort, ...apiFilters } = inventoryQuery
   const offset = (requestedPage - 1) * ARTIST_DIRECTORY_PAGE_SIZE
 
@@ -155,7 +161,15 @@ async function resolveArtistDirectoryPageImpl(options: {
   let totalMatches: number
   let hasMore: boolean
 
-  if (sort === "featured") {
+  if (genreFilter) {
+    // API genre filter returns 0 when inventory rows have null genre; match UI default instead.
+    const allItems = await fetchAllInventoryProfiles(apiFilters)
+    const filtered = allItems.filter((profile) => profileMatchesGenreFilter(profile, genreFilter))
+    const sorted = sortInventoryProfiles(filtered, sort)
+    totalMatches = sorted.length
+    inventoryItems = sorted.slice(offset, offset + ARTIST_DIRECTORY_PAGE_SIZE)
+    hasMore = offset + ARTIST_DIRECTORY_PAGE_SIZE < totalMatches
+  } else if (sort === "featured") {
     const slice = await fetchFeaturedInventorySlice(
       apiFilters,
       offset,

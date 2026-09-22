@@ -135,12 +135,42 @@ export const fetchInventoryProfileByUsername = cache(
     if (!slug) return null
 
     try {
-      const result = await fetchInventoryPage({
-        limit: 10,
-        offset: 0,
-        username: slug,
-      })
-      return result.items.find((item) => item.username === slug) ?? null
+      // Backend `username` is a partial/LIKE filter. Short usernames (e.g. "fin")
+      // can sit after dozens of longer matches — page until an exact username hit.
+      const pageSize = MAX_PAGE_SIZE
+      let offset = 0
+
+      for (let page = 0; page < 30; page += 1) {
+        const result = await fetchInventoryPage({
+          limit: pageSize,
+          offset,
+          username: slug,
+        })
+
+        const exact = result.items.find((item) => item.username === slug)
+        if (exact) return exact
+
+        if (!result.has_more || result.items.length === 0) break
+        offset += result.items.length
+      }
+
+      // Fallback when username filter returns nothing useful: search + exact match.
+      offset = 0
+      for (let page = 0; page < 30; page += 1) {
+        const result = await fetchInventoryPage({
+          limit: pageSize,
+          offset,
+          search: slug,
+        })
+
+        const exact = result.items.find((item) => item.username === slug)
+        if (exact) return exact
+
+        if (!result.has_more || result.items.length === 0) break
+        offset += result.items.length
+      }
+
+      return null
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
         console.error("[artist-index] fetchInventoryProfileByUsername failed:", error)
