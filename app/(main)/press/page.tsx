@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Download } from "lucide-react"
 import { ContentPageShell } from "@/components/content/content-page-shell"
 
 export default function PressPage() {
@@ -59,10 +60,46 @@ export default function PressPage() {
                 </a>
               </li>
               <li>
+                Brand guidelines (PDF) —{" "}
+                <a href="/documents/hiffi-brand-guidelines.pdf" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                  Download
+                </a>
+              </li>
+              <li>
                 Use the name <strong>Hiffi</strong> (capital H, lowercase iff). Do not imply endorsement without
                 written approval.
               </li>
             </ul>
+          ),
+        },
+        {
+          title: "Founder",
+          children: (
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-center">
+              <img
+                src="/inoto-kinimi-founder-photo.jpg"
+                alt="Inoto Kinimi, Founder of Hiffi"
+                className="w-full rounded-2xl object-cover sm:w-[240px] sm:shrink-0"
+              />
+              <div className="flex flex-col py-2">
+                <h3 className="text-2xl font-bold text-foreground">Inoto Kinimi</h3>
+                <p className="mt-1 text-base text-muted-foreground">Founder</p>
+                
+                <div className="mt-10 flex flex-col items-start gap-3">
+                  <a
+                    href="/inoto-kinimi-founder-photo.jpg"
+                    download="inoto-kinimi-founder-photo.jpg"
+                    className="!text-white !no-underline hover:!text-white hover:!no-underline inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#E31E24] px-6 py-3 text-sm font-semibold shadow-sm transition-all hover:bg-red-700 hover:shadow-md sm:w-auto"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download founder photo (JPG)
+                  </a>
+                  <p className="text-sm text-muted-foreground">
+                    High-resolution for press use
+                  </p>
+                </div>
+              </div>
+            </div>
           ),
         },
         {
