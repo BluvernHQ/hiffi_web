@@ -204,94 +204,123 @@ function buildAuthHeaders(): Record<string, string> {
   return headers
 }
 
-export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
-  if (!videoId) return null
+async function fetchVideoJson(videoId: string, headers: Record<string, string>) {
+  return fetch(`${getApiBaseUrl()}/videos/${encodeURIComponent(videoId)}`, {
+    headers,
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  })
+}
+
+/**
+ * Public read used by the watch page.
+ * An authenticated server token that the API rejects must not hide a public video.
+ * Only HTTP 404 (or a hidden video) means the page should 404.
+ */
+export const lookupVideoForWatch = cache(async (videoId: string): Promise<
+  | { status: "ok"; video: SeoVideo }
+  | { status: "missing" }
+  | { status: "unavailable" }
+> => {
+  if (!videoId) return { status: "missing" }
   try {
-    const res = await fetch(`${getApiBaseUrl()}/videos/${encodeURIComponent(videoId)}`, {
-      headers: buildAuthHeaders(),
-      next: { revalidate: REVALIDATE_SECONDS },
-    })
-    if (!res.ok) return null
+    const authed = buildAuthHeaders()
+    let res = await fetchVideoJson(videoId, authed)
+    if ((res.status === 401 || res.status === 403) && authed.Authorization) {
+      const { Authorization: _ignored, ...publicHeaders } = authed
+      res = await fetchVideoJson(videoId, publicHeaders)
+    }
+    if (res.status === 404) return { status: "missing" }
+    if (!res.ok) return { status: "unavailable" }
+
     const json = await res.json()
-    const norm = normalizeGetVideoPayload(json)
-    if (!norm || !norm.video) return null
-
-    const v = norm.video
-    if ((v as Record<string, unknown>).hidden === true) return null
-    const id = v.video_id || videoId
-    const title = (v.video_title || "Video").trim() || "Video"
-    const description = (v.video_description || "").trim()
-    const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
-    const raw = v as Record<string, unknown>
-    const originalProfile =
-      (raw.original_profile ?? raw.originalProfile) as string | undefined
-    const profiles = Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null
-    const { playbackUrl, seoWorkersUrl } = resolveSeoVideoWorkersMp4Url(
-      norm.video_url,
-      v.video_url,
-      originalProfile,
-      profiles,
-    )
-    const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
-    const contentUrl = seoWorkersUrl ? buildSeoVideoStreamProxyUrl(seoWorkersUrl) : ""
-    const storageVideoPath = String(v.video_url || norm.video_url || "").trim() || undefined
-    const creator = (v.user_username || "").trim()
-    const dataVideo =
-      json && typeof json === "object"
-        ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video
-        : undefined
-    const nestedRaw =
-      dataVideo && typeof dataVideo === "object" ? (dataVideo as Record<string, unknown>) : null
-
-    let creatorDisplayName = String(
-      raw.user_name ?? raw.userName ?? raw.creator_name ?? raw.artist_name ?? "",
-    ).trim()
-    if (!creatorDisplayName && creator && process.env.HIFFI_SERVER_READ_BEARER?.trim()) {
-      const profile = await fetchUserForSeo(creator)
-      creatorDisplayName = (profile?.name || creator).trim()
-    } else if (!creatorDisplayName) {
-      creatorDisplayName = creator
-    }
-    const durRaw =
-      raw.video_duration ??
-      raw.video_duration_seconds ??
-      raw.duration_seconds ??
-      raw.duration ??
-      nestedRaw?.video_duration ??
-      nestedRaw?.video_duration_seconds ??
-      nestedRaw?.duration_seconds ??
-      nestedRaw?.duration ??
-      null
-    const durationSeconds =
-      typeof durRaw === "number" && durRaw > 0
-        ? durRaw
-        : typeof durRaw === "string" && parseFloat(durRaw) > 0
-        ? parseFloat(durRaw)
-        : undefined
-
-    return {
-      videoId: id,
-      title,
-      description,
-      thumbnailUrl: thumb,
-      contentUrl,
-      playbackUrl,
-      storageVideoPath,
-      originalProfile: originalProfile ?? null,
-      profiles,
-      creatorUsername: creator,
-      creatorDisplayName,
-      createdAt: v.created_at,
-      updatedAt: v.updated_at,
-      viewCount: typeof raw.video_views === "number" ? raw.video_views : undefined,
-      upvotes: typeof raw.video_upvotes === "number" ? raw.video_upvotes : undefined,
-      tags: Array.isArray(raw.video_tags) ? raw.video_tags : undefined,
-      durationSeconds,
-    }
+    const video = seoVideoFromPayload(videoId, json)
+    if (!video) return { status: "missing" }
+    return { status: "ok", video }
   } catch {
-    return null
+    return { status: "unavailable" }
   }
 })
+
+export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
+  const lookedUp = await lookupVideoForWatch(videoId)
+  return lookedUp.status === "ok" ? lookedUp.video : null
+})
+
+function seoVideoFromPayload(videoId: string, json: unknown): SeoVideo | null {
+  const norm = normalizeGetVideoPayload(json)
+  if (!norm || !norm.video) return null
+
+  const v = norm.video
+  if ((v as Record<string, unknown>).hidden === true) return null
+  const id = v.video_id || videoId
+  const title = (v.video_title || "Video").trim() || "Video"
+  const description = (v.video_description || "").trim()
+  const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
+  const raw = v as Record<string, unknown>
+  const originalProfile =
+    (raw.original_profile ?? raw.originalProfile) as string | undefined
+  const profiles = Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null
+  const { playbackUrl, seoWorkersUrl } = resolveSeoVideoWorkersMp4Url(
+    norm.video_url,
+    v.video_url,
+    originalProfile,
+    profiles,
+  )
+  const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
+  const contentUrl = seoWorkersUrl ? buildSeoVideoStreamProxyUrl(seoWorkersUrl) : ""
+  const storageVideoPath = String(v.video_url || norm.video_url || "").trim() || undefined
+  const creator = (v.user_username || "").trim()
+  const dataVideo =
+    json && typeof json === "object"
+      ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video
+      : undefined
+  const nestedRaw =
+    dataVideo && typeof dataVideo === "object" ? (dataVideo as Record<string, unknown>) : null
+
+  let creatorDisplayName = String(
+    raw.user_name ?? raw.userName ?? raw.creator_name ?? raw.artist_name ?? "",
+  ).trim()
+  if (!creatorDisplayName) {
+    creatorDisplayName = creator
+  }
+  const durRaw =
+    raw.video_duration ??
+    raw.video_duration_seconds ??
+    raw.duration_seconds ??
+    raw.duration ??
+    nestedRaw?.video_duration ??
+    nestedRaw?.video_duration_seconds ??
+    nestedRaw?.duration_seconds ??
+    nestedRaw?.duration ??
+    null
+  const durationSeconds =
+    typeof durRaw === "number" && durRaw > 0
+      ? durRaw
+      : typeof durRaw === "string" && parseFloat(durRaw) > 0
+      ? parseFloat(durRaw)
+      : undefined
+
+  return {
+    videoId: id,
+    title,
+    description,
+    thumbnailUrl: thumb,
+    contentUrl,
+    playbackUrl,
+    storageVideoPath,
+    originalProfile: originalProfile ?? null,
+    profiles,
+    creatorUsername: creator,
+    creatorDisplayName,
+    createdAt: v.created_at,
+    updatedAt: v.updated_at,
+    viewCount: typeof raw.video_views === "number" ? raw.video_views : undefined,
+    upvotes: typeof raw.video_upvotes === "number" ? raw.video_upvotes : undefined,
+    tags: Array.isArray(raw.video_tags) ? raw.video_tags : undefined,
+    durationSeconds,
+  }
+}
 
 /** Distinguishes missing users (404) from transient API errors. */
 export const checkUserPublic = cache(
