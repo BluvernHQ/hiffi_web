@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  memo,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -67,6 +68,20 @@ export type HeroCarouselProps = {
   onInViewChange?: (inView: boolean) => void
 }
 
+/** Filmstrip thumbs stay mounted across the 10fps progress updates. */
+const HeroFilmstripThumb = memo(function HeroFilmstripThumb({ src }: { src: string }) {
+  return (
+    <AuthenticatedImage
+      src={src}
+      alt=""
+      fill
+      className="object-cover"
+      sizes="92px"
+      authenticated={false}
+    />
+  )
+})
+
 /** Append ?t= / &t= so the watch player can resume from the hero position. */
 function hrefWithStartTime(href: string, seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 1) return href
@@ -110,6 +125,8 @@ export function HeroCarousel({
   const [crossfading, setCrossfading] = useState(false)
   const [streamUrls, setStreamUrls] = useState<string[]>([])
   const [streamIndex, setStreamIndex] = useState(0)
+  /** False until the hero is actually on screen, so the MP4 does not compete with the poster. */
+  const [loadVideo, setLoadVideo] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -318,9 +335,9 @@ export function HeroCarousel({
       (entries) => {
         const entry = entries[0]
         if (!entry) return
-        onHeroVisibilityChange(
-          entry.isIntersecting && entry.intersectionRatio >= 0.4,
-        )
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.4
+        if (visible) setLoadVideo(true)
+        onHeroVisibilityChange(visible)
       },
       { threshold: [0, 0.15, 0.35, 0.4, 0.5, 0.75, 1] },
     )
@@ -711,14 +728,7 @@ export function HeroCarousel({
               )}
             >
               {card.thumbnail ? (
-                <AuthenticatedImage
-                  src={card.thumbnail}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="(min-width: 1280px) 92px, (min-width: 1024px) 88px, 60px"
-                  authenticated
-                />
+                <HeroFilmstripThumb src={card.thumbnail} />
               ) : (
                 <VideoThumbnailPlaceholder fill />
               )}
@@ -814,7 +824,7 @@ export function HeroCarousel({
             <VideoThumbnailPlaceholder fill />
           )}
 
-          {activeStreamUrl ? (
+          {activeStreamUrl && loadVideo ? (
             <video
               key={`${activeCard.id}-${streamIndex}`}
               ref={videoRef}
@@ -826,8 +836,8 @@ export function HeroCarousel({
               // isn't left silent (React muted race + cancelled 0→fade).
               muted={isMuted || !playbackActive}
               autoPlay
-              // Low-bitrate hero ladder (≤480p) keeps preload=auto cheap on remote Workers.
-              preload="auto"
+              // Bytes start only after the poster has had a chance to paint.
+              preload="metadata"
               onLoadedData={() => {
                 if (!userPaused) void tryPlay()
               }}

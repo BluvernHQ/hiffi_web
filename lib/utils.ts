@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { getWorkersBaseUrl, getWorkersApiKey } from '@/lib/storage'
+import { getWorkersBaseUrl } from '@/lib/storage'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -169,18 +169,11 @@ export async function fetchProfilePictureWithAuth(profilePictureUrl: string): Pr
     return profilePictureUrl;
   }
   
-  const apiKey = getWorkersApiKey();
-  if (!apiKey) {
-    console.error("[utils] No API key found, profile picture may fail to load");
-    return profilePictureUrl;
-  }
-
   try {
     const separator = profilePictureUrl.includes("?") ? "&" : "?";
     const freshUrl = `${profilePictureUrl}${separator}_fresh=${Date.now()}`;
     
     const response = await fetch(freshUrl, {
-      headers: { 'x-api-key': apiKey },
       cache: 'no-store',
     });
 

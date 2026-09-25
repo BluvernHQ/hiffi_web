@@ -87,6 +87,8 @@ export interface HomeFeedClientProps {
   initialVideos: any[]
   /** Seed used by SSR; keeps the client from reshuffling after hydration. */
   seed: string
+  /** Server poster for the hero, painted before the client carousel exists. */
+  heroLcp?: ReactNode
 }
 
 function enhanceVideos(videos: any[], userData: ReturnType<typeof useAuth>["userData"]) {
@@ -104,7 +106,7 @@ function playlistItemsToVideos(items: Array<{ video: Record<string, unknown> }>)
   return items.map((item) => item.video).filter(Boolean)
 }
 
-export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
+export function HomeFeedClient({ initialVideos, seed, heroLcp }: HomeFeedClientProps) {
   const router = useRouter()
   const { userData } = useAuth()
   const [videos, setVideos] = useState<any[]>(() => initialVideos)
@@ -763,7 +765,7 @@ export function HomeFeedClient({ initialVideos, seed }: HomeFeedClientProps) {
 
         {!isMoodFeed && heroSource === "pending" && heroCards.length === 0 ? (
           <div className="mb-3 sm:mb-4">
-            <HeroCarouselSkeleton />
+            {heroLcp ?? <HeroCarouselSkeleton />}
           </div>
         ) : null}
 

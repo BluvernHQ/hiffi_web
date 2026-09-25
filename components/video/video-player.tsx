@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
-import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, getWorkersBaseUrl } from "@/lib/storage"
-import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
+import { getThumbnailUrl } from "@/lib/storage"
+import { playbackPathKey, reportPlaybackUrlFailed, resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
 import {
   buildFallbackUrls,
   buildProfileMenu,
@@ -847,6 +847,18 @@ export function VideoPlayer({
         })
         if (requestId !== resolveRequestIdRef.current) return
         console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
+
+        const failedKey = `${videoId || ""}:${playbackPathKey(source.url)}`
+        const activeSrc = signedVideoUrlRef.current
+        const alreadyFellBack =
+          Boolean(activeSrc) &&
+          signedUrlVideoIdRef.current === (videoId || "") &&
+          playbackPathKey(activeSrc) !== playbackPathKey(source.url) &&
+          mp4FallbackAttemptsRef.current.has(failedKey)
+        if (alreadyFellBack) {
+          // Profiles arrived after a 404 fallback. Don't snap back to the missing file.
+          return
+        }
         
         // Update all related states together to reduce re-renders
         setVideoSourceType(source.type)
@@ -1326,29 +1338,35 @@ export function VideoPlayer({
           return false
         }
 
-        const attemptKey = `${activeVideoId}:${currentSrc}`
-        if (mp4FallbackAttemptsRef.current.has(attemptKey)) {
+        const failedKey = `${activeVideoId}:${playbackPathKey(currentSrc)}`
+        if (mp4FallbackAttemptsRef.current.has(failedKey)) {
           return false
         }
-        mp4FallbackAttemptsRef.current.add(attemptKey)
+        // Mark only the URL that just failed. Do not pre-mark the next try —
+        // that was stopping the ladder after the first fallback 404.
+        mp4FallbackAttemptsRef.current.add(failedKey)
+        reportPlaybackUrlFailed(currentSrc)
 
-        const candidates = buildFallbackUrls(
+        const listed = buildFallbackUrls(
           baseUrl,
           originalProfileRef.current,
           availableProfilesRef.current,
-          currentSrc,
         )
+        const cleanBase = baseUrl.replace(/\/$/, "")
+        const siblings = ["720p.mp4", "480p.mp4", "360p.mp4", "240p.mp4", "original.mp4"].map(
+          (file) => `${cleanBase}/${file}`,
+        )
+        const candidates = [...listed, ...siblings]
 
         const nextUrl = candidates.find((url) => {
           if (!url) return false
-          return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${url}`)
+          return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${playbackPathKey(url)}`)
         })
 
         if (!nextUrl) {
           return false
         }
 
-        mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
         console.warn(`[hiffi] VideoJS Error (Code ${errorCode}), trying MP4 fallback:`, nextUrl)
 
         const fallbackKey = profileKeyFromPlaybackUrl(nextUrl)
@@ -1366,9 +1384,47 @@ export function VideoPlayer({
         return true
       }
 
-      // Ignore errors from intentional src clears while switching playlist tracks.
-      if (!currentSrc) return
-      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
+      const trackedSrc = signedVideoUrlRef.current
+      const dismissError = () => {
+        try {
+          player.error(null)
+        } catch {
+          // Player may be mid-dispose during route changes.
+        }
+      }
+
+      // Switch to another recommendation aborts the previous file. That is not a missing MP4.
+      if (code === 1) {
+        dismissError()
+        return
+      }
+      if (currentSrc && trackedSrc && playbackPathKey(currentSrc) !== playbackPathKey(trackedSrc)) {
+        dismissError()
+        return
+      }
+
+      // During src swaps, ignore teardown noise — but never swallow real load failures
+      // (404 on 720p → CODE 4). Otherwise fallback never runs and the spinner hangs.
+      if (isSourceSwitchingRef.current) {
+        if (code === 2 || code === 3 || code === 4) {
+          isSourceSwitchingRef.current = false
+        } else {
+          dismissError()
+          return
+        }
+      }
+      if (!currentSrc && !trackedSrc) {
+        dismissError()
+        return
+      }
+      if (!trackedSrc) {
+        dismissError()
+        return
+      }
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) {
+        dismissError()
+        return
+      }
 
       // MEDIA_ERR_NETWORK (2) — often a 404 on a missing profile file
       if (code === 2) {
@@ -1382,6 +1438,7 @@ export function VideoPlayer({
 
       // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
       if (code === 4 || code === 3) {
+        setIsBuffering(false)
         if (tryMp4Fallback(code)) {
           return
         }

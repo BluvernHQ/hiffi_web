@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkersApiKey, getWorkersBaseUrl } from '@/lib/storage'
+import { getWorkersBaseUrl } from '@/lib/storage'
 
 /**
- * Profile picture proxy that fetches images from Workers with x-api-key header
+ * Profile picture proxy that fetches images from Workers (no auth header).
  * This allows the browser to display profile pictures that require authentication
  * 
  * Path: /proxy/profile-picture/[...path]
@@ -32,22 +32,7 @@ export async function GET(
     
     console.log(`[hiffi] Profile picture proxy: fetching from Workers: ${workersUrl}`)
 
-    // Get the API key for Workers authentication
-    const apiKey = getWorkersApiKey()
-    if (!apiKey) {
-      console.error('[hiffi] Profile picture proxy: API key not configured')
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      )
-    }
-
-    // Fetch image from Workers with x-api-key header.
-    // Short revalidate so ranking pages can reuse the same avatar without refetching every paint.
     const response = await fetch(workersUrl, {
-      headers: {
-        'x-api-key': apiKey,
-      },
       next: { revalidate: 3600 },
     })
     

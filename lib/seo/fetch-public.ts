@@ -107,8 +107,17 @@ export type SeoVideo = {
   description: string
   /** Google-crawlable thumbnail on hiffi.com (/proxy/image/…). */
   thumbnailUrl: string
-  /** Google-crawlable progressive MP4 on hiffi.com (/proxy/video/stream?url=…). */
+  /** Google-crawlable progressive MP4 on hiffi.com (/proxy/video/stream?url=…). Schema/crawlers only. */
   contentUrl: string
+  /**
+   * Direct Workers MP4 for the watch player (no nginx proxy hop).
+   * Prefer this over contentUrl for any human playback.
+   */
+  playbackUrl: string
+  /** Storage / gateway base used to rebuild profile ladders after hydration. */
+  storageVideoPath?: string
+  originalProfile?: string | null
+  profiles?: string[] | null
   creatorUsername: string
   /** Display name for SEO titles and MusicVideoObject (falls back to username). */
   creatorDisplayName: string
@@ -143,33 +152,45 @@ function resolveSeoVideoWorkersMp4Url(
   storagePath: string | undefined,
   originalProfile?: string | null,
   availableProfiles?: string[] | null,
-): string {
+): { playbackUrl: string; seoWorkersUrl: string } {
   const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
 
+  let candidates: string[] = []
+
   if (gateway && !HLS_RE.test(gateway) && PROGRESSIVE_MP4_RE.test(gateway)) {
     const direct = gateway.startsWith("http") ? gateway : getVideoUrl(gateway)
-    if (isProgressiveMp4Url(direct)) return direct
+    if (isProgressiveMp4Url(direct)) {
+      candidates = [direct]
+    }
   }
 
-  const baseUrl = gateway && !HLS_RE.test(gateway)
-    ? gateway.replace(/\/$/, "")
-    : nested
-      ? resolveVideoBaseUrl(nested)
-      : ""
+  if (candidates.length === 0) {
+    const baseUrl = gateway && !HLS_RE.test(gateway)
+      ? gateway.replace(/\/$/, "")
+      : nested
+        ? resolveVideoBaseUrl(nested)
+        : ""
 
-  if (baseUrl) {
-    const candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles)
-    const mp4 = candidates.find((url) => isProgressiveMp4Url(url))
-    if (mp4) return mp4
+    if (baseUrl) {
+      candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles).filter(
+        (url) => isProgressiveMp4Url(url),
+      )
+    }
   }
 
-  if (nested) {
+  if (candidates.length === 0 && nested) {
     const nestedUrl = nested.startsWith("http") ? nested : getVideoUrl(nested)
-    if (isProgressiveMp4Url(nestedUrl)) return nestedUrl
+    if (isProgressiveMp4Url(nestedUrl)) candidates = [nestedUrl]
   }
 
-  return ""
+  const playbackUrl = candidates[0] || ""
+  // Schema/crawler proxy: prefer original.mp4 (always present after upload) over
+  // encoded rungs that may still be processing → 404 on /proxy/video/stream.
+  const seoWorkersUrl =
+    candidates.find((url) => /\/original\.mp4(?:\?.*)?$/i.test(url)) || playbackUrl
+
+  return { playbackUrl, seoWorkersUrl }
 }
 
 function buildAuthHeaders(): Record<string, string> {
@@ -202,14 +223,18 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
     const description = (v.video_description || "").trim()
     const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
     const raw = v as Record<string, unknown>
-    const workersMp4 = resolveSeoVideoWorkersMp4Url(
+    const originalProfile =
+      (raw.original_profile ?? raw.originalProfile) as string | undefined
+    const profiles = Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null
+    const { playbackUrl, seoWorkersUrl } = resolveSeoVideoWorkersMp4Url(
       norm.video_url,
       v.video_url,
-      (raw.original_profile ?? raw.originalProfile) as string | undefined,
-      Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null,
+      originalProfile,
+      profiles,
     )
     const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
-    const contentUrl = workersMp4 ? buildSeoVideoStreamProxyUrl(workersMp4) : ""
+    const contentUrl = seoWorkersUrl ? buildSeoVideoStreamProxyUrl(seoWorkersUrl) : ""
+    const storageVideoPath = String(v.video_url || norm.video_url || "").trim() || undefined
     const creator = (v.user_username || "").trim()
     const dataVideo =
       json && typeof json === "object"
@@ -250,6 +275,10 @@ export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo 
       description,
       thumbnailUrl: thumb,
       contentUrl,
+      playbackUrl,
+      storageVideoPath,
+      originalProfile: originalProfile ?? null,
+      profiles,
       creatorUsername: creator,
       creatorDisplayName,
       createdAt: v.created_at,

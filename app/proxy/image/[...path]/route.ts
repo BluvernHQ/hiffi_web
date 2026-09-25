@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkersApiKey, getWorkersBaseUrl } from '@/lib/storage'
+import { getWorkersBaseUrl } from '@/lib/storage'
 
 /**
- * Generic image proxy that fetches images from Workers with x-api-key header
+ * Generic image proxy that fetches images from Workers (no auth header).
  * This allows the browser to display images that require authentication using
  * native <img> tags, benefiting from browser-level caching and avoiding memory leaks
  * from Object URLs.
@@ -35,24 +35,9 @@ export async function GET(
     const workersUrl = `${getWorkersBaseUrl()}/${cleanPath}${searchParams ? '?' + searchParams : ''}`
     
     console.log(`[hiffi] Image proxy: Fetching from Workers URL: ${workersUrl}`)
-    
-    // Get the API key for Workers authentication
-    const apiKey = getWorkersApiKey()
-    if (!apiKey) {
-      console.error('[hiffi] Image proxy: API key not configured')
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      )
-    }
 
-    // Fetch image from Workers with x-api-key header
     const response = await fetch(workersUrl, {
-      headers: {
-        'x-api-key': apiKey,
-      },
-      // Don't cache failed responses
-      cache: 'no-store',
+      next: { revalidate: 86400 },
     })
 
     if (!response.ok) {

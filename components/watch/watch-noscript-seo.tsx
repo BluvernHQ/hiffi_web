@@ -23,7 +23,7 @@ export function WatchNoscriptSeo({ video }: Props) {
         <img src={video.thumbnailUrl} alt={`${title} thumbnail`} />
       ) : null}
       {video.contentUrl ? (
-        <video poster={video.thumbnailUrl || undefined} src={video.contentUrl} controls preload="metadata" />
+        <video poster={video.thumbnailUrl || undefined} src={video.contentUrl} controls preload="none" />
       ) : null}
     </noscript>
   )

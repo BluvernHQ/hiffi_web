@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkersApiKey } from '@/lib/storage'
 
 function isAllowedWorkersVideoUrl(videoUrl: string): boolean {
   try {
@@ -10,9 +9,9 @@ function isAllowedWorkersVideoUrl(videoUrl: string): boolean {
 }
 
 /**
- * Video streaming proxy that supports Range requests for proper video playback
- * This allows the browser to stream videos instead of downloading the entire file
- * 
+ * Video streaming proxy for SEO/crawler surfaces only (JSON-LD contentUrl, sitemap, noscript).
+ * Human playback must use direct Workers URLs — do not route viewers here.
+ *
  * Path: /proxy/video/stream (not /api/video/stream to avoid conflict with backend API)
  */
 
@@ -49,22 +48,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get the API key for Workers authentication
-    const apiKey = getWorkersApiKey()
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      )
-    }
-
     // Get Range header from request (for video seeking/streaming)
     const rangeHeader = request.headers.get('range')
-    
-    // Prepare headers for Workers request
-    const headers: HeadersInit = {
-      'x-api-key': apiKey,
-    }
+
+    // No x-api-key — Workers serves public video bytes so the edge can cache them.
+    const headers: HeadersInit = {}
 
     // Pass through the Range header exactly as the browser sent it.
     // This allows the browser to manage its own buffer and MOOV atom discovery

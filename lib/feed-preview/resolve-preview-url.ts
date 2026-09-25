@@ -14,7 +14,7 @@ const PREVIEW_MAX_HEIGHT = 480
 
 /**
  * Feed hover plays Workers MP4 directly (same as the watch player).
- * `public/sw.js` injects `x-api-key` on `/videos/*` fetches — no Next proxy hop.
+ * No x-api-key — plain GETs so Cloudflare can cache the file.
  * Keep `/proxy/video/stream` for SEO/crawler surfaces only (`lib/seo/video-public-urls.ts`).
  */
 export function buildFeedPreviewPlaybackUrl(workersUrl: string): string {
@@ -107,7 +107,7 @@ export function getWatchStreamDirectUrl(video: PreviewVideo): string | null {
   return buildPlaybackCandidates(baseUrl, originalProfile, profiles)[0] ?? null
 }
 
-/** Proxied URL the full watch player loads. */
+/** @deprecated Viewer playback uses getWatchStreamDirectUrl. Proxy remains for SEO/crawl only. */
 export function getWatchStreamProxyUrl(video: PreviewVideo): string | null {
   const workersUrl = getWatchStreamDirectUrl(video)
   if (!workersUrl) return null

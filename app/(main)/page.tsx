@@ -5,6 +5,8 @@ import { JsonLd } from "@/components/seo/json-ld"
 import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
 import { buildSeoImageProxyUrl } from "@/lib/seo/video-public-urls"
 import { getThumbnailUrl } from "@/lib/storage"
+import { HomeHeroLcp } from "@/components/home/home-hero-lcp"
+import { HeroCarouselSkeleton } from "@/components/home/hero-carousel-skeleton"
 import { HomeFeedClient } from "./home-feed-client"
 
 // Always fetch fresh feed from the API (no static / ISR cache for this route).
@@ -117,7 +119,15 @@ export default async function RootPage() {
           </div>
         }
       >
-        <HomeFeedClient initialVideos={initialVideos} seed={seed} />
+        <HomeFeedClient
+          initialVideos={initialVideos}
+          seed={seed}
+          heroLcp={
+            <Suspense fallback={<HeroCarouselSkeleton />}>
+              <HomeHeroLcp />
+            </Suspense>
+          }
+        />
       </Suspense>
     </>
   )

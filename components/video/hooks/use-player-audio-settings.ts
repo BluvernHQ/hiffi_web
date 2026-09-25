@@ -12,8 +12,9 @@ const STORAGE_KEYS = {
  * transient autoplay mute here.
  */
 export function usePlayerAudioSettings() {
-  const [volume, setVolume] = useState<number>(() => getPlayerVolume())
-  const [isMuted, setIsMuted] = useState<boolean>(() => getPlayerMuted())
+  // Defaults must match the server render. Saved mute/volume is applied after mount.
+  const [volume, setVolume] = useState(1)
+  const [isMuted, setIsMuted] = useState(false)
 
   const volumeRef = useRef(volume)
   const isMutedRef = useRef(isMuted)
@@ -22,6 +23,13 @@ export function usePlayerAudioSettings() {
     volumeRef.current = volume
     isMutedRef.current = isMuted
   }, [volume, isMuted])
+
+  useEffect(() => {
+    const savedVolume = getPlayerVolume()
+    const savedMuted = getPlayerMuted()
+    if (savedVolume !== 1) setVolume(savedVolume)
+    if (savedMuted) setIsMuted(true)
+  }, [])
 
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {

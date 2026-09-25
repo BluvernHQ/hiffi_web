@@ -102,6 +102,36 @@ let persistedWatchUiState: {
   upvoteState: { upvoted: boolean; downvoted: boolean }
 } | null = null
 
+const WATCH_BACK_STACK_KEY = "hiffi_watch_back_stack"
+
+type StoredWatchBackStack = { videoId: string; stack: string[] }
+
+function readWatchBackStack(videoId: string): string[] {
+  if (typeof window === "undefined" || !videoId) return []
+  try {
+    const raw = sessionStorage.getItem(WATCH_BACK_STACK_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as StoredWatchBackStack
+    if (!parsed || parsed.videoId !== videoId || !Array.isArray(parsed.stack)) return []
+    return parsed.stack.filter((id) => typeof id === "string" && id && id !== videoId)
+  } catch {
+    return []
+  }
+}
+
+function writeWatchBackStack(videoId: string, stack: string[]) {
+  if (typeof window === "undefined" || !videoId) return
+  try {
+    const payload: StoredWatchBackStack = {
+      videoId,
+      stack: stack.filter((id) => id && id !== videoId),
+    }
+    sessionStorage.setItem(WATCH_BACK_STACK_KEY, JSON.stringify(payload))
+  } catch {
+    // Ignore quota / private-mode failures. Previous still works for this page load.
+  }
+}
+
 const videoResponseCache = new Map<string, any>()
 const inFlightVideoResponse = new Map<string, Promise<any>>()
 
@@ -176,6 +206,8 @@ async function getRelatedVideosOnce(videoId: string) {
 
 function mapSeoVideoToClient(seo: SeoVideo) {
   const artist = (seo.creatorDisplayName || seo.creatorUsername || "").trim()
+  // Human playback must use Workers directly — never SEO contentUrl (/proxy/video/stream).
+  const playback = (seo.playbackUrl || "").trim()
   return {
     video_id: seo.videoId,
     videoId: seo.videoId,
@@ -183,8 +215,12 @@ function mapSeoVideoToClient(seo: SeoVideo) {
     videoTitle: seo.title,
     video_description: seo.description,
     videoDescription: seo.description,
-    video_url: seo.contentUrl,
-    streaming_url: seo.contentUrl,
+    video_url: playback,
+    streaming_url: playback,
+    storage_video_url: seo.storageVideoPath || "",
+    original_profile: seo.originalProfile ?? undefined,
+    originalProfile: seo.originalProfile ?? undefined,
+    profiles: seo.profiles ?? undefined,
     user_username: seo.creatorUsername,
     userUsername: seo.creatorUsername,
     user_name: artist,
@@ -252,15 +288,26 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     if (id && id !== currentVideoId) {
       setCurrentVideoId(id)
       videoHistoryRef.current = [] // External navigation resets internal history
+      writeWatchBackStack(id, [])
       setPlayerBackStackEpoch((n) => n + 1)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.videoId])
 
   // Stack of previously played video IDs for in-place back navigation.
+  // sessionStorage keeps it across refresh; it only applies to the video id that was saved.
   const videoHistoryRef = useRef<string[]>([])
   /** Bumped whenever the stack is pushed/popped/cleared so we can derive UI from ref length. */
   const [playerBackStackEpoch, setPlayerBackStackEpoch] = useState(0)
+
+  useEffect(() => {
+    const restored = readWatchBackStack(currentVideoId)
+    if (restored.length === 0) return
+    videoHistoryRef.current = restored
+    setPlayerBackStackEpoch((n) => n + 1)
+    // Only the id from the first paint (the refreshed URL).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const isInPlaceNavigationRef = useRef(false)
   const [playlistContext, setPlaylistContext] = useState<{
     playlistId: string
@@ -321,6 +368,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     isInPlaceNavigationRef.current = true
     if (pushHistory) {
       videoHistoryRef.current.push(currentVideoId)
+      writeWatchBackStack(nextId, videoHistoryRef.current)
       setPlayerBackStackEpoch((n) => n + 1)
     }
     setCurrentVideoId(nextId)
@@ -407,6 +455,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
     const prevId = videoHistoryRef.current.pop()
     if (prevId) {
+      writeWatchBackStack(prevId, videoHistoryRef.current)
       isInPlaceNavigationRef.current = true
       setCurrentVideoId(prevId)
       if (typeof window !== "undefined") {
@@ -452,6 +501,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         } else {
           videoHistoryRef.current = []
         }
+        writeWatchBackStack(newId, videoHistoryRef.current)
         setPlayerBackStackEpoch((n) => n + 1)
       }
 
@@ -502,12 +552,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
     return null
   })
-  const [playerVideo, setPlayerVideo] = useState<any>(() => {
-    if (activeVideo && (activeVideo.videoId === params.videoId || activeVideo.video_id === params.videoId)) {
-      return activeVideo
-    }
-    return null
-  })
+  const [playerVideo, setPlayerVideo] = useState<any>(null)
   
   const [videoCreator, setVideoCreator] = useState<any>(() => {
     const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
@@ -525,12 +570,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
     return null
   })
-  const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
-    const persistedVideo = persistedWatchUiState?.video
-    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
-    if (!persistedId || persistedId !== routeVideoId) return []
-    return persistedWatchUiState?.relatedVideos ?? []
-  })
+  // Empty on SSR + first client paint so Up Next / Next button match (no hydration mismatch).
+  // Client-only caches (session, home feed, module persist) are applied after mount.
+  const [relatedVideos, setRelatedVideos] = useState<any[]>([])
   
   // Only show initial loading spinner if we don't have SSR seed or persisted context
   const [isLoading, setIsLoading] = useState(() => {
@@ -587,8 +629,28 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const currentVideoIdRef = useRef<string | null>(null)
   const pendingVideoIdRef = useRef<string | null>(null)
   
-  // Keep previously shown recommendations available across route transitions.
-  const visibleRelatedVideos = relatedVideos.length > 0 ? relatedVideos : (persistedWatchUiState?.relatedVideos || [])
+  // Keep list tied to React state only — module persist during render caused SSR/client mismatch.
+  const visibleRelatedVideos = relatedVideos
+
+  useEffect(() => {
+    if (!routeVideoId) return
+
+    let seeded: any[] = []
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (persistedId && persistedId === routeVideoId) {
+      seeded = persistedWatchUiState?.relatedVideos ?? []
+    }
+    if (seeded.length === 0) {
+      seeded = getCachedRelatedVideos(routeVideoId) ?? []
+    }
+    if (seeded.length === 0) {
+      seeded = getInstantRelatedFromHomeFeed(routeVideoId) ?? []
+    }
+    if (seeded.length > 0) {
+      setRelatedVideos(seeded)
+    }
+  }, [routeVideoId])
 
   // Memoize sliced suggested videos to prevent unnecessary re-renders and glitches 
   // when toggling description or other UI states.
@@ -1129,6 +1191,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           } else {
             // Start loading the new media immediately in the player, but keep old metadata on screen.
             setPlayerVideo(completeVideo)
+            // Drop the full-bleed spinner once we have a stream URL — the player shows its own buffer state.
+            setIsLoading(false)
             // Keep current video details visible until player confirms new media is ready.
             setPendingVideo((pending) => {
               if (!pending || pending.videoId !== videoId) return pending
