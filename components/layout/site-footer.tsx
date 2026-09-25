@@ -43,6 +43,7 @@ const columns: FooterColumn[] = [
       { label: "How it works", href: "/how-it-works" },
       { label: "Press kit", href: "/press" },
       { label: "Creators for Change", href: "/creators-for-change" },
+      { label: "Founder Story", href: "/founder" },
       { label: "Blog", href: "https://www.blog.hiffi.com/", external: true },
     ],
   },
