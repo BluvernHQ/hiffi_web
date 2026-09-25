@@ -1,33 +1,21 @@
 "use client"
 
-import { lazy, Suspense, type ReactNode } from "react"
 import type { AddToPlaylistDialogProps } from "@/components/video/add-to-playlist-dialog"
-
-const AddToPlaylistDialog = lazy(() =>
-  import("@/components/video/add-to-playlist-dialog").then((m) => ({
-    default: m.AddToPlaylistDialog,
-  })),
-)
+import { AddToPlaylistDialog } from "@/components/video/add-to-playlist-dialog"
 
 type Props = AddToPlaylistDialogProps
 
-/** Loaded when opened, or immediately when wrapping a save trigger (`children`) for popover anchoring. */
+/**
+ * Wraps the playlist dialog. The trigger path is a normal import so the server
+ * HTML and the first client render share the same Radix ids. A lazy() boundary
+ * here shifted those ids and failed hydration on the watch page.
+ */
 export function AddToPlaylistDialogLazy({ open, children, ...props }: Props) {
-  if (children) {
-    return (
-      <Suspense fallback={children}>
-        <AddToPlaylistDialog open={open} {...props}>
-          {children}
-        </AddToPlaylistDialog>
-      </Suspense>
-    )
-  }
-
-  if (!open) return null
+  if (!children && !open) return null
 
   return (
-    <Suspense fallback={null}>
-      <AddToPlaylistDialog open={open} {...props} />
-    </Suspense>
+    <AddToPlaylistDialog open={open} {...props}>
+      {children}
+    </AddToPlaylistDialog>
   )
 }

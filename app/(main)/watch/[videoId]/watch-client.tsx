@@ -641,11 +641,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     if (persistedId && persistedId === routeVideoId) {
       seeded = persistedWatchUiState?.relatedVideos ?? []
     }
-    if (seeded.length === 0) {
-      seeded = getCachedRelatedVideos(routeVideoId) ?? []
-    }
-    if (seeded.length === 0) {
-      seeded = getInstantRelatedFromHomeFeed(routeVideoId) ?? []
+    if (seeded.length === 0 && relatedVideosCache.has(routeVideoId)) {
+      seeded = relatedVideosCache.get(routeVideoId) ?? []
     }
     if (seeded.length > 0) {
       setRelatedVideos(seeded)
