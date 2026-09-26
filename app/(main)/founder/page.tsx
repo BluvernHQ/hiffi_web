@@ -99,29 +99,43 @@ export default function FounderPage() {
 
         {/* Main Layout */}
         <div className="grid gap-12 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-24">
-          
-          {/* Left Column: Metadata */}
-          <aside className="order-2 lg:order-1">
-            <div className="space-y-6 pt-2">
-              <div>
-                <h3 className="mb-1 text-[11px] font-medium text-muted-foreground">
-                  Conceptualized
-                </h3>
-                <p className="font-bold text-foreground">2025</p>
-              </div>
-              <div>
-                <h3 className="mb-1 text-[11px] font-medium text-muted-foreground">Launch</h3>
-                <p className="font-bold text-foreground">14th February 2026</p>
-              </div>
-              <div>
-                <h3 className="mb-1 text-[11px] font-medium text-muted-foreground">Founder</h3>
-                <p className="font-bold text-foreground">Inoto Kinimi</p>
-              </div>
-            </div>
-          </aside>
 
-          {/* Right Column: Content */}
-          <div className="order-1 min-w-0 space-y-12 lg:order-2">
+          {/* Metadata */}
+        <aside className="order-1 lg:order-1">
+          <div className="flex flex-row justify-between gap-4 pt-2 lg:flex-col lg:justify-start lg:gap-6">
+
+            <div className="min-w-0">
+              <h3 className="mb-1 text-[11px] font-medium text-muted-foreground sm:text-xs">
+                Conceptualized
+              </h3>
+              <p className="text-sm font-bold text-foreground sm:text-base">
+                2025
+              </p>
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="mb-1 text-[11px] font-medium text-muted-foreground sm:text-xs">
+                Launch
+              </h3>
+              <p className="text-sm font-bold text-foreground sm:text-base">
+                14th February 2026
+              </p>
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="mb-1 text-[11px] font-medium text-muted-foreground sm:text-xs">
+                Founder
+              </h3>
+              <p className="text-sm font-bold text-foreground sm:text-base">
+                Inoto Kinimi
+              </p>
+            </div>
+
+          </div>
+        </aside>
+
+          {/* Main Content */}
+          <div className="order-2 min-w-0 space-y-12 lg:order-2">
             
             {/* Section 1 */}
             <section className="space-y-4">
