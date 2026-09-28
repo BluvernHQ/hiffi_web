@@ -813,10 +813,9 @@ export default function ProfilePage({
           profileUser={profileUser}
           username={username}
           isOwnProfile={isOwnProfile}
-          ownerEmail={
-            isOwnProfile
-              ? String(profileUser.email || currentUserData?.email || "").trim() || undefined
-              : undefined
+          email={
+            String(profileUser.email || (isOwnProfile ? currentUserData?.email : "") || "").trim() ||
+            undefined
           }
           showClaimCta={inInventory}
           isFollowing={isFollowing}

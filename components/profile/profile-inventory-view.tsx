@@ -24,8 +24,8 @@ type ProfileInventoryViewProps = {
   profileUser: any
   username: string
   isOwnProfile: boolean
-  /** Account email — shown to the profile owner only. */
-  ownerEmail?: string
+  /** Owners see it directly; visitors reveal it after sign-in + captcha. */
+  email?: string
   /** When false, hide inventory claim banners (non-inventory creators). */
   showClaimCta?: boolean
   isFollowing: boolean
@@ -72,7 +72,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
     profileUser,
     username,
     isOwnProfile,
-    ownerEmail,
+    email,
     showClaimCta = false,
     isFollowing,
     isFollowingAction,
@@ -334,15 +334,16 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                   showWatchPrompt={false}
                 />
                 <div className="flex flex-col gap-4 sm:gap-6">
-                  {isOwnProfile && ownerEmail ? (
+                  {email ? (
                     <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
                       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
-                        Account
+                        {isOwnProfile ? "Account" : "Contact"}
                       </h2>
                       <ProfileEmailReveal
                         username={username}
-                        email={ownerEmail}
-                        isOwnProfile
+                        email={email}
+                        isOwnProfile={isOwnProfile}
+                        onRequestSignIn={() => setAuthDialogOpen(true)}
                         className="mt-3 sm:mt-4"
                       />
                     </section>
