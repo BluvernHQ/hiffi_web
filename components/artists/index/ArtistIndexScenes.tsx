@@ -39,7 +39,7 @@ export function ArtistIndexScenes({
 
       <ol
         aria-label="Cities"
-        className="scrollbar-none -mx-4 mt-6 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 sm:hidden"
+        className="scrollbar-none -mx-4 mt-6 flex snap-x snap-mandatory scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 sm:hidden"
       >
         {cities.map((city, index) => (
           <li key={city.slug} className="min-w-[8.5rem] shrink-0 snap-start">
