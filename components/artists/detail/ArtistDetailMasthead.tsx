@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { ArrowUpRight, BadgeCheck, Play } from "lucide-react"
+import { BadgeCheck, Play } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
@@ -10,9 +10,7 @@ import {
   artistClaimState,
   artistPlaceLabel,
   formatChartWeek,
-  primaryListenLink,
 } from "@/components/artists/detail/artist-detail-data"
-import { cn } from "@/lib/utils"
 
 type ArtistDetailMastheadProps = {
   artist: Artist
@@ -30,7 +28,6 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
   const photo = getArtistImageUrl(artist.image)
   const place = artistPlaceLabel(artist)
   const claimState = artistClaimState(artist)
-  const listen = primaryListenLink(artist)
   const reach = getPrimaryFollowerCount(artist)
   const chartWeek = artist.ranking ? formatChartWeek(artist.ranking.updated_at) : null
   const claimHref = `/artist-index/${artist.slug}/claim`
@@ -93,19 +90,15 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
             <ArtistRankSignals artist={artist} className="mt-6" />
 
             <div className="mt-7 flex flex-wrap items-center gap-2.5">
-              {listen ? (
-                <a
-                  href={listen.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 rounded-full bg-[#F4F1EA] py-2.5 pl-2.5 pr-5 text-sm font-semibold text-[#0B0B0C] transition-colors hover:bg-white"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B0B0C] text-[#F4F1EA]">
-                    <Play className="h-3.5 w-3.5 translate-x-px fill-current" aria-hidden />
-                  </span>
-                  Listen on {listen.label}
-                </a>
-              ) : null}
+              <Link
+                href={`/profile/${encodeURIComponent(artist.slug)}`}
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#F4F1EA] py-2.5 pl-2.5 pr-5 text-sm font-semibold text-[#0B0B0C] transition-colors hover:bg-white"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B0B0C] text-[#F4F1EA]">
+                  <Play className="h-3.5 w-3.5 translate-x-px fill-current" aria-hidden />
+                </span>
+                Watch on Hiffi
+              </Link>
 
               {claimState === "unclaimed" ? (
                 <Link
@@ -122,19 +115,6 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
                   Request ownership
                 </Link>
               ) : null}
-
-              <Link
-                href={`/profile/${encodeURIComponent(artist.slug)}`}
-                className={cn(
-                  "group inline-flex items-center gap-1.5 rounded-full px-4 py-3 text-sm font-semibold text-white/75 transition-colors hover:text-white",
-                )}
-              >
-                Watch on Hiffi
-                <ArrowUpRight
-                  className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                  aria-hidden
-                />
-              </Link>
             </div>
           </div>
         </div>

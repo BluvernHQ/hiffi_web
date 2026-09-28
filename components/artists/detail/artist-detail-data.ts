@@ -100,12 +100,6 @@ export function artistPlatformLinks(artist: Artist): ArtistPlatformLink[] {
   })
 }
 
-/** Where "Listen" goes: YouTube, then Spotify, then whatever exists. */
-export function primaryListenLink(artist: Artist): ArtistPlatformLink | null {
-  const links = artistPlatformLinks(artist)
-  return links.find((link) => link.key === "yt_url" || link.key === "spotify_url") ?? null
-}
-
 export function artistInitials(name: string): string {
   const letters = name
     .replace(/[^\p{L}\p{N}\s]/gu, "")
