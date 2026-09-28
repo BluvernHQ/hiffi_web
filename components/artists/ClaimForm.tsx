@@ -206,7 +206,8 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
       if (caught instanceof InventoryClaimError) {
         if (caught.status === 409 && /email/i.test(caught.message)) {
           const emailErrors = {
-            email: "An account with this email already exists. Sign in instead, or use a different email.",
+            email:
+              "This email is already used by another Hiffi account. Use a different email for your artist account.",
           }
           setStep("account")
           setErrors(emailErrors)

@@ -50,7 +50,8 @@ interface AuthContextType {
     token: string
     user: { uid: string; username: string; name: string }
   }) => Promise<any | null>
-  logout: () => Promise<void>
+  /** `stayOnPage` skips the post-logout redirect (e.g. switching accounts on /login). */
+  logout: (options?: { stayOnPage?: boolean }) => Promise<void>
   refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
   /** Clear profile photo in auth cache/state immediately (used by navbar). */
   clearProfilePhoto: () => void
@@ -620,7 +621,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refreshUserData],
   )
 
-  const logout = async () => {
+  const logout = async (options?: { stayOnPage?: boolean }) => {
     try {
       debugLog("[hiffi] Attempting logout")
 
@@ -701,7 +702,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Conditional redirect: Stay on watch page, otherwise go home
         const currentPath = window.location.pathname
-        if (currentPath.startsWith("/watch/")) {
+        if (options?.stayOnPage || currentPath.startsWith("/watch/")) {
           debugLog("[hiffi] User logged out on watch page, staying on current page")
           router.refresh()
           // Run cleanup multiple times to catch elements added during navigation
