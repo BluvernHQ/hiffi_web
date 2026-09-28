@@ -110,8 +110,40 @@ export async function fetchInventoryTotal(
   return result.total
 }
 
-export async function fetchAllInventoryProfiles(
-  params: Omit<InventoryPageParams, "limit" | "offset"> = {},
+type CatalogParams = Omit<InventoryPageParams, "limit" | "offset">
+
+const CATALOG_MEMORY_TTL_MS = REVALIDATE_SECONDS * 1000
+const catalogMemoryCache = new Map<string, { expiresAt: number; promise: Promise<PublicInventoryProfile[]> }>()
+
+/**
+ * Genre pages, the sitemap and full-catalog sorts all need every profile (~170 API pages).
+ * Share one in-flight/recent result per process so concurrent renders don't each re-page the
+ * catalog — that burst is what got the server IP blocked by Cloudflare.
+ */
+export function fetchAllInventoryProfiles(params: CatalogParams = {}): Promise<PublicInventoryProfile[]> {
+  const key = JSON.stringify(
+    Object.entries(params)
+      .filter(([, value]) => value != null && value !== "")
+      .sort(([a], [b]) => a.localeCompare(b)),
+  )
+  const now = Date.now()
+  const cached = catalogMemoryCache.get(key)
+  if (cached && cached.expiresAt > now) return cached.promise
+
+  const promise = fetchAllInventoryProfilesUncached(params)
+  catalogMemoryCache.set(key, { expiresAt: now + CATALOG_MEMORY_TTL_MS, promise })
+  promise.catch(() => {
+    if (catalogMemoryCache.get(key)?.promise === promise) catalogMemoryCache.delete(key)
+  })
+  return promise
+}
+
+export function clearInventoryCatalogMemoryCache(): void {
+  catalogMemoryCache.clear()
+}
+
+async function fetchAllInventoryProfilesUncached(
+  params: CatalogParams,
 ): Promise<PublicInventoryProfile[]> {
   const first = await fetchInventoryPage({ limit: MAX_PAGE_SIZE, offset: 0, ...params })
   const all = [...first.items]
