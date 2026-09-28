@@ -12,6 +12,14 @@ export const SITEMAP_REVALIDATE_SECONDS = 3600
 
 const STATIC_LAST_MODIFIED = new Date("2026-06-01T00:00:00.000Z")
 
+/** Chart surfaces are kept out of every sitemap. */
+const SITEMAP_EXCLUDED_PREFIXES = ["/hiffi-500", "/top-artists"]
+
+function isSitemapExcluded(url: string): boolean {
+  const { pathname } = new URL(url)
+  return SITEMAP_EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
+
 export function getSitemapMaxVideos(): number {
   const raw = process.env.SITEMAP_MAX_VIDEOS?.trim()
   const parsed = raw ? Number.parseInt(raw, 10) : 50_000
@@ -227,7 +235,7 @@ export async function buildSitemapEntries(id: number): Promise<MetadataRoute.Sit
 
   if (id === 0) {
     const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
-    const staticEntries = buildStaticEntries(cityPages, genrePages)
+    const staticEntries = buildStaticEntries(cityPages, genrePages).filter((entry) => !isSitemapExcluded(entry.url))
     const profileEntries = buildProfileEntries(profileDates, now)
     const artistIndexEntries = await buildArtistIndexProfileEntries()
 
