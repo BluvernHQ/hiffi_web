@@ -231,10 +231,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
     <section id="ranking" aria-labelledby="top-chart-heading" className="scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <ArtistDetailEyebrow>The ranking</ArtistDetailEyebrow>
-          <ArtistDetailHeading id="top-chart-heading">{heading}</ArtistDetailHeading>
+          <ArtistDetailEyebrow className="text-white/45">The ranking</ArtistDetailEyebrow>
+          <ArtistDetailHeading id="top-chart-heading" className="text-[#F4F1EA]">
+            {heading}
+          </ArtistDetailHeading>
         </div>
-        <p className="max-w-sm text-sm leading-6 text-[#77726A]">{kicker}</p>
+        <p className="max-w-sm text-sm leading-6 text-white/50">{kicker}</p>
       </div>
 
       <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -255,8 +257,8 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                 className={cn(
                   "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
                   active
-                    ? "bg-[#0B0B0C] text-[#F4F1EA]"
-                    : "border border-[#0B0B0C]/12 text-[#0B0B0C]/70 hover:border-[#0B0B0C]/35 hover:text-[#0B0B0C]",
+                    ? "bg-[#F4F1EA] text-[#0B0B0C]"
+                    : "border border-white/12 text-white/65 hover:border-white/35 hover:text-white",
                 )}
               >
                 {entry.label}
@@ -268,13 +270,13 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
         <div className="flex items-center gap-2">
           <label className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
             <span className="sr-only">Search the chart</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#0B0B0C]/40" aria-hidden />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" aria-hidden />
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search"
-              className="w-full rounded-full border border-[#0B0B0C]/12 bg-white/60 py-2.5 pl-10 pr-4 text-sm text-[#0B0B0C] outline-none transition-colors placeholder:text-[#0B0B0C]/40 focus:border-[#0B0B0C]/35 focus:bg-white"
+              className="w-full rounded-full border border-white/12 bg-white/[0.04] py-2.5 pl-10 pr-4 text-sm text-[#F4F1EA] outline-none transition-colors placeholder:text-white/40 focus:border-white/35 focus:bg-white/[0.07]"
             />
           </label>
           <label className="relative shrink-0">
@@ -285,7 +287,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                 onChange={(event) =>
                   switchBoard({ mode, city: null, window: Number(event.target.value) === 30 ? 30 : 7 })
                 }
-                className="appearance-none rounded-full border border-[#0B0B0C]/12 bg-white/60 py-2.5 pl-4 pr-9 text-sm font-semibold text-[#0B0B0C] outline-none focus:border-[#0B0B0C]/35"
+                className="appearance-none rounded-full border border-white/12 bg-white/[0.04] py-2.5 pl-4 pr-9 text-sm font-semibold text-[#F4F1EA] outline-none focus:border-white/35"
               >
                 <option value={7}>Last 7 days</option>
                 <option value={30}>Last 30 days</option>
@@ -294,7 +296,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortKey)}
-                className="appearance-none rounded-full border border-[#0B0B0C]/12 bg-white/60 py-2.5 pl-4 pr-9 text-sm font-semibold text-[#0B0B0C] outline-none focus:border-[#0B0B0C]/35"
+                className="appearance-none rounded-full border border-white/12 bg-white/[0.04] py-2.5 pl-4 pr-9 text-sm font-semibold text-[#F4F1EA] outline-none focus:border-white/35"
               >
                 {SORTS.map((entry) => (
                   <option key={entry.id} value={entry.id}>
@@ -303,14 +305,14 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                 ))}
               </select>
             )}
-            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#0B0B0C]/45" aria-hidden />
+            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" aria-hidden />
           </label>
         </div>
       </div>
 
       {mode === "overall" && cities.length > 0 ? (
         <div className="scrollbar-none -mx-4 mt-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-          <span className="mr-1 shrink-0 font-mono text-[10px] uppercase tracking-[0.28em] text-[#0B0B0C]/40">Cities</span>
+          <span className="mr-1 shrink-0 font-mono text-[10px] uppercase tracking-[0.28em] text-white/40">Cities</span>
           {[null, ...featuredCities].map((entry) => {
             const active = entry ? city?.key === entry.key : city === null
             return (
@@ -322,8 +324,8 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                 className={cn(
                   "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
                   active
-                    ? "bg-[#0B0B0C] text-[#F4F1EA]"
-                    : "text-[#0B0B0C]/60 hover:bg-[#0B0B0C]/[0.06] hover:text-[#0B0B0C]",
+                    ? "bg-[#F4F1EA] text-[#0B0B0C]"
+                    : "text-white/55 hover:bg-white/[0.06] hover:text-white",
                 )}
               >
                 {entry ? entry.label : "All"}
@@ -341,7 +343,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                 }}
                 className={cn(
                   "appearance-none rounded-full py-1.5 pl-3 pr-7 text-xs font-semibold outline-none transition-colors",
-                  cityInMore ? "bg-[#0B0B0C] text-[#F4F1EA]" : "text-[#0B0B0C]/60 hover:bg-[#0B0B0C]/[0.06]",
+                  cityInMore ? "bg-[#F4F1EA] text-[#0B0B0C]" : "bg-transparent text-white/55 hover:bg-white/[0.06]",
                 )}
               >
                 <option value="" disabled>
@@ -363,7 +365,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
         <div
           className={cn(
             rowGrid,
-            "hidden border-b border-[#0B0B0C]/12 pb-3 font-mono text-[10px] uppercase tracking-[0.24em] text-[#0B0B0C]/45 sm:grid",
+            "hidden border-b border-white/10 pb-3 font-mono text-[10px] uppercase tracking-[0.24em] text-white/40 sm:grid",
           )}
           aria-hidden
         >
@@ -376,23 +378,23 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
         </div>
 
         {switching ? (
-          <ol aria-busy className="divide-y divide-[#0B0B0C]/10">
+          <ol aria-busy className="divide-y divide-white/[0.07]">
             {Array.from({ length: 8 }, (_, index) => (
               <li key={index} className={cn(ROW_GRID, ROW_GRID_STATS, "py-4")}>
-                <span className="paper-skeleton h-7 w-8 rounded" />
-                <span className="paper-skeleton h-11 w-11 rounded-xl" />
+                <span className="ink-skeleton h-7 w-8 rounded" />
+                <span className="ink-skeleton h-11 w-11 rounded-xl" />
                 <span>
-                  <span className="paper-skeleton block h-4 w-1/2 rounded-full" />
-                  <span className="paper-skeleton mt-2 block h-2.5 w-1/4 rounded-full" />
+                  <span className="ink-skeleton block h-4 w-1/2 rounded-full" />
+                  <span className="ink-skeleton mt-2 block h-2.5 w-1/4 rounded-full" />
                 </span>
-                <span className="paper-skeleton ml-auto hidden h-3.5 w-12 rounded-full md:block" />
-                <span className="paper-skeleton ml-auto hidden h-3.5 w-10 rounded-full md:block" />
-                <span className="paper-skeleton ml-auto h-5 w-10 rounded-full" />
+                <span className="ink-skeleton ml-auto hidden h-3.5 w-12 rounded-full md:block" />
+                <span className="ink-skeleton ml-auto hidden h-3.5 w-10 rounded-full md:block" />
+                <span className="ink-skeleton ml-auto h-5 w-10 rounded-full" />
               </li>
             ))}
           </ol>
         ) : visible.length > 0 ? (
-          <ol className="divide-y divide-[#0B0B0C]/10">
+          <ol className="divide-y divide-white/[0.07]">
             {visible.map((artist, index) => (
               <li key={artist.username} className="artist-rise" style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}>
                 <button
@@ -400,7 +402,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                   onClick={() => open(artist, drawerContext)}
                   className={cn(
                     rowGrid,
-                    "group -mx-2 w-[calc(100%+1rem)] rounded-xl px-2 py-3.5 text-left transition-colors hover:bg-white/60 focus-visible:bg-white/70 focus-visible:outline-none sm:py-4",
+                    "group -mx-2 w-[calc(100%+1rem)] rounded-xl px-2 py-3.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:py-4",
                   )}
                 >
                   <ChartRowContent artist={artist} mode={mode} showMovement={showMovement} showStats={showStats} />
@@ -410,10 +412,10 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
           </ol>
         ) : (
           <div className="py-16 text-center">
-            <p className="font-signal text-3xl font-bold uppercase text-[#0B0B0C]">
+            <p className="font-signal text-3xl font-bold uppercase text-[#F4F1EA]">
               {error ? "Chart unavailable" : needle ? "No one by that name" : "Nothing here yet"}
             </p>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-[#77726A]">
+            <p className="mx-auto mt-2 max-w-sm text-sm text-white/50">
               {error ??
                 (needle
                   ? searchingAll
@@ -425,7 +427,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
               <button
                 type="button"
                 onClick={() => switchBoard({ mode, city, window: windowDays })}
-                className="mt-6 rounded-full bg-[#0B0B0C] px-5 py-2.5 text-sm font-semibold text-[#F4F1EA]"
+                className="mt-6 rounded-full bg-[#F4F1EA] px-5 py-2.5 text-sm font-semibold text-[#0B0B0C]"
               >
                 Try again
               </button>
@@ -434,8 +436,8 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
         )}
 
         {!switching && visible.length > 0 ? (
-          <div className="mt-10 flex flex-col items-center gap-4 border-t border-[#0B0B0C]/12 pt-8 sm:flex-row sm:justify-between">
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#0B0B0C]/50" role="status" aria-live="polite">
+          <div className="mt-10 flex flex-col items-center gap-4 border-t border-white/10 pt-8 sm:flex-row sm:justify-between">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/45" role="status" aria-live="polite">
               {needle
                 ? `${visible.length.toLocaleString()} ${visible.length === 1 ? "match" : "matches"}${searchingAll ? " · searching" : ""}`
                 : `Showing ${items.length.toLocaleString()}${total ? ` of ${total.toLocaleString()}` : ""}`}
@@ -445,7 +447,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                 type="button"
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="inline-flex min-w-44 items-center justify-center gap-2 rounded-full border border-[#0B0B0C]/20 px-6 py-3 text-sm font-semibold text-[#0B0B0C] transition-colors hover:border-[#0B0B0C] disabled:opacity-60"
+                className="inline-flex min-w-44 items-center justify-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-[#F4F1EA] transition-colors hover:border-white/60 hover:bg-white/[0.04] disabled:opacity-60"
               >
                 {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
                 {loadingMore ? "Loading" : "Load more"}
@@ -478,7 +480,7 @@ function ChartRowContent({
       <span
         className={cn(
           "font-signal text-[1.75rem] font-bold leading-none tabular-nums sm:text-[2.1rem]",
-          gold ? "bg-gradient-to-b from-[#E7B84A] via-[#C9912B] to-[#9A6A16] bg-clip-text text-transparent" : "text-[#0B0B0C]",
+          gold ? "bg-gradient-to-b from-[#FFF4CF] via-[#F2C662] to-[#C28A2A] bg-clip-text text-transparent" : "text-[#F4F1EA]",
         )}
       >
         {artist.rank}
@@ -486,25 +488,25 @@ function ChartRowContent({
       <ArtistPortrait
         artist={{ name: artist.artist_name, image: artist.image ?? null }}
         decorative
-        className="h-11 w-11 rounded-xl sm:h-12 sm:w-12"
+        className="h-11 w-11 rounded-xl ring-1 ring-white/10 sm:h-12 sm:w-12"
       />
       <span className="min-w-0">
         <span className="flex items-center gap-1.5">
-          <span className="font-signal truncate text-[1.25rem] font-bold uppercase leading-none text-[#0B0B0C] transition-colors group-hover:text-[#E8192C] sm:text-[1.45rem]">
+          <span className="font-signal truncate text-[1.25rem] font-bold uppercase leading-none text-[#F4F1EA] transition-colors group-hover:text-[#FF4D5E] sm:text-[1.45rem]">
             {artist.artist_name}
           </span>
           {artist.claim_status === "claimed" ? (
-            <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
+            <BadgeCheck className="h-4 w-4 shrink-0 text-[#6F95F0]" aria-label="Verified artist" />
           ) : null}
         </span>
-        <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-[#77726A]">
+        <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
           {[place, artist.global_rank && artist.global_rank !== artist.rank ? `#${artist.global_rank} overall` : null]
             .filter(Boolean)
             .join(" · ") || "Hip-hop"}
         </span>
       </span>
       {showStats ? (
-        <span className="hidden text-right text-sm font-semibold tabular-nums text-[#0B0B0C] md:block">
+        <span className="hidden text-right text-sm font-semibold tabular-nums text-white/80 md:block">
           {formatCount(artist.youtube_subscriber_count)}
         </span>
       ) : null}
@@ -512,7 +514,7 @@ function ChartRowContent({
         <span
           className={cn(
             "hidden text-right text-sm font-semibold tabular-nums md:block",
-            momentum > 0 ? "text-[#1F7A45]" : momentum < 0 ? "text-[#C8102E]" : "text-[#0B0B0C]/40",
+            momentum > 0 ? "text-[#7BD88F]" : momentum < 0 ? "text-[#FF6B78]" : "text-white/35",
           )}
         >
           {formatMomentum(artist.youtube_momentum_30d)}
@@ -525,11 +527,11 @@ function ChartRowContent({
 
 function MovementChip({ movement }: { movement: ChartMovement }) {
   if (!movement || movement.kind === "flat") {
-    return <span className="text-sm font-semibold text-[#0B0B0C]/30">—</span>
+    return <span className="text-sm font-semibold text-white/25">—</span>
   }
   if (movement.kind === "new") {
     return (
-      <span className="rounded-full bg-[#F2C662]/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#8A5F10]">
+      <span className="rounded-full bg-[#F2C662]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#F2C662]">
         New
       </span>
     )
@@ -539,7 +541,7 @@ function MovementChip({ movement }: { movement: ChartMovement }) {
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums",
-        up ? "bg-[#1F7A45]/10 text-[#1F7A45]" : "bg-[#C8102E]/10 text-[#C8102E]",
+        up ? "bg-[#7BD88F]/12 text-[#7BD88F]" : "bg-[#FF6B78]/12 text-[#FF6B78]",
       )}
     >
       <span aria-hidden>{up ? "▲" : "▼"}</span>

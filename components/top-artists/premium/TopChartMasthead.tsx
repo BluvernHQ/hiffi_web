@@ -63,7 +63,7 @@ export function TopChartMasthead({ podium, chartWeek, totalRanked, cityCount }: 
   const [first, second, third] = podium
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#0B0B0C] text-[#F4F1EA]">
+    <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#0B0B0C] text-[#F4F1EA]">
       <div
         className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_10%_0%,rgba(232,25,44,0.26),transparent_50%),radial-gradient(ellipse_at_90%_100%,rgba(242,198,98,0.1),transparent_45%)]"
         aria-hidden

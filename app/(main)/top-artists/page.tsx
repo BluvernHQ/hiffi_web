@@ -131,9 +131,9 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
       : null
 
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now" bleed>
+    <ArtistDirectoryShell claimLabel="Claim Now" bleed tone="ink">
       {jsonLd ? <JsonLd data={jsonLd} /> : null}
-      <div className={cn(signalNarrow.variable, "text-[#0B0B0C]")}>
+      <div className={cn(signalNarrow.variable, "text-[#F4F1EA] [color-scheme:dark]")}>
         <TopChartDrawerProvider initialArtist={initialArtist}>
           <TopChartMasthead podium={podium} chartWeek={chartWeek} totalRanked={totalRanked} cityCount={cities.length} />
 
@@ -149,8 +149,8 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
             <TopChartMovers movers={movers} />
             <TopChartMethod />
             <div>
-              <ArtistIndexClaimBand />
-              <p className="mt-8 text-center text-xs leading-5 text-[#77726A]">
+              <ArtistIndexClaimBand className="ring-1 ring-white/10" />
+              <p className="mt-8 text-center text-xs leading-5 text-white/40">
                 Independent index. Not affiliated with YouTube or Instagram. Figures may lag the platforms.
               </p>
             </div>

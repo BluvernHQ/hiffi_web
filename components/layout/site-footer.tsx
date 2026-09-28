@@ -75,7 +75,7 @@ const columns: FooterColumn[] = [
   },
 ]
 
-export type SiteFooterVariant = "default" | "app"
+export type SiteFooterVariant = "default" | "app" | "ink"
 
 type SiteFooterProps = {
   variant?: SiteFooterVariant
@@ -84,14 +84,17 @@ type SiteFooterProps = {
 
 export function SiteFooter({ variant = "default", className }: SiteFooterProps) {
   const isApp = variant === "app"
+  const isInk = variant === "ink"
 
   return (
     <footer
       className={cn(
         "border-t",
-        isApp
-          ? "mt-0 border-red-100 bg-gradient-to-b from-red-50/40 to-white py-12 text-foreground md:py-14"
-          : "mt-10 border-border/40 bg-rose-50/80 py-10",
+        isInk
+          ? "mt-0 border-white/10 bg-[#070708] py-12 text-[#F4F1EA] md:py-14"
+          : isApp
+            ? "mt-0 border-red-100 bg-gradient-to-b from-red-50/40 to-white py-12 text-foreground md:py-14"
+            : "mt-10 border-border/40 bg-rose-50/80 py-10",
         className,
       )}
     >
@@ -99,9 +102,11 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
         <div className="mb-8 flex items-center gap-4">
           <p
             className={
-              isApp
-                ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
-                : "text-sm font-semibold text-foreground"
+              isInk
+                ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45"
+                : isApp
+                  ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
+                  : "text-sm font-semibold text-foreground"
             }
           >
             Connect
@@ -121,7 +126,7 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
                   alt=""
                   width={20}
                   height={20}
-                  className="h-5 w-5 object-contain"
+                  className={cn("h-5 w-5 object-contain", isInk && "invert")}
                   aria-hidden
                 />
               </a>
@@ -134,9 +139,11 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
             <div key={col.title} className="space-y-3">
               <div
                 className={
-                  isApp
-                    ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
-                    : "text-xs font-semibold tracking-wide text-primary/80"
+                  isInk
+                    ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45"
+                    : isApp
+                      ? "font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary"
+                      : "text-xs font-semibold tracking-wide text-primary/80"
                 }
               >
                 {col.title}
@@ -150,9 +157,11 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
                         ? { target: "_blank", rel: "noopener noreferrer" }
                         : {})}
                       className={
-                        isApp
-                          ? "text-sm text-foreground/85 underline-offset-4 transition-colors hover:text-primary hover:underline"
-                          : "text-sm text-foreground/90 underline-offset-4 hover:text-foreground hover:underline"
+                        isInk
+                          ? "text-sm text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
+                          : isApp
+                            ? "text-sm text-foreground/85 underline-offset-4 transition-colors hover:text-primary hover:underline"
+                            : "text-sm text-foreground/90 underline-offset-4 hover:text-foreground hover:underline"
                       }
                     >
                       {l.label}
@@ -164,7 +173,7 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
           ))}
         </div>
 
-        <div className={cn("mt-10 border-t pt-6", isApp ? "border-red-100" : "border-border/40")}>
+        <div className={cn("mt-10 border-t pt-6", isInk ? "border-white/10" : isApp ? "border-red-100" : "border-border/40")}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <Image
@@ -177,19 +186,23 @@ export function SiteFooter({ variant = "default", className }: SiteFooterProps) 
               />
               <CookieSettingsButton
                 className={
-                  isApp
-                    ? "text-sm text-foreground/85 underline-offset-4 hover:text-primary hover:underline"
-                    : undefined
+                  isInk
+                    ? "text-sm text-white/70 underline-offset-4 hover:text-white hover:underline"
+                    : isApp
+                      ? "text-sm text-foreground/85 underline-offset-4 hover:text-primary hover:underline"
+                      : undefined
                 }
               />
             </div>
 
             <Button
               asChild
-              variant={isApp ? "outline" : "secondary"}
+              variant={isApp || isInk ? "outline" : "secondary"}
               size="sm"
               className={
-                isApp
+                isInk
+                  ? "h-10 w-fit gap-2 rounded-full border-white/15 bg-transparent text-[#F4F1EA] hover:border-white/40 hover:bg-white/5 hover:text-white"
+                  : isApp
                   ? "h-10 w-fit gap-2 rounded-none border-2 border-primary/25 bg-white text-foreground shadow-[5px_5px_0_rgba(237,28,47,0.12)] transition-all hover:translate-x-px hover:translate-y-px hover:bg-primary hover:text-primary-foreground hover:shadow-[4px_4px_0_rgba(237,28,47,0.25)]"
                   : "w-fit rounded-full"
               }

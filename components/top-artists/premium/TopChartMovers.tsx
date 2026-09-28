@@ -12,10 +12,12 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
     <section id="movers" aria-labelledby="top-chart-movers" className="scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <ArtistDetailEyebrow>Movers</ArtistDetailEyebrow>
-          <ArtistDetailHeading id="top-chart-movers">Momentum right now</ArtistDetailHeading>
+          <ArtistDetailEyebrow className="text-white/45">Movers</ArtistDetailEyebrow>
+          <ArtistDetailHeading id="top-chart-movers" className="text-[#F4F1EA]">
+            Momentum right now
+          </ArtistDetailHeading>
         </div>
-        <p className="max-w-xs text-sm leading-6 text-[#77726A] max-sm:hidden">
+        <p className="max-w-xs text-sm leading-6 text-white/50 max-sm:hidden">
           The biggest climbs on the chart over the last seven days.
         </p>
       </div>
@@ -27,7 +29,7 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
           return (
             <li key={artist.username} className="w-[62%] shrink-0 snap-start sm:w-auto">
               <TopChartArtistButton artist={artist} context="Biggest risers" className="group block w-full text-left">
-                <span className="relative block overflow-hidden rounded-[20px] bg-[#0B0B0C]">
+                <span className="relative block overflow-hidden rounded-[20px] bg-[#141416] ring-1 ring-white/10">
                   <ArtistPortrait
                     artist={{ name: artist.artist_name, image: artist.image ?? null }}
                     decorative
@@ -39,10 +41,10 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
                     </span>
                   ) : null}
                 </span>
-                <span className="font-signal mt-3.5 block truncate text-[1.45rem] font-bold uppercase leading-none text-[#0B0B0C] transition-colors group-hover:text-[#E8192C] sm:text-[1.6rem]">
+                <span className="font-signal mt-3.5 block truncate text-[1.45rem] font-bold uppercase leading-none text-[#F4F1EA] transition-colors group-hover:text-[#FF4D5E] sm:text-[1.6rem]">
                   {artist.artist_name}
                 </span>
-                <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-[#77726A]">
+                <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
                   {[`Now #${artist.rank}`, place].filter(Boolean).join(" · ")}
                 </span>
               </TopChartArtistButton>

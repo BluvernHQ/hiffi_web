@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { ARTIST_INDEX_CLAIM_PATH } from "@/lib/artist-directory"
+import { cn } from "@/lib/utils"
 
 const STEPS = [
   { title: "Find your page", detail: "Search your artist name. Most artists are already indexed." },
@@ -8,9 +9,14 @@ const STEPS = [
   { title: "See your rank", detail: "Your exact position, what moves it, and paid opportunities." },
 ]
 
-export function ArtistIndexClaimBand() {
+export function ArtistIndexClaimBand({ className }: { className?: string }) {
   return (
-    <section className="relative isolate overflow-hidden rounded-[28px] bg-[#0B0B0C] px-6 py-10 text-[#F4F1EA] sm:px-10 sm:py-14">
+    <section
+      className={cn(
+        "relative isolate overflow-hidden rounded-[28px] bg-[#0B0B0C] px-6 py-10 text-[#F4F1EA] sm:px-10 sm:py-14",
+        className,
+      )}
+    >
       <div
         className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_100%_0%,rgba(232,25,44,0.28),transparent_55%)]"
         aria-hidden

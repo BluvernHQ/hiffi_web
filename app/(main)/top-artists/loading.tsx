@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils"
 
 export default function TopArtistsLoading() {
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now" bleed>
+    <ArtistDirectoryShell claimLabel="Claim Now" bleed tone="ink">
       <div aria-busy aria-live="polite">
-        <section className="relative isolate overflow-hidden bg-[#0B0B0C]">
+        <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#0B0B0C]">
           <div
             className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_10%_0%,rgba(232,25,44,0.2),transparent_50%)]"
             aria-hidden
@@ -34,23 +34,23 @@ export default function TopArtistsLoading() {
         </section>
 
         <div className={cn(artistPageContainer, "pb-20 pt-12 sm:pt-20")} aria-hidden>
-          <div className="paper-skeleton h-3 w-28 rounded-full" />
-          <div className="paper-skeleton mt-4 h-10 w-80 max-w-full rounded-lg sm:h-12" />
+          <div className="ink-skeleton h-3 w-28 rounded-full" />
+          <div className="ink-skeleton mt-4 h-10 w-80 max-w-full rounded-lg sm:h-12" />
           <div className="mt-8 flex gap-2">
             {Array.from({ length: 4 }, (_, index) => (
-              <div key={index} className="paper-skeleton h-9 w-28 rounded-full" />
+              <div key={index} className="ink-skeleton h-9 w-28 rounded-full" />
             ))}
           </div>
-          <div className="mt-10 divide-y divide-[#0B0B0C]/10">
+          <div className="mt-10 divide-y divide-white/[0.07]">
             {Array.from({ length: 8 }, (_, index) => (
               <div key={index} className="flex items-center gap-4 py-4">
-                <div className="paper-skeleton h-7 w-9 rounded" />
-                <div className="paper-skeleton h-12 w-12 rounded-xl" />
+                <div className="ink-skeleton h-7 w-9 rounded" />
+                <div className="ink-skeleton h-12 w-12 rounded-xl" />
                 <div className="flex-1">
-                  <div className="paper-skeleton h-4 w-1/3 rounded-full" />
-                  <div className="paper-skeleton mt-2 h-2.5 w-1/5 rounded-full" />
+                  <div className="ink-skeleton h-4 w-1/3 rounded-full" />
+                  <div className="ink-skeleton mt-2 h-2.5 w-1/5 rounded-full" />
                 </div>
-                <div className="paper-skeleton h-5 w-12 rounded-full" />
+                <div className="ink-skeleton h-5 w-12 rounded-full" />
               </div>
             ))}
           </div>
