@@ -6,6 +6,7 @@ import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistProfilePhotoAlt, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
+import { Hiffi500RankBadge } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
 
 type ArtistDetailHeroProps = {
@@ -137,6 +138,11 @@ export function ArtistDetailHero({
                   </span>
                 )
               ) : null}
+              <Hiffi500RankBadge
+                rank={artist.rank}
+                linked
+                className="text-[10px] normal-case tracking-normal sm:px-3 sm:py-1.5 sm:text-xs"
+              />
             </div>
             <ArtistShareButton title={artist.name} path={profilePath} />
           </div>

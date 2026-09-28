@@ -28,6 +28,7 @@ import {
 import { ARTIST_INVENTORY_CACHE_TAG } from "@/lib/artist-index/inventory-cache-tags"
 import { mapInventoryProfileToArtist } from "@/lib/artist-index/map-inventory-to-artist"
 import { mapInventoryProfilesToArtists } from "@/lib/artist-index/enrich-artist-images"
+import { withHiffi500Rank, withHiffi500Ranks } from "@/lib/artist-index/hiffi500-ranks"
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
 import type { Artist, ArtistDirectoryFilter } from "@/lib/artists"
 import { ARTIST_DIRECTORY_PAGE_SIZE } from "@/lib/artist-directory"
@@ -58,7 +59,7 @@ function artistToPublicInventoryProfile(artist: Artist): PublicInventoryProfile 
 async function enrichArtistsWithLinkedProfiles(artists: Artist[]): Promise<Artist[]> {
   if (artists.length === 0) return artists
 
-  return Promise.all(
+  const enriched = await Promise.all(
     artists.map(async (artist) => {
       try {
         const linked = await fetchUserProfileInitial(artist.slug)
@@ -69,6 +70,7 @@ async function enrichArtistsWithLinkedProfiles(artists: Artist[]): Promise<Artis
       }
     }),
   )
+  return withHiffi500Ranks(enriched)
 }
 
 function staticFilterToArtistDirectoryFilter(
@@ -104,7 +106,7 @@ export async function getArtistBySlugAsync(slug: string): Promise<Artist | undef
     linkedProfile = null
   }
 
-  return mapInventoryProfileToArtist(profile, linkedProfile)
+  return withHiffi500Rank(mapInventoryProfileToArtist(profile, linkedProfile))
 }
 
 export async function sanitizeActiveFilterIdsAsync(activeFilterIds: string[]): Promise<string[]> {
@@ -212,7 +214,7 @@ async function resolveArtistDirectoryPageImpl(options: {
         ? await getCachedCatalogTotal().catch(() => 0)
         : 0
 
-  const pageArtists = await mapInventoryProfilesToArtists(inventoryItems)
+  const pageArtists = await withHiffi500Ranks(await mapInventoryProfilesToArtists(inventoryItems))
   const totalPages = Math.max(1, Math.ceil(totalMatches / ARTIST_DIRECTORY_PAGE_SIZE))
   const currentPage = Math.min(requestedPage, totalPages)
 
