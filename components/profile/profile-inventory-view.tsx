@@ -334,20 +334,6 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                   showWatchPrompt={false}
                 />
                 <div className="flex flex-col gap-4 sm:gap-6">
-                  {email ? (
-                    <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
-                      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
-                        {isOwnProfile ? "Account" : "Contact"}
-                      </h2>
-                      <ProfileEmailReveal
-                        username={username}
-                        email={email}
-                        isOwnProfile={isOwnProfile}
-                        onRequestSignIn={() => setAuthDialogOpen(true)}
-                        className="mt-3 sm:mt-4"
-                      />
-                    </section>
-                  ) : null}
                   {isOwnProfile ? (
                     <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
                       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
@@ -383,6 +369,21 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                       </Link>
                     </p>
                   )}
+
+                  {email ? (
+                    <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
+                      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
+                        {isOwnProfile ? "Account" : "Contact"}
+                      </h2>
+                      <ProfileEmailReveal
+                        username={username}
+                        email={email}
+                        isOwnProfile={isOwnProfile}
+                        onRequestSignIn={() => setAuthDialogOpen(true)}
+                        className="mt-3 sm:mt-4"
+                      />
+                    </section>
+                  ) : null}
 
                   <ArtistSocialLinks artist={artist} />
                 </div>
