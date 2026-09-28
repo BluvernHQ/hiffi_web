@@ -14,10 +14,12 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { adminApiClient } from "@/lib/admin-api-client"
-import type {
-  InventoryClaim,
-  InventoryClaimStatus,
-  OnboardingStatus,
+import {
+  INVENTORY_SOCIAL_PLATFORMS,
+  type CollabOpenness,
+  type InventoryClaim,
+  type InventoryClaimStatus,
+  type OnboardingStatus,
 } from "@/lib/types/inventory"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,8 +79,59 @@ const FUNNEL_STEPS = [
   { key: "login", label: "Logged in", field: "last_login_at" as const },
 ]
 
+/** Account-setup claims set the password at submit, so there is no email / link step. */
+function funnelStepsFor(claim: InventoryClaim) {
+  return claim.has_password
+    ? FUNNEL_STEPS.filter((step) => step.key === "password" || step.key === "login")
+    : FUNNEL_STEPS
+}
+
+const COLLAB_LABELS: Record<CollabOpenness, string> = {
+  yes: "Open to collab",
+  maybe: "Maybe collab",
+  no: "Not collaborating",
+}
+
+function ClaimDetailsCell({ claim }: { claim: InventoryClaim }) {
+  const socials = INVENTORY_SOCIAL_PLATFORMS.filter(({ key }) => claim.other_socials?.[key])
+  const facts = [claim.location, claim.primary_genre].filter(Boolean)
+  const hasDetails =
+    facts.length > 0 || socials.length > 0 || claim.open_to_collab || claim.has_password
+
+  if (!hasDetails) return <span className="text-xs text-muted-foreground">—</span>
+
+  return (
+    <div className="min-w-[180px] space-y-1.5 text-xs">
+      {facts.length > 0 ? <p className="text-foreground">{facts.join(" · ")}</p> : null}
+      {claim.open_to_collab ? (
+        <p className="text-muted-foreground">{COLLAB_LABELS[claim.open_to_collab]}</p>
+      ) : null}
+      {socials.length > 0 ? (
+        <div className="flex flex-wrap gap-x-2 gap-y-1">
+          {socials.map(({ key, label }) => (
+            <a
+              key={key}
+              href={claim.other_socials?.[key]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {claim.has_password ? (
+        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
+          Can sign in after approval
+        </Badge>
+      ) : null}
+    </div>
+  )
+}
+
 function OnboardingFunnelCell({ claim }: { claim: InventoryClaim }) {
-  const steps = FUNNEL_STEPS.map((step) => ({
+  const steps = funnelStepsFor(claim).map((step) => ({
     ...step,
     at: claim[step.field],
   }))
@@ -407,9 +460,13 @@ export function InventoryClaimsTable() {
           ? ` · ${result.rejected_count} other pending claim${result.rejected_count === 1 ? "" : "s"} rejected`
           : ""
       const userNote = result.user_updated ? " · linked user updated" : ""
-      const emailNote = result.email_sent
-        ? " · welcome email sent"
-        : " · welcome email not sent (funnel: awaiting email)"
+      const emailNote = result.account_ready
+        ? result.email_sent
+          ? " · they can sign in now (approval email sent)"
+          : " · they can sign in now (approval email failed to send)"
+        : result.email_sent
+          ? " · welcome email sent"
+          : " · welcome email not sent (funnel: awaiting email)"
 
       applyApproveToLocalRows(result.claim)
       setClaimToApprove(null)
@@ -420,7 +477,7 @@ export function InventoryClaimsTable() {
       toast({
         title: "Claim approved",
         description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}${emailNote}.`,
-        variant: result.email_sent ? "default" : "destructive",
+        variant: result.email_sent || result.account_ready ? "default" : "destructive",
       })
 
       void fetch("/api/artist-index/revalidate", {
@@ -472,7 +529,7 @@ export function InventoryClaimsTable() {
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
   const showOnboardingColumns = statusFilter === "approved" || statusFilter === ""
-  const baseCols = showOnboardingColumns ? 9 : 7
+  const baseCols = showOnboardingColumns ? 10 : 8
   const colSpan = canInventoryClaimsWrite ? baseCols + 1 : baseCols
   const actionInFlight = approvingId != null || deletingId != null
 
@@ -501,8 +558,10 @@ export function InventoryClaimsTable() {
       <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         <p>
           <span className="font-medium text-foreground">Pending</span> → review queue.{" "}
-          <span className="font-medium text-foreground">Approve</span> emails the artist an
-          onboarding link, rejects sibling pending claims, and marks the profile claimed.{" "}
+          <span className="font-medium text-foreground">Approve</span> rejects sibling pending
+          claims and marks the profile claimed. Claims marked{" "}
+          <span className="font-medium text-foreground">Can sign in after approval</span> already
+          have a password; older claims get an onboarding link by email.{" "}
           <span className="font-medium text-foreground">Delete</span> removes a row without
           rejecting siblings.
         </p>
@@ -660,6 +719,9 @@ export function InventoryClaimsTable() {
                   How they found us
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Artist details
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Status
                 </th>
                 {showOnboardingColumns ? (
@@ -710,6 +772,9 @@ export function InventoryClaimsTable() {
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         <DiscoverySourceCell claim={row} />
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <ClaimDetailsCell claim={row} />
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <Badge variant="outline" className={cn(statusBadgeClass(row.status))}>
@@ -824,7 +889,14 @@ export function InventoryClaimsTable() {
                 <>
                   Approve <strong>{claimToApprove.name}</strong> ({claimToApprove.email}) for{" "}
                   <strong>@{claimToApprove.username}</strong>. Other pending claims for this profile
-                  become Rejected, and a welcome email with an onboarding link is sent when possible.
+                  become Rejected.{" "}
+                  {claimToApprove.has_password
+                    ? "They set a password with this claim, so they can sign in right after approval."
+                    : "A welcome email with an onboarding link is sent when possible."}
+                  {claimToApprove.other_socials &&
+                  Object.keys(claimToApprove.other_socials).length > 0
+                    ? " Check their submitted social links before approving."
+                    : null}
                 </>
               ) : null}
             </DialogDescription>

@@ -148,6 +148,13 @@ export interface InventoryClaim {
   onboard_verified_at?: string
   password_set_at?: string
   last_login_at?: string
+  /** Account setup claims — omitted on legacy rows. */
+  other_socials?: InventorySocialLinks
+  location?: string
+  primary_genre?: string
+  open_to_collab?: CollabOpenness
+  /** True when the claimant set a password at submit and can sign in right after approval. */
+  has_password: boolean
   created_at: string
   updated_at: string
 }
@@ -158,6 +165,8 @@ export interface InventoryClaimApproveResponse {
   user_updated: boolean
   user_uid?: string
   email_sent: boolean
+  /** True: artist signs in at /login. False: activation email → /claim/onboard. */
+  account_ready: boolean
 }
 
 export interface InventoryClaimDeleteResponse {
@@ -278,10 +287,12 @@ function normalizeOnboardingStatus(value: unknown): OnboardingStatus | undefined
   return undefined
 }
 
-function optionalTimestamp(value: unknown): string | undefined {
+function optionalText(value: unknown): string | undefined {
   const raw = value != null ? String(value).trim() : ""
   return raw || undefined
 }
+
+const optionalTimestamp = optionalText
 
 export function normalizeInventoryClaim(raw: Record<string, unknown>): InventoryClaim {
   const artistName =
@@ -309,6 +320,10 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
       : undefined
 
   const onboardingStatus = normalizeOnboardingStatus(raw.onboarding_status)
+  const otherSocials = normalizeInventorySocials(raw)
+  const location = optionalText(raw.location)
+  const primaryGenre = optionalText(raw.primary_genre)
+  const collab = String(raw.open_to_collab ?? "").trim().toLowerCase()
 
   return {
     id: String(raw.id ?? "").trim(),
@@ -336,6 +351,13 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
     ...(optionalTimestamp(raw.last_login_at)
       ? { last_login_at: optionalTimestamp(raw.last_login_at) }
       : {}),
+    ...(otherSocials && Object.keys(otherSocials).length > 0 ? { other_socials: otherSocials } : {}),
+    ...(location ? { location } : {}),
+    ...(primaryGenre ? { primary_genre: primaryGenre } : {}),
+    ...(collab === "yes" || collab === "maybe" || collab === "no"
+      ? { open_to_collab: collab as CollabOpenness }
+      : {}),
+    has_password: raw.has_password === true,
   }
 }
 
@@ -357,6 +379,7 @@ export function normalizeInventoryClaimApproveResponse(
     user_updated: Boolean(raw.user_updated),
     ...(userUid ? { user_uid: userUid } : {}),
     email_sent: Boolean(raw.email_sent),
+    account_ready: raw.account_ready === true,
   }
 }
 

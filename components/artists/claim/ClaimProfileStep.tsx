@@ -10,7 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { ClaimDraft, ClaimDraftErrors } from "@/lib/artist-index/claim-draft"
+import {
+  CLAIM_MAX_CITY_LENGTH,
+  CLAIM_MAX_GENRE_LENGTH,
+  type ClaimDraft,
+  type ClaimDraftErrors,
+} from "@/lib/artist-index/claim-draft"
 import {
   COLLAB_OPENNESS_OPTIONS,
   DISCOVERY_SOURCE_OPTIONS,
@@ -116,6 +121,7 @@ export function ClaimProfileStep({ draft, errors, onChange }: ClaimProfileStepPr
           placeholder="Atlanta, GA"
           value={draft.city}
           onChange={(event) => onChange("city", event.target.value)}
+          maxLength={CLAIM_MAX_CITY_LENGTH}
           autoComplete="address-level2"
           aria-invalid={Boolean(errors.city)}
           aria-describedby={errors.city ? "claim-city-error" : undefined}
@@ -149,7 +155,7 @@ export function ClaimProfileStep({ draft, errors, onChange }: ClaimProfileStepPr
             placeholder="e.g. Jersey club, Afro-trap"
             value={draft.primarySoundOther}
             onChange={(event) => onChange("primarySoundOther", event.target.value)}
-            maxLength={60}
+            maxLength={CLAIM_MAX_GENRE_LENGTH}
             autoComplete="off"
             className={claimInputClass}
           />

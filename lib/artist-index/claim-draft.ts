@@ -19,6 +19,8 @@ export const CLAIM_STEPS = [
 export type ClaimStepId = (typeof CLAIM_STEPS)[number]["id"]
 
 export const CLAIM_MIN_PASSWORD_LENGTH = 6
+export const CLAIM_MAX_CITY_LENGTH = 120
+export const CLAIM_MAX_GENRE_LENGTH = 60
 
 export type ClaimDraft = {
   name: string
@@ -101,7 +103,10 @@ function looksLikeSocialUrl(platform: InventorySocialPlatform, value: string): b
   return SOCIAL_DOMAINS[platform].some((domain) => host === domain || host.endsWith(`.${domain}`))
 }
 
-/** Accepts a profile URL or a bare handle (`@nova`, `nova.music`) and returns a profile URL. */
+/**
+ * Accepts a profile URL or a bare handle (`@nova`, `nova.music`) and returns an `https://`
+ * profile URL — the claim API rejects anything that is not a full https URL.
+ */
 export function normalizeSocialLink(platform: InventorySocialPlatform, raw: string): string | null {
   const value = raw.trim()
   if (!value) return ""
@@ -109,6 +114,7 @@ export function normalizeSocialLink(platform: InventorySocialPlatform, raw: stri
   if (looksLikeSocialUrl(platform, value)) {
     try {
       const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+      url.protocol = "https:"
       return url.hostname.includes(".") ? url.toString() : null
     } catch {
       return null
@@ -161,9 +167,14 @@ export function validateClaimStep(step: ClaimStepId, draft: ClaimDraft): ClaimDr
 
   if (step === "profile") {
     if (!draft.city.trim()) errors.city = "Enter your primary city."
+    else if (draft.city.trim().length > CLAIM_MAX_CITY_LENGTH) {
+      errors.city = `Keep your city under ${CLAIM_MAX_CITY_LENGTH} characters.`
+    }
     if (!draft.primarySound) errors.primarySound = "Choose your primary sound."
     else if (draft.primarySound === "other" && !draft.primarySoundOther.trim()) {
       errors.primarySound = "Tell us your primary sound."
+    } else if (claimDraftPrimaryGenre(draft).length > CLAIM_MAX_GENRE_LENGTH) {
+      errors.primarySound = `Keep your sound under ${CLAIM_MAX_GENRE_LENGTH} characters.`
     }
     if (!draft.openToCollab) errors.openToCollab = "Let us know if you're open to collaborations."
     if (!draft.howFound) errors.howFound = "Select how you found us."

@@ -12,8 +12,9 @@ type InventoryClaimBody = Partial<InventoryClaimSubmit> & {
 }
 
 /**
- * Account setup fields (password, socials, city, sound, collab intent) stay on this server
- * until the backend claim endpoint accepts them — a strict decoder would reject unknown keys.
+ * Account setup fields (password, socials, city, sound, collab intent) are forwarded only when
+ * the deployed API supports them — older builds reject unknown keys, and once on, the API
+ * requires the full set (profile fields without a password return 400).
  */
 function accountSetupForwardingEnabled(): boolean {
   return process.env.INVENTORY_CLAIM_ACCOUNT_SETUP === "true"

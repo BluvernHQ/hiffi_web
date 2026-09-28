@@ -57,9 +57,11 @@ function focusFirstError(errors: ClaimDraftErrors) {
 
 type ClaimFormProps = {
   artist: Artist
+  /** Backend stores the password at submit, so approval means "sign in", not an activation link. */
+  accountSetupEnabled: boolean
 }
 
-export function ClaimForm({ artist }: ClaimFormProps) {
+export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   const router = useRouter()
   const isOwnershipRequest = artist.claim_status === "pending"
   const containerRef = useRef<HTMLDivElement>(null)
@@ -165,7 +167,14 @@ export function ClaimForm({ artist }: ClaimFormProps) {
     } catch (caught) {
       resetTurnstile()
       if (caught instanceof InventoryClaimError) {
-        if (caught.status === 409) {
+        if (caught.status === 409 && /email/i.test(caught.message)) {
+          const emailErrors = {
+            email: "An account with this email already exists. Sign in instead, or use a different email.",
+          }
+          setStep("account")
+          setErrors(emailErrors)
+          requestAnimationFrame(() => focusFirstError(emailErrors))
+        } else if (caught.status === 409) {
           setSubmitError("This profile has already been claimed.")
         } else if (caught.status === 404) {
           setSubmitError("This profile is not available for claims.")
@@ -207,6 +216,7 @@ export function ClaimForm({ artist }: ClaimFormProps) {
           artistSlug={artist.slug}
           email={submittedEmail}
           isOwnershipRequest={isOwnershipRequest}
+          accountSetupEnabled={accountSetupEnabled}
         />
       </div>
     )

@@ -19,9 +19,16 @@ type ClaimSubmittedProps = {
   artistSlug: string
   email: string
   isOwnershipRequest: boolean
+  accountSetupEnabled: boolean
 }
 
-export function ClaimSubmitted({ artistName, artistSlug, email, isOwnershipRequest }: ClaimSubmittedProps) {
+export function ClaimSubmitted({
+  artistName,
+  artistSlug,
+  email,
+  isOwnershipRequest,
+  accountSetupEnabled,
+}: ClaimSubmittedProps) {
   const items: TimelineItem[] = [
     {
       icon: Check,
@@ -49,8 +56,15 @@ export function ClaimSubmitted({ artistName, artistSlug, email, isOwnershipReque
     },
     {
       icon: UserCheck,
-      title: "Manage your profile",
-      detail: `Sign in to update ${artistName}'s profile, photos and links.`,
+      title: accountSetupEnabled ? "Sign in" : "Manage your profile",
+      detail: accountSetupEnabled ? (
+        <>
+          Once approved, sign in with <strong className="text-foreground">{email}</strong> and the
+          password you just set to manage {artistName}&apos;s profile.
+        </>
+      ) : (
+        `Sign in to update ${artistName}'s profile, photos and links.`
+      ),
       state: "upcoming",
     },
   ]

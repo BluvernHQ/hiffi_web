@@ -118,7 +118,10 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
             </Link>
           </div>
         ) : (
-          <ClaimForm artist={artist} />
+          <ClaimForm
+            artist={artist}
+            accountSetupEnabled={process.env.INVENTORY_CLAIM_ACCOUNT_SETUP === "true"}
+          />
         )}
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
