@@ -514,7 +514,7 @@ function ChartRowContent({
       </span>
       {showStats ? (
         <span className="hidden text-right text-sm font-semibold tabular-nums text-white/80 md:block">
-          {formatCount(artist.youtube_subscriber_count)}
+          {(artist.youtube_subscriber_count ?? 0) > 0 ? formatCount(artist.youtube_subscriber_count) : null}
         </span>
       ) : null}
       {showStats ? (
@@ -524,7 +524,7 @@ function ChartRowContent({
             momentum > 0 ? "text-[#7BD88F]" : momentum < 0 ? "text-[#FF6B78]" : "text-white/35",
           )}
         >
-          {formatMomentum(artist.youtube_momentum_30d)}
+          {momentum !== 0 ? formatMomentum(artist.youtube_momentum_30d) : null}
         </span>
       ) : null}
       <span className="flex justify-end">{showMovement ? <MovementChip movement={chartMovement(artist)} /> : null}</span>
@@ -533,9 +533,7 @@ function ChartRowContent({
 }
 
 function MovementChip({ movement }: { movement: ChartMovement }) {
-  if (!movement || movement.kind === "flat") {
-    return <span className="text-sm font-semibold text-white/25">—</span>
-  }
+  if (!movement || movement.kind === "flat") return null
   if (movement.kind === "new") {
     return (
       <span className="rounded-full bg-[#F2C662]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#F2C662]">

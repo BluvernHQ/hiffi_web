@@ -114,7 +114,28 @@ export function TopChartArtistButton({
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+type MetricEntry = { label: string; value: string }
+
+/** Zero and missing figures format as "—"; those are left out rather than shown empty. */
+function withValues(metrics: MetricEntry[]): MetricEntry[] {
+  return metrics.filter((metric) => metric.value !== "—")
+}
+
+function MetricSection({ label, metrics, columns = 2 }: { label: string; metrics: MetricEntry[]; columns?: 2 | 3 }) {
+  if (metrics.length === 0) return null
+  return (
+    <section aria-label={label}>
+      <h3 className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/45">{label}</h3>
+      <dl className={cn("mt-3 grid gap-x-6", columns === 3 ? "grid-cols-3" : "grid-cols-2")}>
+        {metrics.map((metric) => (
+          <Metric key={metric.label} {...metric} />
+        ))}
+      </dl>
+    </section>
+  )
+}
+
+function Metric({ label, value }: MetricEntry) {
   return (
     <div className="border-t border-white/10 py-3.5">
       <dt className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">{label}</dt>
@@ -179,18 +200,21 @@ function DrawerProfile({
   const photo = getArtistImageUrl(artist.image ?? null)
   const gold = artist.rank <= 3
 
-  const youtubeMetrics = [
+  const youtubeMetrics = withValues([
     { label: "Subscribers", value: formatCount(artist.youtube_subscriber_count) },
     { label: "Lifetime views", value: formatCount(artist.youtube_view_count) },
     { label: "Recent avg views", value: formatCount(artist.youtube_recent_avg_views) },
     { label: "Videos", value: formatCount(artist.youtube_video_count) },
-  ]
-  const momentum = [
+  ])
+  const momentum = withValues([
     { label: "7 days", value: formatMomentum(artist.youtube_momentum_7d) },
     { label: "30 days", value: formatMomentum(artist.youtube_momentum_30d) },
     { label: "90 days", value: formatMomentum(artist.youtube_momentum_90d) },
-  ]
-  const hasInstagram = Boolean(artist.instagram_follower_count)
+  ])
+  const instagramMetrics = withValues([
+    { label: "Followers", value: formatCount(artist.instagram_follower_count) },
+    { label: "Recent avg likes", value: formatCount(artist.instagram_recent_avg_likes) },
+  ])
 
   return (
     <>
@@ -249,33 +273,9 @@ function DrawerProfile({
       </header>
 
       <div className="flex-1 space-y-8 px-6 py-7 sm:px-8">
-        <section aria-label="YouTube">
-          <h3 className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/45">YouTube</h3>
-          <dl className="mt-3 grid grid-cols-2 gap-x-6">
-            {youtubeMetrics.map((metric) => (
-              <Metric key={metric.label} {...metric} />
-            ))}
-          </dl>
-        </section>
-
-        <section aria-label="Momentum">
-          <h3 className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/45">Momentum</h3>
-          <dl className="mt-3 grid grid-cols-3 gap-x-6">
-            {momentum.map((metric) => (
-              <Metric key={metric.label} {...metric} />
-            ))}
-          </dl>
-        </section>
-
-        {hasInstagram ? (
-          <section aria-label="Instagram">
-            <h3 className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/45">Instagram</h3>
-            <dl className="mt-3 grid grid-cols-2 gap-x-6">
-              <Metric label="Followers" value={formatCount(artist.instagram_follower_count)} />
-              <Metric label="Recent avg likes" value={formatCount(artist.instagram_recent_avg_likes)} />
-            </dl>
-          </section>
-        ) : null}
+        <MetricSection label="YouTube" metrics={youtubeMetrics} />
+        <MetricSection label="Momentum" metrics={momentum} columns={momentum.length === 3 ? 3 : 2} />
+        <MetricSection label="Instagram" metrics={instagramMetrics} />
 
         <div className="flex flex-col gap-2.5">
           <Link
