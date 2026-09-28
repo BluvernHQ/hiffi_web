@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
 import { useTopChartDrawer } from "@/components/top-artists/premium/TopChartDrawer"
+import { TopChartCityPicker } from "@/components/top-artists/premium/TopChartCityPicker"
 import {
   artistMomentum,
   chartPlace,
@@ -348,30 +349,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
             )
           })}
           {moreCities.length > 0 ? (
-            <label className="relative shrink-0">
-              <span className="sr-only">More cities</span>
-              <select
-                value={cityInMore ? city!.key : ""}
-                onChange={(event) => {
-                  const next = moreCities.find((entry) => entry.key === event.target.value)
-                  if (next) switchBoard({ mode: "overall", city: next, window: windowDays })
-                }}
-                className={cn(
-                  "appearance-none rounded-full py-1.5 pl-3 pr-7 text-xs font-semibold outline-none transition-colors",
-                  cityInMore ? "bg-[#F4F1EA] text-[#0B0B0C]" : "bg-transparent text-white/55 hover:bg-white/[0.06]",
-                )}
-              >
-                <option value="" disabled>
-                  More cities
-                </option>
-                {moreCities.map((entry) => (
-                  <option key={entry.key} value={entry.key}>
-                    {entry.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-60" aria-hidden />
-            </label>
+            <TopChartCityPicker
+              cities={cities}
+              selected={city}
+              highlight={cityInMore}
+              onSelect={(next) => switchBoard({ mode: "overall", city: next, window: windowDays })}
+            />
           ) : null}
         </div>
       ) : null}
