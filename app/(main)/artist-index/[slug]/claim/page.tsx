@@ -3,8 +3,9 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { ArrowLeft } from "lucide-react"
 import { ArtistIndexHeader } from "@/components/artists/ArtistIndexHeader"
+import { ArtistAvatar } from "@/components/artists/ArtistAvatar"
 import { ClaimForm } from "@/components/artists/ClaimForm"
-import { getArtistBySlug } from "@/lib/artists"
+import { formatCityState, formatGenreLabel, getArtistBySlug } from "@/lib/artists"
 import { routeMetadata } from "@/lib/seo/route-metadata"
 import { SiteFooter } from "@/components/layout/site-footer"
 
@@ -73,9 +74,34 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
             {artist.claim_status === "claimed"
               ? "This profile has already been claimed."
               : artist.claim_status === "pending"
-                ? "This profile already has a pending ownership verification. Submit your details to request ownership — it joins the same artist inventory review queue for admins."
-                : "Submit your name and email to claim this profile. Our team will review your request within 24–48 hours — no login required."}
+                ? "This profile already has a pending claim. Set up your account and share your socials to request ownership — our team reviews it alongside the existing claim."
+                : "Set up your artist account, add your socials and tell us about your music. Our team reviews every claim within 24–48 hours."}
           </p>
+        </div>
+
+        <div className="mb-8 flex items-center gap-4 rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+          <ArtistAvatar artist={artist} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-semibold text-foreground">{artist.name}</p>
+            <p className="truncate text-sm text-muted-foreground">
+              {[formatCityState(artist), artist.genre.length > 0 ? formatGenreLabel(artist) : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          <span
+            className={
+              artist.claim_status === "unclaimed"
+                ? "shrink-0 rounded-full bg-[#E8192C]/10 px-3 py-1 text-xs font-semibold text-[#E8192C]"
+                : "shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900"
+            }
+          >
+            {artist.claim_status === "unclaimed"
+              ? "Unclaimed"
+              : artist.claim_status === "pending"
+                ? "Under review"
+                : "Claimed"}
+          </span>
         </div>
 
         {artist.claim_status === "claimed" ? (

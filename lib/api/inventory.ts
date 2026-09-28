@@ -32,6 +32,13 @@ export async function submitInventoryClaim(
         discovery_source_other: payload.discovery_source_other?.trim(),
       }),
       ...(payload.turnstile_token ? { turnstile_token: payload.turnstile_token } : {}),
+      ...(payload.password ? { password: payload.password } : {}),
+      ...(payload.other_socials && Object.keys(payload.other_socials).length > 0
+        ? { other_socials: payload.other_socials }
+        : {}),
+      ...(payload.location?.trim() ? { location: payload.location.trim() } : {}),
+      ...(payload.primary_genre?.trim() ? { primary_genre: payload.primary_genre.trim() } : {}),
+      ...(payload.open_to_collab ? { open_to_collab: payload.open_to_collab } : {}),
     }),
   })
 

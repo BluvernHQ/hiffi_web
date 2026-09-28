@@ -74,6 +74,30 @@ export const DISCOVERY_SOURCE_OPTIONS: {
   { value: "other", label: "Other" },
 ]
 
+export type CollabOpenness = "yes" | "maybe" | "no"
+
+export const COLLAB_OPENNESS_OPTIONS: {
+  value: CollabOpenness
+  label: string
+  description: string
+}[] = [
+  { value: "yes", label: "Yes, actively", description: "Prioritize me for artist collaborations." },
+  { value: "maybe", label: "Maybe", description: "Show me selective opportunities." },
+  { value: "no", label: "Not right now", description: "I'm focused on my own releases." },
+]
+
+export const PRIMARY_SOUND_OPTIONS: { value: string; label: string }[] = [
+  { value: "hip-hop", label: "Hip-Hop" },
+  { value: "rap", label: "Rap" },
+  { value: "trap", label: "Trap" },
+  { value: "drill", label: "Drill" },
+  { value: "melodic rap", label: "Melodic Rap" },
+  { value: "alternative hip-hop", label: "Alternative Hip-Hop" },
+  { value: "boom bap", label: "Boom Bap" },
+  { value: "r&b", label: "R&B" },
+  { value: "other", label: "Other" },
+]
+
 export interface InventoryClaimSubmit {
   username: string
   name: string
@@ -81,6 +105,12 @@ export interface InventoryClaimSubmit {
   discovery_source: DiscoverySource
   discovery_source_other?: string
   turnstile_token?: string
+  /** Account setup fields — forwarded only once the backend accepts them on claim submit. */
+  password?: string
+  other_socials?: InventorySocialLinks
+  location?: string
+  primary_genre?: string
+  open_to_collab?: CollabOpenness
 }
 
 export interface InventoryClaimSubmitResponse {

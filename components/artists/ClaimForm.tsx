@@ -1,134 +1,179 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import {
-  type DiscoverySource,
-  DISCOVERY_SOURCE_OPTIONS,
-} from "@/lib/types/inventory"
 import { InventoryClaimError, submitInventoryClaim } from "@/lib/api/inventory"
-import { artistButtonSolid } from "@/components/artists/artist-styles"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
+  CLAIM_STEPS,
+  type ClaimDraft,
+  type ClaimDraftErrors,
+  type ClaimStepId,
+  claimDraftPrimaryGenre,
+  claimDraftSocialLinks,
+  clearClaimDraft,
+  createClaimDraft,
+  loadClaimDraft,
+  saveClaimDraft,
+  validateClaimStep,
+} from "@/lib/artist-index/claim-draft"
+import type { InventorySocialPlatform } from "@/lib/types/inventory"
+import { artistButtonMuted, artistButtonSolid } from "@/components/artists/artist-styles"
 import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
 import { useTurnstileForm } from "@/hooks/use-turnstile-form"
+import { cn } from "@/lib/utils"
+import { ClaimAccountStep } from "./claim/ClaimAccountStep"
+import { ClaimProfileStep } from "./claim/ClaimProfileStep"
+import { ClaimSocialsStep } from "./claim/ClaimSocialsStep"
+import { ClaimStepper } from "./claim/ClaimStepper"
+import { ClaimSubmitted } from "./claim/ClaimSubmitted"
 
-const CLAIM_VERIFICATION_EMAIL = "creator-noreply@hiffi.com"
+const TURNSTILE_ACTION = "inventory_claim"
+
+const ERROR_FIELD_IDS: Record<string, string> = {
+  name: "claim-name",
+  email: "claim-email",
+  password: "claim-password",
+  confirmPassword: "claim-confirm-password",
+  city: "claim-city",
+  primarySound: "claim-sound",
+  howFound: "claim-how-found",
+}
+
+function focusFirstError(errors: ClaimDraftErrors) {
+  const first = Object.keys(errors)[0]
+  if (!first) return
+  const target =
+    first === "openToCollab"
+      ? document.querySelector<HTMLElement>('[aria-labelledby="claim-collab-label"] [tabindex="0"]')
+      : document.getElementById(
+          first.startsWith("social_")
+            ? `claim-social-${first.slice("social_".length)}`
+            : (ERROR_FIELD_IDS[first] ?? ""),
+        )
+  target?.focus()
+}
 
 type ClaimFormProps = {
   artist: Artist
 }
 
-type ClaimFormState = {
-  name: string
-  email: string
-  howFound: DiscoverySource | ""
-  howFoundOther: string
-}
-
 export function ClaimForm({ artist }: ClaimFormProps) {
   const router = useRouter()
   const isOwnershipRequest = artist.claim_status === "pending"
-  const [form, setForm] = useState<ClaimFormState>({
-  name: "",
-  email: "",
-  howFound: "",
-  howFoundOther: "",
-})
-  const [submitted, setSubmitted] = useState(false)
-  const [verificationOpen, setVerificationOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const {
-    turnstileRef,
-    setTurnstileToken,
-    submitBlocked,
-    resetTurnstile,
-    getTurnstileTokenForSubmit,
-  } = useTurnstileForm("inventory_claim")
+  const containerRef = useRef<HTMLDivElement>(null)
+  const restoredRef = useRef(false)
 
-  const updateField = <K extends keyof ClaimFormState>(key: K, value: ClaimFormState[K]) => {
-    setForm((current) => ({ ...current, [key]: value }))
-    if (error) setError(null)
+  const [step, setStep] = useState<ClaimStepId>("account")
+  const [draft, setDraft] = useState<ClaimDraft>(() => createClaimDraft(artist))
+  const [errors, setErrors] = useState<ClaimDraftErrors>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
+  const { turnstileRef, setTurnstileToken, submitBlocked, resetTurnstile, getTurnstileTokenForSubmit } =
+    useTurnstileForm(TURNSTILE_ACTION)
+
+  const stepIndex = CLAIM_STEPS.findIndex((s) => s.id === step)
+  const isLastStep = stepIndex === CLAIM_STEPS.length - 1
+
+  useEffect(() => {
+    const restored = loadClaimDraft(artist.slug, createClaimDraft(artist))
+    if (restored) setDraft(restored)
+    restoredRef.current = true
+  }, [artist])
+
+  useEffect(() => {
+    if (!restoredRef.current || submittedEmail) return
+    saveClaimDraft(artist.slug, draft)
+  }, [artist.slug, draft, submittedEmail])
+
+  const updateField = <K extends keyof ClaimDraft>(key: K, value: ClaimDraft[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }))
+    setErrors((current) => {
+      if (!current[key as string]) return current
+      const { [key as string]: _removed, ...rest } = current
+      return rest
+    })
+    if (submitError) setSubmitError(null)
   }
 
-  const handleHowFoundChange = (value: DiscoverySource) => {
-  setForm((current) => ({
-    ...current,
-    howFound: value,
-    // Clear custom text when switching away from Other
-    howFoundOther: value === "other" ? current.howFoundOther : "",
-  }))
+  const updateSocial = (platform: InventorySocialPlatform, value: string) => {
+    setDraft((current) => ({ ...current, socials: { ...current.socials, [platform]: value } }))
+    setErrors((current) => {
+      const key = `social_${platform}`
+      if (!current[key]) return current
+      const { [key]: _removed, ...rest } = current
+      return rest
+    })
+  }
 
-  if (error) setError(null)
-}
+  const goToStep = (next: ClaimStepId) => {
+    setStep(next)
+    setErrors({})
+    setSubmitError(null)
+    requestAnimationFrame(() => {
+      containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!form.howFound) {
-  setError("Please select how you found us.")
-  return
-}
+  const handleBack = () => {
+    if (stepIndex > 0) goToStep(CLAIM_STEPS[stepIndex - 1].id)
+  }
 
-if (form.howFound === "other" && !form.howFoundOther.trim()) {
-  setError("Please specify how you found us.")
-  return
-}
+  const submitClaim = async () => {
+    for (const { id } of CLAIM_STEPS) {
+      const stepErrors = validateClaimStep(id, draft)
+      if (Object.keys(stepErrors).length > 0) {
+        setStep(id)
+        setErrors(stepErrors)
+        requestAnimationFrame(() => focusFirstError(stepErrors))
+        return
+      }
+    }
 
     const turnstile = getTurnstileTokenForSubmit()
     if (!turnstile.ok) {
-      setError(turnstile.error)
+      setSubmitError(turnstile.error)
       return
     }
 
     setSubmitting(true)
-    setError(null)
+    setSubmitError(null)
 
     try {
-      // Same inventory claim endpoint — queues another pending claim for admin review.
       await submitInventoryClaim({
         username: artist.slug,
-        name: form.name,
-        email: form.email,
-        discovery_source: form.howFound,
-        ...(form.howFound === "other" && {
-          discovery_source_other: form.howFoundOther.trim(),
-        }),
+        name: draft.name.trim(),
+        email: draft.email.trim(),
+        discovery_source: draft.howFound || "other",
+        ...(draft.howFound === "other" && { discovery_source_other: draft.howFoundOther.trim() }),
         ...(turnstile.token ? { turnstile_token: turnstile.token } : {}),
+        password: draft.password,
+        other_socials: claimDraftSocialLinks(draft),
+        location: draft.city.trim(),
+        primary_genre: claimDraftPrimaryGenre(draft),
+        ...(draft.openToCollab ? { open_to_collab: draft.openToCollab } : {}),
       })
-      setSubmitted(true)
-      setVerificationOpen(true)
+      clearClaimDraft(artist.slug)
+      setSubmittedEmail(draft.email.trim())
+      requestAnimationFrame(() => {
+        containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      })
       // Claims BFF already revalidates inventory tags; refresh RSC tree so CTAs update.
       router.refresh()
     } catch (caught) {
       resetTurnstile()
       if (caught instanceof InventoryClaimError) {
         if (caught.status === 409) {
-          setError("This profile has already been claimed.")
+          setSubmitError("This profile has already been claimed.")
         } else if (caught.status === 404) {
-          setError("This profile is not available for claims.")
+          setSubmitError("This profile is not available for claims.")
         } else {
-          setError(caught.message)
+          setSubmitError(caught.message)
         }
       } else {
-        setError(
+        setSubmitError(
           isOwnershipRequest
             ? "Could not submit your ownership request. Please try again."
             : "Could not submit your claim. Please try again.",
@@ -139,167 +184,104 @@ if (form.howFound === "other" && !form.howFoundOther.trim()) {
     }
   }
 
-  const verificationDialog = (
-    <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}>
-      <DialogContent className="sm:rounded-2xl">
-        <DialogHeader>
-          <DialogTitle>Your profile is being verified</DialogTitle>
-          <DialogDescription>
-            Check your inbox for an email from{" "}
-            <strong className="font-medium text-foreground">{CLAIM_VERIFICATION_EMAIL}</strong>{" "}
-            for next steps.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <button
-            type="button"
-            className={cn(artistButtonSolid, "w-full sm:w-auto")}
-            onClick={() => setVerificationOpen(false)}
-          >
-            Got it
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const stepErrors = validateClaimStep(step, draft)
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      focusFirstError(stepErrors)
+      return
+    }
+    if (isLastStep) {
+      void submitClaim()
+    } else {
+      goToStep(CLAIM_STEPS[stepIndex + 1].id)
+    }
+  }
 
-  if (submitted) {
+  if (submittedEmail) {
     return (
-      <>
-        {verificationDialog}
-        <div className="rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 p-8 text-center">
-          <p className="text-lg font-semibold text-foreground">
-            {isOwnershipRequest ? "Ownership request submitted" : "Claim submitted"}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your profile is being verified. Check your inbox for an email from{" "}
-            <strong>{CLAIM_VERIFICATION_EMAIL}</strong> for next steps.
-          </p>
-        </div>
-      </>
+      <div ref={containerRef} className="scroll-mt-24">
+        <ClaimSubmitted
+          artistName={artist.name}
+          artistSlug={artist.slug}
+          email={submittedEmail}
+          isOwnershipRequest={isOwnershipRequest}
+        />
+      </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#E8192C]">
-          {isOwnershipRequest ? "Ownership request" : "Claim details"}
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {isOwnershipRequest
-            ? `Submit your name and email to request ownership of @${artist.slug}. This goes to the same artist inventory review queue — no login required.`
-            : `Submit your name and email to claim @${artist.slug}. No login required.`}
-        </p>
-        <div className="mt-5 grid gap-5">
-          <div className="space-y-2">
-            <Label htmlFor="name">Your name</Label>
-            <Input
-              id="name"
-              placeholder="Your full legal name"
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-              required
-              autoComplete="name"
-              className="h-11 rounded-xl"
+    <div ref={containerRef} className="scroll-mt-24 space-y-6">
+      <ClaimStepper current={step} />
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        {step === "account" ? (
+          <ClaimAccountStep
+            artistSlug={artist.slug}
+            draft={draft}
+            errors={errors}
+            onChange={updateField}
+          />
+        ) : null}
+        {step === "socials" ? (
+          <ClaimSocialsStep draft={draft} errors={errors} onSocialChange={updateSocial} />
+        ) : null}
+        {step === "profile" ? (
+          <>
+            <ClaimProfileStep draft={draft} errors={errors} onChange={updateField} />
+            <TurnstileFormField
+              action={TURNSTILE_ACTION}
+              widgetRef={turnstileRef}
+              onToken={setTurnstileToken}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={(event) => updateField("email", event.target.value)}
-              required
-              autoComplete="email"
-              className="h-11 rounded-xl"
-            />
-          </div>
-          <div className="space-y-2">
-  <Label htmlFor="how-found">
-    How did you find us?
-    <span className="ml-1 text-destructive">*</span>
-  </Label>
+          </>
+        ) : null}
 
-  <Select
-    value={form.howFound}
-    onValueChange={handleHowFoundChange}
-  >
-    <SelectTrigger
-      id="how-found"
-      className="h-11 w-full rounded-xl"
-    >
-      <SelectValue placeholder="Select an option" />
-    </SelectTrigger>
+        {submitError ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
+          >
+            {submitError}
+          </p>
+        ) : null}
 
-    <SelectContent>
-  {DISCOVERY_SOURCE_OPTIONS.map((option) => (
-    <SelectItem key={option.value} value={option.value}>
-      {option.label}
-    </SelectItem>
-  ))}
-</SelectContent>
-  </Select>
-  {error === "Please select how you found us." && (
-  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-    {error}
-  </p>
-)}
-</div>
-{form.howFound === "other" && (
-  <div className="space-y-2">
-    <Label htmlFor="how-found-other">
-      Please specify
-      <span className="ml-1 text-destructive">*</span>
-    </Label>
-
-    <Input
-      id="how-found-other"
-      type="text"
-      placeholder="Enter how you found us..."
-      value={form.howFoundOther}
-      onChange={(event) =>
-        updateField("howFoundOther", event.target.value)
-      }
-      required
-      maxLength={200}
-      autoComplete="off"
-      className="h-11 rounded-xl"
-    />
-
-    <p className="text-xs text-muted-foreground">
-      Maximum 200 characters.
-    </p>
-  </div>
-)}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {stepIndex > 0 ? (
+            <button type="button" onClick={handleBack} className={artistButtonMuted}>
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Back
+            </button>
+          ) : (
+            <span className="hidden sm:block" />
+          )}
+          <button
+            type="submit"
+            disabled={submitting || (isLastStep && submitBlocked)}
+            className={cn(artistButtonSolid, "disabled:opacity-60")}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Submitting…
+              </>
+            ) : isLastStep ? (
+              isOwnershipRequest ? (
+                "Finish & request ownership"
+              ) : (
+                "Finish & submit claim"
+              )
+            ) : (
+              <>
+                Continue
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </>
+            )}
+          </button>
         </div>
-      </section>
-
-      <TurnstileFormField
-        action="inventory_claim"
-        widgetRef={turnstileRef}
-        onToken={setTurnstileToken}
-      />
-
-      {error && error !== "Please select how you found us." ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-          {error}
-        </p>
-      ) : null}
-
-      <button
-        type="submit"
-        disabled={submitting || submitBlocked}
-        className={cn(artistButtonSolid, "w-full sm:w-auto disabled:opacity-60")}
-      >
-        {submitting
-          ? "Submitting…"
-          : isOwnershipRequest
-            ? "Submit ownership request"
-            : "Submit claim"}
-      </button>
-    </form>
+      </form>
+    </div>
   )
 }
