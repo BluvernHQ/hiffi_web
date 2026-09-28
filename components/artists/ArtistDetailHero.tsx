@@ -6,7 +6,7 @@ import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistProfilePhotoAlt, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
-import { Hiffi500RankBadge } from "@/components/artists/Hiffi500RankBadge"
+import { Hiffi500RankPlate } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
 
 type ArtistDetailHeroProps = {
@@ -126,6 +126,7 @@ export function ArtistDetailHero({
 
           <div className="relative flex items-start justify-between gap-3 p-4 sm:p-6">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] sm:text-xs">
+              <Hiffi500RankPlate rank={artist.rank} />
               {!hideStatusBadge ? (
                 artist.verified ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-white sm:px-3 sm:py-1.5">
@@ -138,11 +139,6 @@ export function ArtistDetailHero({
                   </span>
                 )
               ) : null}
-              <Hiffi500RankBadge
-                rank={artist.rank}
-                linked
-                className="text-[10px] normal-case tracking-normal sm:px-3 sm:py-1.5 sm:text-xs"
-              />
             </div>
             <ArtistShareButton title={artist.name} path={profilePath} />
           </div>

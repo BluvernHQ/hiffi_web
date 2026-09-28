@@ -2,6 +2,7 @@ import type { Artist } from "@/lib/artists"
 import { formatCityState, formatGenreLabel, UNKNOWN_LOCATION_LABEL } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { ArtistAvatar } from "@/components/artists/ArtistAvatar"
+import { Hiffi500RankPlate } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
 
 const STATUS_LABEL: Record<Artist["claim_status"], string> = {
@@ -47,6 +48,9 @@ export function ClaimHero({ artist, title }: { artist: Artist; title: string }) 
           <h1 className="mt-1.5 truncate text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
           {meta.length > 0 ? (
             <p className="mt-1 truncate text-sm text-white/65">{meta.join(" · ")}</p>
+          ) : null}
+          {artist.rank > 0 ? (
+            <Hiffi500RankPlate rank={artist.rank} linked={false} className="mt-4" />
           ) : null}
         </div>
         <span
