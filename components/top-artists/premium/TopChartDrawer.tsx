@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import * as Dialog from "@radix-ui/react-dialog"
-import { ArrowLeft, ArrowUpRight, BadgeCheck, Share2, X } from "lucide-react"
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, BadgeCheck, Share2, X } from "lucide-react"
 import { topArtistSocialLinks, topArtistTier, type TopArtist } from "@/lib/top-artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { signalNarrow } from "@/lib/fonts/signal"
@@ -13,6 +13,7 @@ import { TopChartSharePanel } from "@/components/top-artists/premium/TopChartSha
 import { DEFAULT_SHARE_SCOPE, type ChartShareScope } from "@/lib/top-chart-share"
 import {
   chartArtistHref,
+  artistMomentum,
   chartMovement,
   chartPlace,
   formatCount,
@@ -114,7 +115,7 @@ export function TopChartArtistButton({
   )
 }
 
-type MetricEntry = { label: string; value: string }
+type MetricEntry = { label: string; value: string; trend?: "up" | "down" }
 
 /** Zero and missing figures format as "—"; those are left out rather than shown empty. */
 function withValues(metrics: MetricEntry[]): MetricEntry[] {
@@ -135,11 +136,20 @@ function MetricSection({ label, metrics, columns = 2 }: { label: string; metrics
   )
 }
 
-function Metric({ label, value }: MetricEntry) {
+function Metric({ label, value, trend }: MetricEntry) {
+  const Arrow = trend === "up" ? ArrowUpRight : ArrowDownRight
   return (
     <div className="border-t border-white/10 py-3.5">
       <dt className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">{label}</dt>
-      <dd className="mt-1.5 text-lg font-semibold tabular-nums text-[#F4F1EA]">{value}</dd>
+      <dd
+        className={cn(
+          "mt-1.5 flex items-center gap-1 text-lg font-semibold tabular-nums",
+          trend === "up" ? "text-[#7BD88F]" : trend === "down" ? "text-[#FF6B78]" : "text-[#F4F1EA]",
+        )}
+      >
+        {trend ? <Arrow className="h-4 w-4 shrink-0" aria-hidden /> : null}
+        {value}
+      </dd>
     </div>
   )
 }
@@ -206,11 +216,18 @@ function DrawerProfile({
     { label: "Recent avg views", value: formatCount(artist.youtube_recent_avg_views) },
     { label: "Videos", value: formatCount(artist.youtube_video_count) },
   ])
-  const momentum = withValues([
-    { label: "7 days", value: formatMomentum(artist.youtube_momentum_7d) },
-    { label: "30 days", value: formatMomentum(artist.youtube_momentum_30d) },
-    { label: "90 days", value: formatMomentum(artist.youtube_momentum_90d) },
-  ])
+  const momentum = withValues(
+    ([7, 30, 90] as const).map((window) => {
+      const value = artistMomentum(artist, window)
+      return {
+        label: `${window} days`,
+        value: formatMomentum(value),
+        trend: value > 0 ? ("up" as const) : value < 0 ? ("down" as const) : undefined,
+      }
+    }),
+  )
+  const weekMomentum = artistMomentum(artist, 7)
+  const hasRankMove = movement?.kind === "up" || movement?.kind === "down" || movement?.kind === "new"
   const instagramMetrics = withValues([
     { label: "Followers", value: formatCount(artist.instagram_follower_count) },
     { label: "Recent avg likes", value: formatCount(artist.instagram_recent_avg_likes) },
@@ -269,6 +286,17 @@ function DrawerProfile({
           {movement?.kind === "up" ? <span className="font-semibold text-[#7BD88F]">Up {movement.value} this week</span> : null}
           {movement?.kind === "down" ? <span className="font-semibold text-[#FF6B78]">Down {movement.value} this week</span> : null}
           {movement?.kind === "new" ? <span className="font-semibold text-[#F2C662]">New this week</span> : null}
+          {!hasRankMove && weekMomentum !== 0 ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-0.5 font-semibold",
+                weekMomentum > 0 ? "text-[#7BD88F]" : "text-[#FF6B78]",
+              )}
+            >
+              {weekMomentum > 0 ? <ArrowUpRight className="h-4 w-4" aria-hidden /> : <ArrowDownRight className="h-4 w-4" aria-hidden />}
+              {formatMomentum(weekMomentum)} this week
+            </span>
+          ) : null}
         </p>
       </header>
 

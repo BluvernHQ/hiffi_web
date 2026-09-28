@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { BadgeCheck, ChevronDown, Loader2, Search } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, BadgeCheck, ChevronDown, Loader2, Search } from "lucide-react"
 import { loadTopChartPageAction, loadTopChartPhotosAction } from "@/app/(main)/top-artists/actions"
 import { CHART_MODES, type ChartMode, type ChartPage } from "@/lib/top-chart"
 import type { ChartShareScope } from "@/lib/top-chart-share"
@@ -11,11 +11,13 @@ import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
 import { useTopChartDrawer } from "@/components/top-artists/premium/TopChartDrawer"
 import {
-  chartMovement,
+  artistMomentum,
   chartPlace,
+  chartTrend,
   formatCount,
   formatMomentum,
-  type ChartMovement,
+  type ChartTrend,
+  type MomentumWindow,
 } from "@/components/top-artists/premium/chart-format"
 
 export type ChartCity = {
@@ -48,7 +50,9 @@ const SORT_VALUE: Record<Exclude<SortKey, "rank">, (artist: TopArtist) => number
 const FEATURED_CITIES = 10
 const ROW_GRID =
   "grid grid-cols-[2.5rem_2.75rem_minmax(0,1fr)_auto] items-center gap-3 sm:grid-cols-[3.25rem_3rem_minmax(0,1fr)_5.5rem] sm:gap-4"
-const ROW_GRID_STATS = "md:grid-cols-[3.5rem_3.25rem_minmax(0,1fr)_7rem_6.5rem_5.5rem]"
+const ROW_GRID_STATS = "md:grid-cols-[3.5rem_3.25rem_minmax(0,1fr)_5.5rem_5.5rem_5.5rem_4.5rem]"
+
+const SORT_WINDOW: Partial<Record<SortKey, MomentumWindow>> = { momentum7: 7, momentum30: 30, momentum90: 90 }
 const ROW_GRID_PLAIN = "md:grid-cols-[3.5rem_3.25rem_minmax(0,1fr)_5.5rem]"
 
 type TopChartBoardProps = {
@@ -220,8 +224,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingKey])
 
-  const showMovement = mode === "risers" || items.some((artist) => chartMovement(artist) !== null)
-  const showStats = items.some((artist) => (artist.youtube_subscriber_count ?? 0) > 0)
+  const trendWindow = SORT_WINDOW[sort]
+  const showMovement = mode === "risers" || items.some((artist) => chartTrend(artist) !== null)
+  const showStats = items.some(
+    (artist) =>
+      (artist.youtube_subscriber_count ?? 0) > 0 || artistMomentum(artist, 7) !== 0 || artistMomentum(artist, 30) !== 0,
+  )
   const rowGrid = cn(ROW_GRID, showStats ? ROW_GRID_STATS : ROW_GRID_PLAIN)
   const heading = mode === "overall" && city ? `${city.label} chart` : mode === "overall" ? "The Hip-Hop 500" : modeMeta.label
   const kicker =
@@ -380,6 +388,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
           <span />
           <span>Artist</span>
           {showStats ? <span className="hidden text-right md:block">Subscribers</span> : null}
+          {showStats ? <span className="hidden text-right md:block">7d</span> : null}
           {showStats ? <span className="hidden text-right md:block">30d</span> : null}
           <span className="text-right">{showMovement ? (mode === "risers" ? "Climb" : "Move") : ""}</span>
         </div>
@@ -395,6 +404,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                   <span className="ink-skeleton mt-2 block h-2.5 w-1/4 rounded-full" />
                 </span>
                 <span className="ink-skeleton ml-auto hidden h-3.5 w-12 rounded-full md:block" />
+                <span className="ink-skeleton ml-auto hidden h-3.5 w-10 rounded-full md:block" />
                 <span className="ink-skeleton ml-auto hidden h-3.5 w-10 rounded-full md:block" />
                 <span className="ink-skeleton ml-auto h-5 w-10 rounded-full" />
               </li>
@@ -412,7 +422,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                     "group -mx-2 w-[calc(100%+1rem)] rounded-xl px-2 py-3.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:py-4",
                   )}
                 >
-                  <ChartRowContent artist={artist} mode={mode} showMovement={showMovement} showStats={showStats} />
+                  <ChartRowContent
+                    artist={artist}
+                    showMovement={showMovement}
+                    showStats={showStats}
+                    trendWindow={trendWindow}
+                  />
                 </button>
               </li>
             ))}
@@ -469,18 +484,17 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
 
 function ChartRowContent({
   artist,
-  mode,
   showMovement,
   showStats,
+  trendWindow,
 }: {
   artist: TopArtist
-  mode: ChartMode
   showMovement: boolean
   showStats: boolean
+  trendWindow?: MomentumWindow
 }) {
   const place = chartPlace(artist)
   const gold = artist.rank <= 3
-  const momentum = artist.youtube_momentum_30d ?? 0
 
   return (
     <>
@@ -517,23 +531,51 @@ function ChartRowContent({
           {(artist.youtube_subscriber_count ?? 0) > 0 ? formatCount(artist.youtube_subscriber_count) : null}
         </span>
       ) : null}
-      {showStats ? (
-        <span
-          className={cn(
-            "hidden text-right text-sm font-semibold tabular-nums md:block",
-            momentum > 0 ? "text-[#7BD88F]" : momentum < 0 ? "text-[#FF6B78]" : "text-white/35",
-          )}
-        >
-          {momentum !== 0 ? formatMomentum(artist.youtube_momentum_30d) : null}
-        </span>
-      ) : null}
-      <span className="flex justify-end">{showMovement ? <MovementChip movement={chartMovement(artist)} /> : null}</span>
+      {showStats ? <MomentumCell value={artistMomentum(artist, 7)} label="7-day momentum" /> : null}
+      {showStats ? <MomentumCell value={artistMomentum(artist, 30)} label="30-day momentum" /> : null}
+      <span className="flex justify-end">{showMovement ? <TrendChip trend={chartTrend(artist, trendWindow)} /> : null}</span>
     </>
   )
 }
 
-function MovementChip({ movement }: { movement: ChartMovement }) {
-  if (!movement || movement.kind === "flat") return null
+function MomentumCell({ value, label }: { value: number; label: string }) {
+  if (value === 0) return <span className="hidden md:block" />
+  const up = value > 0
+  const Arrow = up ? ArrowUpRight : ArrowDownRight
+  return (
+    <span
+      className={cn(
+        "hidden items-center justify-end gap-0.5 text-sm font-semibold tabular-nums md:flex",
+        up ? "text-[#7BD88F]" : "text-[#FF6B78]",
+      )}
+      aria-label={`${label} ${formatMomentum(value)}`}
+    >
+      <Arrow className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      {formatMomentum(value)}
+    </span>
+  )
+}
+
+function TrendChip({ trend }: { trend: ChartTrend }) {
+  if (!trend) return null
+  if (trend.source === "momentum") {
+    const up = trend.kind === "up"
+    const Arrow = up ? ArrowUpRight : ArrowDownRight
+    return (
+      <span
+        className={cn(
+          "inline-flex h-7 min-w-7 items-center justify-center gap-0.5 rounded-full px-1.5 text-xs font-bold tabular-nums",
+          up ? "bg-[#7BD88F]/12 text-[#7BD88F]" : "bg-[#FF6B78]/12 text-[#FF6B78]",
+        )}
+        aria-label={`${trend.window}-day momentum ${formatMomentum(trend.value)}`}
+        title={`${trend.window}d momentum ${formatMomentum(trend.value)}`}
+      >
+        <Arrow className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="pr-1 md:hidden">{formatMomentum(trend.value)}</span>
+      </span>
+    )
+  }
+  const movement = trend
   if (movement.kind === "new") {
     return (
       <span className="rounded-full bg-[#F2C662]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#F2C662]">

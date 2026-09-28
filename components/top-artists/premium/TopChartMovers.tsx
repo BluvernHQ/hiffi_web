@@ -2,7 +2,9 @@ import type { TopArtist } from "@/lib/top-artists"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
 import { TopChartArtistButton } from "@/components/top-artists/premium/TopChartDrawer"
-import { chartPlace } from "@/components/top-artists/premium/chart-format"
+import { ArrowDownRight, ArrowUpRight } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { artistMomentum, chartPlace, formatMomentum } from "@/components/top-artists/premium/chart-format"
 import type { ChartShareScope } from "@/lib/top-chart-share"
 
 const RISERS_SCOPE: ChartShareScope = { mode: "risers", cityKey: null, cityLabel: null, window: 7 }
@@ -55,6 +57,21 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
                 <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
                   {[`Now #${artist.rank}`, place].filter(Boolean).join(" · ")}
                 </span>
+                {artistMomentum(artist, 7) !== 0 ? (
+                  <span
+                    className={cn(
+                      "mt-2 inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums",
+                      artistMomentum(artist, 7) > 0 ? "text-[#7BD88F]" : "text-[#FF6B78]",
+                    )}
+                  >
+                    {artistMomentum(artist, 7) > 0 ? (
+                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <ArrowDownRight className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {formatMomentum(artistMomentum(artist, 7))} 7d momentum
+                  </span>
+                ) : null}
               </TopChartArtistButton>
             </li>
           )

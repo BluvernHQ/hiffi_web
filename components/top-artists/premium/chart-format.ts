@@ -13,8 +13,38 @@ export function formatCount(value: number | null | undefined): string {
 export function formatMomentum(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value) || value === 0) return "—"
   const percent = value * 100
-  const digits = Math.abs(percent) >= 10 ? 0 : 1
-  return `${percent > 0 ? "+" : ""}${percent.toFixed(digits)}%`
+  const size = Math.abs(percent)
+  const sign = percent > 0 ? "+" : "−"
+  if (size >= 1000) return `${sign}${compact.format(size)}%`
+  return `${sign}${size.toFixed(size >= 10 ? 0 : size >= 1 ? 1 : 2)}%`
+}
+
+export type MomentumWindow = 7 | 30 | 90
+
+export function artistMomentum(artist: TopArtist, window: MomentumWindow): number {
+  const value =
+    window === 7 ? artist.youtube_momentum_7d : window === 30 ? artist.youtube_momentum_30d : artist.youtube_momentum_90d
+  return value != null && Number.isFinite(value) ? value : 0
+}
+
+/**
+ * Direction for the Move column: real rank movement when the weekly snapshots have it,
+ * otherwise the momentum trend (the preferred window first, then 7d → 30d → 90d).
+ */
+export type ChartTrend =
+  | { source: "rank"; kind: "up" | "down" | "new"; value: number }
+  | { source: "momentum"; kind: "up" | "down"; value: number; window: MomentumWindow }
+  | null
+
+export function chartTrend(artist: TopArtist, prefer?: MomentumWindow): ChartTrend {
+  const movement = chartMovement(artist)
+  if (movement && movement.kind !== "flat") return { source: "rank", kind: movement.kind, value: movement.value }
+  const windows: MomentumWindow[] = prefer ? [prefer, 7, 30, 90] : [7, 30, 90]
+  for (const window of windows) {
+    const value = artistMomentum(artist, window)
+    if (value !== 0) return { source: "momentum", kind: value > 0 ? "up" : "down", value, window }
+  }
+  return null
 }
 
 export function chartPlace(artist: TopArtist): string | null {
