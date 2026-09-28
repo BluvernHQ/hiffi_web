@@ -162,7 +162,7 @@ export function TopArtistsEmbed({
           ) : (
             <>
               <Link
-                href="/top-artists#leaderboard"
+                href="/top-artists#ranking"
                 className="flex h-[62px] items-center px-[18px] text-sm font-extrabold uppercase tracking-[0.15em] text-white lg:h-auto lg:px-0 lg:text-[#f4f1ea]"
                 style={{ fontFamily: '"Arial Narrow", Arial, sans-serif' }}
                 onClick={() => setMobileNavOpen(false)}
