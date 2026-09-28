@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { ArtistCard } from "@/components/artists/ArtistCard"
+import { ArtistRosterCard } from "@/components/artists/index/ArtistRosterCard"
 import { ArtistDirectoryGridSkeleton } from "@/components/artists/ArtistDirectoryGridSkeleton"
 import { ArtistDirectoryPagination } from "@/components/artists/ArtistDirectoryPagination"
 import { artistPanelShell } from "@/components/artists/artist-styles"
@@ -24,7 +25,7 @@ type ArtistDirectoryGridProps = {
   /** Backend `has_more` — enables next when total page count is unknown. */
   hasMore?: boolean
   compactHeader?: boolean
-  cardVariant?: "default" | "hub"
+  cardVariant?: "default" | "hub" | "roster"
 }
 
 export function ArtistDirectoryGrid({
@@ -116,14 +117,21 @@ export function ArtistDirectoryGrid({
           ) : null}
           <div
             className={cn(
-              "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
+              cardVariant === "roster"
+                ? "grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-12"
+                : "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
+              "transition-opacity",
               isPending && "pointer-events-none opacity-60",
             )}
             aria-busy={isPending || undefined}
           >
-            {artists.map((artist) => (
-              <ArtistCard key={artist.slug} artist={artist} variant={cardVariant} />
-            ))}
+            {artists.map((artist) =>
+              cardVariant === "roster" ? (
+                <ArtistRosterCard key={artist.slug} artist={artist} />
+              ) : (
+                <ArtistCard key={artist.slug} artist={artist} variant={cardVariant} />
+              ),
+            )}
           </div>
 
           {showPagination ? (

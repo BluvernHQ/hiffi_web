@@ -17,6 +17,8 @@ type ArtistSearchProps = {
   /** Hub: no typeahead match — clear name search and browse active filters. */
   onSearchAllProfiles?: () => void
   variant?: "default" | "hub"
+  /** Hub field on a dark masthead. */
+  tone?: "light" | "dark"
   className?: string
   loading?: boolean
 }
@@ -42,10 +44,12 @@ export function ArtistSearch({
   onProfileSelect,
   onSearchAllProfiles,
   variant = "default",
+  tone = "light",
   className,
   loading = false,
 }: ArtistSearchProps) {
   const isHub = variant === "hub"
+  const isDark = isHub && tone === "dark"
   const listboxId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -262,13 +266,16 @@ export function ArtistSearch({
   const inputClassName = cn(
     "min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground focus:ring-0 sm:text-base",
     isHub && "py-2.5 sm:py-3",
+    isDark && "py-3.5 text-[#F4F1EA] placeholder:text-white/40 sm:py-4",
   )
 
   const fieldShell = (
     <div
       className={cn(
         "relative flex min-w-0 flex-1 items-center gap-2.5",
-        isHub
+        isDark
+          ? "rounded-full border border-white/15 bg-white/[0.06] px-5 backdrop-blur-md transition-[border-color,background-color] focus-within:border-white/40 focus-within:bg-white/[0.09] sm:px-6"
+          : isHub
           ? "rounded-2xl border border-[#E8192C]/20 bg-white px-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-[#E8192C]/45 focus-within:ring-2 focus-within:ring-[#E8192C]/12 sm:px-4"
           : "h-10 rounded-full border border-border bg-muted/40 px-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-[#E8192C]/40 focus-within:ring-2 focus-within:ring-[#E8192C]/15",
       )}
@@ -277,6 +284,7 @@ export function ArtistSearch({
         className={cn(
           "pointer-events-none shrink-0 text-muted-foreground",
           isHub ? "h-5 w-5" : "h-4 w-4",
+          isDark && "text-white/50",
         )}
         aria-hidden
       />
@@ -293,7 +301,7 @@ export function ArtistSearch({
           }
         }}
         onKeyDown={handleKeyDown}
-        placeholder={isHub ? "Search by artist name" : "Search artists…"}
+        placeholder={isDark ? "Find an artist by name" : isHub ? "Search by artist name" : "Search artists…"}
         className={inputClassName}
         role={isHub ? "combobox" : undefined}
         aria-expanded={isHub ? showDropdown : undefined}
@@ -308,14 +316,17 @@ export function ArtistSearch({
       />
       {showSpinner ? (
         <Loader2
-          className="h-4 w-4 shrink-0 animate-spin text-muted-foreground"
+          className={cn("h-4 w-4 shrink-0 animate-spin text-muted-foreground", isDark && "text-white/60")}
           aria-hidden
         />
       ) : query ? (
         <button
           type="button"
           onClick={handleClear}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+            isDark && "text-white/60 hover:bg-white/10 hover:text-white",
+          )}
           aria-label="Clear search"
         >
           <X className="h-4 w-4" aria-hidden />

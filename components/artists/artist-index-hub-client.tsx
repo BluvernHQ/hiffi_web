@@ -13,7 +13,14 @@ import { saveArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-
 import { ArtistIndexIntro } from "@/components/artists/ArtistIndexIntro"
 import { ArtistIndexControls } from "@/components/artists/ArtistIndexControls"
 import { ArtistDirectoryGrid } from "@/components/artists/ArtistDirectoryGrid"
+import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
+import { ArtistIndexClaimBand } from "@/components/artists/index/ArtistIndexClaimBand"
+import { ArtistIndexMasthead } from "@/components/artists/index/ArtistIndexMasthead"
+import { ArtistIndexScenes } from "@/components/artists/index/ArtistIndexScenes"
 import { Button } from "@/components/ui/button"
+import type { ArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
+import { signalNarrow } from "@/lib/fonts/signal"
+import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 
 type DirectorySnapshot = {
@@ -38,6 +45,10 @@ type ArtistIndexHubClientProps = {
   paginationHref?: (page: number) => string
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
+  /** Premium hub: dark masthead with the weekly chart, scenes, roster grid. */
+  feature?: ArtistIndexHubFeature
+  /** Whole-catalog size for the masthead; `artistCount` narrows while searching. */
+  catalogCount?: number
 }
 
 function filterKey(ids: string[]): string {
@@ -69,6 +80,8 @@ export function ArtistIndexHubClient({
   paginationHref,
   childrenBeforeGrid,
   childrenAfterGrid,
+  feature,
+  catalogCount,
 }: ArtistIndexHubClientProps) {
   const [directory, setDirectory] = useState(initialDirectory)
   const [isPending, setIsPending] = useState(false)
@@ -239,6 +252,91 @@ export function ArtistIndexHubClient({
       ? sectionSubtitleProp ??
         "Verified and emerging hip-hop and rap artists across cities — search profiles and explore official links."
       : `${directory.totalMatches.toLocaleString()} profiles match your filters`
+
+  if (feature) {
+    const trimmedQuery = directory.query.trim()
+    const roster = trimmedQuery
+      ? {
+          eyebrow: "Search",
+          title: `“${trimmedQuery}”`,
+          meta: `${directory.totalMatches.toLocaleString()} ${directory.totalMatches === 1 ? "match" : "matches"}`,
+        }
+      : directory.isCleanHub
+        ? { eyebrow: "The roster", title: "Fresh on the index", meta: "Newly claimed and verified artists first." }
+        : {
+            eyebrow: "The roster",
+            title: "Every artist",
+            meta: `Page ${directory.currentPage.toLocaleString()}${directory.totalPages > 1 ? ` of ${directory.totalPages.toLocaleString()}` : ""}`,
+          }
+
+    return (
+      <div className={cn(signalNarrow.variable, "text-[#0B0B0C]")}>
+        <ArtistIndexMasthead
+          artistCount={catalogCount ?? directory.artistCount}
+          feature={feature}
+          search={
+            <ArtistIndexControls
+              initialQuery={directory.query}
+              initialActiveFilterIds={directory.activeFilterIds}
+              filterOptions={filterOptions}
+              variant="hub"
+              tone="dark"
+              onSyncDirectory={syncDirectory}
+              isDirectoryPending={isPending}
+            />
+          }
+        />
+
+        <div className="mx-auto max-w-6xl space-y-20 px-4 pb-20 pt-14 sm:space-y-24 sm:px-6 sm:pt-20 lg:px-8">
+          {directory.isCleanHub ? <ArtistIndexScenes cities={feature.cities} /> : null}
+
+          <section ref={gridSectionRef} aria-labelledby="artist-index-roster" className="scroll-mt-24">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <ArtistDetailEyebrow>{roster.eyebrow}</ArtistDetailEyebrow>
+                <ArtistDetailHeading id="artist-index-roster" className="break-words">
+                  {roster.title}
+                </ArtistDetailHeading>
+              </div>
+              <p className="text-sm text-[#77726A]">{roster.meta}</p>
+            </div>
+
+            {loadError ? (
+              <div
+                className="mt-8 flex flex-col items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                role="alert"
+              >
+                <p className="text-sm text-destructive">{loadError}</p>
+                <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+                  Try again
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="mt-10">
+              <ArtistDirectoryGrid
+                artists={directory.pageArtists}
+                currentPage={directory.currentPage}
+                totalPages={directory.totalPages}
+                hasMore={directory.hasMore}
+                totalMatches={directory.totalMatches}
+                artistCount={directory.artistCount}
+                query={directory.query}
+                activeFilterIds={directory.activeFilterIds}
+                paginationHref={paginationHref}
+                onPageChange={handlePageChange}
+                isPending={isPending}
+                compactHeader
+                cardVariant="roster"
+              />
+            </div>
+          </section>
+
+          <ArtistIndexClaimBand />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">

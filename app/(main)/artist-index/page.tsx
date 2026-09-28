@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { JsonLd } from "@/components/seo/json-ld"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
-import { ArtistIndexListing } from "@/components/artists/ArtistIndexListing"
+import { ArtistIndexHubClient } from "@/components/artists/artist-index-hub-client"
 import {
   ARTIST_INDEX_HUB_HEADLINE,
   buildArtistIndexHubDescription,
@@ -22,6 +22,7 @@ import {
 } from "@/lib/artists"
 import { absoluteUrl } from "@/lib/seo/site"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
+import { getArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
 
 type ArtistIndexPageProps = {
   searchParams: Promise<{
@@ -64,8 +65,12 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
     if (filter?.kind === "genre") redirect(artistIndexGenreHref(filter.slug))
   }
 
-  const directory = await resolveArtistDirectoryPage({ query, activeFilterIds, page })
-  const filterOptions = await getAvailableArtistDirectoryFilters()
+  const [directory, filterOptions, feature, catalogCount] = await Promise.all([
+    resolveArtistDirectoryPage({ query, activeFilterIds, page }),
+    getAvailableArtistDirectoryFilters(),
+    getArtistIndexHubFeature(),
+    getArtistCount().catch(() => 0),
+  ])
   const hubDescription = buildArtistIndexHubDescription(directory.artistCount)
   const isCleanHub = !query.trim() && activeFilterIds.length === 0 && page === 1
 
@@ -93,30 +98,23 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
   }
 
   return (
-    <ArtistDirectoryShell claimLabel={isCleanHub ? "Claim Now" : undefined}>
+    <ArtistDirectoryShell claimLabel={isCleanHub ? "Claim Now" : undefined} bleed>
       <JsonLd data={hubJsonLd} />
-      <ArtistIndexListing
-        artists={directory.pageArtists}
-        artistCount={directory.artistCount}
-        totalMatches={directory.totalMatches}
-        currentPage={directory.currentPage}
-        totalPages={directory.totalPages}
-        hasMore={directory.hasMore}
-        query={directory.query}
-        activeFilterIds={directory.activeFilterIds}
+      <ArtistIndexHubClient
+        initialDirectory={{
+          query: directory.query,
+          activeFilterIds: directory.activeFilterIds,
+          artistCount: directory.artistCount,
+          totalMatches: directory.totalMatches,
+          totalPages: directory.totalPages,
+          currentPage: directory.currentPage,
+          pageArtists: directory.pageArtists,
+          hasMore: directory.hasMore,
+          isCleanHub,
+        }}
         filterOptions={filterOptions}
-        claimArtist={directory.claimArtist}
-        introDescription={hubDescription}
-        compact={false}
-        layout="hub"
-        clientDirectory
-        showIntro={false}
-        sectionTitle={isCleanHub ? "Featured artists" : "Browse artists"}
-        sectionSubtitle={
-          isCleanHub
-            ? "Verified and emerging hip-hop and rap artists across cities — search profiles and explore official links."
-            : `${directory.totalMatches.toLocaleString()} profiles match your search`
-        }
+        feature={feature}
+        catalogCount={catalogCount || directory.artistCount}
       />
     </ArtistDirectoryShell>
   )

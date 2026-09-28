@@ -16,6 +16,8 @@ type ArtistIndexControlsProps = {
   initialActiveFilterIds: string[]
   filterOptions: ArtistDirectoryFilterOption[]
   variant?: "default" | "hub"
+  /** Hub search on a dark masthead (no light panel). */
+  tone?: "light" | "dark"
   /** When set, directory search/filter/clear updates in place without router navigation. */
   onSyncDirectory?: (query: string, activeFilterIds: string[]) => void
   isDirectoryPending?: boolean
@@ -26,6 +28,7 @@ export function ArtistIndexControls({
   initialActiveFilterIds,
   filterOptions,
   variant = "default",
+  tone = "light",
   onSyncDirectory,
   isDirectoryPending = false,
 }: ArtistIndexControlsProps) {
@@ -139,6 +142,23 @@ export function ArtistIndexControls({
 
   const isHub = variant === "hub"
   const isSearching = onSyncDirectory ? isDirectoryPending : isPending
+
+  if (isHub && tone === "dark") {
+    return (
+      <section aria-label="Search artists">
+        <ArtistSearch
+          query={query}
+          onQueryChange={handleQueryChange}
+          onSubmit={handleSubmit}
+          onSearchAllProfiles={handleSearchAllProfiles}
+          onProfileSelect={handleProfileSelect}
+          variant="hub"
+          tone="dark"
+          loading={isSearching}
+        />
+      </section>
+    )
+  }
 
   if (isHub) {
     return (
