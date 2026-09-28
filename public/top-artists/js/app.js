@@ -567,20 +567,27 @@ function artistIndexHref(username) {
   return `/artist-index/${encodeURIComponent(username)}`;
 }
 
+/** Navigate the host page (the ranking runs inside an iframe on /top-artists). */
+function openInHost(href) {
+  const host = window.parent && window.parent !== window ? window.parent : window;
+  host.location.assign(href);
+}
+
 /** @param {{ claimStatus?: string, username?: string }} artist */
 function claimAction(artist) {
   if (!artist.username || artist.claimStatus === "claimed") return null;
+  const href = `${artistIndexHref(artist.username)}/claim`;
   if (artist.claimStatus === "pending") {
     return {
-      href: artistIndexHref(artist.username),
+      href,
       label: "Request ownership",
-      note: "Ownership under review. Open the Artist Index profile to request ownership.",
+      note: "Ownership under review. Is this you? Request ownership on Artist Index.",
     };
   }
   return {
-    href: artistIndexHref(artist.username),
+    href,
     label: "Claim this profile",
-    note: "Is this your profile? Open it on Artist Index to claim, verify links, and get discovered.",
+    note: "Is this your profile? Claim it on Artist Index to verify links and get discovered.",
   };
 }
 
@@ -1421,7 +1428,7 @@ function artistRowHTML(artist, index) {
     <button type="button" class="artist-row" data-artist-rank="${artist.rank}" data-artist-username="${escapeAttr(artist.username || "")}" style="--delay:${Math.min(index, 12) * 28}ms">
       <span class="artist-identity"><b>${pad(artist.rank, 3)}</b>${artistAvatarHTML(artist)}<strong><span class="artist-name">${artist.name}</span>${
         artist.username
-          ? `<a class="artist-profile-link" href="${buildRankingPath({ artist: artist.username })}">Open profile <span aria-hidden="true">↗</span></a>`
+          ? `<a class="artist-profile-link" href="${escapeAttr(artistIndexHref(artist.username))}" target="_parent">Open profile <span aria-hidden="true">↗</span></a>`
           : ""
       }</strong></span>
       <span data-label="Region">${artist.location || "—"}</span>
@@ -2142,22 +2149,29 @@ function openDrawer(rank, options = {}) {
       : "Instagram is in the blend — reach metrics appear as scrape history fills in.";
   }
 
+  const profileLink = $("#drawerProfile");
+  if (profileLink) {
+    if (artist.username) {
+      profileLink.hidden = false;
+      profileLink.href = artistIndexHref(artist.username);
+    } else {
+      profileLink.hidden = true;
+      profileLink.removeAttribute("href");
+    }
+  }
+
   const claim = claimAction(artist);
   const claimLink = $("#drawerClaim");
   const claimNote = $("#drawerClaimNote");
   if (claim) {
     claimLink.hidden = false;
     claimLink.href = claim.href;
-    claimLink.target = "_blank";
-    claimLink.rel = "noopener noreferrer";
     claimLink.innerHTML = `${claim.label} <span>↗</span>`;
     claimNote.hidden = false;
     claimNote.textContent = claim.note;
   } else {
     claimLink.hidden = true;
     claimLink.removeAttribute("href");
-    claimLink.removeAttribute("target");
-    claimLink.removeAttribute("rel");
     claimNote.hidden = false;
     claimNote.textContent = artist.claimStatus === "claimed"
       ? "This Artist Index profile is claimed."
@@ -2301,10 +2315,10 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     const profileLink = event.target.closest(".artist-profile-link");
     if (profileLink) {
-      const artistButton = profileLink.closest("[data-artist-rank]");
-      if (artistButton && !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) {
+      // Nested inside the row <button>, so navigate explicitly instead of relying on default activation.
+      if (!event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) {
         event.preventDefault();
-        openDrawer(artistButton.dataset.artistRank);
+        openInHost(profileLink.getAttribute("href"));
       }
       return;
     }
