@@ -191,17 +191,26 @@ function RankChip({ style, value, label, title, tone = "overlay", className }: C
   )
 }
 
+type PlateSegment = {
+  eyebrow: string
+  value: string
+  label?: string
+  title: string
+}
+
 type PlateProps = {
   style: RankStyle
   eyebrow: string
   value: string
   label?: string
   title: string
+  /** Second reading on the same plate, e.g. the city rank. */
+  secondary?: PlateSegment
   href?: string
   className?: string
 }
 
-function RankPlate({ style, eyebrow, value, label, title, href, className }: PlateProps) {
+function RankPlate({ style, eyebrow, value, label, title, secondary, href, className }: PlateProps) {
   const classes = cn(
     "group inline-flex rounded-2xl p-px normal-case tracking-normal transition-transform duration-300",
     style.edge,
@@ -241,19 +250,41 @@ function RankPlate({ style, eyebrow, value, label, title, href, className }: Pla
           ) : null}
         </span>
       </span>
+      {secondary ? (
+        <>
+          <span className="ml-1 h-9 w-px self-center bg-white/12 sm:ml-2 sm:h-10" aria-hidden />
+          <span className="flex flex-col pr-1 leading-none" title={secondary.title}>
+            <span className="max-w-[9rem] truncate text-[9px] font-semibold uppercase tracking-[0.3em] text-white/55 sm:text-[10px]">
+              {secondary.eyebrow}
+            </span>
+            <span className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-xl font-black tabular-nums tracking-tight text-[#F4F1EA] sm:text-2xl">
+                {secondary.value}
+              </span>
+              {secondary.label ? (
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50 sm:text-[11px]">
+                  {secondary.label}
+                </span>
+              ) : null}
+            </span>
+          </span>
+        </>
+      ) : null}
     </span>
   )
 
+  const fullTitle = secondary ? `${title} · ${secondary.title}` : title
+
   if (href) {
     return (
-      <Link href={href} prefetch={false} className={classes} aria-label={title} title={title}>
+      <Link href={href} prefetch={false} className={classes} aria-label={fullTitle} title={fullTitle}>
         {content}
       </Link>
     )
   }
 
   return (
-    <span className={classes} aria-label={title} title={title}>
+    <span className={classes} aria-label={fullTitle} title={fullTitle}>
       {content}
     </span>
   )
@@ -298,11 +329,12 @@ type Hiffi500RankPlateProps = {
   rank: number
   /** Link to the Hiffi 500 chart. */
   linked?: boolean
+  secondary?: PlateSegment
   className?: string
 }
 
 /** Medal-style Hiffi 500 plate for heroes. */
-export function Hiffi500RankPlate({ rank, linked = true, className }: Hiffi500RankPlateProps) {
+export function Hiffi500RankPlate({ rank, linked = true, secondary, className }: Hiffi500RankPlateProps) {
   if (!isRanked(rank)) return null
   const style = hiffi500Style(rank)
   return (
@@ -312,6 +344,7 @@ export function Hiffi500RankPlate({ rank, linked = true, className }: Hiffi500Ra
       value={`#${rank}`}
       label={style.label}
       title={hiffi500Title(rank, style.label)}
+      secondary={secondary}
       href={linked ? "/top-artists" : undefined}
       className={className}
     />
@@ -327,10 +360,11 @@ type ArtistRankProps = {
 export function ArtistRankPlate({
   artist,
   linked = true,
+  secondary,
   className,
-}: ArtistRankProps & { linked?: boolean }) {
+}: ArtistRankProps & { linked?: boolean; secondary?: PlateSegment }) {
   if (isRanked(artist.rank)) {
-    return <Hiffi500RankPlate rank={artist.rank} linked={linked} className={className} />
+    return <Hiffi500RankPlate rank={artist.rank} linked={linked} secondary={secondary} className={className} />
   }
   const band = artist.ranking?.status === "ranked" ? artist.ranking.band : undefined
   if (!isPercentBand(band)) return null
@@ -340,6 +374,7 @@ export function ArtistRankPlate({
       eyebrow="Artist Index"
       value={BAND_LABEL[band]}
       title={bandTitle(band)}
+      secondary={secondary}
       className={className}
     />
   )
@@ -437,16 +472,35 @@ export function ArtistRankChip({
   return null
 }
 
-/** Hero rank cluster: plate (Hiffi 500 or band), then the local/genre and movement chips. */
+function highlightSegment(highlight: NonNullable<PublicRanking["highlight"]>): PlateSegment {
+  return {
+    eyebrow: highlight.label,
+    value: `#${highlight.rank}`,
+    label: `of ${highlight.total.toLocaleString()}`,
+    title: `#${highlight.rank} of ${highlight.total.toLocaleString()} ranked artists in ${highlight.label}`,
+  }
+}
+
+/** Hero rank cluster: one plate (Hiffi 500 or band, with the city/genre rank alongside), then movement. */
 export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
   const ranking = artist.ranking?.status === "ranked" ? artist.ranking : null
   const hasPlate = isRanked(artist.rank) || isPercentBand(ranking?.band)
-  if (!hasPlate && !ranking?.highlight && !ranking?.movement) return null
+  const highlight = ranking?.highlight ?? null
+  if (!hasPlate && !highlight && !ranking?.movement) return null
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <ArtistRankPlate artist={artist} />
-      {ranking?.highlight ? <HighlightChip highlight={ranking.highlight} /> : null}
+      {hasPlate ? (
+        <ArtistRankPlate artist={artist} secondary={highlight ? highlightSegment(highlight) : undefined} />
+      ) : highlight ? (
+        <RankPlate
+          style={highlightStyle(highlight.kind)}
+          eyebrow={highlight.label}
+          value={`#${highlight.rank}`}
+          label={`of ${highlight.total.toLocaleString()}`}
+          title={highlightSegment(highlight).title}
+        />
+      ) : null}
       {ranking?.movement ? <MovementChip movement={ranking.movement} /> : null}
     </div>
   )
