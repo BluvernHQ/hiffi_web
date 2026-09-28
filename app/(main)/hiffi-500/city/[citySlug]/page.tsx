@@ -9,7 +9,7 @@ import { artistButtonSolid } from "@/components/artists/artist-styles"
 import {
   fetchTopArtistsByCityServer,
   fetchTopCitiesServer,
-  resolveExactCityLocation,
+  resolveTopCity,
   HIFFI_500_CITY_CHARTS,
   HIFFI_500_PATH,
   hiffi500CityPath,
@@ -43,8 +43,10 @@ export default async function Hiffi500CityPage({ params }: PageProps) {
   if (!city) notFound()
 
   const path = hiffi500CityPath(city.slug)
+  const cities = (await fetchTopCitiesServer())?.items ?? []
+  const resolved = resolveTopCity(cities, city.slug) ?? resolveTopCity(cities, city.label)
 
-  if (!city.live) {
+  if (!city.live && !resolved) {
     return (
       <ArtistDirectoryShell
         claimLabel="Claim Now"
@@ -85,9 +87,7 @@ export default async function Hiffi500CityPage({ params }: PageProps) {
     )
   }
 
-  const cities = (await fetchTopCitiesServer())?.items ?? []
-  const exactLocation = resolveExactCityLocation(cities, city.label)
-  if (!exactLocation) {
+  if (!resolved) {
     return (
       <ArtistDirectoryShell
         claimLabel="Claim Now"
@@ -105,16 +105,15 @@ export default async function Hiffi500CityPage({ params }: PageProps) {
             Top <span className="text-[#E8192C]">{city.label}</span> Artists
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            {city.label} is not in the live city banner set yet (needs more than 50 ranked artists with
-            that exact location). Check back as the ranking warms up.
+            {city.label} doesn&apos;t have enough ranked artists for a city chart yet. Check back after
+            the next weekly update.
           </p>
         </header>
         <div className="rounded-[1.25rem] border border-dashed border-border px-6 py-12 text-center">
           <h2 className="text-lg font-semibold">City chart unavailable</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Banner cities come from <code className="text-xs">GET /inventory/top/cities</code>. Once{" "}
-            {city.label} qualifies, this page loads{" "}
-            <code className="text-xs">GET /inventory/top/city</code> with the exact location string.
+            City charts open once at least 20 artists from {city.label} are ranked. Claim your profile
+            so your city is on record.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link href={HIFFI_500_PATH} className={artistButtonSolid}>
@@ -129,9 +128,12 @@ export default async function Hiffi500CityPage({ params }: PageProps) {
     )
   }
 
-  const cityPage = await fetchTopArtistsByCityServer(exactLocation, 50, 0, {
+  const cityPage = await fetchTopArtistsByCityServer(resolved.query, 50, 0, {
     enrichImages: true,
   })
+  const cityName = resolved.city.region
+    ? `${resolved.city.label}, ${resolved.city.region}`
+    : resolved.city.location || resolved.city.label
   const cityArtists = cityPage?.items ?? []
   const totalInCity = cityPage?.total_ranked ?? cityArtists.length
 
@@ -167,12 +169,11 @@ export default async function Hiffi500CityPage({ params }: PageProps) {
           Top <span className="text-[#E8192C]">{city.label}</span> Artists
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          City Top 50 for {exactLocation} — local ranks by YouTube composite score (exact location
-          match). Global Hiffi 500 ranks remain on the main chart.
+          City Top 50 for {cityName}, from the weekly Hiffi ranking. Global Hiffi 500 ranks remain on
+          the main chart.
         </p>
         <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {cityArtists.length} on this chart · {totalInCity.toLocaleString()} ranked in{" "}
-          {exactLocation}
+          {cityArtists.length} on this chart · {totalInCity.toLocaleString()} ranked in {cityName}
         </p>
       </header>
 

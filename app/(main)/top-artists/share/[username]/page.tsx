@@ -3,7 +3,7 @@ import {
   fetchTopArtistsByCityServer,
   fetchTopArtistsUpTo,
   fetchTopCitiesServer,
-  resolveExactCityLocation,
+  resolveTopCity,
 } from "@/lib/top-artists"
 import { absoluteUrl } from "@/lib/seo/site"
 import { TopArtistShareRedirect } from "./top-artist-share-redirect"
@@ -34,10 +34,9 @@ async function resolveArtist(username: string, citySlug: string) {
 
   if (citySlug) {
     const cities = await fetchTopCitiesServer()
-    const location =
-      resolveExactCityLocation(cities?.items ?? [], citySlug) ||
-      citySlug.replace(/-/g, " ")
-    const cityPage = await fetchTopArtistsByCityServer(location, 50, 0, {
+    const resolved = resolveTopCity(cities?.items ?? [], citySlug)
+    const query = resolved?.query ?? { location: citySlug.replace(/-/g, " ") }
+    const cityPage = await fetchTopArtistsByCityServer(query, 50, 0, {
       enrichImages: false,
     })
     const cityArtist = cityPage?.items.find((a) => a.username.toLowerCase() === handle)
@@ -45,7 +44,7 @@ async function resolveArtist(username: string, citySlug: string) {
       return {
         artist: cityArtist,
         scope: "city" as const,
-        cityLabel: location.split(",")[0]?.trim() || citySlug,
+        cityLabel: resolved?.city.label || citySlug.replace(/-/g, " "),
       }
     }
   }
@@ -80,7 +79,9 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       : `${name} is #${globalRank} on the Hiffi Hip-Hop 500`
   const description =
     scope === "city"
-      ? `${name} ranks #${rank} in ${cityLabel} (global #${globalRank}) — live YouTube + Instagram signal index on Hiffi.`
+      ? `${name} ranks #${rank} in ${cityLabel}${
+          artist.global_rank ? ` (#${artist.global_rank} on the Hiffi 500)` : ""
+        } — live YouTube + Instagram signal index on Hiffi.`
       : `${name} ranks #${globalRank} on the Hiffi Hip-Hop 500 — live YouTube + Instagram signal index.`
 
   const pathParams = new URLSearchParams()

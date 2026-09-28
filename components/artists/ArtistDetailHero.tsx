@@ -6,7 +6,7 @@ import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistProfilePhotoAlt, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
-import { Hiffi500RankPlate } from "@/components/artists/Hiffi500RankBadge"
+import { ArtistRankSignals, publicRankSummary } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
 
 type ArtistDetailHeroProps = {
@@ -46,6 +46,7 @@ export function ArtistDetailHero({
   const isUnclaimed = !artist.verified && artist.claim_status === "unclaimed"
   const isPending = !artist.verified && artist.claim_status === "pending"
 
+  const rankSummary = publicRankSummary(artist)
   const bannerSrc = getArtistImageUrl(artist.banner_image)
   const profileSrc = getArtistImageUrl(artist.image)
   const initials = artist.name
@@ -61,12 +62,18 @@ export function ArtistDetailHero({
         <div className="mb-3 rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 px-4 py-3 sm:mb-4 sm:px-5">
           <p className="text-sm text-foreground">
             <span className="font-semibold text-[#E8192C]">Unclaimed profile.</span>{" "}
+            {rankSummary ? <>{rankSummary} </> : null}
             Are you {artist.name}?{" "}
             <Link href={claimHref} className="font-semibold text-[#E8192C] underline-offset-2 hover:underline">
               Claim your account
             </Link>{" "}
-            to unlock brand sponsorships, paid collaborations, partner offers, and benefits worth up
-            to $10K for select creators.
+            {rankSummary
+              ? artist.rank > 0
+                ? "to see what drives your rank and unlock"
+                : "to see your exact rank and unlock"
+              : "to unlock"}{" "}
+            brand sponsorships, paid collaborations, partner offers, and benefits worth up to $10K for
+            select creators.
           </p>
         </div>
       ) : null}
@@ -126,7 +133,7 @@ export function ArtistDetailHero({
 
           <div className="relative flex items-start justify-between gap-3 p-4 sm:p-6">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] sm:text-xs">
-              <Hiffi500RankPlate rank={artist.rank} />
+              <ArtistRankSignals artist={artist} />
               {!hideStatusBadge && artist.verified ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-white sm:px-3 sm:py-1.5">
                   <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />

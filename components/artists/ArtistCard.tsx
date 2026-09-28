@@ -13,7 +13,7 @@ import {
 } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { ArtistCardAvatar } from "@/components/artists/ArtistCardAvatar"
-import { Hiffi500RankBadge } from "@/components/artists/Hiffi500RankBadge"
+import { ArtistRankChip } from "@/components/artists/Hiffi500RankBadge"
 import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import {
   artistCardButtonPrimary,
@@ -128,11 +128,9 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
               aria-hidden
             />
           ) : null}
-          {artist.rank > 0 ? (
-            <div className="absolute left-3 top-3">
-              <Hiffi500RankBadge rank={artist.rank} />
-            </div>
-          ) : null}
+          <div className="absolute left-3 top-3">
+            <ArtistRankChip artist={artist} />
+          </div>
           <div className="absolute right-3 top-3">
             <HeaderBadge artist={artist} />
           </div>

@@ -7,7 +7,7 @@ const LOAD_MORE_STEP = 20;
 const ACCENTS = ["#ff2b2b", "#f4f1ea", "#7e7e83", "#ff2b2b", "#b8b6b1"];
 /** Ranking payload cache — localStorage/sessionStorage (cookies can't hold ~500 artists). */
 const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v9";
-const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v1";
+const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v2";
 const UI_KEY = "hiffi-top-artist-ui-v4";
 /** Scroll only — sessionStorage so a new browser session always starts at the top. */
 const SCROLL_KEY = "hiffi-top-artist-scroll-v1";
@@ -122,8 +122,9 @@ function slimInventoryItem(item) {
   if (!item || typeof item !== "object") return null;
   const socials = slimSocials(item.other_socials);
   return {
-    rank: item.rank ?? item.current_rank ?? item.underground_rank ?? item.breakout_rank ?? null,
-    global_rank: item.global_rank ?? item.current_rank ?? item.youtube_rank ?? null,
+    rank: item.rank ?? item.city_rank ?? item.current_rank ?? item.underground_rank ?? item.breakout_rank ?? null,
+    global_rank:
+      item.global_rank ?? item.ranking?.global_rank ?? item.current_rank ?? item.youtube_rank ?? null,
     underground_rank: item.underground_rank ?? null,
     breakout_rank: item.breakout_rank ?? null,
     youtube_rank: item.youtube_rank ?? null,
@@ -336,9 +337,36 @@ function isValidRisersWindow(value) {
   return value === 7 || value === 30 || value === "7" || value === "30";
 }
 
+/**
+ * `/top/cities` items: `{ id, label, ranked_count }` (canonical cities). Older APIs sent
+ * `{ location, artist_count }`. Internally `location` holds the city id (or the legacy string).
+ */
+function normalizeBannerCity(item) {
+  if (!item || typeof item !== "object") return null;
+  const id = String(item.id || "").trim();
+  if (id) {
+    return {
+      location: id,
+      label: String(item.label || id).trim(),
+      artist_count: Number(item.ranked_count ?? item.artist_count) || 0,
+      canonical: true,
+    };
+  }
+  const location = String(item.location || "").trim();
+  if (!location) return null;
+  return { location, label: "", artist_count: Number(item.artist_count) || 0, canonical: false };
+}
+
+function findBannerCity(location) {
+  const text = String(location || "").trim();
+  return text ? bannerCities.find((city) => city.location === text) || null : null;
+}
+
 function cityChipLabel(location) {
   const text = String(location || "").trim();
   if (!text) return "All";
+  const known = findBannerCity(text);
+  if (known?.label) return known.label;
   const short = text.split(",")[0].trim();
   return short || text;
 }
@@ -359,7 +387,7 @@ function renderLocationFilters() {
       const label = cityChipLabel(city.location);
       const count = Number(city.artist_count) || 0;
       return `<button type="button" data-location="${escapeAttr(city.location)}" title="${escapeAttr(
-        `${city.location} · ${count} ranked`,
+        `${city.label || city.location} · ${count} ranked`,
       )}">${escapeAttr(label)}</button>`;
     })
     .join("");
@@ -612,7 +640,9 @@ function mapArtist(item, index) {
           ? Number(item.current_rank)
           : item.rank != null && !Number.isNaN(Number(item.rank))
             ? Number(item.rank)
-            : index + 1;
+            : item.city_rank != null && !Number.isNaN(Number(item.city_rank))
+              ? Number(item.city_rank)
+              : index + 1;
   const priorRank =
     item.prior_rank != null && !Number.isNaN(Number(item.prior_rank))
       ? Number(item.prior_rank)
@@ -630,6 +660,8 @@ function mapArtist(item, index) {
   const globalRank =
     item.global_rank != null && !Number.isNaN(Number(item.global_rank))
       ? Number(item.global_rank)
+      : item.ranking?.global_rank != null && !Number.isNaN(Number(item.ranking.global_rank))
+        ? Number(item.ranking.global_rank)
       : youtubeRank != null
         ? youtubeRank
         : item.current_rank != null
@@ -1048,8 +1080,9 @@ async function fetchTopPage(limit, offset) {
 }
 
 async function fetchCityPage(limit, offset, location) {
+  const value = String(location || "").trim();
   const params = new URLSearchParams({
-    location: String(location || "").trim(),
+    [findBannerCity(value)?.canonical ? "city_id" : "location"]: value,
     limit: String(Math.min(limit, CITY_PAGE_SIZE)),
     offset: String(offset),
     enrich: "0",
@@ -1227,7 +1260,9 @@ async function fetchBannerCities() {
     if (hasCache) return bannerCities;
     throw new Error(body?.error || `Failed to load cities (${res.status})`);
   }
-  bannerCities = Array.isArray(body.data?.items) ? body.data.items : [];
+  bannerCities = Array.isArray(body.data?.items)
+    ? body.data.items.map(normalizeBannerCity).filter(Boolean)
+    : [];
   writeJsonStorage(CITIES_CACHE_KEY, { items: bannerCities, savedAt: Date.now() });
 
   if (state.location && !bannerCities.some((city) => city.location === state.location)) {
@@ -1600,8 +1635,10 @@ function buildSharePayload(artist) {
   return { headline, text: `${headline}\n\n${url}`, url, path, sharePath };
 }
 
-/** Short city token for clean URLs: "Atlanta, GA" → "atlanta". */
+/** City token for URLs: the canonical id ("atlanta-ga-us"), or "Atlanta, GA" → "atlanta" for legacy strings. */
 function citySlug(location) {
+  const known = findBannerCity(location);
+  if (known?.canonical) return known.location;
   return cityChipLabel(location)
     .toLowerCase()
     .replace(/&/g, "and")

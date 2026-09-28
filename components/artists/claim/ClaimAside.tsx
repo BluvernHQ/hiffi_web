@@ -1,4 +1,4 @@
-import { BadgeCheck, Handshake, ShieldCheck, Sparkles } from "lucide-react"
+import { BadgeCheck, BarChart3, Handshake, ShieldCheck, Sparkles } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 const BENEFITS: { icon: LucideIcon; title: string; detail: string }[] = [
@@ -6,6 +6,11 @@ const BENEFITS: { icon: LucideIcon; title: string; detail: string }[] = [
     icon: BadgeCheck,
     title: "Own your profile",
     detail: "Update your photos, bio, links and videos.",
+  },
+  {
+    icon: BarChart3,
+    title: "Your exact rank",
+    detail: "Private ranking dashboard: global and city rank, weekly movement, how to climb.",
   },
   {
     icon: Handshake,

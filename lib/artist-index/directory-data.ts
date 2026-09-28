@@ -53,6 +53,7 @@ function artistToPublicInventoryProfile(artist: Artist): PublicInventoryProfile 
     location: [artist.city, artist.state].filter(Boolean).join(", ") || undefined,
     claim_status: artist.claim_status,
     ...(Object.keys(other_socials).length > 0 ? { other_socials } : {}),
+    ...(artist.ranking ? { ranking: artist.ranking } : {}),
   }
 }
 

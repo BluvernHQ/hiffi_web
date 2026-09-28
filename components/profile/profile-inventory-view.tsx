@@ -11,6 +11,7 @@ import { ArtistDetailAbout } from "@/components/artists/ArtistDetailAbout"
 import { ArtistDetailHero } from "@/components/artists/ArtistDetailHero"
 import { ArtistSocialLinks } from "@/components/artists/ArtistSocialLinks"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
+import { OwnerRankCard } from "@/components/profile/owner-rank-card"
 import { ProfileEmailReveal } from "@/components/profile/profile-email-reveal"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { Button } from "@/components/ui/button"
@@ -246,6 +247,8 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
             className="mx-0 max-w-none w-full"
             compact
           />
+
+          {isOwnProfile && artist.verified ? <OwnerRankCard /> : null}
 
           <div className="w-full">
             <div id="profile-tabs" className="border-b border-border" role="tablist" aria-label="Profile sections">

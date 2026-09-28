@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
 import { enrichTopArtistsWithImages, type TopArtist, type TopArtistsPage } from "@/lib/top-artists"
 
-/** Same-origin proxy for GET /inventory/top/city (exact-location city top 50). */
+/** Same-origin proxy for GET /inventory/top/city (`city_id`, or legacy exact `location`). */
 export async function GET(request: NextRequest) {
   try {
+    const cityId = request.nextUrl.searchParams.get("city_id")?.trim() || ""
     const location = request.nextUrl.searchParams.get("location")?.trim() || ""
-    if (!location) {
+    if (!cityId && !location) {
       return NextResponse.json(
-        { success: false, error: "location is required" },
+        { success: false, error: "city_id is required" },
         { status: 400 },
       )
     }
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const offset = request.nextUrl.searchParams.get("offset") ?? "0"
     const enrichParam = request.nextUrl.searchParams.get("enrich")
     const enrichImages = enrichParam !== "0" && enrichParam !== "false"
-    const params = new URLSearchParams({ location, limit, offset })
+    const params = new URLSearchParams(cityId ? { city_id: cityId, limit, offset } : { location, limit, offset })
 
     const response = await fetch(`${getApiBaseUrl()}/inventory/top/city?${params}`, {
       headers: { Accept: "application/json" },

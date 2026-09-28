@@ -50,11 +50,13 @@ export function getHiffi500Ranks(): Promise<Map<string, number>> {
   return cached.promise.catch(() => new Map<string, number>())
 }
 
+/** Fallback for APIs without the weekly `ranking` object; a no-op once every artist carries one. */
 export async function withHiffi500Ranks(artists: Artist[]): Promise<Artist[]> {
-  if (artists.length === 0) return artists
+  if (!artists.some((artist) => !artist.ranking)) return artists
   const ranks = await getHiffi500Ranks()
   if (ranks.size === 0) return artists
   return artists.map((artist) => {
+    if (artist.ranking) return artist
     const rank = ranks.get(artist.slug.toLowerCase()) ?? 0
     return rank === artist.rank ? artist : { ...artist, rank }
   })

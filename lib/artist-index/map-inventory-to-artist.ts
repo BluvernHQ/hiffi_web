@@ -118,7 +118,7 @@ export function mapInventoryProfileToArtist(
   return {
     slug: username,
     name,
-    rank: 0,
+    rank: profile.ranking?.global_rank ?? 0,
     city,
     state,
     genre: genres,
@@ -140,5 +140,6 @@ export function mapInventoryProfileToArtist(
     featured: false,
     added_date: addedDate,
     ...(updatedAt ? { updated_at: updatedAt } : {}),
+    ...(profile.ranking ? { ranking: profile.ranking } : {}),
   }
 }

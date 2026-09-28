@@ -2,8 +2,8 @@
  * Hiffi 500 — Top artists ranking backed by GET /inventory/top (+ city endpoints).
  *
  * - Global: `GET /inventory/top`
- * - Banner cities (>50 ranked): `GET /inventory/top/cities`
- * - City top 50 (exact location, local ranks): `GET /inventory/top/city?location=…`
+ * - Canonical cities (≥20 ranked): `GET /inventory/top/cities`
+ * - City top 50 (local ranks): `GET /inventory/top/city?city_id=…`
  * - Biggest risers: `GET /inventory/top/risers?window=7|30`
  * - Underground Heat: `GET /inventory/top/underground`
  * - Breakout 100: `GET /inventory/top/breakout`
@@ -16,6 +16,7 @@
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { getApiBaseUrl } from "@/lib/config"
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
+import type { PublicRanking } from "@/lib/types/inventory"
 
 export interface TopArtistSocials {
   instagram?: string
@@ -60,6 +61,10 @@ export interface TopArtist {
   instagram_momentum_90d: number
   /** When city charts re-number locally, preserve the global Hiffi 500 rank for share cards. */
   global_rank?: number
+  /** City charts (`/top/city?city_id=`): 1–50 within the city. Mirrored into `rank`. */
+  city_rank?: number
+  /** Weekly-snapshot ranking (present when `/top` is served from the snapshot). */
+  ranking?: PublicRanking
   /** Optional — present once weekly snapshots ship. */
   rank_delta_7d?: number | null
   rank_delta_30d?: number | null
@@ -81,16 +86,29 @@ export interface TopArtistsPage {
   fetched_at: number
 }
 
+/**
+ * A city from `GET /inventory/top/cities`. Current API: canonical `id` + `label` + `ranked_count`.
+ * Older APIs returned `{ location, artist_count }`; those map to `id: null` and keep `location`.
+ */
 export interface TopCitySummary {
+  id: string | null
+  label: string
+  region?: string
+  country?: string
+  /** Legacy exact location string (only when `id` is null). */
   location: string
-  artist_count: number
+  ranked_count: number
 }
 
 export interface TopCitiesResponse {
   items: TopCitySummary[]
   count: number
-  min_artists: number
+  min_ranked: number
+  updated_at: string | null
 }
+
+/** How to ask `/inventory/top/city` for a city chart. */
+export type TopCityQuery = { cityId: string; location?: never } | { location: string; cityId?: never }
 
 export type RisersWindow = 7 | 30
 
@@ -239,19 +257,90 @@ export function hiffi500SharePath(username: string): string {
   return `/hiffi-500/share/${encodeURIComponent(username)}`
 }
 
-/** Prefer exact banner-city location strings from `/inventory/top/cities` when available. */
-export function resolveExactCityLocation(
+function cityToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+/**
+ * Match a city id, slug ("atlanta"), label ("Atlanta") or legacy location string against
+ * `/inventory/top/cities`, and return how to query its chart.
+ */
+export function resolveTopCity(
   cities: TopCitySummary[],
-  cityLabelOrLocation: string,
-): string | null {
-  const needle = cityLabelOrLocation.trim().toLowerCase()
-  if (!needle) return null
-  const exact = cities.find((c) => c.location.toLowerCase() === needle)
-  if (exact) return exact.location
-  const startsWith = cities.find((c) => c.location.toLowerCase().startsWith(`${needle},`))
-  if (startsWith) return startsWith.location
-  const includes = cities.find((c) => c.location.toLowerCase().includes(needle))
-  return includes?.location ?? null
+  needle: string,
+): { query: TopCityQuery; city: TopCitySummary } | null {
+  const token = cityToken(needle)
+  if (!token) return null
+  const lower = needle.trim().toLowerCase()
+
+  const canonical = cities.filter((c) => c.id)
+  const byCanonical =
+    canonical.find((c) => c.id === token) ??
+    canonical.find((c) => cityToken(c.label) === token) ??
+    canonical.find((c) => c.id!.startsWith(`${token}-`))
+  if (byCanonical) return { query: { cityId: byCanonical.id! }, city: byCanonical }
+
+  const legacy = cities.filter((c) => !c.id && c.location)
+  const byLegacy =
+    legacy.find((c) => c.location.toLowerCase() === lower) ??
+    legacy.find((c) => c.location.toLowerCase().startsWith(`${lower},`)) ??
+    legacy.find((c) => cityToken(c.location.split(",")[0] ?? "") === token)
+  if (byLegacy) return { query: { location: byLegacy.location }, city: byLegacy }
+
+  return null
+}
+
+function normalizeTopCity(raw: Record<string, unknown>): TopCitySummary | null {
+  const id = String(raw.id ?? "").trim()
+  if (id) {
+    const region = String(raw.region ?? "").trim()
+    const country = String(raw.country ?? "").trim()
+    return {
+      id,
+      label: String(raw.label ?? id).trim(),
+      ...(region ? { region } : {}),
+      ...(country ? { country } : {}),
+      location: "",
+      ranked_count: Number(raw.ranked_count ?? raw.artist_count) || 0,
+    }
+  }
+  const location = String(raw.location ?? "").trim()
+  if (!location) return null
+  return {
+    id: null,
+    label: location.split(",")[0]?.trim() || location,
+    location,
+    ranked_count: Number(raw.artist_count) || 0,
+  }
+}
+
+function parseCitiesEnvelope(body: CitiesEnvelope): TopCitiesResponse {
+  if (!body.success) throw new Error(body.error || "Failed to load top cities")
+  const data = body.data as unknown as Record<string, unknown>
+  const items = (Array.isArray(data.items) ? data.items : [])
+    .map((item) => normalizeTopCity((item ?? {}) as Record<string, unknown>))
+    .filter((item): item is TopCitySummary => item !== null)
+  return {
+    items,
+    count: Number(data.count ?? items.length),
+    min_ranked: Number(data.min_ranked ?? data.min_artists ?? 20),
+    updated_at: data.updated_at ? String(data.updated_at) : null,
+  }
+}
+
+function topCityParams(query: TopCityQuery, limit: number, offset: number): URLSearchParams {
+  const params = new URLSearchParams({
+    limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
+    offset: String(offset),
+  })
+  if (query.cityId) params.set("city_id", query.cityId)
+  else params.set("location", query.location!.trim())
+  return params
 }
 
 /** Sub-nav links for the ranking family of pages. */
@@ -300,8 +389,12 @@ function normalizeArtist(item: TopArtist): TopArtist {
     item.instagram_score != null && !Number.isNaN(Number(item.instagram_score))
       ? Number(item.instagram_score)
       : undefined
+  const cityRank = item.city_rank != null && Number(item.city_rank) > 0 ? Number(item.city_rank) : undefined
+  const snapshotGlobalRank = item.ranking?.global_rank ?? undefined
   return {
     ...item,
+    rank: item.rank ?? cityRank ?? 0,
+    ...(item.global_rank == null && snapshotGlobalRank ? { global_rank: snapshotGlobalRank } : {}),
     image: item.image ?? getArtistImageUrl(item.banner_image) ?? null,
     final_score: coalesceScore(item.final_score, youtubeScore, instagramScore),
     youtube_score: youtubeScore,
@@ -516,7 +609,7 @@ export async function fetchTopArtistsServer(
   }
 }
 
-/** Banner cities with more than 50 ranked artists (`GET /inventory/top/cities`). */
+/** Canonical cities with enough ranked artists for a chart (`GET /inventory/top/cities`). */
 export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> {
   try {
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/cities`, {
@@ -524,33 +617,22 @@ export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> 
       cache: "no-store",
     })
     if (!res.ok) return null
-    const body = (await res.json()) as CitiesEnvelope
-    if (!body.success) return null
-    return {
-      items: Array.isArray(body.data.items) ? body.data.items : [],
-      count: body.data.count ?? body.data.items?.length ?? 0,
-      min_artists: body.data.min_artists ?? 50,
-    }
+    return parseCitiesEnvelope((await res.json()) as CitiesEnvelope)
   } catch {
     return null
   }
 }
 
-/** Exact-location city top 50 (`GET /inventory/top/city`). Local `rank` 1–50. */
+/** City top 50 (`GET /inventory/top/city`). Local `rank` 1–50. */
 export async function fetchTopArtistsByCityServer(
-  location: string,
+  query: TopCityQuery,
   limit = TOP_CITY_PAGE_SIZE,
   offset = 0,
   options?: { enrichImages?: boolean },
 ): Promise<TopArtistsPage | null> {
-  const trimmed = location.trim()
-  if (!trimmed) return null
+  if (!query.cityId?.trim() && !query.location?.trim()) return null
   try {
-    const params = new URLSearchParams({
-      location: trimmed,
-      limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
-      offset: String(offset),
-    })
+    const params = topCityParams(query, limit, offset)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/city?${params}`, {
       headers: { Accept: "application/json" },
       cache: "no-store",
@@ -801,27 +883,16 @@ export async function fetchTopCitiesClient(): Promise<TopCitiesResponse> {
   const res = await fetch(`/proxy/inventory/top/cities`, {
     headers: { Accept: "application/json" },
   })
-  const body = (await res.json()) as CitiesEnvelope
-  if (!body.success) throw new Error(body.error || "Failed to load top cities")
-  return {
-    items: Array.isArray(body.data.items) ? body.data.items : [],
-    count: body.data.count ?? body.data.items?.length ?? 0,
-    min_artists: body.data.min_artists ?? 50,
-  }
+  return parseCitiesEnvelope((await res.json()) as CitiesEnvelope)
 }
 
 export async function fetchTopArtistsByCityClient(
-  location: string,
+  query: TopCityQuery,
   limit = TOP_CITY_PAGE_SIZE,
   offset = 0,
 ): Promise<TopArtistsPage> {
-  const trimmed = location.trim()
-  if (!trimmed) throw new Error("location is required")
-  const params = new URLSearchParams({
-    location: trimmed,
-    limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
-    offset: String(offset),
-  })
+  if (!query.cityId?.trim() && !query.location?.trim()) throw new Error("city_id is required")
+  const params = topCityParams(query, limit, offset)
   const res = await fetch(`/proxy/inventory/top/city?${params}`, {
     headers: { Accept: "application/json" },
   })

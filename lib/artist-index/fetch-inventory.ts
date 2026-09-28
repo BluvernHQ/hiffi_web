@@ -180,12 +180,34 @@ async function fetchAllInventoryProfilesUncached(
   return all
 }
 
+/** `GET /inventory/{username}`; `undefined` means the endpoint isn't available on this API. */
+async function fetchInventoryProfileDirect(slug: string): Promise<PublicInventoryProfile | null | undefined> {
+  const res = await fetch(`${getApiBaseUrl()}/inventory/${encodeURIComponent(slug)}`, {
+    headers: { Accept: "application/json" },
+    next: {
+      revalidate: REVALIDATE_SECONDS,
+      tags: [ARTIST_INVENTORY_CACHE_TAG, artistInventoryUsernameTag(slug)],
+    },
+  })
+  if (res.status === 404) {
+    const body = await res.text().catch(() => "")
+    return /inventory profile not found/i.test(body) ? null : undefined
+  }
+  if (!res.ok) return undefined
+  const data = unwrapSuccessData<Record<string, unknown>>(await res.json())
+  const profile = normalizePublicInventoryProfile(data)
+  return profile.username === slug ? profile : undefined
+}
+
 export const fetchInventoryProfileByUsername = cache(
   async (username: string): Promise<PublicInventoryProfile | null> => {
     const slug = username.trim().toLowerCase()
     if (!slug) return null
 
     try {
+      const direct = await fetchInventoryProfileDirect(slug).catch(() => undefined)
+      if (direct !== undefined) return direct
+
       // Backend `username` is a partial/LIKE filter. Short usernames (e.g. "fin")
       // can sit after dozens of longer matches — page until an exact username hit.
       const pageSize = MAX_PAGE_SIZE

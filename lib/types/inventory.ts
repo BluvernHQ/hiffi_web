@@ -29,15 +29,80 @@ export type PublicInventoryClaimStatus = "unclaimed" | "pending" | "claimed"
 
 export type InventorySort = "name" | "name_desc" | "verified_first" | "newest" | "oldest"
 
+export type RankBand = "hiffi_500" | "top_5" | "top_10" | "top_25" | "none"
+
+export type Hiffi500Tier = "global_velocity" | "hot_50" | "rising" | "charting"
+
+export interface InventoryCityRef {
+  id: string
+  label: string
+  region?: string
+  country: string
+}
+
+/** Weekly-snapshot ranking. Exact rank is only public inside the Hiffi 500. */
+export interface PublicRanking {
+  status: "ranked" | "not_ranked"
+  band: RankBand
+  global_rank: number | null
+  highlight: {
+    kind: "city" | "genre"
+    label: string
+    rank: number
+    total: number
+  } | null
+  movement: {
+    spots_30d: number | null
+    streak_weeks: number | null
+  } | null
+  updated_at: string | null
+}
+
+export interface OwnerRankGroup {
+  id: string
+  label: string
+  rank: number | null
+  total: number
+}
+
+/** `GET /inventory/me/ranking` — private dashboard for the claimed owner. */
+export interface OwnerRanking {
+  username: string
+  status: "ranked" | "not_ranked"
+  global_rank: number | null
+  total_ranked: number
+  percentile: number | null
+  band: RankBand
+  next_band: {
+    band: RankBand
+    tier?: Hiffi500Tier
+    rank_needed: number
+    spots_away: number
+  } | null
+  city: OwnerRankGroup | null
+  genre: OwnerRankGroup | null
+  change: { d7: number | null; d30: number | null }
+  history: { week: string; global_rank: number | null }[]
+  drivers: {
+    youtube_score: number | null
+    instagram_score: number | null
+    momentum_30d: number | null
+  }
+  updated_at: string | null
+}
+
 export interface PublicInventoryProfile {
   username: string
   artist_name: string
   bio?: string | null
   other_socials?: InventorySocialLinks | null
   location?: string | null
+  city?: InventoryCityRef | null
   genre?: string | null
   banner_image?: string | null
   claim_status: PublicInventoryClaimStatus
+  /** Absent when the API predates the rank ladder. */
+  ranking?: PublicRanking
   created_at?: string
   updated_at?: string
 }
@@ -431,17 +496,142 @@ export function normalizePublicInventoryProfile(raw: Record<string, unknown>): P
   const createdAt = raw.created_at != null && String(raw.created_at).trim() ? String(raw.created_at) : undefined
   const updatedAt = raw.updated_at != null && String(raw.updated_at).trim() ? String(raw.updated_at) : undefined
 
+  const city = normalizeInventoryCityRef(raw.city)
+  const ranking = normalizePublicRanking(raw.ranking)
+
   return {
     username: String(raw.username ?? "").trim().toLowerCase(),
     artist_name: String(raw.artist_name ?? "").trim(),
     bio: raw.bio != null && String(raw.bio).trim() ? String(raw.bio).trim() : undefined,
     other_socials: normalizeInventorySocials(raw),
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
+    ...(city ? { city } : {}),
     genre,
     banner_image: bannerImage,
     claim_status: normalizePublicClaimStatus(raw.claim_status),
+    ...(ranking ? { ranking } : {}),
     ...(createdAt ? { created_at: createdAt } : {}),
     ...(updatedAt ? { updated_at: updatedAt } : {}),
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function positiveIntOrNull(value: unknown): number | null {
+  const n = Number(value)
+  return value != null && Number.isFinite(n) && n > 0 ? Math.round(n) : null
+}
+
+function numberOrNull(value: unknown): number | null {
+  const n = Number(value)
+  return value != null && value !== "" && Number.isFinite(n) ? n : null
+}
+
+const RANK_BANDS: RankBand[] = ["hiffi_500", "top_5", "top_10", "top_25", "none"]
+
+function normalizeRankBand(value: unknown): RankBand {
+  return RANK_BANDS.includes(value as RankBand) ? (value as RankBand) : "none"
+}
+
+export function normalizeInventoryCityRef(value: unknown): InventoryCityRef | null {
+  const raw = asRecord(value)
+  const id = String(raw?.id ?? "").trim()
+  const label = String(raw?.label ?? "").trim()
+  if (!raw || !id || !label) return null
+  const region = String(raw.region ?? "").trim()
+  return { id, label, ...(region ? { region } : {}), country: String(raw.country ?? "").trim() }
+}
+
+export function normalizePublicRanking(value: unknown): PublicRanking | undefined {
+  const raw = asRecord(value)
+  if (!raw) return undefined
+  const status = raw.status === "ranked" ? "ranked" : "not_ranked"
+  const band = status === "ranked" ? normalizeRankBand(raw.band) : "none"
+
+  const highlightRaw = asRecord(raw.highlight)
+  const highlightRank = positiveIntOrNull(highlightRaw?.rank)
+  const highlightLabel = String(highlightRaw?.label ?? "").trim()
+  const highlight =
+    highlightRaw && highlightRank && highlightLabel
+      ? {
+          kind: highlightRaw.kind === "genre" ? ("genre" as const) : ("city" as const),
+          label: highlightLabel,
+          rank: highlightRank,
+          total: positiveIntOrNull(highlightRaw.total) ?? 0,
+        }
+      : null
+
+  const movementRaw = asRecord(raw.movement)
+  const spots30d = positiveIntOrNull(movementRaw?.spots_30d)
+  const streakWeeks = positiveIntOrNull(movementRaw?.streak_weeks)
+
+  return {
+    status,
+    band,
+    global_rank: band === "hiffi_500" ? positiveIntOrNull(raw.global_rank) : null,
+    highlight,
+    movement: spots30d || streakWeeks ? { spots_30d: spots30d, streak_weeks: streakWeeks } : null,
+    updated_at: raw.updated_at ? String(raw.updated_at) : null,
+  }
+}
+
+function normalizeOwnerRankGroup(value: unknown): OwnerRankGroup | null {
+  const raw = asRecord(value)
+  const id = String(raw?.id ?? "").trim()
+  if (!raw || !id) return null
+  return {
+    id,
+    label: String(raw.label ?? id).trim(),
+    rank: positiveIntOrNull(raw.rank),
+    total: positiveIntOrNull(raw.total) ?? 0,
+  }
+}
+
+const HIFFI500_TIERS: Hiffi500Tier[] = ["global_velocity", "hot_50", "rising", "charting"]
+
+export function normalizeOwnerRanking(raw: Record<string, unknown>): OwnerRanking {
+  const nextRaw = asRecord(raw.next_band)
+  const changeRaw = asRecord(raw.change)
+  const driversRaw = asRecord(raw.drivers)
+  const nextRankNeeded = positiveIntOrNull(nextRaw?.rank_needed)
+
+  return {
+    username: String(raw.username ?? "").trim().toLowerCase(),
+    status: raw.status === "ranked" ? "ranked" : "not_ranked",
+    global_rank: positiveIntOrNull(raw.global_rank),
+    total_ranked: positiveIntOrNull(raw.total_ranked) ?? 0,
+    percentile: numberOrNull(raw.percentile),
+    band: normalizeRankBand(raw.band),
+    next_band:
+      nextRaw && nextRankNeeded
+        ? {
+            band: normalizeRankBand(nextRaw.band),
+            ...(HIFFI500_TIERS.includes(nextRaw.tier as Hiffi500Tier)
+              ? { tier: nextRaw.tier as Hiffi500Tier }
+              : {}),
+            rank_needed: nextRankNeeded,
+            spots_away: Math.max(0, Math.round(Number(nextRaw.spots_away) || 0)),
+          }
+        : null,
+    city: normalizeOwnerRankGroup(raw.city),
+    genre: normalizeOwnerRankGroup(raw.genre),
+    change: { d7: numberOrNull(changeRaw?.d7), d30: numberOrNull(changeRaw?.d30) },
+    history: Array.isArray(raw.history)
+      ? raw.history
+          .map((entry) => asRecord(entry))
+          .filter((entry): entry is Record<string, unknown> => Boolean(entry?.week))
+          .map((entry) => ({ week: String(entry.week), global_rank: positiveIntOrNull(entry.global_rank) }))
+      : [],
+    drivers: {
+      youtube_score: numberOrNull(driversRaw?.youtube_score),
+      instagram_score: numberOrNull(driversRaw?.instagram_score),
+      momentum_30d: numberOrNull(driversRaw?.momentum_30d),
+    },
+    updated_at: raw.updated_at ? String(raw.updated_at) : null,
   }
 }
 
