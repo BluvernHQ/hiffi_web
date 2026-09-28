@@ -5,10 +5,8 @@ import Link from "next/link"
 import { artistIndexCityHref } from "@/lib/artist-directory"
 import type { HubCity } from "@/lib/artist-index/hub-data"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
-import { cn } from "@/lib/utils"
 
 const INITIAL_CITIES = 12
-const INITIAL_CITIES_MOBILE = 6
 
 /** Ranked cities as a numbered, typographic list — the index's "where the sound lives". */
 type ArtistIndexScenesProps = {
@@ -36,17 +34,39 @@ export function ArtistIndexScenes({
           <ArtistDetailEyebrow>{eyebrow}</ArtistDetailEyebrow>
           <ArtistDetailHeading id="artist-index-scenes">{title}</ArtistDetailHeading>
         </div>
-        <p className="max-w-xs text-sm leading-6 text-[#77726A]">{description}</p>
+        <p className="max-w-xs text-sm leading-6 text-[#77726A] max-sm:hidden">{description}</p>
       </div>
 
-      <ol className="mt-8 grid border-t border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3 xl:grid-cols-4">
+      <ol
+        aria-label="Cities"
+        className="scrollbar-none -mx-4 mt-6 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 sm:hidden"
+      >
+        {cities.map((city, index) => (
+          <li key={city.slug} className="w-[9.5rem] shrink-0 snap-start">
+            <Link
+              href={artistIndexCityHref(city.slug)}
+              className="flex h-full flex-col rounded-2xl border border-[#0B0B0C]/12 bg-white/50 p-3.5 transition-colors active:bg-white"
+            >
+              <span className="font-mono text-[10px] tabular-nums text-[#0B0B0C]/35">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="font-signal mt-3 line-clamp-2 text-[1.3rem] font-bold uppercase leading-[0.95] text-[#0B0B0C]">
+                {city.label}
+              </span>
+              <span className="mt-auto pt-2 text-[11px] font-semibold tabular-nums text-[#77726A]">
+                {city.rankedCount.toLocaleString()}
+                <span className="ml-1 font-normal">ranked</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+
+      <ol className="mt-8 grid border-t max-sm:hidden border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3 xl:grid-cols-4">
         {visible.map((city, index) => (
           <li
             key={city.slug}
-            className={cn(
-              "border-b border-[#0B0B0C]/12",
-              !showAll && index >= INITIAL_CITIES_MOBILE && "max-sm:hidden",
-            )}
+            className="border-b border-[#0B0B0C]/12"
           >
             <Link href={artistIndexCityHref(city.slug)} className="group flex items-baseline gap-4 py-4">
               <span className="w-7 shrink-0 font-mono text-[11px] tabular-nums text-[#0B0B0C]/35 transition-colors group-hover:text-[#E8192C]">
@@ -67,15 +87,12 @@ export function ArtistIndexScenes({
         ))}
       </ol>
 
-      {cities.length > INITIAL_CITIES_MOBILE ? (
+      {cities.length > INITIAL_CITIES ? (
         <button
           type="button"
           onClick={() => setShowAll((value) => !value)}
           aria-expanded={showAll}
-          className={cn(
-            "mt-6 text-sm font-semibold text-[#0B0B0C] underline decoration-[#0B0B0C]/25 underline-offset-4 transition-colors hover:decoration-[#E8192C]",
-            cities.length <= INITIAL_CITIES && "sm:hidden",
-          )}
+          className="mt-6 text-sm font-semibold text-[#0B0B0C] underline decoration-[#0B0B0C]/25 underline-offset-4 transition-colors hover:decoration-[#E8192C] max-sm:hidden"
         >
           {showAll ? "Show fewer cities" : `All ${cities.length} cities`}
         </button>

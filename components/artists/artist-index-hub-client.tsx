@@ -288,7 +288,7 @@ export function ArtistIndexHubClient({
           }
         />
 
-        <div className={cn(artistPageContainer, "space-y-20 pb-20 pt-14 sm:space-y-24 sm:pt-20")}>
+        <div className={cn(artistPageContainer, "space-y-14 pb-16 pt-10 sm:space-y-24 sm:pb-20 sm:pt-20")}>
           {directory.isCleanHub ? <ArtistIndexScenes cities={feature.cities} /> : null}
 
           <section ref={gridSectionRef} aria-labelledby="artist-index-roster" className="scroll-mt-24">

@@ -146,7 +146,7 @@ export function ArtistCollectionView({
         </div>
       </section>
 
-      <div className={cn(artistPageContainer, "space-y-20 pb-20 pt-14 sm:space-y-24 sm:pt-20")}>
+      <div className={cn(artistPageContainer, "space-y-14 pb-16 pt-10 sm:space-y-24 sm:pb-20 sm:pt-20")}>
         <section aria-labelledby="artist-collection-roster">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
