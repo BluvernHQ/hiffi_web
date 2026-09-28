@@ -17,7 +17,6 @@ import { ArtistDetailClaimBand } from "@/components/artists/detail/ArtistDetailC
 import { ArtistDetailListen } from "@/components/artists/detail/ArtistDetailListen"
 import { ArtistDetailMasthead } from "@/components/artists/detail/ArtistDetailMasthead"
 import { ArtistDetailScene } from "@/components/artists/detail/ArtistDetailScene"
-import { ArtistDetailStanding } from "@/components/artists/detail/ArtistDetailStanding"
 import { ArtistDetailStory } from "@/components/artists/detail/ArtistDetailStory"
 import { artistButtonMuted } from "@/components/artists/artist-styles"
 import { signalNarrow } from "@/lib/fonts/signal"
@@ -145,8 +144,6 @@ export function ArtistDetailInteractive({
           }}
           fallback={null}
         />
-
-        <ArtistDetailStanding artist={artist} />
 
         <div className="grid gap-14 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-20">
           <ArtistDetailStory artist={artist} />
