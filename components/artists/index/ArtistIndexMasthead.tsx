@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { artistIndexCityHref, artistIndexGenreHref } from "@/lib/artist-directory"
 import type { ArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
-import { ArtistIndexChart } from "@/components/artists/index/ArtistIndexChart"
+import { ArtistIndexFaces } from "@/components/artists/index/ArtistIndexFaces"
 import { artistPageContainer } from "@/components/artists/artist-layout"
 
 const BROWSE_LINKS = [
@@ -42,8 +42,8 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
             </h1>
             <p className="mt-6 max-w-xl text-[15px] leading-7 text-white/60 sm:text-base">
               {artistCount > 0 ? `${artistCount.toLocaleString()}+ artists` : "Thousands of artists"}
-              {cityCount > 0 ? ` across ${cityCount} ranked cities` : ""}, ranked every week on the Hiffi 500. Find an
-              artist, or find yourself and claim your page.
+              {cityCount > 0 ? ` from ${cityCount} cities` : ""}, each with their story, their links and their scene.
+              Find an artist, or find yourself and claim your page.
             </p>
 
             <div className="mt-8 max-w-2xl">{search}</div>
@@ -62,9 +62,12 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
             </nav>
           </div>
 
-          <ArtistIndexChart chart={feature.chart} className="artist-rise [animation-delay:120ms]" />
+          <ArtistIndexFaces
+            faces={feature.faces}
+            cityCount={cityCount}
+            className="artist-rise [animation-delay:120ms]"
+          />
         </div>
-
       </div>
     </section>
   )

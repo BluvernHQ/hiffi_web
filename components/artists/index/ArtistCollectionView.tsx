@@ -126,8 +126,7 @@ export function ArtistCollectionView({
               <ArtistIndexChart
                 chart={cityChart.chart}
                 title={`This week · ${cityChart.city.label}`}
-                href={cityChart.href}
-                hrefLabel="City chart"
+                href={null}
                 className="artist-rise [animation-delay:120ms]"
               />
             ) : directory.totalMatches > 0 ? (

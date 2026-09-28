@@ -4,10 +4,10 @@ import type { HubChartArtist } from "@/lib/artist-index/hub-data"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { cn } from "@/lib/utils"
 
-/** "This week on the Hiffi 500" — the top five, on the dark masthead. */
+/** A weekly top five on a dark masthead. */
 type ArtistIndexChartProps = {
   chart: HubChartArtist[]
-  title?: string
+  title: string
   href?: string | null
   hrefLabel?: string
   className?: string
@@ -15,8 +15,8 @@ type ArtistIndexChartProps = {
 
 export function ArtistIndexChart({
   chart,
-  title = "This week · Hiffi 500",
-  href = "/top-artists",
+  title,
+  href = null,
   hrefLabel = "Full chart",
   className,
 }: ArtistIndexChartProps) {

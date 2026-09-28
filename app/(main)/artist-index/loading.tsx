@@ -26,18 +26,13 @@ export default function ArtistIndexLoading() {
               <div className="ink-skeleton mt-8 h-4 w-full max-w-lg rounded-full" />
               <div className="ink-skeleton mt-8 h-14 w-full max-w-2xl rounded-full" />
             </div>
-            <div className="hidden rounded-[26px] border border-white/10 p-6 lg:block">
-              <div className="ink-skeleton h-3 w-32 rounded-full" />
-              {Array.from({ length: 5 }, (_, index) => (
-                <div key={index} className="mt-5 flex items-center gap-4">
-                  <div className="ink-skeleton h-8 w-6 rounded" />
-                  <div className="ink-skeleton h-11 w-11 rounded-full" />
-                  <div className="flex-1">
-                    <div className="ink-skeleton h-3.5 w-2/3 rounded-full" />
-                    <div className="ink-skeleton mt-2 h-2.5 w-1/3 rounded-full" />
-                  </div>
-                </div>
-              ))}
+            <div className="hidden lg:block">
+              <div className="ink-skeleton mb-3 h-3 w-28 rounded-full" />
+              <div className="grid grid-cols-3 gap-2.5">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <div key={index} className="ink-skeleton aspect-[4/5] rounded-2xl" />
+                ))}
+              </div>
             </div>
           </div>
         </section>

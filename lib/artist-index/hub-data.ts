@@ -3,8 +3,6 @@ import {
   fetchTopArtistsByCityServer,
   fetchTopArtistsServer,
   fetchTopCitiesServer,
-  HIFFI_500_CITY_CHARTS,
-  hiffi500CityPath,
   type TopArtist,
 } from "@/lib/top-artists"
 import { artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
@@ -14,8 +12,14 @@ export type HubChartArtist = {
   name: string
   rank: number
   image: string | null
-  /** Secondary line: city on the global chart, Hiffi 500 rank on a city chart. */
   note: string | null
+}
+
+export type HubFace = {
+  username: string
+  name: string
+  image: string
+  place: string | null
 }
 
 export type HubCity = {
@@ -27,15 +31,16 @@ export type HubCity = {
 }
 
 export type ArtistIndexHubFeature = {
-  chart: HubChartArtist[]
+  faces: HubFace[]
   cities: HubCity[]
-  chartWeek: string | null
 }
 
 const CHART_SIZE = 5
+const FACES_SIZE = 6
+const FACES_POOL = 16
 const REVALIDATE_SECONDS = 900
 
-const EMPTY: ArtistIndexHubFeature = { chart: [], cities: [], chartWeek: null }
+const EMPTY: ArtistIndexHubFeature = { faces: [], cities: [] }
 
 function chartPlace(artist: TopArtist): string | null {
   const highlight = artist.ranking?.highlight
@@ -45,15 +50,17 @@ function chartPlace(artist: TopArtist): string | null {
 }
 
 async function loadHubFeature(): Promise<ArtistIndexHubFeature> {
-  const [top, cities] = await Promise.all([fetchTopArtistsServer(CHART_SIZE, 0), fetchTopCitiesServer()])
+  const [top, cities] = await Promise.all([fetchTopArtistsServer(FACES_POOL, 0), fetchTopCitiesServer()])
 
-  const chart = (top?.items ?? []).slice(0, CHART_SIZE).map((artist) => ({
-    username: artist.username,
-    name: artist.artist_name,
-    rank: artist.rank,
-    image: artist.image ?? null,
-    note: chartPlace(artist),
-  }))
+  const faces = (top?.items ?? [])
+    .filter((artist): artist is TopArtist & { image: string } => Boolean(artist.image))
+    .slice(0, FACES_SIZE)
+    .map((artist) => ({
+      username: artist.username,
+      name: artist.artist_name,
+      image: artist.image,
+      place: chartPlace(artist),
+    }))
 
   const hubCities = (cities?.items ?? [])
     .filter((city) => city.label && city.ranked_count > 0)
@@ -66,15 +73,13 @@ async function loadHubFeature(): Promise<ArtistIndexHubFeature> {
       rankedCount: city.ranked_count,
     }))
 
-  const chartWeek = cities?.updated_at ?? top?.items[0]?.ranking?.updated_at ?? null
-
-  if (chart.length === 0 && hubCities.length === 0) throw new Error("hub feature empty")
-  return { chart, cities: hubCities, chartWeek }
+  if (faces.length === 0 && hubCities.length === 0) throw new Error("hub feature empty")
+  return { faces, cities: hubCities }
 }
 
 let cached: { expiresAt: number; promise: Promise<ArtistIndexHubFeature> } | null = null
 
-/** This week's top of the Hiffi 500 and the ranked cities. Decoration: failures resolve empty. */
+/** Featured faces and the ranked cities. Decoration: failures resolve empty. */
 export function getArtistIndexHubFeature(): Promise<ArtistIndexHubFeature> {
   const now = Date.now()
   if (!cached || cached.expiresAt <= now) {
@@ -91,8 +96,6 @@ export function getArtistIndexHubFeature(): Promise<ArtistIndexHubFeature> {
 export type CityChart = {
   city: HubCity
   chart: HubChartArtist[]
-  /** Full city chart on the Hiffi 500, when that city has a published page. */
-  href: string | null
 }
 
 const cityChartCache = new Map<string, { expiresAt: number; promise: Promise<CityChart | null> }>()
@@ -103,20 +106,16 @@ async function loadCityChart(slug: string): Promise<CityChart | null> {
   if (!city?.id) return null
 
   const page = await fetchTopArtistsByCityServer({ cityId: city.id }, CHART_SIZE, 0)
-  const chart = (page?.items ?? []).slice(0, CHART_SIZE).map((artist) => {
-    const globalRank = artist.ranking?.global_rank ?? artist.global_rank ?? null
-    return {
-      username: artist.username,
-      name: artist.artist_name,
-      rank: artist.city_rank ?? artist.rank,
-      image: artist.image ?? null,
-      note: globalRank ? `#${globalRank} on the Hiffi 500` : null,
-    }
-  })
+  const chart = (page?.items ?? []).slice(0, CHART_SIZE).map((artist) => ({
+    username: artist.username,
+    name: artist.artist_name,
+    rank: artist.city_rank ?? artist.rank,
+    image: artist.image ?? null,
+    note: null,
+  }))
   if (chart.length === 0) return null
 
-  const published = HIFFI_500_CITY_CHARTS.some((entry) => entry.slug === slug)
-  return { city, chart, href: published ? hiffi500CityPath(slug) : null }
+  return { city, chart }
 }
 
 /** A city's weekly top five (city ranks), cached like the hub feature. */

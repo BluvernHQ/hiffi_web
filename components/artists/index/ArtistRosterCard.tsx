@@ -8,7 +8,7 @@ import { artistClaimState, artistPlaceLabel } from "@/components/artists/detail/
 const BAND_LABEL = { top_5: "Top 5%", top_10: "Top 10%", top_25: "Top 25%" } as const
 
 function rosterBadge(artist: Artist): { text: string; gold: boolean } | null {
-  if (artist.rank > 0) return { text: `#${artist.rank} Hiffi 500`, gold: artist.rank <= 10 }
+  if (artist.rank > 0) return { text: `Ranked #${artist.rank}`, gold: artist.rank <= 10 }
   const band = artist.ranking?.status === "ranked" ? artist.ranking.band : null
   return band && band in BAND_LABEL ? { text: BAND_LABEL[band as keyof typeof BAND_LABEL], gold: false } : null
 }
