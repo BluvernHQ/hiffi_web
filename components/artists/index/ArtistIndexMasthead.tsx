@@ -4,6 +4,7 @@ import { artistIndexCityHref, artistIndexGenreHref } from "@/lib/artist-director
 import type { ArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
 import { formatChartWeek } from "@/components/artists/detail/artist-detail-data"
 import { ArtistIndexChart } from "@/components/artists/index/ArtistIndexChart"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 const BROWSE_LINKS = [
   { label: "Hip-Hop", href: artistIndexGenreHref("hip-hop") },
@@ -38,13 +39,13 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
       />
       <div className="mood-grain pointer-events-none absolute inset-0 -z-10 opacity-[0.06] mix-blend-overlay" aria-hidden />
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-10 pb-12 pt-12 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-end lg:gap-14 lg:pb-14 lg:pt-20">
+      <div className={artistPageContainer}>
+        <div className="grid gap-10 pb-12 pt-12 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24 lg:pb-14 lg:pt-20">
           <div className="artist-rise min-w-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/50 sm:text-[11px]">
               Hiffi Artist Index
             </p>
-            <h1 className="font-signal mt-4 text-[clamp(3rem,7.6vw,6.4rem)] font-bold uppercase leading-[0.86] tracking-[-0.005em]">
+            <h1 className="font-signal mt-4 text-[length:clamp(3rem,7.4vw,7.75rem)] font-bold uppercase leading-[0.86] tracking-[-0.005em]">
               Hip-hop &amp; rap artists,
               <span className="block text-white/35">city by city.</span>
             </h1>
@@ -54,7 +55,7 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
               artist, or find yourself and claim your page.
             </p>
 
-            <div className="mt-8 max-w-xl">{search}</div>
+            <div className="mt-8 max-w-2xl">{search}</div>
 
             <nav aria-label="Browse the index" className="mt-5 flex flex-wrap items-center gap-2">
               <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.28em] text-white/35">Browse</span>

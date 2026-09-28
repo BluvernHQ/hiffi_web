@@ -218,6 +218,47 @@
   }
 }
 
+/* Paper skeleton — a slow warm sheen instead of a flat pulse */
+@keyframes paper-sheen {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.paper-skeleton {
+  background-color: rgba(11, 11, 12, 0.06);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: paper-sheen 1.6s ease-in-out infinite;
+}
+
+.ink-skeleton {
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: paper-sheen 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-skeleton,
+  .ink-skeleton {
+    animation: none;
+  }
+}
+
 /* Mood picker — subtle film grain on orbs */
 .mood-grain {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");

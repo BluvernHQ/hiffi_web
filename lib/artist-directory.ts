@@ -5,7 +5,7 @@ import { getThumbnailUrl } from "@/lib/storage"
 export const ARTIST_INDEX_PATH = "/artist-index" as const
 export const ARTIST_INDEX_CLAIM_PATH = "/artist-index/claim" as const
 
-export const ARTIST_DIRECTORY_PAGE_SIZE = 9
+export const ARTIST_DIRECTORY_PAGE_SIZE = 12
 
 export type ArtistDirectoryFilterOption = {
   id: string

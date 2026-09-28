@@ -7,6 +7,7 @@ import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
 import { ArtistDetailInteractive } from "@/components/artists/ArtistDetailInteractive"
 import type { ArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
 import { saveArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 type ProfilePayload = {
   artist: Artist
@@ -110,7 +111,7 @@ export function ArtistProfilePageClient({
       bleed
     >
       {loadError ? (
-        <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 lg:px-8">
+        <div className={`${artistPageContainer} pt-4`}>
           <div
             className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
             role="alert"

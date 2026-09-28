@@ -11,6 +11,7 @@ import {
   artistPlaceLabel,
   formatChartWeek,
 } from "@/components/artists/detail/artist-detail-data"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 type ArtistDetailMastheadProps = {
   artist: Artist
@@ -61,7 +62,7 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
       />
       <div className="mood-grain pointer-events-none absolute inset-0 -z-10 opacity-[0.06] mix-blend-overlay" aria-hidden />
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className={artistPageContainer}>
         {topBar ? <div className="flex items-center justify-between gap-4 pt-5 sm:pt-6">{topBar}</div> : null}
 
         <div className="grid items-end gap-7 pb-10 pt-8 sm:pb-12 md:grid-cols-[auto_minmax(0,1fr)] md:gap-12 lg:pt-14">

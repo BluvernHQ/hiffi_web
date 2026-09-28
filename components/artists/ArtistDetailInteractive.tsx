@@ -22,6 +22,7 @@ import { ArtistDetailStory } from "@/components/artists/detail/ArtistDetailStory
 import { artistButtonMuted } from "@/components/artists/artist-styles"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 type ArtistDetailInteractiveProps = {
   artist: Artist
@@ -55,7 +56,7 @@ export function ArtistDetailInteractive({
 
   if (editMode) {
     return (
-      <div className="mx-auto max-w-6xl space-y-6 px-4 pb-10 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+      <div className={cn(artistPageContainer, "space-y-6 pb-10 pt-5 sm:pt-6")}>
         <header
           id="artist-edit-panel"
           className="rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6"
@@ -134,7 +135,7 @@ export function ArtistDetailInteractive({
         }
       />
 
-      <div className="mx-auto max-w-6xl space-y-20 px-4 pb-20 pt-12 sm:space-y-24 sm:px-6 sm:pt-16 lg:px-8">
+      <div className={cn(artistPageContainer, "space-y-20 pb-20 pt-12 sm:space-y-24 sm:pt-16")}>
         <ClaimReceiptBanner
           artist={{
             slug: artist.slug,

@@ -22,6 +22,7 @@ import type { ArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 type DirectorySnapshot = {
   query: string
@@ -287,7 +288,7 @@ export function ArtistIndexHubClient({
           }
         />
 
-        <div className="mx-auto max-w-6xl space-y-20 px-4 pb-20 pt-14 sm:space-y-24 sm:px-6 sm:pt-20 lg:px-8">
+        <div className={cn(artistPageContainer, "space-y-20 pb-20 pt-14 sm:space-y-24 sm:pt-20")}>
           {directory.isCleanHub ? <ArtistIndexScenes cities={feature.cities} /> : null}
 
           <section ref={gridSectionRef} aria-labelledby="artist-index-roster" className="scroll-mt-24">

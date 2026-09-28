@@ -29,7 +29,7 @@ export function ArtistIndexScenes({ cities }: { cities: HubCity[] }) {
         </p>
       </div>
 
-      <ol className="mt-8 grid border-t border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3">
+      <ol className="mt-8 grid border-t border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3 xl:grid-cols-4">
         {visible.map((city, index) => (
           <li
             key={city.slug}
