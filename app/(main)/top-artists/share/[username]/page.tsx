@@ -20,11 +20,12 @@ function firstParam(value: string | string[] | undefined): string {
   return String(value || "").trim()
 }
 
-function buildDeepLink(username: string, city: string, mode: string): string {
+function buildDeepLink(username: string, city: string, mode: string, windowDays: string): string {
   const params = new URLSearchParams()
   params.set("artist", username)
   if (city) params.set("city", city)
   if (mode && mode !== "overall") params.set("mode", mode)
+  if (mode === "risers" && windowDays === "30") params.set("window", "30")
   return `/top-artists?${params.toString()}`
 }
 
@@ -116,7 +117,7 @@ export default async function TopArtistSharePage({ params, searchParams }: PageP
   const city = firstParam(sp.city)
   const mode = firstParam(sp.mode) || "overall"
   const handle = username.trim().toLowerCase().replace(/^@+/, "")
-  const target = buildDeepLink(handle, city, mode)
+  const target = buildDeepLink(handle, city, mode, firstParam(sp.window))
 
   return <TopArtistShareRedirect href={target} />
 }

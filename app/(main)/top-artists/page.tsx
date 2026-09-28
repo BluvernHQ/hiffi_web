@@ -23,6 +23,7 @@ import {
   type TopArtist,
 } from "@/lib/top-artists"
 import { cn } from "@/lib/utils"
+import { DEFAULT_SHARE_SCOPE, chartModeLabel, type ChartShareScope } from "@/lib/top-chart-share"
 
 export const dynamic = "force-dynamic"
 
@@ -109,6 +110,23 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
     }
   }
 
+  const onBoard = Boolean(initialArtist && board?.items.some((artist) => artist.username === initialArtist?.username))
+  const initialScope: ChartShareScope = onBoard
+    ? {
+        mode,
+        cityKey: initialCity?.key ?? null,
+        cityLabel: initialCity?.label ?? null,
+        window: windowDays,
+      }
+    : DEFAULT_SHARE_SCOPE
+  const initialContext = !onBoard
+    ? "Hiffi Hip-Hop 500"
+    : initialCity
+      ? `${initialCity.label} chart`
+      : mode === "overall"
+        ? "Hiffi Hip-Hop 500"
+        : chartModeLabel(mode)
+
   const chartWeek = formatChartWeek(podium[0]?.ranking?.updated_at ?? citiesResponse?.updated_at)
 
   const jsonLd =
@@ -134,7 +152,11 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
     <ArtistDirectoryShell claimLabel="Claim Now" bleed tone="ink">
       {jsonLd ? <JsonLd data={jsonLd} /> : null}
       <div className={cn(signalNarrow.variable, "text-[#F4F1EA] [color-scheme:dark]")}>
-        <TopChartDrawerProvider initialArtist={initialArtist}>
+        <TopChartDrawerProvider
+          initialArtist={initialArtist}
+          initialContext={initialContext}
+          initialScope={initialScope}
+        >
           <TopChartMasthead podium={podium} chartWeek={chartWeek} totalRanked={totalRanked} cityCount={cities.length} />
 
           <div className={cn(artistPageContainer, "space-y-20 pb-16 pt-12 sm:space-y-28 sm:pb-20 sm:pt-20")}>

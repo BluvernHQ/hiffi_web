@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BadgeCheck, ChevronDown, Loader2, Search } from "lucide-react"
 import { loadTopChartPageAction, loadTopChartPhotosAction } from "@/app/(main)/top-artists/actions"
 import { CHART_MODES, type ChartMode, type ChartPage } from "@/lib/top-chart"
+import type { ChartShareScope } from "@/lib/top-chart-share"
 import type { RisersWindow, TopArtist } from "@/lib/top-artists"
 import { cn } from "@/lib/utils"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
@@ -226,6 +227,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
   const kicker =
     mode === "overall" && city ? `The top 50 in ${city.label}, scored the same way as the 500.` : modeMeta.kicker
   const drawerContext = mode === "overall" && city ? `${city.label} chart` : mode === "overall" ? "Hiffi Hip-Hop 500" : modeMeta.label
+  const shareScope: ChartShareScope = {
+    mode,
+    cityKey: mode === "overall" ? (city?.key ?? null) : null,
+    cityLabel: mode === "overall" ? (city?.label ?? null) : null,
+    window: windowDays,
+  }
 
   return (
     <section id="ranking" aria-labelledby="top-chart-heading" className="scroll-mt-24">
@@ -399,7 +406,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
               <li key={artist.username} className="artist-rise" style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}>
                 <button
                   type="button"
-                  onClick={() => open(artist, drawerContext)}
+                  onClick={() => open(artist, drawerContext, shareScope)}
                   className={cn(
                     rowGrid,
                     "group -mx-2 w-[calc(100%+1rem)] rounded-xl px-2 py-3.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:py-4",

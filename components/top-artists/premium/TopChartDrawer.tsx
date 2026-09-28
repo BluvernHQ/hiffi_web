@@ -3,13 +3,14 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import * as Dialog from "@radix-ui/react-dialog"
-import { ArrowUpRight, BadgeCheck, X } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, BadgeCheck, Share2, X } from "lucide-react"
 import { topArtistSocialLinks, topArtistTier, type TopArtist } from "@/lib/top-artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
-import { Hiffi500ShareButton } from "@/components/artists/top500/hiffi500-share-button"
+import { TopChartSharePanel } from "@/components/top-artists/premium/TopChartShare"
+import { DEFAULT_SHARE_SCOPE, type ChartShareScope } from "@/lib/top-chart-share"
 import {
   chartArtistHref,
   chartMovement,
@@ -18,9 +19,9 @@ import {
   formatMomentum,
 } from "@/components/top-artists/premium/chart-format"
 
-type Selection = { artist: TopArtist; context: string }
+type Selection = { artist: TopArtist; context: string; scope: ChartShareScope }
 
-type DrawerContextValue = { open: (artist: TopArtist, context?: string) => void }
+type DrawerContextValue = { open: (artist: TopArtist, context?: string, scope?: ChartShareScope) => void }
 
 const DrawerContext = createContext<DrawerContextValue | null>(null)
 
@@ -35,16 +36,20 @@ function syncArtistParam(username: string | null) {
 export function TopChartDrawerProvider({
   children,
   initialArtist = null,
+  initialContext = "Hiffi Hip-Hop 500",
+  initialScope = DEFAULT_SHARE_SCOPE,
 }: {
   children: ReactNode
   initialArtist?: TopArtist | null
+  initialContext?: string
+  initialScope?: ChartShareScope
 }) {
   const [selection, setSelection] = useState<Selection | null>(
-    initialArtist ? { artist: initialArtist, context: "Hiffi Hip-Hop 500" } : null,
+    initialArtist ? { artist: initialArtist, context: initialContext, scope: initialScope } : null,
   )
 
-  const open = useCallback((artist: TopArtist, context = "Hiffi Hip-Hop 500") => {
-    setSelection({ artist, context })
+  const open = useCallback((artist: TopArtist, context = "Hiffi Hip-Hop 500", scope = DEFAULT_SHARE_SCOPE) => {
+    setSelection({ artist, context, scope })
     syncArtistParam(artist.username)
   }, [])
 
@@ -68,7 +73,7 @@ export function TopChartDrawerProvider({
             )}
             aria-describedby={undefined}
           >
-            {selection ? <DrawerBody selection={selection} /> : null}
+            {selection ? <DrawerBody key={selection.artist.username} selection={selection} /> : null}
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
@@ -86,11 +91,13 @@ export function useTopChartDrawer(): DrawerContextValue {
 export function TopChartArtistButton({
   artist,
   context,
+  scope,
   className,
   children,
 }: {
   artist: TopArtist
   context?: string
+  scope?: ChartShareScope
   className?: string
   children: ReactNode
 }) {
@@ -98,7 +105,7 @@ export function TopChartArtistButton({
   return (
     <button
       type="button"
-      onClick={() => open(artist, context)}
+      onClick={() => open(artist, context, scope)}
       className={className}
       aria-label={`${artist.artist_name}, open chart details`}
     >
@@ -116,8 +123,52 @@ function Metric({ label, value }: { label: string; value: string }) {
   )
 }
 
+const headerButton =
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+
 function DrawerBody({ selection }: { selection: Selection }) {
-  const { artist, context } = selection
+  const [view, setView] = useState<"profile" | "share">("profile")
+  const { artist, context, scope } = selection
+  const show = (next: "profile" | "share", from: HTMLElement) => {
+    setView(next)
+    from.closest('[role="dialog"]')?.scrollTo({ top: 0 })
+  }
+
+  if (view === "share") {
+    return (
+      <>
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-[#0E0E10]/95 px-6 py-4 backdrop-blur sm:px-8">
+          <button type="button" onClick={(event) => show("profile", event.currentTarget)} className={cn(headerButton, "px-3.5 text-xs font-semibold")}>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Profile
+          </button>
+          <Dialog.Title className="font-signal min-w-0 truncate text-xl font-bold uppercase leading-none">
+            {artist.artist_name}
+          </Dialog.Title>
+          <Dialog.Close className={cn(headerButton, "w-9")}>
+            <X className="h-4 w-4" aria-hidden />
+            <span className="sr-only">Close</span>
+          </Dialog.Close>
+        </header>
+        <div className="flex-1 px-6 py-7 sm:px-8">
+          <TopChartSharePanel artist={artist} scope={scope} />
+        </div>
+      </>
+    )
+  }
+
+  return <DrawerProfile artist={artist} context={context} onShare={(from) => show("share", from)} />
+}
+
+function DrawerProfile({
+  artist,
+  context,
+  onShare,
+}: {
+  artist: TopArtist
+  context: string
+  onShare: (from: HTMLElement) => void
+}) {
   const place = chartPlace(artist)
   const tier = topArtistTier(artist.global_rank ?? artist.rank)
   const socials = topArtistSocialLinks(artist.other_socials)
@@ -154,11 +205,17 @@ function DrawerBody({ selection }: { selection: Selection }) {
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0B0B0C]/40 via-[#0B0B0C]/70 to-[#0E0E10]" aria-hidden />
 
         <div className="flex items-center justify-between gap-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/55">{context}</p>
-          <Dialog.Close className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
-            <X className="h-4 w-4" aria-hidden />
-            <span className="sr-only">Close</span>
-          </Dialog.Close>
+          <p className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.3em] text-white/55">{context}</p>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={(event) => onShare(event.currentTarget)} className={cn(headerButton, "px-3.5 text-xs font-semibold")}>
+              <Share2 className="h-3.5 w-3.5" aria-hidden />
+              Share
+            </button>
+            <Dialog.Close className={cn(headerButton, "w-9")}>
+              <X className="h-4 w-4" aria-hidden />
+              <span className="sr-only">Close</span>
+            </Dialog.Close>
+          </div>
         </div>
 
         <div className="mt-6 flex items-end gap-5">
@@ -256,10 +313,14 @@ function DrawerBody({ selection }: { selection: Selection }) {
                 Instagram <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
               </a>
             ) : null}
-            <Hiffi500ShareButton
-              artist={artist}
-              className="border-white/15 bg-transparent px-4 py-2 text-xs text-white/75 hover:border-white/40 hover:bg-transparent hover:text-white"
-            />
+            <button
+              type="button"
+              onClick={(event) => onShare(event.currentTarget)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/75 transition-colors hover:border-white/40 hover:text-white"
+            >
+              <Share2 className="h-3.5 w-3.5" aria-hidden />
+              Share card
+            </button>
           </div>
         </div>
 

@@ -3,6 +3,9 @@ import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
 import { TopChartArtistButton } from "@/components/top-artists/premium/TopChartDrawer"
 import { chartPlace } from "@/components/top-artists/premium/chart-format"
+import type { ChartShareScope } from "@/lib/top-chart-share"
+
+const RISERS_SCOPE: ChartShareScope = { mode: "risers", cityKey: null, cityLabel: null, window: 7 }
 
 /** Biggest weekly climbs, as portrait tiles. */
 export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
@@ -28,7 +31,12 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
           const climb = artist.rank_delta_7d ?? 0
           return (
             <li key={artist.username} className="w-[62%] shrink-0 snap-start sm:w-auto">
-              <TopChartArtistButton artist={artist} context="Biggest risers" className="group block w-full text-left">
+              <TopChartArtistButton
+                artist={artist}
+                context="Biggest risers"
+                scope={RISERS_SCOPE}
+                className="group block w-full text-left"
+              >
                 <span className="relative block overflow-hidden rounded-[20px] bg-[#141416] ring-1 ring-white/10">
                   <ArtistPortrait
                     artist={{ name: artist.artist_name, image: artist.image ?? null }}
