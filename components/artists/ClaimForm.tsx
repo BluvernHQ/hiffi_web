@@ -18,7 +18,9 @@ import {
   saveClaimDraft,
   validateClaimStep,
 } from "@/lib/artist-index/claim-draft"
+import { loadClaimReceipt, resolveClaimReceiptState } from "@/lib/artist-index/claim-receipt"
 import type { InventorySocialPlatform } from "@/lib/types/inventory"
+import { useClaimReceipt } from "@/hooks/use-claim-receipt"
 import { artistButtonMuted, artistButtonSolid } from "@/components/artists/artist-styles"
 import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
 import { useTurnstileForm } from "@/hooks/use-turnstile-form"
@@ -26,6 +28,7 @@ import { cn } from "@/lib/utils"
 import { ClaimAccountStep } from "./claim/ClaimAccountStep"
 import { ClaimProfileStep } from "./claim/ClaimProfileStep"
 import { ClaimSocialsStep } from "./claim/ClaimSocialsStep"
+import { ClaimNotApprovedNotice } from "./claim/ClaimReceiptNotices"
 import { ClaimStepper } from "./claim/ClaimStepper"
 import { ClaimSubmitted } from "./claim/ClaimSubmitted"
 
@@ -73,15 +76,37 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
+  const [separateRequest, setSeparateRequest] = useState(false)
   const { turnstileRef, setTurnstileToken, submitBlocked, resetTurnstile, getTurnstileTokenForSubmit } =
     useTurnstileForm(TURNSTILE_ACTION)
+  const {
+    receipt,
+    ready: receiptReady,
+    save: saveReceipt,
+    clear: clearReceipt,
+  } = useClaimReceipt(artist.slug)
+  const receiptState = receipt
+    ? resolveClaimReceiptState(receipt, artist.claim_status, artist.verified)
+    : null
 
   const stepIndex = CLAIM_STEPS.findIndex((s) => s.id === step)
   const isLastStep = stepIndex === CLAIM_STEPS.length - 1
 
   useEffect(() => {
-    const restored = loadClaimDraft(artist.slug, createClaimDraft(artist))
-    if (restored) setDraft(restored)
+    const fallback = createClaimDraft(artist)
+    const restored = loadClaimDraft(artist.slug, fallback)
+    const previous = restored ? null : loadClaimReceipt(artist.slug)
+    if (restored) {
+      setDraft(restored)
+    } else if (previous?.draft) {
+      setDraft({
+        ...fallback,
+        ...previous.draft,
+        socials: { ...fallback.socials, ...previous.draft.socials },
+        password: "",
+        confirmPassword: "",
+      })
+    }
     restoredRef.current = true
   }, [artist])
 
@@ -144,7 +169,7 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
     setSubmitError(null)
 
     try {
-      await submitInventoryClaim({
+      const submitted = await submitInventoryClaim({
         username: artist.slug,
         name: draft.name.trim(),
         email: draft.email.trim(),
@@ -158,6 +183,18 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
         ...(draft.openToCollab ? { open_to_collab: draft.openToCollab } : {}),
       })
       clearClaimDraft(artist.slug)
+      const { password: _password, confirmPassword: _confirm, ...draftWithoutPassword } = draft
+      saveReceipt({
+        claimId: submitted.id,
+        slug: artist.slug,
+        artistName: artist.name,
+        email: draft.email.trim(),
+        submittedAt: new Date().toISOString(),
+        accountSetup: accountSetupEnabled,
+        ownershipRequest: isOwnershipRequest,
+        draft: draftWithoutPassword,
+      })
+      setSeparateRequest(false)
       setSubmittedEmail(draft.email.trim())
       requestAnimationFrame(() => {
         containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -208,15 +245,32 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
     }
   }
 
-  if (submittedEmail) {
+  if (!receiptReady) {
+    return <div ref={containerRef} className="min-h-[480px] scroll-mt-24" aria-busy="true" />
+  }
+
+  const returningUnderReview =
+    !submittedEmail && receipt && receiptState === "under_review" && !separateRequest
+
+  if (submittedEmail || returningUnderReview) {
     return (
       <div ref={containerRef} className="scroll-mt-24">
         <ClaimSubmitted
           artistName={artist.name}
           artistSlug={artist.slug}
-          email={submittedEmail}
-          isOwnershipRequest={isOwnershipRequest}
-          accountSetupEnabled={accountSetupEnabled}
+          email={submittedEmail ?? receipt?.email ?? ""}
+          isOwnershipRequest={receipt?.ownershipRequest ?? isOwnershipRequest}
+          accountSetupEnabled={receipt?.accountSetup ?? accountSetupEnabled}
+          submittedAt={receipt?.submittedAt}
+          onSeparateRequest={
+            returningUnderReview
+              ? () => {
+                  setSeparateRequest(true)
+                  setDraft(createClaimDraft(artist))
+                  setStep("account")
+                }
+              : undefined
+          }
         />
       </div>
     )
@@ -224,6 +278,18 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
 
   return (
     <div ref={containerRef} className="scroll-mt-24 space-y-6">
+      {receipt && receiptState === "not_approved" ? (
+        <ClaimNotApprovedNotice
+          email={receipt.email}
+          submittedAt={receipt.submittedAt}
+          onStartFresh={() => {
+            clearReceipt()
+            clearClaimDraft(artist.slug)
+            setDraft(createClaimDraft(artist))
+            setErrors({})
+          }}
+        />
+      ) : null}
       <ClaimStepper current={step} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">

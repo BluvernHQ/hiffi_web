@@ -5,6 +5,7 @@ import type { Artist } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistProfilePhotoAlt, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
+import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
 import { cn } from "@/lib/utils"
 
 type ArtistDetailHeroProps = {
@@ -53,8 +54,8 @@ export function ArtistDetailHero({
     .slice(0, 2)
     .toUpperCase()
 
-  return (
-    <section className={cn("mx-auto max-w-6xl", className)}>
+  const statusBanner = (
+    <>
       {isUnclaimed ? (
         <div className="mb-3 rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 px-4 py-3 sm:mb-4 sm:px-5">
           <p className="text-sm text-foreground">
@@ -84,6 +85,20 @@ export function ArtistDetailHero({
           </p>
         </div>
       ) : null}
+    </>
+  )
+
+  return (
+    <section className={cn("mx-auto max-w-6xl", className)}>
+      <ClaimReceiptBanner
+        artist={{
+          slug: artist.slug,
+          name: artist.name,
+          claim_status: artist.claim_status,
+          verified: artist.verified,
+        }}
+        fallback={statusBanner}
+      />
 
       <div
         className={cn(

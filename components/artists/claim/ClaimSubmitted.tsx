@@ -4,6 +4,7 @@ import { Check, Clock, Mail, UserCheck } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { artistButtonMuted } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
+import { formatClaimDate } from "@/lib/artist-index/claim-receipt"
 
 const CLAIM_VERIFICATION_EMAIL = "creator-noreply@hiffi.com"
 
@@ -20,6 +21,10 @@ type ClaimSubmittedProps = {
   email: string
   isOwnershipRequest: boolean
   accountSetupEnabled: boolean
+  /** Set when the claimant returns later — shown so they know which claim this is. */
+  submittedAt?: string
+  /** Lets someone else on the same device file their own request instead. */
+  onSeparateRequest?: () => void
 }
 
 export function ClaimSubmitted({
@@ -28,7 +33,10 @@ export function ClaimSubmitted({
   email,
   isOwnershipRequest,
   accountSetupEnabled,
+  submittedAt,
+  onSeparateRequest,
 }: ClaimSubmittedProps) {
+  const submittedLabel = formatClaimDate(submittedAt)
   const items: TimelineItem[] = [
     {
       icon: Check,
@@ -82,6 +90,7 @@ export function ClaimSubmitted({
         Thanks — we&apos;re reviewing your claim for {artistName}.
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
+        {submittedLabel ? `Submitted ${submittedLabel} with ${email}. ` : null}
         You don&apos;t need to do anything else right now. Keep an eye on your inbox, including spam.
       </p>
 
@@ -136,6 +145,19 @@ export function ClaimSubmitted({
           Explore Hiffi
         </Link>
       </div>
+
+      {onSeparateRequest ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Not your claim?{" "}
+          <button
+            type="button"
+            onClick={onSeparateRequest}
+            className="font-medium text-[#E8192C] underline-offset-2 hover:underline"
+          >
+            Submit a separate ownership request
+          </button>
+        </p>
+      ) : null}
     </section>
   )
 }

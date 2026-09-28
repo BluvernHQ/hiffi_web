@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { ArtistIndexHeader } from "@/components/artists/ArtistIndexHeader"
 import { ArtistAvatar } from "@/components/artists/ArtistAvatar"
 import { ClaimForm } from "@/components/artists/ClaimForm"
+import { ClaimApprovedNotice } from "@/components/artists/claim/ClaimReceiptNotices"
 import { formatCityState, formatGenreLabel, getArtistBySlug } from "@/lib/artists"
 import { routeMetadata } from "@/lib/seo/route-metadata"
 import { SiteFooter } from "@/components/layout/site-footer"
@@ -110,6 +111,7 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
             <p className="mt-2 text-sm text-muted-foreground">
               <strong>{artist.name}</strong> is no longer accepting new claim submissions.
             </p>
+            <ClaimApprovedNotice slug={artist.slug} />
             <Link
               href={`/artist-index/${artist.slug}`}
               className="mt-6 inline-flex text-sm font-medium text-[#E8192C] hover:underline"
