@@ -69,6 +69,15 @@ export function clearClaimReceipt(slug: string): void {
   }
 }
 
+/** Login with the claim email pre-filled, landing on the artist's Hiffi profile afterwards. */
+export function claimSignInHref(receipt: Pick<ClaimReceipt, "email" | "slug">): string {
+  const params = new URLSearchParams({
+    email: receipt.email,
+    redirect: `/profile/${encodeURIComponent(receipt.slug)}`,
+  })
+  return `/login?${params.toString()}`
+}
+
 export function formatClaimDate(value?: string): string | null {
   if (!value) return null
   const date = new Date(value)

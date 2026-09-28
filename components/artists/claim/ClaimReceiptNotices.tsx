@@ -1,9 +1,14 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
 import Link from "next/link"
 import type { Artist } from "@/lib/artists"
-import { formatClaimDate, resolveClaimReceiptState } from "@/lib/artist-index/claim-receipt"
+import {
+  claimSignInHref,
+  formatClaimDate,
+  resolveClaimReceiptState,
+} from "@/lib/artist-index/claim-receipt"
+import { useAuth } from "@/lib/auth-context"
 import { useClaimReceipt } from "@/hooks/use-claim-receipt"
 import { artistButtonMuted, artistButtonSolid } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
@@ -38,9 +43,33 @@ export function ClaimNotApprovedNotice({
   )
 }
 
+/** Approved claims link the placeholder user (username === artist slug) to the claimant. */
+function useSignedInAsOwner(slug: string): boolean {
+  const { userData } = useAuth()
+  const username = typeof userData?.username === "string" ? userData.username.toLowerCase() : ""
+  return Boolean(username) && username === slug.toLowerCase()
+}
+
 /** Claim page, profile already claimed: tell a returning claimant what to do next. */
 export function ClaimApprovedNotice({ slug }: { slug: string }) {
   const { receipt, clear } = useClaimReceipt(slug)
+  const signedInAsOwner = useSignedInAsOwner(slug)
+
+  useEffect(() => {
+    if (receipt && signedInAsOwner) clear()
+  }, [receipt, signedInAsOwner, clear])
+
+  if (signedInAsOwner) {
+    return (
+      <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+        <p className="text-sm font-semibold text-emerald-900">You manage this profile.</p>
+        <Link href={`/profile/${encodeURIComponent(slug)}`} className={cn("mt-4", artistButtonSolid)}>
+          Go to your profile
+        </Link>
+      </div>
+    )
+  }
+
   if (!receipt) return null
 
   return (
@@ -48,17 +77,15 @@ export function ClaimApprovedNotice({ slug }: { slug: string }) {
       <p className="text-sm font-semibold text-emerald-900">Submitted a claim with {receipt.email}?</p>
       <p className="mt-1 text-sm text-emerald-900/80">
         {receipt.accountSetup
-          ? "If it was yours, it's been approved. Sign in with that email and the password you set."
-          : `If it was yours, it's been approved. Check your inbox for the activation email from ${CLAIM_VERIFICATION_EMAIL}.`}
+          ? "If it was yours, it's been approved. Sign in with that email and the password you set during your claim."
+          : `If it was yours, it's been approved. Activate your account from the email sent by ${CLAIM_VERIFICATION_EMAIL}, then sign in.`}
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
-        {receipt.accountSetup ? (
-          <Link href="/login" onClick={clear} className={artistButtonSolid}>
-            Sign in
-          </Link>
-        ) : null}
+        <Link href={claimSignInHref(receipt)} className={artistButtonSolid}>
+          {receipt.accountSetup ? "Sign in" : "Already activated? Sign in"}
+        </Link>
         <button type="button" onClick={clear} className={cn(artistButtonMuted, "border-transparent")}>
-          Dismiss
+          Not my claim
         </button>
       </div>
     </div>
@@ -76,10 +103,17 @@ export function ClaimReceiptBanner({
   artist: Pick<Artist, "slug" | "name" | "claim_status" | "verified">
   fallback: ReactNode
 }) {
-  const { receipt } = useClaimReceipt(artist.slug)
-  if (!receipt) return <>{fallback}</>
+  const { receipt, clear } = useClaimReceipt(artist.slug)
+  const signedInAsOwner = useSignedInAsOwner(artist.slug)
+  const state = receipt
+    ? resolveClaimReceiptState(receipt, artist.claim_status, artist.verified)
+    : null
 
-  const state = resolveClaimReceiptState(receipt, artist.claim_status, artist.verified)
+  useEffect(() => {
+    if (state === "claimed" && signedInAsOwner) clear()
+  }, [state, signedInAsOwner, clear])
+
+  if (!receipt || (state === "claimed" && signedInAsOwner)) return <>{fallback}</>
   const claimHref = `/artist-index/${artist.slug}/claim`
   const submitted = formatClaimDate(receipt.submittedAt)
 
@@ -102,13 +136,19 @@ export function ClaimReceiptBanner({
           claim with {receipt.email},{" "}
           {receipt.accountSetup ? (
             <>
-              <Link href="/login" className="font-semibold underline-offset-2 hover:underline">
+              <Link href={claimSignInHref(receipt)} className="font-semibold underline-offset-2 hover:underline">
                 sign in
               </Link>{" "}
-              with the password you set.
+              with the password you set during your claim.
             </>
           ) : (
-            "check your inbox for the activation email."
+            <>
+              activate your account from the email we sent, then{" "}
+              <Link href={claimSignInHref(receipt)} className="font-semibold underline-offset-2 hover:underline">
+                sign in
+              </Link>
+              .
+            </>
           )}
         </p>
       </div>

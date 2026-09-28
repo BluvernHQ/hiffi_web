@@ -20,7 +20,9 @@ import {
 } from "@/components/auth/turnstile-widget"
 
 function LoginForm() {
-  const [identifier, setIdentifier] = useState("")
+  const searchParams = useSearchParams()
+  // Approved artist claims link here with the claim email pre-filled.
+  const [identifier, setIdentifier] = useState(() => searchParams.get("email")?.trim().toLowerCase() ?? "")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -29,7 +31,6 @@ function LoginForm() {
   const turnstileRef = useRef<TurnstileWidgetHandle>(null)
   const { login, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
   
   // Get redirect parameter from URL (preserved from where user came from)
   const redirectParam = searchParams.get('redirect')
