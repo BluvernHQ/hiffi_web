@@ -169,12 +169,11 @@ export function ProfileEmailReveal({
         <div className="space-y-3 min-w-0">
           <div className="flex items-start gap-2 min-w-0">
             <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-1" />
-            <div className="min-w-0 flex-1 space-y-2 overflow-hidden">
+            <div className="min-w-0 flex-1 space-y-2">
               <TurnstileFormField
                 action={TURNSTILE_ACTION}
                 widgetRef={turnstileRef}
                 onToken={setTurnstileToken}
-                size="compact"
                 className="justify-start"
               />
               {error ? <p className="text-xs text-destructive break-words">{error}</p> : null}
