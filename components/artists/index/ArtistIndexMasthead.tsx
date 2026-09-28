@@ -2,7 +2,6 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { artistIndexCityHref, artistIndexGenreHref } from "@/lib/artist-directory"
 import type { ArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
-import { formatChartWeek } from "@/components/artists/detail/artist-detail-data"
 import { ArtistIndexChart } from "@/components/artists/index/ArtistIndexChart"
 import { artistPageContainer } from "@/components/artists/artist-layout"
 
@@ -21,15 +20,7 @@ type ArtistIndexMastheadProps = {
 }
 
 export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistIndexMastheadProps) {
-  const chartWeek = formatChartWeek(feature.chartWeek)
   const cityCount = feature.cities.length
-
-  const ledger = [
-    artistCount > 0 ? { label: "Artists indexed", value: artistCount.toLocaleString() } : null,
-    cityCount > 0 ? { label: "Ranked cities", value: String(cityCount) } : null,
-    { label: "The chart", value: "Hiffi 500 · weekly" },
-    chartWeek ? { label: "Chart week", value: chartWeek } : null,
-  ].filter((item): item is { label: string; value: string } => item !== null)
 
   return (
     <section className="relative isolate overflow-hidden bg-[#0B0B0C] text-[#F4F1EA]">
@@ -40,7 +31,7 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
       <div className="mood-grain pointer-events-none absolute inset-0 -z-10 opacity-[0.06] mix-blend-overlay" aria-hidden />
 
       <div className={artistPageContainer}>
-        <div className="grid gap-10 pb-12 pt-12 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24 lg:pb-14 lg:pt-20">
+        <div className="grid gap-10 pb-14 pt-12 sm:pb-16 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 lg:pb-20 lg:pt-20 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24">
           <div className="artist-rise min-w-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/50 sm:text-[11px]">
               Hiffi Artist Index
@@ -74,17 +65,6 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
           <ArtistIndexChart chart={feature.chart} className="artist-rise [animation-delay:120ms]" />
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-6 border-t border-white/10 sm:flex sm:flex-wrap sm:gap-x-0">
-          {ledger.map((item) => (
-            <div
-              key={item.label}
-              className="min-w-0 py-4 sm:py-5 sm:pr-8 sm:not-first:border-l sm:not-first:border-white/10 sm:not-first:pl-8"
-            >
-              <dt className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/40">{item.label}</dt>
-              <dd className="mt-1.5 truncate text-sm font-semibold text-[#F4F1EA]/90">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
       </div>
     </section>
   )
