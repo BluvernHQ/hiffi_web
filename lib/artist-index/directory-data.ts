@@ -139,6 +139,8 @@ export type ArtistDirectoryPageResult = {
   pageArtists: Artist[]
   hasMore: boolean
   claimArtist?: Artist
+  /** True when the inventory API could not be reached — the page renders an outage state. */
+  unavailable?: boolean
 }
 
 /**
@@ -233,7 +235,30 @@ async function resolveArtistDirectoryPageImpl(options: {
   }
 }
 
-export const resolveArtistDirectoryPageAsync = cache(resolveArtistDirectoryPageImpl)
+async function resolveArtistDirectoryPageSafe(options: {
+  query?: string
+  activeFilterIds: string[]
+  page: number
+}): Promise<ArtistDirectoryPageResult> {
+  try {
+    return await resolveArtistDirectoryPageImpl(options)
+  } catch (error) {
+    console.error("[artist-index] directory page unavailable:", error)
+    return {
+      query: options.query ?? "",
+      activeFilterIds: sanitizeDirectoryFilterIds(options.activeFilterIds),
+      artistCount: 0,
+      totalMatches: 0,
+      totalPages: 1,
+      currentPage: 1,
+      pageArtists: [],
+      hasMore: false,
+      unavailable: true,
+    }
+  }
+}
+
+export const resolveArtistDirectoryPageAsync = cache(resolveArtistDirectoryPageSafe)
 
 async function fetchRelatedCandidates(artist: Artist, limit: number): Promise<Artist[]> {
   const cityLabel = artist.city.split(",")[0]?.trim()

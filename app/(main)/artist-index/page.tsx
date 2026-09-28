@@ -77,6 +77,21 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
     breadcrumbs: [{ name: "Artist Index", url: absoluteUrl(ARTIST_INDEX_PATH) }],
   })
 
+  if (directory.unavailable) {
+    return (
+      <ArtistDirectoryShell claimLabel={isCleanHub ? "Claim Now" : undefined}>
+        <section className="mx-auto max-w-xl rounded-[1.25rem] border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+          <h1 className="text-xl font-semibold text-foreground">
+            The Artist Index is temporarily unavailable
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We couldn&apos;t load artist profiles right now. Please refresh in a minute.
+          </p>
+        </section>
+      </ArtistDirectoryShell>
+    )
+  }
+
   return (
     <ArtistDirectoryShell claimLabel={isCleanHub ? "Claim Now" : undefined}>
       <JsonLd data={hubJsonLd} />

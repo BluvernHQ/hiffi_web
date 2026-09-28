@@ -14,6 +14,7 @@ import {
 
 const REVALIDATE_SECONDS = 300
 const MAX_PAGE_SIZE = 100
+const FULL_CATALOG_CONCURRENCY = 4
 
 export class InventoryFetchError extends Error {
   status: number
@@ -65,6 +66,18 @@ export async function fetchInventoryPage(
   })
 
   if (!res.ok) {
+    const bodySnippet = await res
+      .text()
+      .then((text) => text.replace(/\s+/g, " ").slice(0, 200))
+      .catch(() => "")
+    // `server` / `cf-ray` tell a Cloudflare block apart from a backend rejection in server logs.
+    console.error("[artist-index] GET /inventory failed", {
+      status: res.status,
+      url: `${getApiBaseUrl()}/inventory?${sp.toString()}`,
+      server: res.headers.get("server"),
+      cfRay: res.headers.get("cf-ray"),
+      body: bodySnippet,
+    })
     throw new InventoryFetchError(`GET /inventory failed (${res.status})`, res.status)
   }
 
@@ -108,18 +121,28 @@ export async function fetchAllInventoryProfiles(
   const pageCount = Math.ceil(total / MAX_PAGE_SIZE)
   if (pageCount <= 1) return all
 
-  const rest = await Promise.all(
-    Array.from({ length: pageCount - 1 }, (_, index) =>
-      fetchInventoryPage({
-        limit: MAX_PAGE_SIZE,
-        offset: (index + 1) * MAX_PAGE_SIZE,
-        ...params,
-      }),
-    ),
+  // The full catalog is ~170 pages; firing them all at once trips the API's per-IP rate limit
+  // and 403s every other server request from this host.
+  const offsets = Array.from({ length: pageCount - 1 }, (_, index) => (index + 1) * MAX_PAGE_SIZE)
+  const pages: PublicInventoryProfile[][] = new Array(offsets.length)
+  let cursor = 0
+
+  await Promise.all(
+    Array.from({ length: Math.min(FULL_CATALOG_CONCURRENCY, offsets.length) }, async () => {
+      while (cursor < offsets.length) {
+        const index = cursor++
+        const page = await fetchInventoryPage({
+          limit: MAX_PAGE_SIZE,
+          offset: offsets[index],
+          ...params,
+        })
+        pages[index] = page.items
+      }
+    }),
   )
 
-  for (const page of rest) {
-    all.push(...page.items)
+  for (const items of pages) {
+    all.push(...items)
   }
 
   return all
