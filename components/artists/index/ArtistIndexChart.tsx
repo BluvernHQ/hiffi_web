@@ -5,7 +5,21 @@ import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { cn } from "@/lib/utils"
 
 /** "This week on the Hiffi 500" — the top five, on the dark masthead. */
-export function ArtistIndexChart({ chart, className }: { chart: HubChartArtist[]; className?: string }) {
+type ArtistIndexChartProps = {
+  chart: HubChartArtist[]
+  title?: string
+  href?: string | null
+  hrefLabel?: string
+  className?: string
+}
+
+export function ArtistIndexChart({
+  chart,
+  title = "This week · Hiffi 500",
+  href = "/top-artists",
+  hrefLabel = "Full chart",
+  className,
+}: ArtistIndexChartProps) {
   if (chart.length === 0) return null
 
   return (
@@ -21,15 +35,17 @@ export function ArtistIndexChart({ chart, className }: { chart: HubChartArtist[]
           id="artist-index-chart"
           className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/50 sm:text-[11px]"
         >
-          This week · Hiffi 500
+          {title}
         </h2>
-        <Link
-          href="/top-artists"
-          className="group inline-flex items-center gap-1 text-xs font-semibold text-white/60 transition-colors hover:text-white"
-        >
-          Full chart
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-        </Link>
+        {href ? (
+          <Link
+            href={href}
+            className="group inline-flex items-center gap-1 text-xs font-semibold text-white/60 transition-colors hover:text-white"
+          >
+            {hrefLabel}
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        ) : null}
       </div>
 
       <ol className="mt-3">
@@ -56,9 +72,9 @@ export function ArtistIndexChart({ chart, className }: { chart: HubChartArtist[]
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-semibold text-[#F4F1EA]">{artist.name}</span>
-                {artist.place ? (
+                {artist.note ? (
                   <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
-                    {artist.place}
+                    {artist.note}
                   </span>
                 ) : null}
               </span>

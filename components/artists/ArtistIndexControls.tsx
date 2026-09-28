@@ -18,6 +18,7 @@ type ArtistIndexControlsProps = {
   variant?: "default" | "hub"
   /** Hub search on a dark masthead (no light panel). */
   tone?: "light" | "dark"
+  searchPlaceholder?: string
   /** When set, directory search/filter/clear updates in place without router navigation. */
   onSyncDirectory?: (query: string, activeFilterIds: string[]) => void
   isDirectoryPending?: boolean
@@ -29,6 +30,7 @@ export function ArtistIndexControls({
   filterOptions,
   variant = "default",
   tone = "light",
+  searchPlaceholder,
   onSyncDirectory,
   isDirectoryPending = false,
 }: ArtistIndexControlsProps) {
@@ -154,6 +156,7 @@ export function ArtistIndexControls({
           onProfileSelect={handleProfileSelect}
           variant="hub"
           tone="dark"
+          placeholder={searchPlaceholder}
           loading={isSearching}
         />
       </section>

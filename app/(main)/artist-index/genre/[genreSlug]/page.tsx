@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
-import { ArtistIndexListing } from "@/components/artists/ArtistIndexListing"
+import { ArtistCollectionView } from "@/components/artists/index/ArtistCollectionView"
 import { artistIndexGenreHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import {
   buildArtistGenrePageMetadata,
@@ -10,6 +10,7 @@ import {
   getArtistGenrePages,
 } from "@/lib/artist-directory-seo"
 import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
+import { getArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
 
@@ -60,7 +61,10 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
     activeFilterIds: [genre.filterId],
     page,
   })
-  const filterOptions = await getAvailableArtistDirectoryFilters()
+  const [filterOptions, hub] = await Promise.all([
+    getAvailableArtistDirectoryFilters(),
+    getArtistIndexHubFeature(),
+  ])
 
   const pageUrl = absoluteUrl(
     artistIndexGenreHref(genre.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
@@ -68,6 +72,7 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
 
   return (
     <ArtistDirectoryShell
+      bleed
       breadcrumbs={[
         { label: "Artist Index", href: "/artist-index" },
         { label: genre.label },
@@ -88,28 +93,17 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
           ],
         })}
       />
-      <ArtistIndexListing
-        artists={directory.pageArtists}
-        artistCount={directory.artistCount}
-        totalMatches={directory.totalMatches}
-        currentPage={directory.currentPage}
-        totalPages={directory.totalPages}
-        hasMore={directory.hasMore}
-        query=""
-        activeFilterIds={[genre.filterId]}
-        claimArtist={directory.claimArtist}
-        introTitle={genre.headline}
-        introDescription={
-          directory.totalMatches > 0
-            ? `${genre.description} ${directory.totalMatches.toLocaleString()} profiles listed. Search by artist name.`
-            : `${genre.description} Search by artist name.`
-        }
-        paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined)}
-        showSearchControls
+      <ArtistCollectionView
+        kind="genre"
+        slug={genre.slug}
+        label={genre.label}
+        headline={genre.headline}
+        description={genre.description}
+        filterId={genre.filterId}
         filterOptions={filterOptions}
-        layout="hub"
-        showFaq={false}
-        compact
+        directory={directory}
+        paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined)}
+        scenes={hub.cities}
       />
     </ArtistDirectoryShell>
   )

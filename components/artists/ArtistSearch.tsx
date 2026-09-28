@@ -19,6 +19,7 @@ type ArtistSearchProps = {
   variant?: "default" | "hub"
   /** Hub field on a dark masthead. */
   tone?: "light" | "dark"
+  placeholder?: string
   className?: string
   loading?: boolean
 }
@@ -45,6 +46,7 @@ export function ArtistSearch({
   onSearchAllProfiles,
   variant = "default",
   tone = "light",
+  placeholder,
   className,
   loading = false,
 }: ArtistSearchProps) {
@@ -301,7 +303,9 @@ export function ArtistSearch({
           }
         }}
         onKeyDown={handleKeyDown}
-        placeholder={isDark ? "Find an artist by name" : isHub ? "Search by artist name" : "Search artists…"}
+        placeholder={
+          placeholder ?? (isDark ? "Find an artist by name" : isHub ? "Search by artist name" : "Search artists…")
+        }
         className={inputClassName}
         role={isHub ? "combobox" : undefined}
         aria-expanded={isHub ? showDropdown : undefined}

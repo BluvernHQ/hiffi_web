@@ -11,7 +11,19 @@ const INITIAL_CITIES = 12
 const INITIAL_CITIES_MOBILE = 6
 
 /** Ranked cities as a numbered, typographic list — the index's "where the sound lives". */
-export function ArtistIndexScenes({ cities }: { cities: HubCity[] }) {
+type ArtistIndexScenesProps = {
+  cities: HubCity[]
+  eyebrow?: string
+  title?: string
+  description?: string
+}
+
+export function ArtistIndexScenes({
+  cities,
+  eyebrow = "Scenes",
+  title = "Where the sound lives",
+  description = "The cities with the most ranked artists this week. Open one to meet its scene.",
+}: ArtistIndexScenesProps) {
   const [showAll, setShowAll] = useState(false)
   if (cities.length === 0) return null
 
@@ -21,12 +33,10 @@ export function ArtistIndexScenes({ cities }: { cities: HubCity[] }) {
     <section aria-labelledby="artist-index-scenes">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <ArtistDetailEyebrow>Scenes</ArtistDetailEyebrow>
-          <ArtistDetailHeading id="artist-index-scenes">Where the sound lives</ArtistDetailHeading>
+          <ArtistDetailEyebrow>{eyebrow}</ArtistDetailEyebrow>
+          <ArtistDetailHeading id="artist-index-scenes">{title}</ArtistDetailHeading>
         </div>
-        <p className="max-w-xs text-sm leading-6 text-[#77726A]">
-          The cities with the most ranked artists this week. Open one to meet its scene.
-        </p>
+        <p className="max-w-xs text-sm leading-6 text-[#77726A]">{description}</p>
       </div>
 
       <ol className="mt-8 grid border-t border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3 xl:grid-cols-4">

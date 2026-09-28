@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
-import { ArtistIndexListing } from "@/components/artists/ArtistIndexListing"
+import { ArtistCollectionView } from "@/components/artists/index/ArtistCollectionView"
 import { artistIndexCityHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import {
   buildArtistCityPageMetadata,
@@ -10,6 +10,7 @@ import {
   getArtistCityPages,
 } from "@/lib/artist-directory-seo"
 import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
+import { getArtistIndexHubFeature, getCityChart } from "@/lib/artist-index/hub-data"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
 
@@ -57,7 +58,11 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
     activeFilterIds: [city.filterId],
     page,
   })
-  const filterOptions = await getAvailableArtistDirectoryFilters()
+  const [filterOptions, hub, cityChart] = await Promise.all([
+    getAvailableArtistDirectoryFilters(),
+    getArtistIndexHubFeature(),
+    getCityChart(city.slug),
+  ])
 
   const pageUrl = absoluteUrl(
     artistIndexCityHref(city.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
@@ -65,6 +70,7 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
 
   return (
     <ArtistDirectoryShell
+      bleed
       breadcrumbs={[
         { label: "Artist Index", href: "/artist-index" },
         { label: city.label },
@@ -85,24 +91,18 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
           ],
         })}
       />
-      <ArtistIndexListing
-        artists={directory.pageArtists}
-        artistCount={directory.artistCount}
-        totalMatches={directory.totalMatches}
-        currentPage={directory.currentPage}
-        totalPages={directory.totalPages}
-        hasMore={directory.hasMore}
-        query=""
-        activeFilterIds={[city.filterId]}
-        claimArtist={directory.claimArtist}
-        introTitle={city.headline}
-        introDescription={city.description}
-        paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
-        showSearchControls
+      <ArtistCollectionView
+        kind="city"
+        slug={city.slug}
+        label={city.label}
+        headline={city.headline}
+        description={city.description}
+        filterId={city.filterId}
         filterOptions={filterOptions}
-        layout="hub"
-        showFaq={false}
-        compact
+        directory={directory}
+        paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
+        cityChart={cityChart}
+        scenes={hub.cities}
       />
     </ArtistDirectoryShell>
   )
