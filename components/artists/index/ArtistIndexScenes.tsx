@@ -42,7 +42,7 @@ export function ArtistIndexScenes({
         className="scrollbar-none -mx-4 mt-6 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 sm:hidden"
       >
         {cities.map((city, index) => (
-          <li key={city.slug} className="w-[9.5rem] shrink-0 snap-start">
+          <li key={city.slug} className="min-w-[8.5rem] shrink-0 snap-start">
             <Link
               href={artistIndexCityHref(city.slug)}
               className="flex h-full flex-col rounded-2xl border border-[#0B0B0C]/12 bg-white/50 p-3.5 transition-colors active:bg-white"
@@ -50,10 +50,10 @@ export function ArtistIndexScenes({
               <span className="font-mono text-[10px] tabular-nums text-[#0B0B0C]/35">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <span className="font-signal mt-3 line-clamp-2 text-[1.3rem] font-bold uppercase leading-[0.95] text-[#0B0B0C]">
+              <span className="font-signal mt-3 whitespace-nowrap text-[1.3rem] font-bold uppercase leading-none text-[#0B0B0C]">
                 {city.label}
               </span>
-              <span className="mt-auto pt-2 text-[11px] font-semibold tabular-nums text-[#77726A]">
+              <span className="mt-1.5 text-[11px] font-semibold tabular-nums text-[#77726A]">
                 {city.rankedCount.toLocaleString()}
                 <span className="ml-1 font-normal">ranked</span>
               </span>
