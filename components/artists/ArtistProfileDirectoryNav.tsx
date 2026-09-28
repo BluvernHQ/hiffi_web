@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 type ArtistProfileDirectoryNavProps = {
   slug: string
   variant?: "header" | "footer" | "both"
+  tone?: "light" | "dark"
   /** When set, prev/next swap profile content in place instead of a full route navigation. */
   onDirectoryNavigate?: (slug: string, context: ArtistDirectoryNavContext) => void
 }
@@ -27,11 +28,13 @@ function NavArrowButton({
   disabled,
   loading,
   onClick,
+  tone = "light",
 }: {
   label: string
   disabled: boolean
   loading?: boolean
   onClick: () => void
+  tone?: "light" | "dark"
 }) {
   return (
     <button
@@ -40,8 +43,10 @@ function NavArrowButton({
       disabled={disabled || loading}
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white text-foreground transition-colors",
-        "hover:border-[#E8192C]/40 hover:text-[#E8192C] disabled:pointer-events-none disabled:opacity-40",
+        "inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors disabled:pointer-events-none disabled:opacity-40",
+        tone === "dark"
+          ? "border-white/15 bg-white/[0.04] text-white/80 backdrop-blur-sm hover:border-white/40 hover:text-white"
+          : "border-border bg-white text-foreground hover:border-[#E8192C]/40 hover:text-[#E8192C]",
       )}
     >
       {loading ? (
@@ -58,6 +63,7 @@ function NavArrowButton({
 export function ArtistProfileDirectoryNav({
   slug,
   variant = "both",
+  tone = "light",
   onDirectoryNavigate,
 }: ArtistProfileDirectoryNavProps) {
   const router = useRouter()
@@ -107,12 +113,14 @@ export function ArtistProfileDirectoryNav({
         disabled={!canPrev}
         loading={loadingDirection === "prev"}
         onClick={() => void navigate("prev")}
+        tone={tone}
       />
       <NavArrowButton
         label="Next artist"
         disabled={!canNext}
         loading={loadingDirection === "next"}
         onClick={() => void navigate("next")}
+        tone={tone}
       />
     </div>
   )
@@ -179,15 +187,18 @@ export function ArtistProfileDirectoryNav({
 
 export function ArtistProfileDirectoryHeaderNav({
   slug,
+  tone,
   onDirectoryNavigate,
 }: {
   slug: string
+  tone?: "light" | "dark"
   onDirectoryNavigate?: (slug: string, context: ArtistDirectoryNavContext) => void
 }) {
   return (
     <ArtistProfileDirectoryNav
       slug={slug}
       variant="header"
+      tone={tone}
       onDirectoryNavigate={onDirectoryNavigate}
     />
   )

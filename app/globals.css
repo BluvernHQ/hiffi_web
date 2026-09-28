@@ -191,6 +191,33 @@
   }
 }
 
+/* Artist detail — condensed display face (needs signalNarrow.variable on an ancestor) */
+.font-signal {
+  font-family: var(--font-signal), "Arial Narrow", "Helvetica Neue", sans-serif;
+  font-stretch: condensed;
+}
+
+@keyframes artist-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.artist-rise {
+  animation: artist-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artist-rise {
+    animation: none;
+  }
+}
+
 /* Mood picker — subtle film grain on orbs */
 .mood-grain {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
