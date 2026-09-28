@@ -11,6 +11,7 @@ import { ArtistDetailAbout } from "@/components/artists/ArtistDetailAbout"
 import { ArtistDetailHero } from "@/components/artists/ArtistDetailHero"
 import { ArtistSocialLinks } from "@/components/artists/ArtistSocialLinks"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
+import { ProfileEmailReveal } from "@/components/profile/profile-email-reveal"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { Button } from "@/components/ui/button"
 import { VideoGrid } from "@/components/video/video-grid"
@@ -23,6 +24,8 @@ type ProfileInventoryViewProps = {
   profileUser: any
   username: string
   isOwnProfile: boolean
+  /** Account email — shown to the profile owner only. */
+  ownerEmail?: string
   /** When false, hide inventory claim banners (non-inventory creators). */
   showClaimCta?: boolean
   isFollowing: boolean
@@ -69,6 +72,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
     profileUser,
     username,
     isOwnProfile,
+    ownerEmail,
     showClaimCta = false,
     isFollowing,
     isFollowingAction,
@@ -330,6 +334,19 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                   showWatchPrompt={false}
                 />
                 <div className="flex flex-col gap-4 sm:gap-6">
+                  {isOwnProfile && ownerEmail ? (
+                    <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
+                      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
+                        Account
+                      </h2>
+                      <ProfileEmailReveal
+                        username={username}
+                        email={ownerEmail}
+                        isOwnProfile
+                        className="mt-3 sm:mt-4"
+                      />
+                    </section>
+                  ) : null}
                   {isOwnProfile ? (
                     <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6">
                       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
