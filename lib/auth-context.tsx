@@ -370,8 +370,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const loginData = {
+        // Backend stores emails lowercased and matches case-sensitively.
         ...(trimmedIdentifier.includes("@")
-          ? { email: trimmedIdentifier, password }
+          ? { email: trimmedIdentifier.toLowerCase(), password }
           : { username: trimmedIdentifier, password }),
         ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
       }
