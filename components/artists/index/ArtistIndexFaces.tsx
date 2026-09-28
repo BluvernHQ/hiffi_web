@@ -5,12 +5,11 @@ import { cn } from "@/lib/utils"
 
 type ArtistIndexFacesProps = {
   faces: HubFace[]
-  cityCount: number
   className?: string
 }
 
 /** Portrait grid on the index masthead. */
-export function ArtistIndexFaces({ faces, cityCount, className }: ArtistIndexFacesProps) {
+export function ArtistIndexFaces({ faces, className }: ArtistIndexFacesProps) {
   const tiles = faces.slice(0, faces.length >= 6 ? 6 : 3)
   if (tiles.length < 3) return null
 
@@ -21,16 +20,12 @@ export function ArtistIndexFaces({ faces, cityCount, className }: ArtistIndexFac
           id="artist-index-faces"
           className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/50 sm:text-[11px]"
         >
-          On the index
+          Top of the index
         </h2>
-        {cityCount > 0 ? (
-          <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/30">
-            {cityCount} cities
-          </span>
-        ) : null}
+        <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/30">This week</span>
       </div>
 
-      <ul className="grid grid-cols-3 gap-2 sm:gap-2.5">
+      <ol aria-label="Top ranked artists this week" className="grid grid-cols-3 gap-2 sm:gap-2.5">
         {tiles.map((face) => (
           <li key={face.username} className="aspect-[4/5] min-w-0">
             <Link
@@ -46,6 +41,16 @@ export function ArtistIndexFaces({ faces, cityCount, className }: ArtistIndexFac
                 className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent"
                 aria-hidden
               />
+              {face.rank > 0 ? (
+                <span
+                  className={cn(
+                    "absolute left-2 top-2 rounded-full bg-[#0B0B0C]/75 px-2 py-1 text-[10px] font-bold leading-none tabular-nums backdrop-blur-md sm:left-2.5 sm:top-2.5",
+                    face.rank <= 3 ? "text-[#F2C662]" : "text-[#F4F1EA]",
+                  )}
+                >
+                  <span className="sr-only">Rank </span>#{face.rank}
+                </span>
+              ) : null}
               <span className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3">
                 <span className="font-signal line-clamp-2 text-[13px] font-bold uppercase leading-[0.95] text-[#F4F1EA] sm:text-[15px]">
                   {face.name}
@@ -59,7 +64,7 @@ export function ArtistIndexFaces({ faces, cityCount, className }: ArtistIndexFac
             </Link>
           </li>
         ))}
-      </ul>
+      </ol>
     </aside>
   )
 }

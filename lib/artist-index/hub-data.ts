@@ -18,6 +18,7 @@ export type HubChartArtist = {
 export type HubFace = {
   username: string
   name: string
+  rank: number
   image: string
   place: string | null
 }
@@ -58,6 +59,7 @@ async function loadHubFeature(): Promise<ArtistIndexHubFeature> {
     .map((artist) => ({
       username: artist.username,
       name: artist.artist_name,
+      rank: artist.rank,
       image: artist.image,
       place: chartPlace(artist),
     }))

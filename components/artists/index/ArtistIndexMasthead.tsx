@@ -64,7 +64,6 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
 
           <ArtistIndexFaces
             faces={feature.faces}
-            cityCount={cityCount}
             className="artist-rise [animation-delay:120ms]"
           />
         </div>
