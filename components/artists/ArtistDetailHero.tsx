@@ -23,7 +23,7 @@ type ArtistDetailHeroProps = {
   username?: string
   /** Hide the circular “Watch on Hiffi” link when already on the profile page. */
   hideWatchLink?: boolean
-  /** Hide Verified / Unclaimed / Under Review chip (e.g. on `/profile`). */
+  /** Hide the Verified chip (e.g. on `/profile`). */
   hideStatusBadge?: boolean
   /** Tighter mobile layout for embedded profile use. */
   compact?: boolean
@@ -127,17 +127,11 @@ export function ArtistDetailHero({
           <div className="relative flex items-start justify-between gap-3 p-4 sm:p-6">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] sm:text-xs">
               <Hiffi500RankPlate rank={artist.rank} />
-              {!hideStatusBadge ? (
-                artist.verified ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-white sm:px-3 sm:py-1.5">
-                    <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    <span className="truncate">Verified Artist</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex rounded-full bg-white/15 px-2.5 py-1 text-white/90 backdrop-blur-sm sm:px-3 sm:py-1.5">
-                    {isPending ? "Under Review" : "Unclaimed Profile"}
-                  </span>
-                )
+              {!hideStatusBadge && artist.verified ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-white sm:px-3 sm:py-1.5">
+                  <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">Verified Artist</span>
+                </span>
               ) : null}
             </div>
             <ArtistShareButton title={artist.name} path={profilePath} />
