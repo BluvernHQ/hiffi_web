@@ -4,8 +4,15 @@ import { artistIndexHref } from "@/lib/artists"
 import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { artistClaimState, artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
+import { cn } from "@/lib/utils"
 
 const BAND_LABEL = { top_5: "Top 5%", top_10: "Top 10%", top_25: "Top 25%" } as const
+
+const CLAIM_CHIP = {
+  unclaimed: { text: "Claim open", className: "bg-[#F4F1EA] text-[#0B0B0C]" },
+  pending: { text: "Under review", className: "bg-[#0B0B0C]/80 text-[#F2C662] backdrop-blur-md" },
+  verified: { text: "Claimed", className: "bg-[#0B0B0C]/80 text-[#F4F1EA] backdrop-blur-md" },
+} as const
 
 function rosterBadge(artist: Artist): { text: string; gold: boolean } | null {
   if (artist.rank > 0) return { text: `Ranked #${artist.rank}`, gold: artist.rank <= 10 }
@@ -18,6 +25,7 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
   const badge = rosterBadge(artist)
   const place = artistPlaceLabel(artist)
   const claimState = artistClaimState(artist)
+  const claimChip = CLAIM_CHIP[claimState]
   const meta = [place, artist.genre[0]].filter(Boolean).join(" · ")
 
   return (
@@ -44,11 +52,14 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
               {badge.text}
             </span>
           ) : null}
-          {claimState === "unclaimed" ? (
-            <span className="absolute bottom-3 left-3 translate-y-2 rounded-full bg-[#F4F1EA] px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-[#0B0B0C] opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-              Claim open
-            </span>
-          ) : null}
+          <span
+            className={cn(
+              "absolute bottom-3 left-3 translate-y-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100",
+              claimChip.className,
+            )}
+          >
+            {claimChip.text}
+          </span>
         </div>
 
         <div className="mt-3.5 flex items-center gap-1.5">
