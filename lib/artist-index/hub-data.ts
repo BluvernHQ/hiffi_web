@@ -6,6 +6,7 @@ import {
   type TopArtist,
 } from "@/lib/top-artists"
 import { artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
+import { createStaleWhileRevalidate } from "@/lib/stale-while-revalidate"
 
 export type HubChartArtist = {
   username: string
@@ -79,20 +80,13 @@ async function loadHubFeature(): Promise<ArtistIndexHubFeature> {
   return { faces, cities: hubCities }
 }
 
-let cached: { expiresAt: number; promise: Promise<ArtistIndexHubFeature> } | null = null
+const readHubFeature = createStaleWhileRevalidate<ArtistIndexHubFeature>(REVALIDATE_SECONDS * 1000, (error) =>
+  console.error("[artist-index] hub feature unavailable:", error),
+)
 
 /** Featured faces and the ranked cities. Decoration: failures resolve empty. */
 export function getArtistIndexHubFeature(): Promise<ArtistIndexHubFeature> {
-  const now = Date.now()
-  if (!cached || cached.expiresAt <= now) {
-    const promise = loadHubFeature()
-    cached = { expiresAt: now + REVALIDATE_SECONDS * 1000, promise }
-    promise.catch((error) => {
-      console.error("[artist-index] hub feature unavailable:", error)
-      if (cached?.promise === promise) cached = null
-    })
-  }
-  return cached.promise.catch(() => EMPTY)
+  return readHubFeature("", loadHubFeature).catch(() => EMPTY)
 }
 
 export type CityChart = {
@@ -100,7 +94,9 @@ export type CityChart = {
   chart: HubChartArtist[]
 }
 
-const cityChartCache = new Map<string, { expiresAt: number; promise: Promise<CityChart | null> }>()
+const readCityChart = createStaleWhileRevalidate<CityChart | null>(REVALIDATE_SECONDS * 1000, (error, slug) =>
+  console.error(`[artist-index] city chart unavailable (${slug}):`, error),
+)
 
 async function loadCityChart(slug: string): Promise<CityChart | null> {
   const { cities } = await getArtistIndexHubFeature()
@@ -123,12 +119,5 @@ async function loadCityChart(slug: string): Promise<CityChart | null> {
 /** A city's weekly top five (city ranks), cached like the hub feature. */
 export function getCityChart(slug: string): Promise<CityChart | null> {
   const key = slug.trim().toLowerCase()
-  const now = Date.now()
-  const hit = cityChartCache.get(key)
-  if (hit && hit.expiresAt > now) return hit.promise.catch(() => null)
-
-  const promise = loadCityChart(key)
-  cityChartCache.set(key, { expiresAt: now + REVALIDATE_SECONDS * 1000, promise })
-  promise.catch(() => cityChartCache.delete(key))
-  return promise.catch(() => null)
+  return readCityChart(key, () => loadCityChart(key)).catch(() => null)
 }

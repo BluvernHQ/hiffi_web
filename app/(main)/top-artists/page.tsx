@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { JsonLd } from "@/components/seo/json-ld"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
 import { artistPageContainer } from "@/components/artists/artist-layout"
@@ -24,8 +25,6 @@ import {
 } from "@/lib/top-artists"
 import { cn } from "@/lib/utils"
 import { DEFAULT_SHARE_SCOPE, chartModeLabel, type ChartShareScope } from "@/lib/top-chart-share"
-
-export const dynamic = "force-dynamic"
 
 const TITLE = "Hiffi Hip-Hop 500 — Live Signal Index"
 const DESCRIPTION = "Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram."
@@ -60,6 +59,16 @@ function firstParam(value: string | string[] | undefined): string {
 
 const MOVERS_COUNT = 4
 
+/** Streams in after the board: movers need the 500-row snapshot for their stats. */
+async function MoversSection() {
+  const risers = await fetchTopRisersServer({ window: 7, limit: MOVERS_COUNT })
+  if (!risers?.has_history || risers.items.length === 0) return null
+  const movers = await enrichTopArtistsWithImages(
+    await withChartStats(risers.items.slice(0, MOVERS_COUNT).map(riserToTopArtist)),
+  )
+  return <TopChartMovers movers={movers} />
+}
+
 export default async function TopArtistsPage({ searchParams }: PageProps) {
   const sp = await searchParams
   const modeParam = firstParam(sp.mode)
@@ -67,8 +76,13 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
   const windowDays: RisersWindow = firstParam(sp.window) === "30" ? 30 : 7
   const cityParam = firstParam(sp.city) || firstParam(sp.location)
   const artistParam = firstParam(sp.artist).toLowerCase().replace(/^@+/, "")
+  const wantsCityBoard = mode === "overall" && Boolean(cityParam)
 
-  const citiesResponse = await fetchTopCitiesServer()
+  const [citiesResponse, boardWithoutCity, overallTopEarly] = await Promise.all([
+    fetchTopCitiesServer(),
+    wantsCityBoard ? Promise.resolve(null) : loadChartPage({ mode, city: null, window: windowDays }, 0),
+    mode === "overall" && !cityParam ? Promise.resolve(null) : fetchTopArtistsServer(3, 0),
+  ])
   const rawCities = citiesResponse?.items ?? []
   const cities: ChartCity[] = rawCities
     .filter((city) => city.ranked_count > 0 && (city.id || city.location))
@@ -81,24 +95,19 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
       rankedCount: city.ranked_count,
     }))
 
-  const resolvedCity = mode === "overall" && cityParam ? resolveTopCity(rawCities, cityParam) : null
+  const resolvedCity = wantsCityBoard ? resolveTopCity(rawCities, cityParam) : null
   const initialCity = resolvedCity
     ? (cities.find((city) => city.key === (resolvedCity.city.id ?? resolvedCity.city.location)) ?? null)
     : null
   const isDefaultBoard = mode === "overall" && !resolvedCity
 
-  const [board, overallTop, risers] = await Promise.all([
-    loadChartPage({ mode, city: resolvedCity?.query ?? null, window: windowDays }, 0),
-    isDefaultBoard ? Promise.resolve(null) : fetchTopArtistsServer(3, 0),
-    fetchTopRisersServer({ window: 7, limit: MOVERS_COUNT }),
-  ])
+  const board = wantsCityBoard
+    ? await loadChartPage({ mode, city: resolvedCity?.query ?? null, window: windowDays }, 0)
+    : boardWithoutCity
+  const overallTop = isDefaultBoard ? null : overallTopEarly
 
   const podium = (isDefaultBoard ? board?.items : overallTop?.items)?.slice(0, 3) ?? []
   const totalRanked = (isDefaultBoard ? board?.total : overallTop?.total_ranked) ?? 0
-  const movers =
-    risers?.has_history && risers.items.length > 0
-      ? await enrichTopArtistsWithImages(await withChartStats(risers.items.slice(0, MOVERS_COUNT).map(riserToTopArtist)))
-      : []
 
   let initialArtist: TopArtist | null = null
   if (artistParam) {
@@ -168,7 +177,9 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
               initialPage={board}
               cities={cities}
             />
-            <TopChartMovers movers={movers} />
+            <Suspense fallback={null}>
+              <MoversSection />
+            </Suspense>
             <TopChartMethod />
             <div>
               <ArtistIndexClaimBand className="ring-1 ring-white/10" />

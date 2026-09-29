@@ -3,7 +3,6 @@ import {
   enrichTopArtistsWithImages,
   fetchTopArtistsByCityServer,
   fetchTopArtistsServer,
-  fetchTopArtistsUpTo,
   fetchTopBreakoutServer,
   fetchTopRisersServer,
   fetchTopUndergroundServer,
@@ -13,6 +12,7 @@ import {
   type TopArtist,
   type TopCityQuery,
 } from "@/lib/top-artists"
+import { createStaleWhileRevalidate } from "@/lib/stale-while-revalidate"
 
 export type ChartMode = "overall" | "risers" | "breakout" | "heat"
 
@@ -43,25 +43,26 @@ export type ChartPage = {
 
 export const CHART_PAGE_SIZE = 25
 
-const SNAPSHOT_TTL_MS = 900_000
+const SNAPSHOT_SIZE = 500
+const SNAPSHOT_PAGE_SIZE = 100
 
-let snapshot: { expiresAt: number; promise: Promise<Map<string, TopArtist>> } | null = null
+const readSnapshot = createStaleWhileRevalidate<Map<string, TopArtist>>(900_000, (error) =>
+  console.error("[top-chart] snapshot unavailable:", error),
+)
 
-/** username → full Hiffi 500 row. One shared load per process every 15 minutes. */
+async function loadTopChartSnapshot(): Promise<Map<string, TopArtist>> {
+  const offsets = Array.from({ length: SNAPSHOT_SIZE / SNAPSHOT_PAGE_SIZE }, (_, index) => index * SNAPSHOT_PAGE_SIZE)
+  const pages = await Promise.all(
+    offsets.map((offset) => fetchTopArtistsServer(SNAPSHOT_PAGE_SIZE, offset, { enrichImages: false })),
+  )
+  const items = pages.flatMap((page) => page?.items ?? [])
+  if (items.length === 0) throw new Error("top chart snapshot empty")
+  return new Map(items.map((artist) => [artist.username.toLowerCase(), artist]))
+}
+
+/** username → full Hiffi 500 row, shared per process and refreshed in the background every 15 minutes. */
 export function getTopChartSnapshot(): Promise<Map<string, TopArtist>> {
-  const now = Date.now()
-  if (!snapshot || snapshot.expiresAt <= now) {
-    const promise = fetchTopArtistsUpTo(500, 100).then((page) => {
-      if (page.items.length === 0) throw new Error("top chart snapshot empty")
-      return new Map(page.items.map((artist) => [artist.username.toLowerCase(), artist]))
-    })
-    snapshot = { expiresAt: now + SNAPSHOT_TTL_MS, promise }
-    promise.catch((error) => {
-      console.error("[top-chart] snapshot unavailable:", error)
-      if (snapshot?.promise === promise) snapshot = null
-    })
-  }
-  return snapshot.promise.catch(() => new Map<string, TopArtist>())
+  return readSnapshot("", loadTopChartSnapshot).catch(() => new Map<string, TopArtist>())
 }
 
 const STAT_KEYS = [

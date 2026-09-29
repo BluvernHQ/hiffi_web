@@ -61,11 +61,8 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
   const pageParam = await searchParams
   const parsedPage = parseInt(typeof pageParam.page === "string" ? pageParam.page : "1", 10)
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
-  const directory = await resolveArtistDirectoryPage({
-    activeFilterIds: [genre.filterId],
-    page,
-  })
-  const [filterOptions, hub, genreSlugs] = await Promise.all([
+  const [directory, filterOptions, hub, genreSlugs] = await Promise.all([
+    resolveArtistDirectoryPage({ activeFilterIds: [genre.filterId], page }),
     getAvailableArtistDirectoryFilters(),
     getArtistIndexHubFeature(),
     getPopulatedGenreSlugs(),

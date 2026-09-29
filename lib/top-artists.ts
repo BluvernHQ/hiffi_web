@@ -586,6 +586,9 @@ export async function enrichTopArtistsWithImages(artists: TopArtist[]): Promise<
   )
 }
 
+/** The public chart refreshes weekly; server renders share one API response per 5 minutes. */
+const TOP_CHART_FETCH_CACHE = { revalidate: 300, tags: ["top-chart"] }
+
 /** Server-side fetch (SSR / route handlers) — hits the API host directly. */
 export async function fetchTopArtistsServer(
   limit = TOP_ARTISTS_PAGE_SIZE,
@@ -598,7 +601,7 @@ export async function fetchTopArtistsServer(
     if (location) params.set("location", location)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     const page = parseEnvelope((await res.json()) as Envelope)
@@ -614,7 +617,7 @@ export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> 
   try {
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/cities`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseCitiesEnvelope((await res.json()) as CitiesEnvelope)
@@ -635,7 +638,7 @@ export async function fetchTopArtistsByCityServer(
     const params = topCityParams(query, limit, offset)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/city?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     const page = parseEnvelope((await res.json()) as Envelope)
@@ -661,7 +664,7 @@ export async function fetchTopRisersServer(
     })
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/risers?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseRisersEnvelope((await res.json()) as RisersEnvelope)
@@ -717,7 +720,7 @@ export async function fetchTopUndergroundServer(
     })
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/underground?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseUndergroundEnvelope((await res.json()) as UndergroundEnvelope)
@@ -783,7 +786,7 @@ export async function fetchTopBreakoutServer(
     })
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/breakout?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseBreakoutEnvelope((await res.json()) as BreakoutEnvelope)

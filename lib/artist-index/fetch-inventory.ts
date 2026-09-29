@@ -7,6 +7,7 @@ import type {
   PublicInventoryProfile,
 } from "@/lib/types/inventory"
 import { normalizePublicInventoryProfile } from "@/lib/types/inventory"
+import { createStaleWhileRevalidate } from "@/lib/stale-while-revalidate"
 import {
   ARTIST_INVENTORY_CACHE_TAG,
   artistInventoryUsernameTag,
@@ -112,13 +113,19 @@ export async function fetchInventoryTotal(
 
 type CatalogParams = Omit<InventoryPageParams, "limit" | "offset">
 
-const CATALOG_MEMORY_TTL_MS = REVALIDATE_SECONDS * 1000
-const catalogMemoryCache = new Map<string, { expiresAt: number; promise: Promise<PublicInventoryProfile[]> }>()
+let readCatalog = createCatalogCache()
+
+function createCatalogCache() {
+  return createStaleWhileRevalidate<PublicInventoryProfile[]>(REVALIDATE_SECONDS * 1000, (error) =>
+    console.error("[artist-index] catalog refresh failed:", error),
+  )
+}
 
 /**
  * Genre pages, the sitemap and full-catalog sorts all need every profile (~170 API pages).
  * Share one in-flight/recent result per process so concurrent renders don't each re-page the
- * catalog — that burst is what got the server IP blocked by Cloudflare.
+ * catalog — that burst is what got the server IP blocked by Cloudflare. Only the first load
+ * blocks; later reads get the last catalog while it refreshes in the background.
  */
 export function fetchAllInventoryProfiles(params: CatalogParams = {}): Promise<PublicInventoryProfile[]> {
   const key = JSON.stringify(
@@ -126,20 +133,11 @@ export function fetchAllInventoryProfiles(params: CatalogParams = {}): Promise<P
       .filter(([, value]) => value != null && value !== "")
       .sort(([a], [b]) => a.localeCompare(b)),
   )
-  const now = Date.now()
-  const cached = catalogMemoryCache.get(key)
-  if (cached && cached.expiresAt > now) return cached.promise
-
-  const promise = fetchAllInventoryProfilesUncached(params)
-  catalogMemoryCache.set(key, { expiresAt: now + CATALOG_MEMORY_TTL_MS, promise })
-  promise.catch(() => {
-    if (catalogMemoryCache.get(key)?.promise === promise) catalogMemoryCache.delete(key)
-  })
-  return promise
+  return readCatalog(key, () => fetchAllInventoryProfilesUncached(params))
 }
 
 export function clearInventoryCatalogMemoryCache(): void {
-  catalogMemoryCache.clear()
+  readCatalog = createCatalogCache()
 }
 
 async function fetchAllInventoryProfilesUncached(

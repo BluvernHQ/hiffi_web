@@ -54,11 +54,8 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
   const pageParam = await searchParams
   const parsedPage = parseInt(typeof pageParam.page === "string" ? pageParam.page : "1", 10)
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
-  const directory = await resolveArtistDirectoryPage({
-    activeFilterIds: [city.filterId],
-    page,
-  })
-  const [filterOptions, hub, cityChart] = await Promise.all([
+  const [directory, filterOptions, hub, cityChart] = await Promise.all([
+    resolveArtistDirectoryPage({ activeFilterIds: [city.filterId], page }),
     getAvailableArtistDirectoryFilters(),
     getArtistIndexHubFeature(),
     getCityChart(city.slug),
