@@ -46,6 +46,12 @@ function LoginForm() {
     (Boolean(currentUsername) && redirectPath === `/profile/${encodeURIComponent(currentUsername)}`)
   const needsAccountSwitch = Boolean(user && requestedEmail && !alreadyTargetAccount)
 
+  const forgotPasswordParams = new URLSearchParams()
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim())) forgotPasswordParams.set("email", identifier.trim())
+  if (redirectPath) forgotPasswordParams.set("redirect", redirectPath)
+  const forgotPasswordQuery = forgotPasswordParams.toString()
+  const forgotPasswordHref = forgotPasswordQuery ? `/forgot-password?${forgotPasswordQuery}` : "/forgot-password"
+
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user && !needsAccountSwitch) {
@@ -232,7 +238,7 @@ function LoginForm() {
               </div>
               <div className="flex justify-end">
                 <Link 
-                  href="/forgot-password" 
+                  href={forgotPasswordHref}
                   className="text-sm font-medium text-primary hover:underline"
                 >
                   Forgot password?

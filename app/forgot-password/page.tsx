@@ -15,8 +15,14 @@ import { Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
 import { useToast } from "@/hooks/use-toast"
 
+// Email validation regex
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 function ForgotPasswordForm() {
-  const [email, setEmail] = useState("")
+  const searchParams = useSearchParams()
+  // Login and the claim approval email pass the account email along.
+  const requestedEmail = searchParams.get("email")?.trim().toLowerCase() ?? ""
+  const [email, setEmail] = useState(emailRegex.test(requestedEmail) ? requestedEmail : "")
   const [isRequesting, setIsRequesting] = useState(false)
   const [resetId, setResetId] = useState<string | null>(null)
   const [otp, setOtp] = useState("")
@@ -31,15 +37,11 @@ function ForgotPasswordForm() {
   const [resendCountdown, setResendCountdown] = useState(0)
   const [isResending, setIsResending] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { toast } = useToast()
 
   // Get redirect parameter from URL
   const redirectParam = searchParams.get('redirect')
   const redirectPath = validateRedirect(redirectParam)
-
-  // Email validation regex
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   // Countdown timer for resend OTP
   useEffect(() => {

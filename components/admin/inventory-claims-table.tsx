@@ -79,11 +79,12 @@ const FUNNEL_STEPS = [
   { key: "login", label: "Logged in", field: "last_login_at" as const },
 ]
 
-/** Account-setup claims set the password at submit, so there is no email / link step. */
+/**
+ * Account-setup claims set the password at submit and get a sign-in email on approval, so they
+ * skip "Link opened": there is no onboarding link (the backend backfills `onboard_verified_at`).
+ */
 function funnelStepsFor(claim: InventoryClaim) {
-  return claim.has_password
-    ? FUNNEL_STEPS.filter((step) => step.key === "password" || step.key === "login")
-    : FUNNEL_STEPS
+  return claim.has_password ? FUNNEL_STEPS.filter((step) => step.key !== "opened") : FUNNEL_STEPS
 }
 
 const COLLAB_LABELS: Record<CollabOpenness, string> = {
@@ -463,7 +464,7 @@ export function InventoryClaimsTable() {
       const emailNote = result.account_ready
         ? result.email_sent
           ? " · they can sign in now (approval email sent)"
-          : " · they can sign in now (approval email failed to send)"
+          : " · they can sign in now, but the approval email failed to send (funnel: awaiting email)"
         : result.email_sent
           ? " · welcome email sent"
           : " · welcome email not sent (funnel: awaiting email)"
@@ -477,7 +478,7 @@ export function InventoryClaimsTable() {
       toast({
         title: "Claim approved",
         description: `@${result.claim.username} is now Approved${rejectedNote}${userNote}${emailNote}.`,
-        variant: result.email_sent || result.account_ready ? "default" : "destructive",
+        variant: result.email_sent ? "default" : "destructive",
       })
 
       void fetch("/api/artist-index/revalidate", {
@@ -561,7 +562,8 @@ export function InventoryClaimsTable() {
           <span className="font-medium text-foreground">Approve</span> rejects sibling pending
           claims and marks the profile claimed. Claims marked{" "}
           <span className="font-medium text-foreground">Can sign in after approval</span> already
-          have a password; older claims get an onboarding link by email.{" "}
+          have a password and get an email with a sign-in link. Older claims get an email with an
+          onboarding link to set their password.{" "}
           <span className="font-medium text-foreground">Delete</span> removes a row without
           rejecting siblings.
         </p>
@@ -891,7 +893,7 @@ export function InventoryClaimsTable() {
                   <strong>@{claimToApprove.username}</strong>. Other pending claims for this profile
                   become Rejected.{" "}
                   {claimToApprove.has_password
-                    ? "They set a password with this claim, so they can sign in right after approval."
+                    ? "They set a password with this claim, so they can sign in right after approval. We'll email them a sign-in link."
                     : "A welcome email with an onboarding link is sent when possible."}
                   {claimToApprove.other_socials &&
                   Object.keys(claimToApprove.other_socials).length > 0
