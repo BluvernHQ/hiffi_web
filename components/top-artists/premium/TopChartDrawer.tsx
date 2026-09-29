@@ -306,15 +306,9 @@ function DrawerProfile({
         <MetricSection label="Instagram" metrics={instagramMetrics} />
 
         <div className="flex flex-col gap-2.5">
-          <Link
-            href={chartArtistHref(artist)}
-            className="inline-flex items-center justify-center rounded-full bg-[#F4F1EA] px-5 py-3 text-sm font-semibold text-[#0B0B0C] transition-colors hover:bg-white"
-          >
-            View artist profile
-          </Link>
           {!claimed ? (
             <Link
-              href={`${chartArtistHref(artist)}/claim`}
+              href={chartArtistHref(artist)}
               className="inline-flex items-center justify-center rounded-full bg-[#E8192C] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#d01528]"
             >
               Claim this profile
