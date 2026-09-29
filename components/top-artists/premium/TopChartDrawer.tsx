@@ -1,7 +1,6 @@
 "use client"
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
-import Link from "next/link"
 import * as Dialog from "@radix-ui/react-dialog"
 import { ArrowDownRight, ArrowLeft, ArrowUpRight, BadgeCheck, Share2, X } from "lucide-react"
 import { topArtistSocialLinks, topArtistTier, type TopArtist } from "@/lib/top-artists"
@@ -307,12 +306,14 @@ function DrawerProfile({
 
         <div className="flex flex-col gap-2.5">
           {!claimed ? (
-            <Link
+            <a
               href={chartArtistHref(artist)}
-              className="inline-flex items-center justify-center rounded-full bg-[#E8192C] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#d01528]"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#E8192C] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#d01528]"
             >
-              Claim this profile
-            </Link>
+              Claim this profile <ArrowUpRight className="h-4 w-4" aria-hidden />
+            </a>
           ) : null}
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {youtube ? (
