@@ -40,6 +40,8 @@ type ArtistCollectionViewProps = {
   paginationHref: (page: number) => string
   cityChart?: CityChart | null
   scenes: HubCity[]
+  /** Genres with at least one artist; empty sounds are left out of the genre nav. */
+  genreSlugs?: string[]
 }
 
 /** City / genre landing: dark masthead, roster grid, more scenes, claim band. */
@@ -55,7 +57,9 @@ export function ArtistCollectionView({
   paginationHref,
   cityChart,
   scenes,
+  genreSlugs,
 }: ArtistCollectionViewProps) {
+  const sounds = genreSlugs ? SOUNDS.filter((sound) => genreSlugs.includes(sound.slug)) : SOUNDS
   const rest = headline.toLowerCase().startsWith(label.toLowerCase())
     ? headline.slice(label.length).trim()
     : headline
@@ -96,10 +100,10 @@ export function ArtistCollectionView({
                 />
               </div>
 
-              {kind === "genre" ? (
+              {kind === "genre" && sounds.some((sound) => sound.slug !== slug) ? (
                 <nav aria-label="Other sounds" className="mt-5 flex flex-wrap items-center gap-2">
                   <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.28em] text-white/35">Sounds</span>
-                  {SOUNDS.map((sound) =>
+                  {sounds.map((sound) =>
                     sound.slug === slug ? (
                       <span
                         key={sound.slug}

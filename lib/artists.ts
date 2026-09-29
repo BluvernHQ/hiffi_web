@@ -19,6 +19,7 @@ export {
   getArtistDirectoryFiltersAsync as getArtistDirectoryFilters,
   getAvailableArtistDirectoryFiltersAsync as getAvailableArtistDirectoryFilters,
   getOtherArtistsAsync as getOtherArtists,
+  getPopulatedGenreSlugsAsync as getPopulatedGenreSlugs,
   getRelatedArtistsAsync as getRelatedArtists,
   resolveArtistDirectoryPageAsync as resolveArtistDirectoryPage,
   sanitizeActiveFilterIdsAsync as sanitizeActiveFilterIds,

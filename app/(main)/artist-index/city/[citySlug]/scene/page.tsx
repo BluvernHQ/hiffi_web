@@ -11,7 +11,7 @@ import {
   buildArtistCityScenePageMetadata,
   getArtistCityPage,
 } from "@/lib/artist-directory-seo"
-import { resolveArtistDirectoryPage } from "@/lib/artists"
+import { getPopulatedGenreSlugs, resolveArtistDirectoryPage } from "@/lib/artists"
 import { buildArtistIndexBreadcrumbJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
@@ -46,10 +46,13 @@ export default async function ArtistCityScenePage({ params }: ArtistCityScenePag
   const city = await getArtistCityPage(citySlug)
   if (!city || citySlug !== "atlanta") notFound()
 
-  const directory = await resolveArtistDirectoryPage({
-    activeFilterIds: [city.filterId],
-    page: 1,
-  })
+  const [directory, genreSlugs] = await Promise.all([
+    resolveArtistDirectoryPage({
+      activeFilterIds: [city.filterId],
+      page: 1,
+    }),
+    getPopulatedGenreSlugs(),
+  ])
 
   const pageUrl = absoluteUrl(`${ARTIST_INDEX_PATH}/city/${citySlug}/scene`)
   const directoryUrl = absoluteUrl(artistIndexCityHref(citySlug))
@@ -118,6 +121,7 @@ export default async function ArtistCityScenePage({ params }: ArtistCityScenePag
           cityLabel={city.label}
           profileCount={directory.totalMatches}
           asPage
+          genreSlugs={genreSlugs}
         />
 
         <div className="rounded-2xl border border-[#E8192C]/20 bg-[#E8192C]/5 px-5 py-5 sm:px-6">

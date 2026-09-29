@@ -50,6 +50,8 @@ type ArtistIndexHubClientProps = {
   feature?: ArtistIndexHubFeature
   /** Whole-catalog size for the masthead; `artistCount` narrows while searching. */
   catalogCount?: number
+  /** Genres with at least one artist, for the masthead browse links. */
+  genreSlugs?: string[]
 }
 
 function filterKey(ids: string[]): string {
@@ -83,6 +85,7 @@ export function ArtistIndexHubClient({
   childrenAfterGrid,
   feature,
   catalogCount,
+  genreSlugs,
 }: ArtistIndexHubClientProps) {
   const [directory, setDirectory] = useState(initialDirectory)
   const [isPending, setIsPending] = useState(false)
@@ -275,6 +278,7 @@ export function ArtistIndexHubClient({
         <ArtistIndexMasthead
           artistCount={catalogCount ?? directory.artistCount}
           feature={feature}
+          genreSlugs={genreSlugs}
           search={
             <ArtistIndexControls
               initialQuery={directory.query}

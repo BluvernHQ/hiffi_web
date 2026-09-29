@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next"
 import { SITEMAP_STATIC_CONTENT_PAGES } from "@/lib/content-pages"
 import { getArtistCityPages, getArtistGenrePages } from "@/lib/artist-directory-seo"
 import { artistIndexCityHref, artistIndexCitySceneHref, artistIndexGenreHref } from "@/lib/artist-directory"
-import { getArtists } from "@/lib/artists"
+import { getArtists, getPopulatedGenreSlugs } from "@/lib/artists"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
 import { getAllAtlantaSitemapPaths } from "@/lib/atlanta/registry"
@@ -234,8 +234,13 @@ export async function buildSitemapEntries(id: number): Promise<MetadataRoute.Sit
   const profileDates = buildProfileLastModifiedByUsername(entries)
 
   if (id === 0) {
-    const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
-    const staticEntries = buildStaticEntries(cityPages, genrePages).filter((entry) => !isSitemapExcluded(entry.url))
+    const [cityPages, genrePages, genreSlugs] = await Promise.all([
+      getArtistCityPages(),
+      getArtistGenrePages(),
+      getPopulatedGenreSlugs(),
+    ])
+    const populatedGenrePages = genrePages.filter((genre) => genreSlugs.includes(genre.slug))
+    const staticEntries = buildStaticEntries(cityPages, populatedGenrePages).filter((entry) => !isSitemapExcluded(entry.url))
     const profileEntries = buildProfileEntries(profileDates, now)
     const artistIndexEntries = await buildArtistIndexProfileEntries()
 

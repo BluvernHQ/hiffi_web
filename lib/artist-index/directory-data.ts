@@ -24,6 +24,7 @@ import {
   getHubDirectoryFilterOptions,
   profileMatchesGenreFilter,
   sanitizeDirectoryFilterIds,
+  UNTAGGED_GENRE_SLUGS,
 } from "@/lib/artist-index/directory-filters"
 import { ARTIST_INVENTORY_CACHE_TAG } from "@/lib/artist-index/inventory-cache-tags"
 import { mapInventoryProfileToArtist } from "@/lib/artist-index/map-inventory-to-artist"
@@ -114,8 +115,29 @@ export async function sanitizeActiveFilterIdsAsync(activeFilterIds: string[]): P
   return sanitizeDirectoryFilterIds(activeFilterIds)
 }
 
+/**
+ * Curated genre slugs with at least one artist. `?genre=` counts explicitly tagged profiles, which is
+ * exactly what non-default genre hubs list. Fails open so an API blip never hides the genre nav.
+ */
+export const getPopulatedGenreSlugsAsync = cache(async (): Promise<string[]> => {
+  const populated = await Promise.all(
+    DIRECTORY_GENRE_FILTERS.map(async (filter) => {
+      if (UNTAGGED_GENRE_SLUGS.includes(filter.slug) || !filter.genre) return filter.slug
+      try {
+        return (await fetchInventoryTotal({ genre: filter.genre })) > 0 ? filter.slug : null
+      } catch {
+        return filter.slug
+      }
+    }),
+  )
+  return populated.filter((slug): slug is string => slug != null)
+})
+
 export async function getAvailableArtistDirectoryFiltersAsync() {
-  return getHubDirectoryFilterOptions()
+  const genreSlugs = await getPopulatedGenreSlugsAsync()
+  return getHubDirectoryFilterOptions().filter(
+    (option) => option.kind !== "genre" || (option.slug != null && genreSlugs.includes(option.slug)),
+  )
 }
 
 export async function getArtistDirectoryFiltersAsync(): Promise<ArtistDirectoryFilter[]> {

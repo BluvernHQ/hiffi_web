@@ -384,6 +384,7 @@ export function buildArtistGenrePageMetadata(
     keywords: genre.keywords,
     page,
     totalPages,
+    index: totalMatches !== 0,
   })
 }
 

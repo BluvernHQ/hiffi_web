@@ -9,7 +9,11 @@ import {
   getArtistGenrePage,
   getArtistGenrePages,
 } from "@/lib/artist-directory-seo"
-import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
+import {
+  getAvailableArtistDirectoryFilters,
+  getPopulatedGenreSlugs,
+  resolveArtistDirectoryPage,
+} from "@/lib/artists"
 import { getArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
@@ -45,7 +49,7 @@ export async function generateMetadata({
   return buildArtistGenrePageMetadata(genre, {
     page: directory.currentPage,
     totalPages: directory.totalPages,
-    totalMatches: directory.totalMatches,
+    totalMatches: directory.unavailable ? undefined : directory.totalMatches,
   })
 }
 
@@ -61,9 +65,10 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
     activeFilterIds: [genre.filterId],
     page,
   })
-  const [filterOptions, hub] = await Promise.all([
+  const [filterOptions, hub, genreSlugs] = await Promise.all([
     getAvailableArtistDirectoryFilters(),
     getArtistIndexHubFeature(),
+    getPopulatedGenreSlugs(),
   ])
 
   const pageUrl = absoluteUrl(
@@ -104,6 +109,7 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
         directory={directory}
         paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined)}
         scenes={hub.cities}
+        genreSlugs={genreSlugs}
       />
     </ArtistDirectoryShell>
   )

@@ -17,6 +17,7 @@ import {
   getArtistCount,
   getArtistDirectoryFilters,
   getAvailableArtistDirectoryFilters,
+  getPopulatedGenreSlugs,
   parseArtistDirectorySearchParams,
   resolveArtistDirectoryPage,
 } from "@/lib/artists"
@@ -65,11 +66,12 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
     if (filter?.kind === "genre") redirect(artistIndexGenreHref(filter.slug))
   }
 
-  const [directory, filterOptions, feature, catalogCount] = await Promise.all([
+  const [directory, filterOptions, feature, catalogCount, genreSlugs] = await Promise.all([
     resolveArtistDirectoryPage({ query, activeFilterIds, page }),
     getAvailableArtistDirectoryFilters(),
     getArtistIndexHubFeature(),
     getArtistCount().catch(() => 0),
+    getPopulatedGenreSlugs(),
   ])
   const hubDescription = buildArtistIndexHubDescription(directory.artistCount)
   const isCleanHub = !query.trim() && activeFilterIds.length === 0 && page === 1
@@ -115,6 +117,7 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
         filterOptions={filterOptions}
         feature={feature}
         catalogCount={catalogCount || directory.artistCount}
+        genreSlugs={genreSlugs}
       />
     </ArtistDirectoryShell>
   )

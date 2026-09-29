@@ -123,6 +123,9 @@ export function getGenreFilterSlug(activeFilterIds: string[]): string | undefine
   return undefined
 }
 
+/** Genre hubs that also list untagged profiles, so they are never empty while the catalog has artists. */
+export const UNTAGGED_GENRE_SLUGS: readonly string[] = ["rap", "hip-hop"]
+
 /** Matches UI default in mapInventoryProfileToArtist when inventory genre is unset. */
 export function getEffectiveInventoryGenre(profile: PublicInventoryProfile): string {
   const raw = profile.genre?.trim().toLowerCase()
@@ -141,7 +144,7 @@ export function profileMatchesGenreFilter(
   if (effective === slug) return true
 
   // Untagged profiles default to rap; show on rap and hip-hop genre hubs.
-  if (!profile.genre?.trim() && (slug === "rap" || slug === "hip-hop")) {
+  if (!profile.genre?.trim() && UNTAGGED_GENRE_SLUGS.includes(slug)) {
     return true
   }
 

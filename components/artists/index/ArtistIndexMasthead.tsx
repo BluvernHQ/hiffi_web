@@ -6,10 +6,10 @@ import { ArtistIndexFaces } from "@/components/artists/index/ArtistIndexFaces"
 import { artistPageContainer } from "@/components/artists/artist-layout"
 
 const BROWSE_LINKS = [
-  { label: "Hip-Hop", href: artistIndexGenreHref("hip-hop") },
-  { label: "Rap", href: artistIndexGenreHref("rap") },
-  { label: "Trap", href: artistIndexGenreHref("trap") },
-  { label: "Drill", href: artistIndexGenreHref("drill") },
+  { label: "Hip-Hop", href: artistIndexGenreHref("hip-hop"), genre: "hip-hop" },
+  { label: "Rap", href: artistIndexGenreHref("rap"), genre: "rap" },
+  { label: "Trap", href: artistIndexGenreHref("trap"), genre: "trap" },
+  { label: "Drill", href: artistIndexGenreHref("drill"), genre: "drill" },
   { label: "Atlanta", href: artistIndexCityHref("atlanta") },
 ]
 
@@ -17,10 +17,15 @@ type ArtistIndexMastheadProps = {
   artistCount: number
   feature: ArtistIndexHubFeature
   search: ReactNode
+  /** Genres with at least one artist; empty genres are left out of the browse links. */
+  genreSlugs?: string[]
 }
 
-export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistIndexMastheadProps) {
+export function ArtistIndexMasthead({ artistCount, feature, search, genreSlugs }: ArtistIndexMastheadProps) {
   const cityCount = feature.cities.length
+  const browseLinks = BROWSE_LINKS.filter(
+    (link) => !link.genre || !genreSlugs || genreSlugs.includes(link.genre),
+  )
 
   return (
     <section className="relative isolate overflow-hidden bg-[#0B0B0C] text-[#F4F1EA]">
@@ -50,7 +55,7 @@ export function ArtistIndexMasthead({ artistCount, feature, search }: ArtistInde
 
             <nav aria-label="Browse the index" className="mt-5 flex flex-wrap items-center gap-2">
               <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.28em] text-white/35">Browse</span>
-              {BROWSE_LINKS.map((link) => (
+              {browseLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
