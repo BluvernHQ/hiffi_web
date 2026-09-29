@@ -329,14 +329,17 @@ type Hiffi500RankPlateProps = {
   rank: number
   /** Link to the Hiffi 500 chart. */
   linked?: boolean
+  /** Opens the chart on this artist's row, then their chart detail. */
+  username?: string
   secondary?: PlateSegment
   className?: string
 }
 
 /** Medal-style Hiffi 500 plate for heroes. */
-export function Hiffi500RankPlate({ rank, linked = true, secondary, className }: Hiffi500RankPlateProps) {
+export function Hiffi500RankPlate({ rank, linked = true, username, secondary, className }: Hiffi500RankPlateProps) {
   if (!isRanked(rank)) return null
   const style = hiffi500Style(rank)
+  const href = username ? `/top-artists?artist=${encodeURIComponent(username)}` : "/top-artists"
   return (
     <RankPlate
       style={style}
@@ -345,14 +348,14 @@ export function Hiffi500RankPlate({ rank, linked = true, secondary, className }:
       label={style.label}
       title={hiffi500Title(rank, style.label)}
       secondary={secondary}
-      href={linked ? "/top-artists" : undefined}
+      href={linked ? href : undefined}
       className={className}
     />
   )
 }
 
 type ArtistRankProps = {
-  artist: Pick<Artist, "rank" | "ranking">
+  artist: Pick<Artist, "rank" | "ranking"> & { slug?: string }
   className?: string
 }
 
@@ -364,7 +367,15 @@ export function ArtistRankPlate({
   className,
 }: ArtistRankProps & { linked?: boolean; secondary?: PlateSegment }) {
   if (isRanked(artist.rank)) {
-    return <Hiffi500RankPlate rank={artist.rank} linked={linked} secondary={secondary} className={className} />
+    return (
+      <Hiffi500RankPlate
+        rank={artist.rank}
+        linked={linked}
+        username={artist.slug}
+        secondary={secondary}
+        className={className}
+      />
+    )
   }
   const band = artist.ranking?.status === "ranked" ? artist.ranking.band : undefined
   if (!isPercentBand(band)) return null

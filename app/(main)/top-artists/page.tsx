@@ -115,6 +115,10 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
     }
   }
 
+  const focusArtist =
+    initialArtist && (isDefaultBoard || board?.items.some((artist) => artist.username === initialArtist?.username))
+      ? initialArtist
+      : null
   const onBoard = Boolean(initialArtist && board?.items.some((artist) => artist.username === initialArtist?.username))
   const initialScope: ChartShareScope = onBoard
     ? {
@@ -158,7 +162,7 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
       {jsonLd ? <JsonLd data={jsonLd} /> : null}
       <div className={cn(signalNarrow.variable, "text-[#F4F1EA] [color-scheme:dark]")}>
         <TopChartDrawerProvider
-          initialArtist={initialArtist}
+          initialArtist={focusArtist ? null : initialArtist}
           initialContext={initialContext}
           initialScope={initialScope}
         >
@@ -172,6 +176,7 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
               initialWindow={windowDays}
               initialPage={board}
               cities={cities}
+              focusArtist={focusArtist}
             />
             <Suspense fallback={null}>
               <MoversSection />

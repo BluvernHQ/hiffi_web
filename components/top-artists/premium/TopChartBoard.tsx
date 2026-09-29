@@ -56,6 +56,11 @@ const ROW_GRID_STATS = "md:grid-cols-[3.5rem_3.25rem_minmax(0,1fr)_5.5rem_5.5rem
 
 const SORT_WINDOW: Partial<Record<SortKey, MomentumWindow>> = { momentum7: 7, momentum30: 30, momentum90: 90 }
 const ROW_GRID_PLAIN = "md:grid-cols-[3.5rem_3.25rem_minmax(0,1fr)_5.5rem]"
+const FOCUS_BATCH = 100
+const FOCUS_PHOTO_RADIUS = 6
+/** The drawer locks page scroll, so it opens once the row has scrolled into view. */
+const FOCUS_DRAWER_DELAY_MS = 650
+const FOCUS_HIGHLIGHT_MS = 4000
 
 type TopChartBoardProps = {
   initialMode: ChartMode
@@ -63,6 +68,12 @@ type TopChartBoardProps = {
   initialWindow: RisersWindow
   initialPage: ChartPage | null
   cities: ChartCity[]
+  /** Deep-linked artist on this board: scroll to their row, then open the drawer. */
+  focusArtist?: TopArtist | null
+}
+
+function chartRowId(username: string): string {
+  return `chart-row-${username}`
 }
 
 function syncBoardParams(mode: ChartMode, city: ChartCity | null, windowDays: RisersWindow) {
@@ -90,7 +101,14 @@ function mergeUnique(prev: TopArtist[], next: TopArtist[]): TopArtist[] {
   return [...prev, ...next.filter((artist) => !seen.has(artist.username))]
 }
 
-export function TopChartBoard({ initialMode, initialCity, initialWindow, initialPage, cities }: TopChartBoardProps) {
+export function TopChartBoard({
+  initialMode,
+  initialCity,
+  initialWindow,
+  initialPage,
+  cities,
+  focusArtist = null,
+}: TopChartBoardProps) {
   const { open } = useTopChartDrawer()
   const [mode, setMode] = useState<ChartMode>(initialMode)
   const [city, setCity] = useState<ChartCity | null>(initialCity)
@@ -104,6 +122,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
   const [error, setError] = useState<string | null>(initialPage ? null : "The chart didn’t load. Try again in a moment.")
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<SortKey>("rank")
+  const [highlighted, setHighlighted] = useState<string | null>(null)
   const requestRef = useRef(0)
 
   const modeMeta = CHART_MODES.find((entry) => entry.id === mode) ?? CHART_MODES[0]
@@ -246,6 +265,60 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
     cityLabel: mode === "overall" ? (city?.label ?? null) : null,
     window: windowDays,
   }
+
+  useEffect(() => {
+    if (!focusArtist) return
+    const username = focusArtist.username
+    const target = { mode, city, window: windowDays }
+    const timers: number[] = []
+    let cancelled = false
+    ;(async () => {
+      let rows = items
+      let more = hasMore
+      while (more && !rows.some((artist) => artist.username === username) && rows.length < focusArtist.rank) {
+        const page = await fetchPage(target, rows.length, { limit: FOCUS_BATCH, enrich: false }).catch(() => null)
+        if (cancelled) return
+        if (!page || page.items.length === 0) break
+        rows = mergeUnique(rows, page.items)
+        more = page.hasMore
+      }
+      if (cancelled) return
+      if (rows !== items) {
+        setItems(rows)
+        setHasMore(more)
+      }
+
+      const index = rows.findIndex((artist) => artist.username === username)
+      if (index >= 0) {
+        setHighlighted(username)
+        requestAnimationFrame(() => {
+          document.getElementById(chartRowId(username))?.scrollIntoView({ behavior: "smooth", block: "center" })
+        })
+        timers.push(window.setTimeout(() => setHighlighted(null), FOCUS_HIGHLIGHT_MS))
+        const nearby = rows
+          .slice(Math.max(0, index - FOCUS_PHOTO_RADIUS), index + FOCUS_PHOTO_RADIUS + 1)
+          .filter((artist) => !artist.image)
+        if (nearby.length > 0) {
+          loadTopChartPhotosAction(nearby)
+            .then((photos) => {
+              if (cancelled || Object.keys(photos).length === 0) return
+              setItems((prev) =>
+                prev.map((artist) => (photos[artist.username] ? { ...artist, image: photos[artist.username] } : artist)),
+              )
+            })
+            .catch(() => {})
+        }
+      }
+      const drawerArtist = index >= 0 ? { ...rows[index], image: rows[index].image ?? focusArtist.image } : focusArtist
+      timers.push(window.setTimeout(() => open(drawerArtist, drawerContext, shareScope), index >= 0 ? FOCUS_DRAWER_DELAY_MS : 0))
+    })()
+    return () => {
+      cancelled = true
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+    // Runs once for the deep link the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <section id="ranking" aria-labelledby="top-chart-heading" className="scroll-mt-24">
@@ -400,13 +473,19 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
         ) : visible.length > 0 ? (
           <ol className="divide-y divide-white/[0.07]">
             {visible.map((artist, index) => (
-              <li key={artist.username} className="artist-rise" style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}>
+              <li
+                key={artist.username}
+                id={chartRowId(artist.username)}
+                className="artist-rise scroll-mt-24"
+                style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
+              >
                 <button
                   type="button"
                   onClick={() => open(artist, drawerContext, shareScope)}
                   className={cn(
                     rowGrid,
-                    "group -mx-2 w-[calc(100%+1rem)] rounded-xl px-2 py-3.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:py-4",
+                    "group -mx-2 w-[calc(100%+1rem)] rounded-xl px-2 py-3.5 text-left transition-colors duration-700 hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:py-4",
+                    highlighted === artist.username && "bg-[#F2C662]/[0.07] ring-1 ring-inset ring-[#F2C662]/30",
                   )}
                 >
                   <ChartRowContent
