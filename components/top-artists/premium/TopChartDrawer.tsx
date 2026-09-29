@@ -266,7 +266,7 @@ function DrawerProfile({
           <div className="min-w-0">
             <p
               className={cn(
-                "font-signal text-[3.5rem] font-bold leading-[0.8] tabular-nums",
+                "font-signal -my-[0.15em] py-[0.15em] pr-[0.05em] text-[3.5rem] font-bold leading-[0.8] tabular-nums",
                 gold ? "bg-gradient-to-b from-[#FFF4CF] via-[#F2C662] to-[#C28A2A] bg-clip-text text-transparent" : "text-white",
               )}
             >
