@@ -27,17 +27,14 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
   const isContentPageRoute = isContentPage(pathname)
-  // Only how-it-works still embeds the static app in a full-height iframe; the chart itself scrolls the window.
-  const isTopArtistsRoute = pathname?.startsWith("/top-artists/how-it-works") ?? false
   const isArtistIndexRoute =
-    ((pathname?.startsWith("/artist-index") ||
+    (pathname?.startsWith("/artist-index") ||
       pathname?.startsWith("/hiffi-500") ||
       pathname?.startsWith("/top-artists")) ??
-      false) &&
-    !isTopArtistsRoute
+    false
   const showAppChrome = !isArtistIndexRoute
-  const showNavbar = showAppChrome && !isTopArtistsRoute
-  const showSidebar = showAppChrome && !isContentPageRoute && !isTopArtistsRoute
+  const showNavbar = showAppChrome
+  const showSidebar = showAppChrome && !isContentPageRoute
 
   const {
     isSidebarOpen,
@@ -92,9 +89,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
           className={
             isArtistIndexRoute
               ? "w-full min-w-0 flex-1"
-              : isTopArtistsRoute
-                ? "h-[100dvh] w-full min-w-0 flex-1 overflow-hidden"
-                : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
+              : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
           }
         >
           {children}
