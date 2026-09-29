@@ -220,8 +220,17 @@ export interface InventoryClaim {
   open_to_collab?: CollabOpenness
   /** True when the claimant set a password at submit and can sign in right after approval. */
   has_password: boolean
+  /** Pending claim whose email belongs to another Hiffi account; approving it fails with 409. */
+  email_conflict: boolean
   created_at: string
   updated_at: string
+}
+
+export interface ClaimEmailCheck {
+  email: string
+  available: boolean
+  reason?: "email_in_use"
+  message?: string
 }
 
 export interface InventoryClaimApproveResponse {
@@ -428,6 +437,7 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
       ? { open_to_collab: collab as CollabOpenness }
       : {}),
     has_password: raw.has_password === true,
+    email_conflict: raw.email_conflict === true,
   }
 }
 

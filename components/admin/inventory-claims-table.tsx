@@ -525,11 +525,23 @@ export function InventoryClaimsTable() {
         // Non-blocking — approve already succeeded.
       })
     } catch (error) {
-      handleFetchError(error, {
-        genericMessage: "Failed to approve claim",
-        onGenericError: (description) =>
-          toast({ title: "Error", description, variant: "destructive" }),
-      })
+      const { status, message } = (error ?? {}) as { status?: number; message?: string }
+      if (status === 409 && /email/i.test(message ?? "")) {
+        const conflictId = claimToApprove.id
+        setRows((prev) => prev.map((row) => (row.id === conflictId ? { ...row, email_conflict: true } : row)))
+        setClaimToApprove(null)
+        toast({
+          title: "Email in use by another account",
+          description: `${claimToApprove.email} already belongs to a different Hiffi account. Reject or delete this claim, or ask the claimer to submit again with another email.`,
+          variant: "destructive",
+        })
+      } else {
+        handleFetchError(error, {
+          genericMessage: "Failed to approve claim",
+          onGenericError: (description) =>
+            toast({ title: "Error", description, variant: "destructive" }),
+        })
+      }
     } finally {
       setApprovingId(null)
     }
@@ -861,8 +873,17 @@ export function InventoryClaimsTable() {
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-sm">{row.name}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
-                        {row.email}
+                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px]">
+                        <div className="truncate">{row.email}</div>
+                        {row.email_conflict && row.status === "pending" ? (
+                          <Badge
+                            variant="outline"
+                            className="mt-1 border-amber-200 bg-amber-50 text-amber-800"
+                            title="This email belongs to a different Hiffi account, so approval would fail. Reject or delete the claim, or ask for a new claim with another email."
+                          >
+                            Email in use by another account
+                          </Badge>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         <DiscoverySourceCell claim={row} />
@@ -913,8 +934,13 @@ export function InventoryClaimsTable() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={rowBusy || actionInFlight}
+                                disabled={rowBusy || actionInFlight || row.email_conflict}
                                 onClick={() => setClaimToApprove(row)}
+                                title={
+                                  row.email_conflict
+                                    ? "Can't approve: the claim email belongs to another Hiffi account."
+                                    : undefined
+                                }
                               >
                                 {approvingId === row.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />

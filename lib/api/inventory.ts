@@ -1,6 +1,8 @@
+import { getApiBaseUrl } from "@/lib/config"
 import type {
   ApiError,
   ApiSuccess,
+  ClaimEmailCheck,
   ClaimOnboardCompleteResponse,
   ClaimOnboardVerifyResponse,
   InventoryClaimSubmit,
@@ -56,6 +58,23 @@ export async function submitInventoryClaim(
   }
 
   return body.data
+}
+
+/**
+ * Advisory check before submit. Called from the browser straight to the API: the backend rate-limits
+ * per client IP, so proxying through Next would put every visitor in one bucket.
+ * Returns null on 4xx/5xx or network failure so callers don't block; the submit 409 still catches it.
+ */
+export async function checkClaimEmail(username: string, email: string): Promise<ClaimEmailCheck | null> {
+  const params = new URLSearchParams({ username: username.trim().toLowerCase(), email: email.trim() })
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/inventory/claims/email-check?${params}`)
+    if (!res.ok) return null
+    const body = (await res.json()) as ApiSuccess<ClaimEmailCheck> | ApiError
+    return body.success ? body.data : null
+  } catch {
+    return null
+  }
 }
 
 export async function verifyClaimOnboard(
