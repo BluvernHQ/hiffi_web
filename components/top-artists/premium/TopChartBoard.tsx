@@ -236,11 +236,9 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
   const heading = mode === "overall" && city ? `${city.label} chart` : mode === "overall" ? "The Hip-Hop 500" : modeMeta.label
   const kicker =
     mode === "overall" && city
-      ? `Every ranked artist in ${city.label}, ordered by overall position. Hiffi 500 members are marked.`
+      ? `The ${city.rankedCount} Hiffi 500 artists from ${city.label}, with their place on the 500.`
       : modeMeta.kicker
   const showStanding = mode !== "overall" || city !== null
-  const firstOutside500 =
-    mode === "overall" && city && sort === "rank" && !needle ? visible.findIndex((artist) => !artist.global_rank) : -1
   const drawerContext = mode === "overall" && city ? `${city.label} chart` : mode === "overall" ? "Hiffi Hip-Hop 500" : modeMeta.label
   const shareScope: ChartShareScope = {
     mode,
@@ -403,12 +401,6 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
           <ol className="divide-y divide-white/[0.07]">
             {visible.map((artist, index) => (
               <li key={artist.username} className="artist-rise" style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}>
-                {index === firstOutside500 && index > 0 ? (
-                  <p className="flex items-center gap-3 pb-3 pt-7 font-mono text-[10px] uppercase tracking-[0.28em] text-white/40">
-                    Beyond the Hip-Hop 500
-                    <span className="h-px flex-1 bg-white/10" aria-hidden />
-                  </p>
-                ) : null}
                 <button
                   type="button"
                   onClick={() => open(artist, drawerContext, shareScope)}

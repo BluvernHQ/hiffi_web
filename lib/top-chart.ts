@@ -1,35 +1,29 @@
 import {
-  breakoutToTopArtist,
   enrichTopArtistsWithImages,
   fetchTopArtistsByCityServer,
   fetchTopArtistsServer,
-  fetchTopBreakoutServer,
+  fetchTopCitiesServer,
   fetchTopRisersServer,
-  fetchTopUndergroundServer,
   riserToTopArtist,
-  undergroundToTopArtist,
   type RisersWindow,
   type TopArtist,
   type TopCityQuery,
+  type TopCitySummary,
 } from "@/lib/top-artists"
 import { createStaleWhileRevalidate } from "@/lib/stale-while-revalidate"
 
-export type ChartMode = "overall" | "risers" | "breakout" | "heat"
+/** `/top-artists` shows Hiffi 500 artists only; the full-index boards (breakout, underground) stay off it. */
+export type ChartMode = "overall" | "risers"
 
 export const CHART_MODES: Array<{ id: ChartMode; label: string; kicker: string }> = [
   { id: "overall", label: "Overall", kicker: "Scale and momentum across the full 500." },
   { id: "risers", label: "Biggest risers", kicker: "The steepest climbs inside the Hiffi 500." },
-  {
-    id: "breakout",
-    label: "Breakout 100",
-    kicker: "Smaller artists from the full index, not in the 500 yet, with the fastest momentum.",
-  },
-  {
-    id: "heat",
-    label: "Underground heat",
-    kicker: "Mid and small-reach artists outside the 500 with real engagement.",
-  },
 ]
+
+/** City boards rank every artist in the city; only rows in this week's 500 are shown. */
+export function isHiffi500Member(artist: TopArtist): boolean {
+  return artist.ranking?.band === "hiffi_500"
+}
 
 export function isChartMode(value: unknown): value is ChartMode {
   return CHART_MODES.some((mode) => mode.id === value)
@@ -109,8 +103,49 @@ export async function withChartStats(items: TopArtist[]): Promise<TopArtist[]> {
   })
 }
 
-const MODE_CAP: Record<ChartMode, number> = { overall: 500, risers: 100, breakout: 100, heat: 50 }
+const MODE_CAP: Record<ChartMode, number> = { overall: 500, risers: 100 }
 const CITY_CAP = 50
+const MIN_CITY_MEMBERS = 5
+const CITY_COUNT_CONCURRENCY = 6
+
+const readChartCities = createStaleWhileRevalidate<TopCitySummary[]>(900_000, (error) =>
+  console.error("[top-chart] city list unavailable:", error),
+)
+
+/**
+ * `/top/cities` counts every ranked artist in a city. Members sort first on each city board, so
+ * one 50-row page per city gives its Hiffi 500 count. Cities below the minimum are left out and
+ * `ranked_count` becomes the member count.
+ */
+async function loadChartCities(): Promise<TopCitySummary[]> {
+  const response = await fetchTopCitiesServer()
+  const cities = (response?.items ?? []).filter((city) => city.ranked_count > 0 && (city.id || city.location))
+  if (cities.length === 0) throw new Error("no cities")
+
+  const counts = new Array<number>(cities.length).fill(0)
+  let cursor = 0
+  await Promise.all(
+    Array.from({ length: Math.min(CITY_COUNT_CONCURRENCY, cities.length) }, async () => {
+      while (cursor < cities.length) {
+        const index = cursor++
+        const city = cities[index]
+        const query: TopCityQuery = city.id ? { cityId: city.id } : { location: city.location }
+        const page = await fetchTopArtistsByCityServer(query, CITY_CAP, 0, { enrichImages: false })
+        counts[index] = page?.items.filter(isHiffi500Member).length ?? 0
+      }
+    }),
+  )
+
+  return cities
+    .map((city, index) => ({ ...city, ranked_count: counts[index] }))
+    .filter((city) => city.ranked_count >= MIN_CITY_MEMBERS)
+    .sort((a, b) => b.ranked_count - a.ranked_count)
+}
+
+/** Cities with enough Hiffi 500 artists for a board, with member counts. */
+export function getChartCities(): Promise<TopCitySummary[]> {
+  return readChartCities("", loadChartCities).catch(() => [])
+}
 
 export function chartCap(query: ChartQuery): number {
   return query.mode === "overall" && query.city ? CITY_CAP : MODE_CAP[query.mode]
@@ -137,11 +172,16 @@ export async function loadChartPage(
 
   if (query.mode === "overall" && query.city) {
     const page = await fetchTopArtistsByCityServer(query.city, Math.min(limit, CITY_CAP), offset, {
-      enrichImages: enrich,
+      enrichImages: false,
     })
     if (!page) return null
     const { items, hasMore } = capped(page.items, offset, page.has_more, cap)
-    return { items: await withChartStats(items), hasMore, total: null }
+    const members = items.filter(isHiffi500Member)
+    return {
+      items: await withImages(await withChartStats(members)),
+      hasMore: hasMore && members.length === items.length,
+      total: null,
+    }
   }
 
   if (query.mode === "overall") {
@@ -151,23 +191,22 @@ export async function loadChartPage(
     return { items, hasMore, total: Math.min(page.total_ranked, cap) }
   }
 
-  if (query.mode === "risers") {
-    const page = await fetchTopRisersServer({ window: query.window, limit, offset })
-    if (!page) return null
-    const risers = page.items.map((item, index) => riserToTopArtist(item, offset + index + 1))
-    const { items, hasMore } = capped(risers, offset, page.has_more, cap)
-    return { items: await withImages(await withChartStats(items)), hasMore, total: null }
-  }
-
-  if (query.mode === "breakout") {
-    const page = await fetchTopBreakoutServer({ limit, offset })
-    if (!page) return null
-    const { items, hasMore } = capped(page.items.map(breakoutToTopArtist), offset, page.has_more, cap)
-    return { items: await withImages(items), hasMore, total: Math.min(page.total_breakout, cap) }
-  }
-
-  const page = await fetchTopUndergroundServer({ limit, offset })
+  const page = await fetchTopRisersServer({ window: query.window, limit, offset })
   if (!page) return null
-  const { items, hasMore } = capped(page.items.map(undergroundToTopArtist), offset, page.has_more, cap)
-  return { items: await withImages(items), hasMore, total: Math.min(page.total_underground, cap) }
+  const { items, hasMore } = capped(page.items.map((item) => riserToTopArtist(item, 0)), offset, page.has_more, cap)
+  const members = (await withChartStats(items))
+    .filter((artist) => artist.global_rank)
+    .map((artist, index) => ({ ...artist, rank: offset + index + 1 }))
+  return { items: await withImages(members), hasMore, total: null }
+}
+
+/** Risers run on the live ranking, so a riser can sit outside this week's published 500; those are dropped. */
+export async function loadHiffi500Risers(window: RisersWindow, count: number): Promise<TopArtist[]> {
+  const page = await fetchTopRisersServer({ window, limit: count * 2 })
+  if (!page?.has_history) return []
+  const members = (await withChartStats(page.items.map((item) => riserToTopArtist(item, 0))))
+    .filter((artist) => artist.global_rank)
+    .slice(0, count)
+    .map((artist, index) => ({ ...artist, rank: index + 1 }))
+  return enrichTopArtistsWithImages(members)
 }

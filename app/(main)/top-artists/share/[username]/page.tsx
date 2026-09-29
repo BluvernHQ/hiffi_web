@@ -6,6 +6,7 @@ import {
   resolveTopCity,
 } from "@/lib/top-artists"
 import { absoluteUrl } from "@/lib/seo/site"
+import { isHiffi500Member } from "@/lib/top-chart"
 import { TopArtistShareRedirect } from "./top-artist-share-redirect"
 
 export const dynamic = "force-dynamic"
@@ -40,7 +41,7 @@ async function resolveArtist(username: string, citySlug: string) {
     const cityPage = await fetchTopArtistsByCityServer(query, 50, 0, {
       enrichImages: false,
     })
-    const cityArtist = cityPage?.items.find((a) => a.username.toLowerCase() === handle)
+    const cityArtist = cityPage?.items.find((a) => isHiffi500Member(a) && a.username.toLowerCase() === handle)
     if (cityArtist) {
       return {
         artist: cityArtist,

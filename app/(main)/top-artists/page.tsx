@@ -12,14 +12,18 @@ import { TopChartMovers } from "@/components/top-artists/premium/TopChartMovers"
 import { formatChartWeek } from "@/components/top-artists/premium/chart-format"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { absoluteUrl } from "@/lib/seo/site"
-import { getTopChartSnapshot, isChartMode, loadChartPage, withChartStats, type ChartMode } from "@/lib/top-chart"
+import {
+  getChartCities,
+  getTopChartSnapshot,
+  isChartMode,
+  loadChartPage,
+  loadHiffi500Risers,
+  type ChartMode,
+} from "@/lib/top-chart"
 import {
   enrichTopArtistsWithImages,
   fetchTopArtistsServer,
-  fetchTopCitiesServer,
-  fetchTopRisersServer,
   resolveTopCity,
-  riserToTopArtist,
   type RisersWindow,
   type TopArtist,
 } from "@/lib/top-artists"
@@ -61,11 +65,7 @@ const MOVERS_COUNT = 4
 
 /** Streams in after the board: movers need the 500-row snapshot for their stats. */
 async function MoversSection() {
-  const risers = await fetchTopRisersServer({ window: 7, limit: MOVERS_COUNT })
-  if (!risers?.has_history || risers.items.length === 0) return null
-  const movers = await enrichTopArtistsWithImages(
-    await withChartStats(risers.items.slice(0, MOVERS_COUNT).map((item, index) => riserToTopArtist(item, index + 1))),
-  )
+  const movers = await loadHiffi500Risers(7, MOVERS_COUNT)
   return <TopChartMovers movers={movers} />
 }
 
@@ -78,22 +78,18 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
   const artistParam = firstParam(sp.artist).toLowerCase().replace(/^@+/, "")
   const wantsCityBoard = mode === "overall" && Boolean(cityParam)
 
-  const [citiesResponse, boardWithoutCity, overallTopEarly] = await Promise.all([
-    fetchTopCitiesServer(),
+  const [rawCities, boardWithoutCity, overallTopEarly] = await Promise.all([
+    getChartCities(),
     wantsCityBoard ? Promise.resolve(null) : loadChartPage({ mode, city: null, window: windowDays }, 0),
     mode === "overall" && !cityParam ? Promise.resolve(null) : fetchTopArtistsServer(3, 0),
   ])
-  const rawCities = citiesResponse?.items ?? []
-  const cities: ChartCity[] = rawCities
-    .filter((city) => city.ranked_count > 0 && (city.id || city.location))
-    .sort((a, b) => b.ranked_count - a.ranked_count)
-    .map((city) => ({
-      key: city.id ?? city.location,
-      id: city.id,
-      location: city.id ? null : city.location,
-      label: city.label,
-      rankedCount: city.ranked_count,
-    }))
+  const cities: ChartCity[] = rawCities.map((city) => ({
+    key: city.id ?? city.location,
+    id: city.id,
+    location: city.id ? null : city.location,
+    label: city.label,
+    rankedCount: city.ranked_count,
+  }))
 
   const resolvedCity = wantsCityBoard ? resolveTopCity(rawCities, cityParam) : null
   const initialCity = resolvedCity
@@ -136,7 +132,7 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
         ? "Hiffi Hip-Hop 500"
         : chartModeLabel(mode)
 
-  const chartWeek = formatChartWeek(podium[0]?.ranking?.updated_at ?? citiesResponse?.updated_at)
+  const chartWeek = formatChartWeek(podium[0]?.ranking?.updated_at)
 
   const jsonLd =
     isDefaultBoard && board && board.items.length > 0

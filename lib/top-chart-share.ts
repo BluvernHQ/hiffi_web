@@ -55,8 +55,6 @@ export function chartModeLabel(mode: ChartMode): string {
 const BOARD_NAMES: Record<ChartMode, string> = {
   overall: "the Hiffi Hip-Hop 500",
   risers: "Biggest Risers",
-  breakout: "Breakout 100",
-  heat: "Underground Heat",
 }
 
 export function shareHeadline(artist: TopArtist, scope: ChartShareScope): string {

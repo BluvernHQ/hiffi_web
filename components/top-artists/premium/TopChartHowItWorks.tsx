@@ -21,7 +21,7 @@ const PIPELINE = [
   },
   {
     title: "City charts",
-    body: "Each city with enough ranked artists gets a top 50 of every ranked artist based there, ordered by overall position, with Hiffi 500 members marked.",
+    body: "Cities with at least five Hiffi 500 artists get their own board, listing those artists in chart order.",
   },
   {
     title: "Claim and verify",
@@ -31,37 +31,27 @@ const PIPELINE = [
 
 const BOARDS = [
   {
-    mode: null,
+    href: "/top-artists#ranking",
     title: "Overall",
     cap: "Top 500",
-    source: "The Hiffi 500",
-    body: "The Hiffi 500, ordered by the blended YouTube and Instagram score. Pick a city to see every ranked artist there.",
+    body: "The full Hiffi 500, ordered by the blended YouTube and Instagram score.",
   },
   {
-    mode: "risers",
+    href: "/top-artists?mode=risers#ranking",
     title: "Biggest risers",
     cap: "Top 100",
-    source: "The Hiffi 500",
     body: "The 500’s biggest climbers over the last 7 or 30 days.",
   },
   {
-    mode: "breakout",
-    title: "Breakout 100",
-    cap: "Top 100",
-    source: "Full index",
-    body: "Smaller artists who aren’t in the 500 yet: reach below the 70th percentile, sorted by momentum.",
-  },
-  {
-    mode: "heat",
-    title: "Underground heat",
-    cap: "Top 50",
-    source: "Full index",
-    body: "Mid and small-reach artists outside the 500, sorted by engagement plus momentum.",
+    href: "/top-artists#ranking",
+    title: "City boards",
+    cap: "By city",
+    body: "The Hiffi 500 artists from one city, with their place on the 500. Pick a city on the Overall board.",
   },
 ] as const
 
 const METRICS = [
-  { value: "7d", title: "Momentum", body: "Short-window growth against recent snapshots. Where breakout spikes show first." },
+  { value: "7d", title: "Momentum", body: "Short-window growth against recent snapshots. Where sudden spikes show first." },
   { value: "30d", title: "Momentum", body: "Monthly growth, the core of the recent-momentum weight." },
   { value: "90d", title: "Momentum", body: "Quarterly trend that separates sustained climbs from one-week noise." },
   { value: "Score", title: "Composite", body: "The blended YouTube and Instagram score behind global and city rank." },
@@ -167,7 +157,7 @@ function Masthead() {
           {[
             { label: "Platforms", value: "YouTube + Instagram" },
             { label: "Global board", value: "Top 500" },
-            { label: "City boards", value: "Top 50 each" },
+            { label: "City boards", value: "The 500 by city" },
             { label: "Refreshed", value: "Weekly" },
           ].map((item) => (
             <div
@@ -222,27 +212,19 @@ function Weights() {
 function Boards() {
   return (
     <section aria-labelledby="how-boards" className="space-y-10">
-      <SectionIntro id="how-boards" eyebrow="03 — Boards" title="Four ways to read it">
-        Overall is the Hiffi 500. Biggest risers shows the 500’s biggest climbers. City boards rank every artist in a
-        city, with Hiffi 500 members marked. Breakout 100 and Underground heat surface smaller artists from the full
-        index who aren’t in the 500 yet.
+      <SectionIntro id="how-boards" eyebrow="03 — Boards" title="Three ways to read it">
+        Every board shows Hiffi 500 artists only. Overall is the full 500, Biggest risers shows its biggest climbers,
+        and city boards show the 500 artists from one city.
       </SectionIntro>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {BOARDS.map((board) => (
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {BOARDS.map((board, index) => (
           <li key={board.title}>
             <Link
-              href={board.mode ? `/top-artists?mode=${board.mode}#ranking` : "/top-artists#ranking"}
+              href={board.href}
               className="group flex h-full flex-col rounded-[22px] bg-[#0E0E10] p-6 ring-1 ring-white/10 transition-[box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:ring-white/25"
             >
               <span className="flex items-center justify-between gap-3">
-                <span
-                  className={cn(
-                    "font-mono text-[10px] uppercase tracking-[0.2em]",
-                    board.source === "The Hiffi 500" ? "text-[#F2C662]/80" : "text-white/40",
-                  )}
-                >
-                  {board.source}
-                </span>
+                <span className="font-mono text-[10px] tracking-[0.2em] text-white/35">0{index + 1}</span>
                 <span className="rounded-full border border-white/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/50">
                   {board.cap}
                 </span>
@@ -312,9 +294,9 @@ function Governance() {
           Hip-hop, on signal
         </h2>
         <p className="mt-4 max-w-md text-[15px] leading-7 text-white/60">
-          Only inventory artists with a successful rank are eligible. Artists outside the 500 never get a public
-          score or overall rank, at most a percentile band like Top 5%. Independent index, not affiliated with
-          YouTube or Instagram.
+          Only inventory artists with a successful rank are eligible, and this page lists the top 500 only. Everyone
+          else keeps a percentile band like Top 5% on their Artist Index profile. Independent index, not affiliated
+          with YouTube or Instagram.
         </p>
       </article>
     </section>
@@ -327,8 +309,8 @@ function VersionNote() {
       <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">Note — v1</p>
       <p className="mt-3 max-w-3xl text-sm leading-6 text-white/55">
         Overall and city charts use the blended YouTube and Instagram score. Reach fields fill in as platform history
-        grows, and momentum windows stay empty until there’s enough snapshot history. Biggest risers, Breakout 100 and
-        Underground heat are board-specific and don’t use the Instagram blend yet.
+        grows, and momentum windows stay empty until there’s enough snapshot history. Biggest risers doesn’t use the
+        Instagram blend yet.
       </p>
     </aside>
   )

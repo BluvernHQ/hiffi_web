@@ -8,7 +8,14 @@ import {
   resolveTopCity,
   type TopArtist,
 } from "@/lib/top-artists"
-import { getTopChartSnapshot, isChartMode, loadChartPage, withChartStats, type ChartMode } from "@/lib/top-chart"
+import {
+  getTopChartSnapshot,
+  isChartMode,
+  isHiffi500Member,
+  loadChartPage,
+  withChartStats,
+  type ChartMode,
+} from "@/lib/top-chart"
 import { SHARE_CARD_SIZE, type ShareCardFormat } from "@/lib/top-chart-share"
 import { chartMovement, chartPlace, formatChartWeek } from "@/components/top-artists/premium/chart-format"
 
@@ -30,8 +37,6 @@ type CardData = {
 
 const MODE_TITLES: Record<Exclude<ChartMode, "overall">, string> = {
   risers: "Biggest Riser",
-  breakout: "Breakout 100",
-  heat: "Underground Heat",
 }
 
 function publicFile(path: string) {
@@ -79,7 +84,7 @@ async function resolveCard(handle: string, params: URLSearchParams): Promise<Car
     const resolved = resolveTopCity(cities?.items ?? [], cityParam)
     if (resolved) {
       const page = await fetchTopArtistsByCityServer(resolved.query, 50, 0, { enrichImages: false })
-      const hit = page?.items.find(matches)
+      const hit = page?.items.filter(isHiffi500Member).find(matches)
       if (hit) {
         const [artist] = await withChartStats([hit])
         return {
@@ -101,7 +106,7 @@ async function resolveCard(handle: string, params: URLSearchParams): Promise<Car
         artist,
         rank: artist.rank,
         title: mode === "risers" && artist.is_new_entry ? "New Entry" : MODE_TITLES[mode],
-        sub: mode === "risers" ? "Hiffi 500 Global" : "Hiffi Discovery",
+        sub: "Hiffi 500 Global",
         chip: movementChip(artist, mode === "risers"),
       }
     }
