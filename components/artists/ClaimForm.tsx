@@ -21,10 +21,8 @@ import {
 import { loadClaimReceipt, resolveClaimReceiptState } from "@/lib/artist-index/claim-receipt"
 import type { InventorySocialPlatform } from "@/lib/types/inventory"
 import { useClaimReceipt } from "@/hooks/use-claim-receipt"
-import { artistButtonMuted, artistButtonSolid } from "@/components/artists/artist-styles"
 import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
 import { useTurnstileForm } from "@/hooks/use-turnstile-form"
-import { cn } from "@/lib/utils"
 import { ClaimAccountStep } from "./claim/ClaimAccountStep"
 import { ClaimProfileStep } from "./claim/ClaimProfileStep"
 import { ClaimSocialsStep } from "./claim/ClaimSocialsStep"
@@ -294,6 +292,7 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
       <ClaimStepper current={step} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <div key={step} className="artist-rise space-y-6">
         {step === "account" ? (
           <ClaimAccountStep
             artistSlug={artist.slug}
@@ -315,11 +314,12 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
             />
           </>
         ) : null}
+        </div>
 
         {submitError ? (
           <p
             role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
+            className="rounded-xl border border-[#E8192C]/20 bg-[#E8192C]/[0.04] px-4 py-3 text-sm text-[#B3121F]"
           >
             {submitError}
           </p>
@@ -327,17 +327,23 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           {stepIndex > 0 ? (
-            <button type="button" onClick={handleBack} className={artistButtonMuted}>
-              <ArrowLeft className="h-4 w-4" aria-hidden />
+            <button
+              type="button"
+              onClick={handleBack}
+              className="group inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-[#0B0B0C]/60 transition-colors hover:text-[#0B0B0C]"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" aria-hidden />
               Back
             </button>
           ) : (
-            <span className="hidden sm:block" />
+            <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-[#77726A] sm:block">
+              Step 1 of {CLAIM_STEPS.length}
+            </span>
           )}
           <button
             type="submit"
             disabled={submitting || (isLastStep && submitBlocked)}
-            className={cn(artistButtonSolid, "disabled:opacity-60")}
+            className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#E8192C] px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#d01528] disabled:opacity-60"
           >
             {submitting ? (
               <>
@@ -353,7 +359,7 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
             ) : (
               <>
                 Continue
-                <ArrowRight className="h-4 w-4" aria-hidden />
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
               </>
             )}
           </button>

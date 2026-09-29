@@ -24,7 +24,7 @@ import {
   type DiscoverySource,
 } from "@/lib/types/inventory"
 import { cn } from "@/lib/utils"
-import { ClaimField, ClaimSection, claimInputClass } from "./claim-field"
+import { ClaimField, ClaimSection, claimInputClass, claimSelectClass } from "./claim-field"
 
 type ClaimProfileStepProps = {
   draft: ClaimDraft
@@ -60,9 +60,9 @@ function CollabChoice({
 
   return (
     <div className="space-y-2">
-      <Label id="claim-collab-label" className="flex items-center gap-2">
+      <Label id="claim-collab-label" className="flex items-center gap-2 text-[13px] font-semibold text-[#0B0B0C]">
         Are you open to collaborations?
-        <span className="text-destructive" aria-hidden>
+        <span className="text-[#E8192C]/80" aria-hidden>
           *
         </span>
       </Label>
@@ -88,20 +88,22 @@ function CollabChoice({
               onClick={() => onChange(option.value)}
               onKeyDown={(event) => handleKeyDown(event, index)}
               className={cn(
-                "rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8192C]/40",
+                "rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#E8192C]/15",
                 selected
-                  ? "border-[#E8192C] bg-[#E8192C]/5"
-                  : "border-border bg-white hover:bg-muted/40",
+                  ? "border-[#0B0B0C] bg-[#0B0B0C] text-[#F4F1EA]"
+                  : "border-[#0B0B0C]/12 bg-[#FAF8F3] hover:border-[#0B0B0C]/25",
               )}
             >
-              <span className="block text-sm font-semibold text-foreground">{option.label}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
+              <span className="block text-sm font-semibold">{option.label}</span>
+              <span className={cn("mt-1 block text-xs leading-5", selected ? "text-white/60" : "text-[#77726A]")}>
+                {option.description}
+              </span>
             </button>
           )
         })}
       </div>
       {error ? (
-        <p id="claim-collab-error" className="text-sm text-destructive">
+        <p id="claim-collab-error" className="text-sm text-[#D0142A]">
           {error}
         </p>
       ) : null}
@@ -134,7 +136,7 @@ export function ClaimProfileStep({ draft, errors, onChange }: ClaimProfileStepPr
           <SelectTrigger
             id="claim-sound"
             aria-invalid={Boolean(errors.primarySound)}
-            className="h-11 w-full rounded-xl"
+            className={claimSelectClass}
           >
             <SelectValue placeholder="Select your sound" />
           </SelectTrigger>
@@ -179,7 +181,7 @@ export function ClaimProfileStep({ draft, errors, onChange }: ClaimProfileStepPr
           <SelectTrigger
             id="claim-how-found"
             aria-invalid={Boolean(errors.howFound)}
-            className="h-11 w-full rounded-xl"
+            className={claimSelectClass}
           >
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>

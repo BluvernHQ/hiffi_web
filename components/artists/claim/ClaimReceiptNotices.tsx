@@ -25,17 +25,17 @@ export function ClaimNotApprovedNotice({
   onStartFresh: () => void
 }) {
   return (
-    <div role="status" className="rounded-2xl border border-border bg-muted/30 p-5">
-      <p className="text-sm font-semibold text-foreground">Your earlier claim wasn&apos;t approved</p>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <div role="status" className="rounded-[20px] border border-[#E8192C]/20 bg-[#E8192C]/[0.04] p-5">
+      <p className="text-sm font-semibold text-[#0B0B0C]">Your earlier claim wasn&apos;t approved</p>
+      <p className="mt-1 text-sm leading-6 text-[#77726A]">
         We couldn&apos;t verify the claim you sent on {formatClaimDate(submittedAt)} with{" "}
-        <strong className="text-foreground">{email}</strong>. Check that your social links point to
-        this artist and try again — we&apos;ve filled in your previous answers.
+        <strong className="font-semibold text-[#0B0B0C]">{email}</strong>. Check that your social links point to
+        this artist and try again. We&apos;ve filled in your previous answers.
       </p>
       <button
         type="button"
         onClick={onStartFresh}
-        className="mt-3 text-sm font-medium text-[#E8192C] underline-offset-2 hover:underline"
+        className="mt-3 text-sm font-semibold text-[#0B0B0C] underline decoration-[#0B0B0C]/25 underline-offset-4 transition-colors hover:decoration-[#0B0B0C]"
       >
         Start fresh instead
       </button>

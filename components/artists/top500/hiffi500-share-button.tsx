@@ -9,9 +9,12 @@ import { hiffi500SharePath, type TopArtist } from "@/lib/top-artists"
 export function Hiffi500ShareButton({
   artist,
   className,
+  variant = "pill",
 }: {
   artist: TopArtist
   className?: string
+  /** `icon`: round ghost button for paper chart rows. */
+  variant?: "pill" | "icon"
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -38,6 +41,23 @@ export function Hiffi500ShareButton({
         // ignore
       }
     }
+  }
+
+  if (variant === "icon") {
+    return (
+      <button
+        type="button"
+        onClick={handleShare}
+        className={cn(
+          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#0B0B0C]/12 text-[#0B0B0C]/55 transition-colors hover:border-[#0B0B0C]/40 hover:text-[#0B0B0C]",
+          className,
+        )}
+        data-analytics-name="hiffi500-share"
+        aria-label={copied ? "Link copied" : `Share ${artist.artist_name} ranking`}
+      >
+        {copied ? <Check className="h-4 w-4 text-[#E8192C]" aria-hidden /> : <Share2 className="h-4 w-4" aria-hidden />}
+      </button>
+    )
   }
 
   return (

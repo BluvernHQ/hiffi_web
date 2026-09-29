@@ -2,7 +2,6 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { Check, Clock, Mail, UserCheck } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { artistButtonMuted } from "@/components/artists/artist-styles"
 import { cn } from "@/lib/utils"
 import { formatClaimDate } from "@/lib/artist-index/claim-receipt"
 
@@ -79,17 +78,20 @@ export function ClaimSubmitted({
 
   return (
     <section
-      className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8"
+      className="artist-rise rounded-[24px] border border-[#0B0B0C]/10 bg-white p-6 shadow-[0_24px_60px_-40px_rgba(11,11,12,0.35)] sm:p-8"
       aria-live="polite"
     >
-      <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+      <span className="inline-flex items-center gap-2 rounded-full bg-[#F4F1EA] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.24em] text-[#0B0B0C]/70">
+        <span className="relative flex h-1.5 w-1.5" aria-hidden>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#E8192C]/60 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#E8192C]" />
+        </span>
         Under review
       </span>
-      <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground">
-        Thanks — we&apos;re reviewing your claim for {artistName}.
+      <h2 className="font-signal mt-4 text-[2rem] font-bold uppercase leading-[0.9] tracking-[-0.005em] text-[#0B0B0C] sm:text-[2.5rem]">
+        Thanks. We&apos;re reviewing your claim for {artistName}.
       </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mt-3 max-w-xl text-sm leading-6 text-[#77726A]">
         {submittedLabel ? `Submitted ${submittedLabel} with ${email}. ` : null}
         You don&apos;t need to do anything else right now. Keep an eye on your inbox, including spam.
       </p>
@@ -104,7 +106,7 @@ export function ClaimSubmitted({
                 <span
                   className={cn(
                     "absolute left-[17px] top-9 h-[calc(100%-2.25rem)] w-px",
-                    item.state === "done" ? "bg-[#E8192C]" : "bg-border",
+                    item.state === "done" ? "bg-[#E8192C]" : "bg-[#0B0B0C]/12",
                   )}
                   aria-hidden
                 />
@@ -114,7 +116,7 @@ export function ClaimSubmitted({
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
                   item.state === "done" && "border-[#E8192C] bg-[#E8192C] text-white",
                   item.state === "current" && "border-[#E8192C] bg-[#E8192C]/10 text-[#E8192C]",
-                  item.state === "upcoming" && "border-border bg-white text-muted-foreground",
+                  item.state === "upcoming" && "border-[#0B0B0C]/12 bg-[#FAF8F3] text-[#0B0B0C]/40",
                 )}
                 aria-hidden
               >
@@ -124,35 +126,41 @@ export function ClaimSubmitted({
                 <p
                   className={cn(
                     "text-sm font-semibold",
-                    item.state === "upcoming" ? "text-muted-foreground" : "text-foreground",
+                    item.state === "upcoming" ? "text-[#0B0B0C]/50" : "text-[#0B0B0C]",
                   )}
                 >
                   {item.title}
                   {item.state === "current" ? <span className="sr-only"> (in progress)</span> : null}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+                <p className="mt-1 text-sm leading-6 text-[#77726A]">{item.detail}</p>
               </div>
             </li>
           )
         })}
       </ol>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link href={`/artist-index/${artistSlug}`} className={artistButtonMuted}>
+      <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-[#0B0B0C]/10 pt-6">
+        <Link
+          href={`/artist-index/${artistSlug}`}
+          className="inline-flex items-center rounded-full bg-[#0B0B0C] px-5 py-3 text-sm font-semibold text-[#F4F1EA] transition-colors hover:bg-black"
+        >
           Back to {artistName}
         </Link>
-        <Link href="/" className={cn(artistButtonMuted, "border-transparent")}>
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-full px-4 py-3 text-sm font-semibold text-[#0B0B0C]/60 transition-colors hover:text-[#0B0B0C]"
+        >
           Explore Hiffi
         </Link>
       </div>
 
       {onSeparateRequest ? (
-        <p className="mt-6 text-sm text-muted-foreground">
+        <p className="mt-5 text-sm text-[#77726A]">
           Not your claim?{" "}
           <button
             type="button"
             onClick={onSeparateRequest}
-            className="font-medium text-[#E8192C] underline-offset-2 hover:underline"
+            className="font-semibold text-[#0B0B0C] underline decoration-[#0B0B0C]/25 underline-offset-4 transition-colors hover:decoration-[#0B0B0C]"
           >
             Submit a separate ownership request
           </button>

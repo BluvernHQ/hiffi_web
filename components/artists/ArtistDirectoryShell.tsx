@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 type ArtistDirectoryShellProps = {
   children: ReactNode
-  claimHref?: string
+  claimHref?: string | null
   claimLabel?: string
   breadcrumbs?: Array<{ label: string; href?: string }>
   breadcrumbTrailing?: ReactNode

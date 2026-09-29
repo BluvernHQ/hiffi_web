@@ -8,6 +8,7 @@ import {
   type ClaimDraft,
   type ClaimDraftErrors,
 } from "@/lib/artist-index/claim-draft"
+import { cn } from "@/lib/utils"
 import { ClaimField, ClaimSection, claimInputClass } from "./claim-field"
 
 type ClaimAccountStepProps = {
@@ -40,12 +41,12 @@ function PasswordInput({
         minLength={CLAIM_MIN_PASSWORD_LENGTH}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${id}-error` : undefined}
-        className={`${claimInputClass} pr-11`}
+        className={cn(claimInputClass, "pr-11")}
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#0B0B0C]/40 transition-colors hover:text-[#0B0B0C]"
         aria-label={visible ? "Hide password" : "Show password"}
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -60,7 +61,7 @@ export function ClaimAccountStep({ artistSlug, draft, errors, onChange }: ClaimA
       title="Create your artist account"
       description={
         <>
-          This becomes your login for <strong className="text-foreground">@{artistSlug}</strong> once
+          This becomes your login for <strong className="font-semibold text-[#0B0B0C]">@{artistSlug}</strong> once
           our team approves your claim.
         </>
       }

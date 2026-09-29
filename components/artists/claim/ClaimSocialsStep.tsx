@@ -43,7 +43,7 @@ export function ClaimSocialsStep({ draft, errors, onSocialChange }: ClaimSocials
           </ClaimField>
         )
       })}
-      <p className="rounded-xl bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
+      <p className="rounded-xl bg-[#F4F1EA] px-4 py-3 text-xs leading-5 text-[#77726A]">
         Direct Instagram and YouTube verification is coming soon. For now, a Hiffi team member checks
         these links by hand.
       </p>

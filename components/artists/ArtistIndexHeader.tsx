@@ -11,7 +11,8 @@ type Breadcrumb = {
 }
 
 type ArtistIndexHeaderProps = {
-  claimHref?: string
+  /** `null` hides the claim button (e.g. on the claim page itself). */
+  claimHref?: string | null
   claimLabel?: string
   breadcrumbs?: Breadcrumb[]
   breadcrumbTrailing?: ReactNode
@@ -46,9 +47,11 @@ export function ArtistIndexHeader({
             priority
           />
         </Link>
-        <Link href={claimHref} className={cn(artistButtonSolid, "shrink-0")}>
-          {claimLabel}
-        </Link>
+        {claimHref ? (
+          <Link href={claimHref} className={cn(artistButtonSolid, "shrink-0")}>
+            {claimLabel}
+          </Link>
+        ) : null}
       </div>
       {breadcrumbs?.length ? (
         <nav
