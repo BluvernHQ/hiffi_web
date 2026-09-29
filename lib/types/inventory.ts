@@ -234,6 +234,11 @@ export interface InventoryClaimApproveResponse {
   account_ready: boolean
 }
 
+export interface InventoryClaimResendEmailResponse {
+  claim: InventoryClaim
+  email_sent: boolean
+}
+
 export interface InventoryClaimDeleteResponse {
   deleted: true
   id: string
@@ -445,6 +450,20 @@ export function normalizeInventoryClaimApproveResponse(
     ...(userUid ? { user_uid: userUid } : {}),
     email_sent: Boolean(raw.email_sent),
     account_ready: raw.account_ready === true,
+  }
+}
+
+export function normalizeInventoryClaimResendEmailResponse(
+  raw: Record<string, unknown>,
+): InventoryClaimResendEmailResponse {
+  const claimRaw =
+    raw.claim && typeof raw.claim === "object" && !Array.isArray(raw.claim)
+      ? (raw.claim as Record<string, unknown>)
+      : {}
+
+  return {
+    claim: normalizeInventoryClaim(claimRaw),
+    email_sent: Boolean(raw.email_sent),
   }
 }
 

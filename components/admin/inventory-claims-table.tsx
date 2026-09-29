@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Info,
   Loader2,
+  Mail,
   RefreshCw,
   Search,
   Trash2,
@@ -131,7 +132,21 @@ function ClaimDetailsCell({ claim }: { claim: InventoryClaim }) {
   )
 }
 
-function OnboardingFunnelCell({ claim }: { claim: InventoryClaim }) {
+function needsApprovalEmail(claim: InventoryClaim): boolean {
+  return claim.status === "approved" && !claim.welcome_email_sent_at
+}
+
+function OnboardingFunnelCell({
+  claim,
+  onResend,
+  resending = false,
+  resendDisabled = false,
+}: {
+  claim: InventoryClaim
+  onResend?: () => void
+  resending?: boolean
+  resendDisabled?: boolean
+}) {
   const steps = funnelStepsFor(claim).map((step) => ({
     ...step,
     at: claim[step.field],
@@ -247,6 +262,26 @@ function OnboardingFunnelCell({ claim }: { claim: InventoryClaim }) {
             )
           })}
         </ol>
+
+        {onResend && needsApprovalEmail(claim) ? (
+          <div className="mt-3 border-t pt-3">
+            <p className="mb-2 text-xs text-muted-foreground">
+              {claim.has_password
+                ? "The sign-in email never went out."
+                : "The onboarding email never went out. Resending issues a fresh link."}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              disabled={resending || resendDisabled}
+              onClick={onResend}
+            >
+              {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              <span className="ml-1">Resend email</span>
+            </Button>
+          </div>
+        ) : null}
       </PopoverContent>
     </Popover>
   )
@@ -377,6 +412,7 @@ export function InventoryClaimsTable() {
   const [claimToDelete, setClaimToDelete] = useState<InventoryClaim | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedUsername(usernameQuery.trim()), 300)
@@ -499,6 +535,60 @@ export function InventoryClaimsTable() {
     }
   }
 
+  const handleResendEmail = async (claim: InventoryClaim) => {
+    setResendingId(claim.id)
+    try {
+      const result = await adminApiClient.adminResendInventoryClaimEmail(claim.id)
+      const updated: InventoryClaim = result.claim.id
+        ? result.claim
+        : result.email_sent
+          ? { ...claim, welcome_email_sent_at: new Date().toISOString(), onboarding_status: "email_sent" }
+          : claim
+      const leavesFilter = result.email_sent && onboardingFilter === "awaiting_email"
+      setRows((prev) =>
+        leavesFilter
+          ? prev.filter((row) => row.id !== claim.id)
+          : prev.map((row) => (row.id === claim.id ? updated : row)),
+      )
+      if (leavesFilter) setCount((prev) => Math.max(0, prev - 1))
+
+      toast(
+        result.email_sent
+          ? {
+              title: "Email sent",
+              description: `${claim.has_password ? "Sign-in" : "Onboarding"} email sent to ${claim.email}.`,
+            }
+          : {
+              title: "Email not sent",
+              description: `The email to ${claim.email} failed again. Try later or send it by hand.`,
+              variant: "destructive",
+            },
+      )
+    } catch (error) {
+      const status = (error as { status?: number } | null)?.status
+      if (status === 404) {
+        toast({
+          title: "Resend isn't live yet",
+          description: "The backend doesn't have the resend endpoint on this server yet.",
+          variant: "destructive",
+        })
+      } else if (status === 429) {
+        toast({
+          title: "Email sent recently",
+          description: "Wait a few minutes before resending to avoid duplicate emails.",
+        })
+      } else {
+        handleFetchError(error, {
+          genericMessage: "Failed to resend email",
+          onGenericError: (description) =>
+            toast({ title: "Error", description, variant: "destructive" }),
+        })
+      }
+    } finally {
+      setResendingId(null)
+    }
+  }
+
   const handleDeleteConfirm = async () => {
     if (!claimToDelete) return
     setDeletingId(claimToDelete.id)
@@ -532,7 +622,7 @@ export function InventoryClaimsTable() {
   const showOnboardingColumns = statusFilter === "approved" || statusFilter === ""
   const baseCols = showOnboardingColumns ? 10 : 8
   const colSpan = canInventoryClaimsWrite ? baseCols + 1 : baseCols
-  const actionInFlight = approvingId != null || deletingId != null
+  const actionInFlight = approvingId != null || deletingId != null || resendingId != null
 
   if (isInitialLoad) {
     return (
@@ -568,8 +658,9 @@ export function InventoryClaimsTable() {
           rejecting siblings.
         </p>
         <p className="mt-1">
-          Track stuck artists with Approved + onboarding filters (email sent / link opened). Resend
-          email is not available yet.
+          Track stuck artists with Approved + onboarding filters. For approved claims whose email
+          never went out (Awaiting email), use{" "}
+          <span className="font-medium text-foreground">Resend email</span>.
         </p>
       </div>
 
@@ -755,7 +846,8 @@ export function InventoryClaimsTable() {
                 </tr>
               ) : (
                 rows.map((row) => {
-                  const rowBusy = approvingId === row.id || deletingId === row.id
+                  const rowBusy =
+                    approvingId === row.id || deletingId === row.id || resendingId === row.id
                   return (
                     <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="px-4 py-3 text-sm">
@@ -799,7 +891,12 @@ export function InventoryClaimsTable() {
                           </td>
                           <td className="px-4 py-3 align-top">
                             {row.status === "approved" ? (
-                              <OnboardingFunnelCell claim={row} />
+                              <OnboardingFunnelCell
+                                claim={row}
+                                onResend={canInventoryClaimsWrite ? () => void handleResendEmail(row) : undefined}
+                                resending={resendingId === row.id}
+                                resendDisabled={actionInFlight}
+                              />
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
@@ -825,6 +922,21 @@ export function InventoryClaimsTable() {
                                   <Check className="h-4 w-4" />
                                 )}
                                 <span className="ml-1">Approve</span>
+                              </Button>
+                            ) : null}
+                            {needsApprovalEmail(row) ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={rowBusy || actionInFlight}
+                                onClick={() => void handleResendEmail(row)}
+                              >
+                                {resendingId === row.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                                <span className="ml-1">Resend email</span>
                               </Button>
                             ) : null}
                             <Button
