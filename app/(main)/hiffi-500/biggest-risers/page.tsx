@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 
 export default async function Hiffi500RisersPage() {
   const batch = await fetchTopRisersUpTo(50, { window: 7 })
-  const risers = batch.items.map(riserToTopArtist)
+  const risers = batch.items.map((item, index) => riserToTopArtist(item, index + 1))
   const pending = !batch.has_history
 
   return (

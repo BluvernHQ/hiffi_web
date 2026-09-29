@@ -55,7 +55,7 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
                   {artist.artist_name}
                 </span>
                 <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
-                  {[`Now #${artist.rank}`, place].filter(Boolean).join(" · ")}
+                  {[artist.global_rank ? `#${artist.global_rank} on the 500` : null, place].filter(Boolean).join(" · ")}
                 </span>
                 {artistMomentum(artist, 7) !== 0 ? (
                   <span

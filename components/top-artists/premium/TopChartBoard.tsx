@@ -14,6 +14,7 @@ import { TopChartCityPicker } from "@/components/top-artists/premium/TopChartCit
 import {
   artistMomentum,
   chartPlace,
+  chartStanding,
   chartTrend,
   formatCount,
   formatMomentum,
@@ -234,7 +235,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
   const rowGrid = cn(ROW_GRID, showStats ? ROW_GRID_STATS : ROW_GRID_PLAIN)
   const heading = mode === "overall" && city ? `${city.label} chart` : mode === "overall" ? "The Hip-Hop 500" : modeMeta.label
   const kicker =
-    mode === "overall" && city ? `The top 50 in ${city.label}, scored the same way as the 500.` : modeMeta.kicker
+    mode === "overall" && city
+      ? `Every ranked artist in ${city.label}, ordered by overall position. Hiffi 500 members are marked.`
+      : modeMeta.kicker
+  const showStanding = mode !== "overall" || city !== null
+  const firstOutside500 =
+    mode === "overall" && city && sort === "rank" && !needle ? visible.findIndex((artist) => !artist.global_rank) : -1
   const drawerContext = mode === "overall" && city ? `${city.label} chart` : mode === "overall" ? "Hiffi Hip-Hop 500" : modeMeta.label
   const shareScope: ChartShareScope = {
     mode,
@@ -247,7 +253,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
     <section id="ranking" aria-labelledby="top-chart-heading" className="scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <ArtistDetailEyebrow className="text-white/45">The ranking</ArtistDetailEyebrow>
+          <ArtistDetailEyebrow className="text-white/45">Charts</ArtistDetailEyebrow>
           <ArtistDetailHeading id="top-chart-heading" className="text-[#F4F1EA]">
             {heading}
           </ArtistDetailHeading>
@@ -397,6 +403,12 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
           <ol className="divide-y divide-white/[0.07]">
             {visible.map((artist, index) => (
               <li key={artist.username} className="artist-rise" style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}>
+                {index === firstOutside500 && index > 0 ? (
+                  <p className="flex items-center gap-3 pb-3 pt-7 font-mono text-[10px] uppercase tracking-[0.28em] text-white/40">
+                    Beyond the Hip-Hop 500
+                    <span className="h-px flex-1 bg-white/10" aria-hidden />
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => open(artist, drawerContext, shareScope)}
@@ -409,6 +421,7 @@ export function TopChartBoard({ initialMode, initialCity, initialWindow, initial
                     artist={artist}
                     showMovement={showMovement}
                     showStats={showStats}
+                    showStanding={showStanding}
                     trendWindow={trendWindow}
                   />
                 </button>
@@ -469,15 +482,18 @@ function ChartRowContent({
   artist,
   showMovement,
   showStats,
+  showStanding,
   trendWindow,
 }: {
   artist: TopArtist
   showMovement: boolean
   showStats: boolean
+  showStanding: boolean
   trendWindow?: MomentumWindow
 }) {
   const place = chartPlace(artist)
   const gold = artist.rank <= 3
+  const standing = showStanding ? chartStanding(artist) : null
 
   return (
     <>
@@ -503,10 +519,18 @@ function ChartRowContent({
             <BadgeCheck className="h-4 w-4 shrink-0 text-[#6F95F0]" aria-label="Verified artist" />
           ) : null}
         </span>
-        <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
-          {[place, artist.global_rank && artist.global_rank !== artist.rank ? `#${artist.global_rank} overall` : null]
-            .filter(Boolean)
-            .join(" · ") || "Hip-hop"}
+        <span className="mt-1.5 flex min-w-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
+          <span className="truncate">{place || "Hip-hop"}</span>
+          {standing ? (
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 tracking-[0.14em]",
+                standing.kind === "rank" ? "bg-[#F2C662]/12 text-[#F2C662]" : "bg-white/[0.06] text-white/55",
+              )}
+            >
+              {standing.kind === "rank" ? `#${standing.rank} on the 500` : standing.label}
+            </span>
+          ) : null}
         </span>
       </span>
       {showStats ? (

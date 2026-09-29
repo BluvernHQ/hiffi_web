@@ -101,7 +101,7 @@ async function resolveCard(handle: string, params: URLSearchParams): Promise<Car
         artist,
         rank: artist.rank,
         title: mode === "risers" && artist.is_new_entry ? "New Entry" : MODE_TITLES[mode],
-        sub: "Hiffi 500 Global",
+        sub: mode === "risers" ? "Hiffi 500 Global" : "Hiffi Discovery",
         chip: movementChip(artist, mode === "risers"),
       }
     }

@@ -21,7 +21,7 @@ const PIPELINE = [
   },
   {
     title: "City charts",
-    body: "Each city with enough ranked artists gets its own local top 50, ranked on the same score, not cut from the global list.",
+    body: "Each city with enough ranked artists gets a top 50 of every ranked artist based there, ordered by overall position, with Hiffi 500 members marked.",
   },
   {
     title: "Claim and verify",
@@ -34,25 +34,29 @@ const BOARDS = [
     mode: null,
     title: "Overall",
     cap: "Top 500",
-    body: "The full live chart, ordered by the blended YouTube and Instagram score. Filter by city for a local top 50.",
+    source: "The Hiffi 500",
+    body: "The Hiffi 500, ordered by the blended YouTube and Instagram score. Pick a city to see every ranked artist there.",
   },
   {
     mode: "risers",
     title: "Biggest risers",
     cap: "Top 100",
-    body: "Weekly rank snapshots surface the steepest climbs, over 7 or 30 days.",
+    source: "The Hiffi 500",
+    body: "The 500’s biggest climbers over the last 7 or 30 days.",
   },
   {
     mode: "breakout",
     title: "Breakout 100",
     cap: "Top 100",
-    body: "Artists with reach below the 70th percentile, sorted by momentum.",
+    source: "Full index",
+    body: "Smaller artists who aren’t in the 500 yet: reach below the 70th percentile, sorted by momentum.",
   },
   {
     mode: "heat",
     title: "Underground heat",
     cap: "Top 50",
-    body: "Mid and small-reach artists, sorted by engagement plus momentum.",
+    source: "Full index",
+    body: "Mid and small-reach artists outside the 500, sorted by engagement plus momentum.",
   },
 ] as const
 
@@ -219,17 +223,26 @@ function Boards() {
   return (
     <section aria-labelledby="how-boards" className="space-y-10">
       <SectionIntro id="how-boards" eyebrow="03 — Boards" title="Four ways to read it">
-        Overall is the full chart. The other boards cut it by movement and audience size.
+        Overall is the Hiffi 500. Biggest risers shows the 500’s biggest climbers. City boards rank every artist in a
+        city, with Hiffi 500 members marked. Breakout 100 and Underground heat surface smaller artists from the full
+        index who aren’t in the 500 yet.
       </SectionIntro>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {BOARDS.map((board, index) => (
+        {BOARDS.map((board) => (
           <li key={board.title}>
             <Link
               href={board.mode ? `/top-artists?mode=${board.mode}#ranking` : "/top-artists#ranking"}
               className="group flex h-full flex-col rounded-[22px] bg-[#0E0E10] p-6 ring-1 ring-white/10 transition-[box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:ring-white/25"
             >
               <span className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[10px] tracking-[0.2em] text-white/35">0{index + 1}</span>
+                <span
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-[0.2em]",
+                    board.source === "The Hiffi 500" ? "text-[#F2C662]/80" : "text-white/40",
+                  )}
+                >
+                  {board.source}
+                </span>
                 <span className="rounded-full border border-white/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/50">
                   {board.cap}
                 </span>
@@ -299,8 +312,9 @@ function Governance() {
           Hip-hop, on signal
         </h2>
         <p className="mt-4 max-w-md text-[15px] leading-7 text-white/60">
-          Only inventory artists with a successful rank are eligible. City charts use the exact location on the
-          profile. Independent index, not affiliated with YouTube or Instagram.
+          Only inventory artists with a successful rank are eligible. Artists outside the 500 never get a public
+          score or overall rank, at most a percentile band like Top 5%. Independent index, not affiliated with
+          YouTube or Instagram.
         </p>
       </article>
     </section>

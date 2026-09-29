@@ -63,7 +63,7 @@ export function shareHeadline(artist: TopArtist, scope: ChartShareScope): string
   const name = artist.artist_name || artist.username
   if (scope.mode === "overall" && scope.cityKey) {
     const city = scope.cityLabel ?? "their city"
-    const global = artist.global_rank && artist.global_rank !== artist.rank ? ` (#${artist.global_rank} globally)` : ""
+    const global = artist.global_rank ? ` (#${artist.global_rank} on the Hiffi 500)` : ""
     return `${name} is #${artist.rank} in ${city}${global} on the Hiffi Hip-Hop chart`
   }
   if (scope.mode === "overall") return `${name} is #${artist.global_rank ?? artist.rank} on the Hiffi Hip-Hop 500`

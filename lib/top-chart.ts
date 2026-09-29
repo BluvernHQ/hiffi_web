@@ -18,9 +18,17 @@ export type ChartMode = "overall" | "risers" | "breakout" | "heat"
 
 export const CHART_MODES: Array<{ id: ChartMode; label: string; kicker: string }> = [
   { id: "overall", label: "Overall", kicker: "Scale and momentum across the full 500." },
-  { id: "risers", label: "Biggest risers", kicker: "The steepest climbs up the chart." },
-  { id: "breakout", label: "Breakout 100", kicker: "Smaller audiences, the fastest momentum." },
-  { id: "heat", label: "Underground heat", kicker: "Mid and small reach with real engagement." },
+  { id: "risers", label: "Biggest risers", kicker: "The steepest climbs inside the Hiffi 500." },
+  {
+    id: "breakout",
+    label: "Breakout 100",
+    kicker: "Smaller artists from the full index, not in the 500 yet, with the fastest momentum.",
+  },
+  {
+    id: "heat",
+    label: "Underground heat",
+    kicker: "Mid and small-reach artists outside the 500 with real engagement.",
+  },
 ]
 
 export function isChartMode(value: unknown): value is ChartMode {
@@ -50,12 +58,17 @@ const readSnapshot = createStaleWhileRevalidate<Map<string, TopArtist>>(900_000,
   console.error("[top-chart] snapshot unavailable:", error),
 )
 
+/** `/inventory/top` is exactly the Hiffi 500, so its rank is the 500 rank. */
+function withGlobalRank(artist: TopArtist): TopArtist {
+  return artist.global_rank ? artist : { ...artist, global_rank: artist.rank }
+}
+
 async function loadTopChartSnapshot(): Promise<Map<string, TopArtist>> {
   const offsets = Array.from({ length: SNAPSHOT_SIZE / SNAPSHOT_PAGE_SIZE }, (_, index) => index * SNAPSHOT_PAGE_SIZE)
   const pages = await Promise.all(
     offsets.map((offset) => fetchTopArtistsServer(SNAPSHOT_PAGE_SIZE, offset, { enrichImages: false })),
   )
-  const items = pages.flatMap((page) => page?.items ?? [])
+  const items = pages.flatMap((page) => page?.items ?? []).map(withGlobalRank)
   if (items.length === 0) throw new Error("top chart snapshot empty")
   return new Map(items.map((artist) => [artist.username.toLowerCase(), artist]))
 }
@@ -134,13 +147,15 @@ export async function loadChartPage(
   if (query.mode === "overall") {
     const page = await fetchTopArtistsServer(limit, offset, { enrichImages: enrich })
     if (!page) return null
-    return { ...capped(page.items, offset, page.has_more, cap), total: Math.min(page.total_ranked, cap) }
+    const { items, hasMore } = capped(page.items.map(withGlobalRank), offset, page.has_more, cap)
+    return { items, hasMore, total: Math.min(page.total_ranked, cap) }
   }
 
   if (query.mode === "risers") {
     const page = await fetchTopRisersServer({ window: query.window, limit, offset })
     if (!page) return null
-    const { items, hasMore } = capped(page.items.map(riserToTopArtist), offset, page.has_more, cap)
+    const risers = page.items.map((item, index) => riserToTopArtist(item, offset + index + 1))
+    const { items, hasMore } = capped(risers, offset, page.has_more, cap)
     return { items: await withImages(await withChartStats(items)), hasMore, total: null }
   }
 

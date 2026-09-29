@@ -15,6 +15,7 @@ import {
   artistMomentum,
   chartMovement,
   chartPlace,
+  chartStanding,
   formatCount,
   formatMomentum,
 } from "@/components/top-artists/premium/chart-format"
@@ -200,7 +201,13 @@ function DrawerProfile({
   onShare: (from: HTMLElement) => void
 }) {
   const place = chartPlace(artist)
-  const tier = topArtistTier(artist.global_rank ?? artist.rank)
+  const standing = chartStanding(artist)
+  const standingLabel =
+    standing?.kind === "rank"
+      ? standing.rank === artist.rank
+        ? topArtistTier(standing.rank).label
+        : `#${standing.rank} on the Hiffi 500`
+      : (standing?.label ?? null)
   const socials = topArtistSocialLinks(artist.other_socials)
   const youtube = socials.find((link) => link.key === "youtube")
   const instagram = socials.find((link) => link.key === "instagram")
@@ -272,7 +279,9 @@ function DrawerProfile({
             >
               #{artist.rank}
             </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-white/55">{tier.label}</p>
+            {standingLabel ? (
+              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-white/55">{standingLabel}</p>
+            ) : null}
           </div>
         </div>
 

@@ -54,6 +54,18 @@ export function chartPlace(artist: TopArtist): string | null {
   return artistPlaceLabel({ city, state })
 }
 
+const BAND_LABEL = { top_5: "Top 5%", top_10: "Top 10%", top_25: "Top 25%" } as const
+
+/**
+ * Where an artist stands overall: their Hiffi 500 rank for members, at most a percentile band for
+ * everyone else. Artists outside the 500 never get an overall number.
+ */
+export function chartStanding(artist: TopArtist): { kind: "rank"; rank: number } | { kind: "band"; label: string } | null {
+  if (artist.global_rank) return { kind: "rank", rank: artist.global_rank }
+  const band = artist.ranking?.band
+  return band && band in BAND_LABEL ? { kind: "band", label: BAND_LABEL[band as keyof typeof BAND_LABEL] } : null
+}
+
 export type ChartMovement = { kind: "up" | "down" | "flat" | "new"; value: number } | null
 
 export function chartMovement(artist: TopArtist): ChartMovement {

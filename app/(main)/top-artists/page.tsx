@@ -64,7 +64,7 @@ async function MoversSection() {
   const risers = await fetchTopRisersServer({ window: 7, limit: MOVERS_COUNT })
   if (!risers?.has_history || risers.items.length === 0) return null
   const movers = await enrichTopArtistsWithImages(
-    await withChartStats(risers.items.slice(0, MOVERS_COUNT).map(riserToTopArtist)),
+    await withChartStats(risers.items.slice(0, MOVERS_COUNT).map((item, index) => riserToTopArtist(item, index + 1))),
   )
   return <TopChartMovers movers={movers} />
 }

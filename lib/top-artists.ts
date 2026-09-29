@@ -409,11 +409,16 @@ function normalizeArtist(item: TopArtist): TopArtist {
   }
 }
 
-/** Map risers API rows onto TopArtist so shared ranking list components can render them. */
-export function riserToTopArtist(item: RiserArtist): TopArtist {
+/**
+ * Map risers API rows onto TopArtist so shared ranking list components can render them.
+ * `rank` is the position on the risers board: `current_rank` comes from the live ranking, not the
+ * weekly snapshot behind Overall, so it can disagree with the 500. The 500 rank comes from
+ * `withChartStats`.
+ */
+export function riserToTopArtist(item: RiserArtist, position: number): TopArtist {
   const youtubeScore = item.youtube_score
   return normalizeArtist({
-    rank: item.current_rank,
+    rank: position,
     username: item.username,
     artist_name: item.artist_name,
     bio: item.bio,
@@ -435,15 +440,17 @@ export function riserToTopArtist(item: RiserArtist): TopArtist {
     instagram_momentum_7d: 0,
     instagram_momentum_30d: 0,
     instagram_momentum_90d: 0,
-    previous_rank: item.prior_rank,
     rank_delta_7d: item.rank_delta,
     is_new_entry: false,
   })
 }
 
-/** Map underground heat rows onto TopArtist for shared list UIs. */
+/**
+ * Map underground heat rows onto TopArtist for shared list UIs. These artists sit outside the
+ * Hiffi 500, and nobody outside the 500 gets a public score or overall rank, so the score fields
+ * and `youtube_rank` are dropped.
+ */
 export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
-  const youtubeScore = item.youtube_score
   return normalizeArtist({
     rank: item.underground_rank,
     username: item.username,
@@ -454,8 +461,7 @@ export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    final_score: coalesceScore(youtubeScore, item.heat_score),
-    youtube_score: youtubeScore,
+    final_score: 0,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_recent_avg_views: item.youtube_recent_avg_views,
     youtube_upload_velocity: item.youtube_upload_velocity,
@@ -465,14 +471,12 @@ export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
     instagram_momentum_7d: 0,
     instagram_momentum_30d: 0,
     instagram_momentum_90d: 0,
-    global_rank: item.youtube_rank,
     is_new_entry: false,
   })
 }
 
-/** Map breakout API rows onto TopArtist for shared list UIs. */
+/** Map breakout API rows onto TopArtist for shared list UIs. Scores are dropped as for underground heat. */
 export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
-  const youtubeScore = item.youtube_score
   return normalizeArtist({
     rank: item.breakout_rank,
     username: item.username,
@@ -483,8 +487,7 @@ export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    final_score: coalesceScore(youtubeScore, item.momentum_score),
-    youtube_score: youtubeScore,
+    final_score: 0,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
@@ -492,7 +495,6 @@ export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
     instagram_momentum_7d: 0,
     instagram_momentum_30d: 0,
     instagram_momentum_90d: 0,
-    global_rank: item.youtube_rank,
     is_new_entry: false,
   })
 }
