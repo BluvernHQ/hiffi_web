@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { InventoryClaimError, submitInventoryClaim } from "@/lib/api/inventory"
+import { InventoryClaimError, checkClaimEmail, submitInventoryClaim } from "@/lib/api/inventory"
+import { isValidEmailFormat } from "@/lib/auth-utils"
 import {
   CLAIM_STEPS,
   type ClaimDraft,
@@ -31,6 +32,9 @@ import { ClaimStepper } from "./claim/ClaimStepper"
 import { ClaimSubmitted } from "./claim/ClaimSubmitted"
 
 const TURNSTILE_ACTION = "inventory_claim"
+
+const EMAIL_IN_USE_ERROR =
+  "This email already has a Hiffi account. Use a different email for your artist profile."
 
 const ERROR_FIELD_IDS: Record<string, string> = {
   name: "claim-name",
@@ -75,6 +79,9 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
   const [separateRequest, setSeparateRequest] = useState(false)
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const emailChecks = useRef(new Map<string, Promise<boolean>>())
+  const latestEmail = useRef(draft.email)
   const { turnstileRef, setTurnstileToken, submitBlocked, resetTurnstile, getTurnstileTokenForSubmit } =
     useTurnstileForm(TURNSTILE_ACTION)
   const {
@@ -112,6 +119,37 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
     if (!restoredRef.current || submittedEmail) return
     saveClaimDraft(artist.slug, draft)
   }, [artist.slug, draft, submittedEmail])
+
+  useEffect(() => {
+    latestEmail.current = draft.email
+  }, [draft.email])
+
+  /** Resolves true unless the API confirms the email is taken; failures and 429s never block. */
+  const isEmailAvailable = (email: string): Promise<boolean> => {
+    const normalized = email.trim().toLowerCase()
+    if (!isValidEmailFormat(normalized)) return Promise.resolve(true)
+    const known = emailChecks.current.get(normalized)
+    if (known) return known
+    const pending = checkClaimEmail(artist.slug, normalized).then((result) => {
+      if (!result) emailChecks.current.delete(normalized)
+      return result?.available ?? true
+    })
+    emailChecks.current.set(normalized, pending)
+    return pending
+  }
+
+  const showEmailInUse = () => {
+    const emailErrors = { email: EMAIL_IN_USE_ERROR }
+    setErrors((current) => ({ ...current, ...emailErrors }))
+    return emailErrors
+  }
+
+  const handleEmailBlur = async () => {
+    const email = draft.email.trim()
+    if (!email) return
+    const available = await isEmailAvailable(email)
+    if (!available && latestEmail.current.trim().toLowerCase() === email.toLowerCase()) showEmailInUse()
+  }
 
   const updateField = <K extends keyof ClaimDraft>(key: K, value: ClaimDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }))
@@ -203,10 +241,8 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
       resetTurnstile()
       if (caught instanceof InventoryClaimError) {
         if (caught.status === 409 && /email/i.test(caught.message)) {
-          const emailErrors = {
-            email:
-              "This email is already used by another Hiffi account. Use a different email for your artist account.",
-          }
+          emailChecks.current.set(draft.email.trim().toLowerCase(), Promise.resolve(false))
+          const emailErrors = { email: EMAIL_IN_USE_ERROR }
           setStep("account")
           setErrors(emailErrors)
           requestAnimationFrame(() => focusFirstError(emailErrors))
@@ -229,13 +265,22 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
     }
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (checkingEmail) return
     const stepErrors = validateClaimStep(step, draft)
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors)
       focusFirstError(stepErrors)
       return
+    }
+    if (step === "account") {
+      setCheckingEmail(true)
+      const available = await isEmailAvailable(draft.email).finally(() => setCheckingEmail(false))
+      if (!available) {
+        focusFirstError(showEmailInUse())
+        return
+      }
     }
     if (isLastStep) {
       void submitClaim()
@@ -299,6 +344,7 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
             draft={draft}
             errors={errors}
             onChange={updateField}
+            onEmailBlur={() => void handleEmailBlur()}
           />
         ) : null}
         {step === "socials" ? (
@@ -342,13 +388,18 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
           )}
           <button
             type="submit"
-            disabled={submitting || (isLastStep && submitBlocked)}
+            disabled={submitting || checkingEmail || (isLastStep && submitBlocked)}
             className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#E8192C] px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#d01528] disabled:opacity-60"
           >
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 Submitting…
+              </>
+            ) : checkingEmail ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Checking email…
               </>
             ) : isLastStep ? (
               isOwnershipRequest ? (

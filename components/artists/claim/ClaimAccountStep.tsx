@@ -16,6 +16,7 @@ type ClaimAccountStepProps = {
   draft: ClaimDraft
   errors: ClaimDraftErrors
   onChange: <K extends keyof ClaimDraft>(key: K, value: ClaimDraft[K]) => void
+  onEmailBlur: () => void
 }
 
 function PasswordInput({
@@ -55,7 +56,7 @@ function PasswordInput({
   )
 }
 
-export function ClaimAccountStep({ artistSlug, draft, errors, onChange }: ClaimAccountStepProps) {
+export function ClaimAccountStep({ artistSlug, draft, errors, onChange, onEmailBlur }: ClaimAccountStepProps) {
   return (
     <ClaimSection
       title="Create your artist account"
@@ -86,6 +87,7 @@ export function ClaimAccountStep({ artistSlug, draft, errors, onChange }: ClaimA
           placeholder="you@example.com"
           value={draft.email}
           onChange={(event) => onChange("email", event.target.value)}
+          onBlur={onEmailBlur}
           autoComplete="email"
           aria-invalid={Boolean(errors.email)}
           aria-describedby={errors.email ? "claim-email-error" : undefined}
