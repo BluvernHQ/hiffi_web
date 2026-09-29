@@ -1,7 +1,8 @@
 import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
-import { artistIndexGenreHref } from "@/lib/artist-directory"
+import { ARTIST_INDEX_PATH, artistIndexGenreHref } from "@/lib/artist-directory"
 import type { CityChart, HubCity } from "@/lib/artist-index/hub-data"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
@@ -76,8 +77,15 @@ export function ArtistCollectionView({
         <div className="mood-grain pointer-events-none absolute inset-0 -z-10 opacity-[0.06] mix-blend-overlay" aria-hidden />
 
         <div className={artistPageContainer}>
-          <div className="grid gap-10 pb-14 pt-12 sm:pb-16 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 lg:pb-20 lg:pt-20 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24">
+          <div className="grid gap-10 pb-14 pt-8 sm:pb-16 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 lg:pb-20 lg:pt-12 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24">
             <div className="artist-rise min-w-0">
+              <Link
+                href={ARTIST_INDEX_PATH}
+                className="group -ml-1 mb-7 inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-xs font-semibold text-white/55 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
+                Artist Index
+              </Link>
               <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/50 sm:text-[11px]">
                 Hiffi Artist Index — {kind === "city" ? "Scene" : "Sound"}
               </p>
