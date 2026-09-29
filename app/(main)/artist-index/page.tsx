@@ -15,7 +15,7 @@ import {
 } from "@/lib/artist-directory"
 import {
   getArtistCount,
-  getArtistDirectoryFilters,
+  getArtistDirectoryFilterById,
   getAvailableArtistDirectoryFilters,
   getPopulatedGenreSlugs,
   parseArtistDirectorySearchParams,
@@ -60,8 +60,7 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
   const { query, activeFilterIds, page } = parseArtistDirectorySearchParams(params)
 
   if (!query.trim() && page === 1 && activeFilterIds.length === 1) {
-    const filters = await getArtistDirectoryFilters()
-    const filter = filters.find((entry) => entry.id === activeFilterIds[0])
+    const filter = await getArtistDirectoryFilterById(activeFilterIds[0])
     if (filter?.kind === "city") redirect(artistIndexCityHref(filter.slug))
     if (filter?.kind === "genre") redirect(artistIndexGenreHref(filter.slug))
   }

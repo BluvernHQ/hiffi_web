@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
 import {
   ARTIST_INDEX_PATH,
-  artistDirectoryFilterSeoHref,
+  artistDirectoryFilterIdSeoHref,
   buildArtistDirectoryHref,
 } from "@/lib/artist-directory"
 import { ArtistFilterBar } from "@/components/artists/ArtistFilterBar"
@@ -55,8 +55,7 @@ export function ArtistIndexControls({
       // Single city/genre filter → SEO landing page (e.g. /artist-index/genre/rap).
       // Must use router navigation so Next.js loads the route; replaceState alone breaks soft nav.
       if (!nextQuery.trim() && nextFilterIds.length === 1 && variant === "hub") {
-        const filter = filterOptions.find((entry) => entry.id === nextFilterIds[0])
-        const seoHref = filter ? artistDirectoryFilterSeoHref(filter) : null
+        const seoHref = artistDirectoryFilterIdSeoHref(nextFilterIds[0])
         if (seoHref) {
           startTransition(() => {
             router.push(seoHref)
@@ -80,22 +79,26 @@ export function ArtistIndexControls({
         )
       })
     },
-    [filterOptions, onSyncDirectory, router, variant],
+    [onSyncDirectory, router, variant],
   )
+
+  const hasAppliedQuery = Boolean(initialQuery.trim())
 
   const handleSubmit = useCallback(
     (searchQuery: string) => {
       const trimmed = searchQuery.trim()
       setQuery(trimmed)
+      // Clearing text that was never searched leaves the page where it is.
+      if (!trimmed && !hasAppliedQuery) return
       pushDirectoryState(trimmed, displayedFilterIds)
     },
-    [displayedFilterIds, pushDirectoryState],
+    [displayedFilterIds, hasAppliedQuery, pushDirectoryState],
   )
 
   const handleQueryChange = useCallback(
     (nextQuery: string) => {
       setQuery(nextQuery)
-      if (!nextQuery.trim() && query.trim()) {
+      if (!nextQuery.trim() && query.trim() && hasAppliedQuery) {
         if (suppressEmptyDirectorySyncRef.current) {
           suppressEmptyDirectorySyncRef.current = false
           return
@@ -103,7 +106,7 @@ export function ArtistIndexControls({
         pushDirectoryState("", displayedFilterIds)
       }
     },
-    [displayedFilterIds, pushDirectoryState, query],
+    [displayedFilterIds, hasAppliedQuery, pushDirectoryState, query],
   )
 
   const handleSearchAllProfiles = useCallback(() => {

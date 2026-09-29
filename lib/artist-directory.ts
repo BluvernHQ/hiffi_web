@@ -37,6 +37,15 @@ export function artistDirectoryFilterSeoHref(option: ArtistDirectoryFilterOption
   return null
 }
 
+/** SEO landing URL for any `city:{slug}` / `genre:{slug}` filter id, curated or not. */
+export function artistDirectoryFilterIdSeoHref(filterId: string): string | null {
+  const [kind, slug = ""] = filterId.split(":")
+  if (!slug || slugifyArtistDirectorySegment(slug) !== slug) return null
+  if (kind === "city") return artistIndexCityHref(slug)
+  if (kind === "genre") return artistIndexGenreHref(slug)
+  return null
+}
+
 export function artistIndexHref(slug?: string): string {
   return slug ? `${ARTIST_INDEX_PATH}/${slug}` : ARTIST_INDEX_PATH
 }
