@@ -17,16 +17,17 @@ export function ClaimAside({
   artistName: string
   accountSetupEnabled: boolean
 }) {
-  const steps = [
-    { title: "Set up your account", detail: "About 2 minutes" },
-    { title: "Hiffi team review", detail: "Usually 24–48 hours" },
-    {
-      title: "Sign in and manage",
-      detail: accountSetupEnabled
-        ? "With the email and password you set"
-        : "After activating from our approval email",
-    },
-  ]
+  const steps = accountSetupEnabled
+    ? [
+        { title: "Set up your account", detail: "About 2 minutes. You're signed in right away" },
+        { title: "Hiffi team review", detail: "Usually 24–48 hours" },
+        { title: "Own and manage", detail: "Owner tools unlock once approved" },
+      ]
+    : [
+        { title: "Set up your account", detail: "About 2 minutes" },
+        { title: "Hiffi team review", detail: "Usually 24–48 hours" },
+        { title: "Sign in and manage", detail: "After activating from our approval email" },
+      ]
 
   return (
     <aside className="space-y-5 lg:sticky lg:top-24">

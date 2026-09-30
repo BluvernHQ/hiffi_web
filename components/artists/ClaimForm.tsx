@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { InventoryClaimError, checkClaimEmail, submitInventoryClaim } from "@/lib/api/inventory"
 import { isValidEmailFormat } from "@/lib/auth-utils"
 import { useAuth } from "@/lib/auth-context"
+import { isCreator } from "@/lib/auth/roles"
+import { STUDIO_HOME } from "@/lib/studio-routes"
 import {
   CLAIM_STEPS,
   type ClaimDraft,
@@ -31,8 +33,12 @@ import { ClaimSocialsStep } from "./claim/ClaimSocialsStep"
 import { ClaimNotApprovedNotice } from "./claim/ClaimReceiptNotices"
 import { ClaimStepper } from "./claim/ClaimStepper"
 import { ClaimSubmitted } from "./claim/ClaimSubmitted"
+import { ClaimWelcome } from "./claim/ClaimWelcome"
 
 const TURNSTILE_ACTION = "inventory_claim"
+
+/** Keeps the shimmer on screen long enough to read as a deliberate step, not a flash. */
+const WELCOME_MIN_SHIMMER_MS = 1100
 
 const EMAIL_IN_USE_ERROR =
   "This email already has a Hiffi account. Use a different email for your artist profile."
@@ -82,6 +88,16 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
   const [separateRequest, setSeparateRequest] = useState(false)
   const [checkingEmail, setCheckingEmail] = useState(false)
+  const [welcome, setWelcome] = useState<{
+    phase: "signing_in" | "ready"
+    destination: string
+    destinationLabel: string
+  } | null>(null)
+  const profileHref = `/profile/${encodeURIComponent(artist.slug)}`
+  const welcomeDestination = welcome?.phase === "ready" ? welcome.destination : null
+  const continueFromWelcome = useCallback(() => {
+    if (welcomeDestination) router.replace(welcomeDestination)
+  }, [router, welcomeDestination])
   const emailChecks = useRef(new Map<string, Promise<boolean>>())
   const latestEmail = useRef(draft.email)
   const { turnstileRef, setTurnstileToken, submitBlocked, resetTurnstile, getTurnstileTokenForSubmit } =
@@ -233,11 +249,24 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
         draft: draftWithoutPassword,
       })
       if (submitted.token && submitted.user) {
-        try {
-          await establishSession({ token: submitted.token, user: submitted.user })
-        } catch {
-          // The claim is in; they can still sign in with the password they just set.
+        setWelcome({ phase: "signing_in", destination: profileHref, destinationLabel: "your profile" })
+        const [session] = await Promise.allSettled([
+          establishSession({ token: submitted.token, user: submitted.user }),
+          new Promise((resolve) => setTimeout(resolve, WELCOME_MIN_SHIMMER_MS)),
+        ])
+        if (session.status === "fulfilled" && session.value) {
+          const toStudio = isCreator(session.value)
+          const destination = toStudio ? STUDIO_HOME : profileHref
+          router.prefetch(destination)
+          setWelcome({
+            phase: "ready",
+            destination,
+            destinationLabel: toStudio ? "Hiffi Studio" : "your profile",
+          })
+          return
         }
+        // Session setup failed: the claim is in and they can sign in with the password they just set.
+        setWelcome(null)
       }
       setSeparateRequest(false)
       setSubmittedEmail(draft.email.trim())
@@ -298,6 +327,20 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
     } else {
       goToStep(CLAIM_STEPS[stepIndex + 1].id)
     }
+  }
+
+  if (welcome) {
+    return (
+      <div ref={containerRef} className="min-h-[480px]">
+        <ClaimWelcome
+          artist={artist}
+          email={draft.email.trim()}
+          phase={welcome.phase}
+          destinationLabel={welcome.destinationLabel}
+          onContinue={continueFromWelcome}
+        />
+      </div>
+    )
   }
 
   if (!receiptReady) {
