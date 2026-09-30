@@ -1,7 +1,9 @@
+import { apiClient } from "@/lib/api-client"
 import { getApiBaseUrl } from "@/lib/config"
 import type {
   ApiError,
   ApiSuccess,
+  ClaimConfirmEmailResponse,
   ClaimEmailCheck,
   ClaimOnboardCompleteResponse,
   ClaimOnboardVerifyResponse,
@@ -75,6 +77,65 @@ export async function checkClaimEmail(username: string, email: string): Promise<
   } catch {
     return null
   }
+}
+
+async function readClaimResponse<T>(res: Response, fallback: string): Promise<T> {
+  const body = (await res.json().catch(() => null)) as
+    | ApiSuccess<T>
+    | { success: false; error?: string; message?: string }
+    | null
+
+  if (!res.ok || !body?.success) {
+    const message =
+      (body && "error" in body && body.error) ||
+      (body && "message" in body && body.message) ||
+      `${fallback} (HTTP ${res.status})`
+    throw new InventoryClaimError(message, res.status)
+  }
+  return body.data
+}
+
+/** Public: the link may be opened on another device or after signing out. No session is returned. */
+export async function confirmClaimEmail(token: string): Promise<ClaimConfirmEmailResponse> {
+  const res = await fetch(`${getApiBaseUrl()}/inventory/claims/confirm-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: token.trim() }),
+  })
+  return readClaimResponse<ClaimConfirmEmailResponse>(res, "Could not confirm your email")
+}
+
+/** Signed in as the claiming account. 429s carry a readable cooldown / daily-limit message. */
+export async function resendClaimConfirmation(): Promise<{ sent: boolean }> {
+  const token = apiClient.getAuthToken()
+  if (!token) throw new InventoryClaimError("Sign in to resend the confirmation email.", 401)
+  const res = await fetch(`${getApiBaseUrl()}/inventory/claims/self/resend-confirmation`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return readClaimResponse<{ sent: boolean }>(res, "Could not resend the email")
+}
+
+/** `claim_status` of the inventory profile with this username, or null when there is none. */
+export async function fetchInventoryClaimStatus(username: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/inventory/${encodeURIComponent(username.trim().toLowerCase())}`)
+    if (!res.ok) return null
+    const body = (await res.json()) as ApiSuccess<{ claim_status?: string }> | ApiError
+    return body.success ? (body.data.claim_status ?? null) : null
+  } catch {
+    return null
+  }
+}
+
+export const CLAIM_UNDER_REVIEW_MESSAGE =
+  "Your profile is under review. You can do this once the Hiffi team approves your claim."
+
+/** The backend blocks email changes, creator upgrade, uploads and owner ranking with this 403 while a claim is pending. */
+export function isClaimUnderReviewError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false
+  const { status, message } = error as { status?: number; message?: string }
+  return (status === undefined || status === 403) && /claim is under review/i.test(message ?? "")
 }
 
 export async function verifyClaimOnboard(

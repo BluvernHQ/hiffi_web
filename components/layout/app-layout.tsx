@@ -4,6 +4,7 @@ import { ReactNode } from "react"
 import { usePathname } from "next/navigation"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
+import { ClaimStatusBanner } from "./claim-status-banner"
 import { useSidebar } from "@/lib/sidebar-context"
 import { isContentPage } from "@/lib/content-pages"
 
@@ -89,6 +90,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
               : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
           }
         >
+          <ClaimStatusBanner />
           {children}
         </main>
       </div>

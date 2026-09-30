@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react"
 import { apiClient } from "@/lib/api-client"
+import { CLAIM_UNDER_REVIEW_MESSAGE, isClaimUnderReviewError } from "@/lib/api/inventory"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
@@ -411,8 +412,11 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
           await reportFailedBestEffort()
           activeXhrByJobRef.current.delete(id)
           console.error("[hiffi] Background upload failed:", error)
-          const errorMessage =
-            error instanceof Error ? error.message : "Upload failed"
+          const errorMessage = isClaimUnderReviewError(error)
+            ? CLAIM_UNDER_REVIEW_MESSAGE
+            : error instanceof Error
+              ? error.message
+              : "Upload failed"
           setJobs((prev) =>
             updateJob(prev, id, {
               status: "error",

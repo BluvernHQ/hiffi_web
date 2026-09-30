@@ -125,7 +125,7 @@ function ClaimDetailsCell({ claim }: { claim: InventoryClaim }) {
       ) : null}
       {claim.has_password ? (
         <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
-          Can sign in after approval
+          Password set
         </Badge>
       ) : null}
     </div>
@@ -134,6 +134,11 @@ function ClaimDetailsCell({ claim }: { claim: InventoryClaim }) {
 
 function needsApprovalEmail(claim: InventoryClaim): boolean {
   return claim.status === "approved" && !claim.welcome_email_sent_at
+}
+
+/** Password claims can't be approved until the claimer confirms their email (API returns 409). */
+function awaitingEmailConfirmation(claim: InventoryClaim): boolean {
+  return claim.status === "pending" && claim.has_password && claim.email_confirmed_at === null
 }
 
 function OnboardingFunnelCell({
@@ -499,8 +504,8 @@ export function InventoryClaimsTable() {
       const userNote = result.user_updated ? " · linked user updated" : ""
       const emailNote = result.account_ready
         ? result.email_sent
-          ? " · they can sign in now (approval email sent)"
-          : " · they can sign in now, but the approval email failed to send (funnel: awaiting email)"
+          ? " · owner tools unlocked (approval email sent)"
+          : " · owner tools unlocked, but the approval email failed to send (funnel: awaiting email)"
         : result.email_sent
           ? " · welcome email sent"
           : " · welcome email not sent (funnel: awaiting email)"
@@ -526,7 +531,16 @@ export function InventoryClaimsTable() {
       })
     } catch (error) {
       const { status, message } = (error ?? {}) as { status?: number; message?: string }
-      if (status === 409 && /email/i.test(message ?? "")) {
+      if (status === 409 && /confirmed their email/i.test(message ?? "")) {
+        const pendingId = claimToApprove.id
+        setRows((prev) => prev.map((row) => (row.id === pendingId ? { ...row, email_confirmed_at: null } : row)))
+        setClaimToApprove(null)
+        toast({
+          title: "Waiting for email confirmation",
+          description: `${claimToApprove.email} hasn't been confirmed yet. Approve once the claimer clicks the link in their email.`,
+          variant: "destructive",
+        })
+      } else if (status === 409 && /email/i.test(message ?? "")) {
         const conflictId = claimToApprove.id
         setRows((prev) => prev.map((row) => (row.id === conflictId ? { ...row, email_conflict: true } : row)))
         setClaimToApprove(null)
@@ -663,9 +677,9 @@ export function InventoryClaimsTable() {
           <span className="font-medium text-foreground">Pending</span> → review queue.{" "}
           <span className="font-medium text-foreground">Approve</span> rejects sibling pending
           claims and marks the profile claimed. Claims marked{" "}
-          <span className="font-medium text-foreground">Can sign in after approval</span> already
-          have a password and get an email with a sign-in link. Older claims get an email with an
-          onboarding link to set their password.{" "}
+          <span className="font-medium text-foreground">Password set</span> signed in when they
+          submitted; approve them once their email shows as confirmed. Older claims get an email
+          with an onboarding link to set their password.{" "}
           <span className="font-medium text-foreground">Delete</span> removes a row without
           rejecting siblings.
         </p>
@@ -884,6 +898,19 @@ export function InventoryClaimsTable() {
                             Email in use by another account
                           </Badge>
                         ) : null}
+                        {row.status === "pending" && row.has_password && row.email_confirmed_at !== undefined ? (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "mt-1",
+                              row.email_confirmed_at
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : "border-border bg-muted/40 text-muted-foreground",
+                            )}
+                          >
+                            {row.email_confirmed_at ? "Email confirmed" : "Waiting for email confirmation"}
+                          </Badge>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         <DiscoverySourceCell claim={row} />
@@ -934,12 +961,16 @@ export function InventoryClaimsTable() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={rowBusy || actionInFlight || row.email_conflict}
+                                disabled={
+                                  rowBusy || actionInFlight || row.email_conflict || awaitingEmailConfirmation(row)
+                                }
                                 onClick={() => setClaimToApprove(row)}
                                 title={
                                   row.email_conflict
                                     ? "Can't approve: the claim email belongs to another Hiffi account."
-                                    : undefined
+                                    : awaitingEmailConfirmation(row)
+                                      ? "Can't approve until the claimer confirms their email."
+                                      : undefined
                                 }
                               >
                                 {approvingId === row.id ? (

@@ -186,6 +186,21 @@ export interface InventoryClaimSubmitResponse {
   discovery_source: DiscoverySource
   discovery_source_label?: string
   discovery_source_other?: string
+  /** Password claims only: a session so the artist is signed in straight away. */
+  token?: string
+  expires_in?: number
+  user?: {
+    uid: string
+    username: string
+    name: string
+    email_verified: boolean
+  }
+}
+
+export interface ClaimConfirmEmailResponse {
+  email: string
+  username: string
+  email_verified: true
 }
 
 export type InventoryClaimStatus = "pending" | "approved" | "rejected"
@@ -222,6 +237,8 @@ export interface InventoryClaim {
   has_password: boolean
   /** Pending claim whose email belongs to another Hiffi account; approving it fails with 409. */
   email_conflict: boolean
+  /** `null` until the claimer confirms their email; absent on API builds without instant login. */
+  email_confirmed_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -438,6 +455,9 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
       : {}),
     has_password: raw.has_password === true,
     email_conflict: raw.email_conflict === true,
+    ...("email_confirmed_at" in raw
+      ? { email_confirmed_at: optionalTimestamp(raw.email_confirmed_at) ?? null }
+      : {}),
   }
 }
 

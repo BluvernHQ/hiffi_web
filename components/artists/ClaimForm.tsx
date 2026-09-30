@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { InventoryClaimError, checkClaimEmail, submitInventoryClaim } from "@/lib/api/inventory"
 import { isValidEmailFormat } from "@/lib/auth-utils"
+import { useAuth } from "@/lib/auth-context"
 import {
   CLAIM_STEPS,
   type ClaimDraft,
@@ -68,6 +69,7 @@ type ClaimFormProps = {
 
 export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   const router = useRouter()
+  const { user, userData, establishSession } = useAuth()
   const isOwnershipRequest = artist.claim_status === "pending"
   const containerRef = useRef<HTMLDivElement>(null)
   const restoredRef = useRef(false)
@@ -230,6 +232,13 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
         ownershipRequest: isOwnershipRequest,
         draft: draftWithoutPassword,
       })
+      if (submitted.token && submitted.user) {
+        try {
+          await establishSession({ token: submitted.token, user: submitted.user })
+        } catch {
+          // The claim is in; they can still sign in with the password they just set.
+        }
+      }
       setSeparateRequest(false)
       setSubmittedEmail(draft.email.trim())
       requestAnimationFrame(() => {
@@ -247,7 +256,9 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
           setErrors(emailErrors)
           requestAnimationFrame(() => focusFirstError(emailErrors))
         } else if (caught.status === 409) {
-          setSubmitError("This profile has already been claimed.")
+          setSubmitError(
+            /under review/i.test(caught.message) ? caught.message : "This profile has already been claimed.",
+          )
         } else if (caught.status === 404) {
           setSubmitError("This profile is not available for claims.")
         } else {
@@ -305,6 +316,8 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
           email={submittedEmail ?? receipt?.email ?? ""}
           isOwnershipRequest={receipt?.ownershipRequest ?? isOwnershipRequest}
           accountSetupEnabled={receipt?.accountSetup ?? accountSetupEnabled}
+          signedIn={user?.username?.toLowerCase() === artist.slug.toLowerCase()}
+          emailVerified={userData?.email_verified !== false}
           submittedAt={receipt?.submittedAt}
           onSeparateRequest={
             returningUnderReview

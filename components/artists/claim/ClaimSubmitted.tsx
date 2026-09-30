@@ -20,6 +20,9 @@ type ClaimSubmittedProps = {
   email: string
   isOwnershipRequest: boolean
   accountSetupEnabled: boolean
+  /** Password claims sign the artist in on submit; review and email confirmation run alongside. */
+  signedIn?: boolean
+  emailVerified?: boolean
   /** Set when the claimant returns later — shown so they know which claim this is. */
   submittedAt?: string
   /** Lets someone else on the same device file their own request instead. */
@@ -32,11 +35,47 @@ export function ClaimSubmitted({
   email,
   isOwnershipRequest,
   accountSetupEnabled,
+  signedIn = false,
+  emailVerified = true,
   submittedAt,
   onSeparateRequest,
 }: ClaimSubmittedProps) {
   const submittedLabel = formatClaimDate(submittedAt)
-  const items: TimelineItem[] = [
+  const signedInItems: TimelineItem[] = [
+    {
+      icon: Check,
+      title: "Claim submitted",
+      detail: `You're signed in as @${artistSlug}. Browse, follow and edit your profile while we review.`,
+      state: "done",
+    },
+    {
+      icon: Mail,
+      title: emailVerified ? "Email confirmed" : "Confirm your email",
+      detail: emailVerified ? (
+        <>
+          <strong className="text-foreground">{email}</strong> is confirmed.
+        </>
+      ) : (
+        <>
+          We sent a link to <strong className="text-foreground">{email}</strong>. It expires in 7 days.
+        </>
+      ),
+      state: emailVerified ? "done" : "current",
+    },
+    {
+      icon: Clock,
+      title: "Hiffi team review",
+      detail: "We check your social accounts against the profile. This usually takes 24–48 hours.",
+      state: "current",
+    },
+    {
+      icon: UserCheck,
+      title: "Owner tools unlock",
+      detail: `Once approved, ${artistName}'s profile is yours, including your private ranking.`,
+      state: "upcoming",
+    },
+  ]
+  const reviewItems: TimelineItem[] = [
     {
       icon: Check,
       title: isOwnershipRequest ? "Ownership request submitted" : "Claim submitted",
@@ -75,6 +114,7 @@ export function ClaimSubmitted({
       state: "upcoming",
     },
   ]
+  const items = signedIn ? signedInItems : reviewItems
 
   return (
     <section
@@ -89,11 +129,15 @@ export function ClaimSubmitted({
         Under review
       </span>
       <h2 className="font-signal mt-4 text-[2rem] font-bold uppercase leading-[0.9] tracking-[-0.005em] text-[#0B0B0C] sm:text-[2.5rem]">
-        Thanks. We&apos;re reviewing your claim for {artistName}.
+        {signedIn ? "You're signed in." : <>Thanks. We&apos;re reviewing your claim for {artistName}.</>}
       </h2>
       <p className="mt-3 max-w-xl text-sm leading-6 text-[#77726A]">
         {submittedLabel ? `Submitted ${submittedLabel} with ${email}. ` : null}
-        You don&apos;t need to do anything else right now. Keep an eye on your inbox, including spam.
+        {signedIn
+          ? emailVerified
+            ? `We're reviewing your claim for ${artistName}. You'll see a banner at the top of Hiffi until it's approved.`
+            : `Check your inbox to confirm your email. We're reviewing your claim for ${artistName} in the meantime.`
+          : "You don't need to do anything else right now. Keep an eye on your inbox, including spam."}
       </p>
 
       <ol className="mt-8 space-y-0">

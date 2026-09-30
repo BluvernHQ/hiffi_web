@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { apiClient } from "@/lib/api-client"
+import { CLAIM_UNDER_REVIEW_MESSAGE, isClaimUnderReviewError } from "@/lib/api/inventory"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -461,6 +462,13 @@ export function EditArtistProfileForm({
       router.push(profileHref)
       router.refresh()
     } catch (error: any) {
+      if (isClaimUnderReviewError(error)) {
+        toast({
+          title: "Under review",
+          description: "You can change your email once the Hiffi team approves your claim. Your other edits can be saved without it.",
+        })
+        return
+      }
       toast({
         title: "Update failed",
         description: error?.message || "Failed to update profile. Please try again.",
@@ -499,6 +507,11 @@ export function EditArtistProfileForm({
       router.push(profileHref)
       router.refresh()
     } catch (error: any) {
+      if (isClaimUnderReviewError(error)) {
+        toast({ title: "Under review", description: CLAIM_UNDER_REVIEW_MESSAGE })
+        setOtpId(null)
+        return
+      }
       toast({
         title: "Verification failed",
         description: error?.message || "OTP verification failed. Please try again.",
