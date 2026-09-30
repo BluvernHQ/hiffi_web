@@ -78,6 +78,9 @@ import type {
   UpdateMigrationRequestInput,
 } from "@/lib/types/youtube-migration"
 const TOKEN_KEY = "hiffi_auth_token"
+
+/** Fired when an authenticated request comes back 401 (expired or revoked session). */
+export const SESSION_REJECTED_EVENT = "hiffi:session-rejected"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
 
@@ -491,6 +494,9 @@ class ApiClient {
           status: finalResponse.status,
           responseBody: errorText, // Include response body for error handling
         }
+        if (finalResponse.status === 401 && requiresAuth && headers["Authorization"] && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(SESSION_REJECTED_EVENT))
+        }
         throw error
       }
 
@@ -533,6 +539,9 @@ class ApiClient {
         throw error
       }
       
+      // 401s were already logged as warnings above; the auth provider handles an ended session.
+      if (err?.status === 401) throw error
+
       // Log other errors normally
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       
