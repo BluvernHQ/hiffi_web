@@ -77,7 +77,6 @@ export function isContentPage(pathname: string | null): boolean {
   if (CONTENT_PAGE_PATHS.includes(pathname)) return true
   if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
   if (pathname === "/atlanta" || pathname.startsWith("/atlanta/")) return true
-  if (pathname === "/hiffi-500" || pathname.startsWith("/hiffi-500/")) return true
   return false
 }
 

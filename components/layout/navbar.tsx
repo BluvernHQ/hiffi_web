@@ -32,7 +32,7 @@ interface NavbarProps {
 }
 
 const NAVBAR_SECTIONS = [
-  { prefixes: ["/top-artists", "/hiffi-500"], href: "/top-artists", label: "Hip-Hop 500", analytics: "navbar-hip-hop-500-link" },
+  { prefixes: ["/top-artists"], href: "/top-artists", label: "Hip-Hop 500", analytics: "navbar-hip-hop-500-link" },
   { prefixes: ["/artist-index"], href: "/artist-index", label: "Artist Index", analytics: "navbar-artist-index-link" },
 ] as const
 

@@ -27,12 +27,9 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
-  // Artist Index, Top Artists and Hiffi 500 get the full app chrome but scroll the window.
+  // Artist Index and Top Artists get the full app chrome but scroll the window.
   const isArtistIndexRoute =
-    (pathname?.startsWith("/artist-index") ||
-      pathname?.startsWith("/hiffi-500") ||
-      pathname?.startsWith("/top-artists")) ??
-    false
+    (pathname?.startsWith("/artist-index") || pathname?.startsWith("/top-artists")) ?? false
   const isContentPageRoute = isContentPage(pathname) && !isArtistIndexRoute
   const showSidebar = !isContentPageRoute
 

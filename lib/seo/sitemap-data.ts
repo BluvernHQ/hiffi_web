@@ -13,7 +13,7 @@ export const SITEMAP_REVALIDATE_SECONDS = 3600
 const STATIC_LAST_MODIFIED = new Date("2026-06-01T00:00:00.000Z")
 
 /** Chart surfaces are kept out of every sitemap. */
-const SITEMAP_EXCLUDED_PREFIXES = ["/hiffi-500", "/top-artists"]
+const SITEMAP_EXCLUDED_PREFIXES = ["/top-artists"]
 
 function isSitemapExcluded(url: string): boolean {
   const { pathname } = new URL(url)
