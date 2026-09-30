@@ -158,7 +158,7 @@ export default async function TopArtistsPage({ searchParams }: PageProps) {
       : null
 
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now" bleed tone="ink">
+    <ArtistDirectoryShell claimHref={null} bleed tone="ink">
       {jsonLd ? <JsonLd data={jsonLd} /> : null}
       <div className={cn(signalNarrow.variable, "text-[#F4F1EA] [color-scheme:dark]")}>
         <TopChartDrawerProvider

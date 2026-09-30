@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function TopArtistsHowItWorksPage() {
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now" bleed tone="ink">
+    <ArtistDirectoryShell claimHref={null} bleed tone="ink">
       <div className={cn(signalNarrow.variable, "text-[#F4F1EA] [color-scheme:dark]")}>
         <TopChartHowItWorks />
       </div>

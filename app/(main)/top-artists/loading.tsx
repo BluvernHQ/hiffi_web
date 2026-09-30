@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 export default function TopArtistsLoading() {
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now" bleed tone="ink">
+    <ArtistDirectoryShell claimHref={null} bleed tone="ink">
       <div aria-busy aria-live="polite">
         <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#0B0B0C]">
           <div

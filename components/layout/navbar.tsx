@@ -80,6 +80,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   const isAppDownloadPage = pathname === "/app"
+  const isTopArtistsPage = pathname === "/top-artists" || Boolean(pathname?.startsWith("/top-artists/"))
 
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
@@ -176,6 +177,18 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 priority
               />
             </Link>
+            {isTopArtistsPage ? (
+              <Link
+                href="/top-artists"
+                data-analytics-name="navbar-hip-hop-500-link"
+                className="hidden items-center gap-3 sm:flex sm:gap-4"
+              >
+                <span className="h-5 w-px bg-border" aria-hidden />
+                <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-foreground">
+                  Hip-Hop 500
+                </span>
+              </Link>
+            ) : null}
           </div>
 
           {/* Tablet/desktop: full search pill in center; mobile shows nothing here (spacer only) */}
