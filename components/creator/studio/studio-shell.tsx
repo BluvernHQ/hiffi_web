@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/layout/navbar"
+import { ClaimStatusBanner } from "@/components/layout/claim-status-banner"
 import { Sidebar } from "@/components/layout/sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { useSidebar } from "@/lib/sidebar-context"
@@ -77,6 +78,7 @@ export function StudioShell({
           onFilterChange={onFilterChange}
         />
         <main className="h-[calc(100dvh-4rem)] min-w-0 w-full flex-1 overflow-y-auto p-6">
+          <ClaimStatusBanner className="-mx-6 -mt-6 mb-6" />
           <div className={`mx-auto ${maxWidthClass}`}>{children}</div>
         </main>
       </div>
