@@ -18,6 +18,7 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
 /** Compact discover + marketing links for the app sidebar footer (YouTube-style). */
 export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
   { href: "/about", label: "About" },
+  { href: "/founder", label: "Founder Story" },
   { href: "/what-is-hiffi", label: "What is Hiffi?" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/artists", label: "Artists" },
@@ -55,6 +56,7 @@ export const MARKETING_PAGE_PATHS = [
   "/creator-playbook",
   "/creators-for-change",
   "/press",
+  "/founder",
   "/community-guidelines",
 ] as const
 
@@ -92,6 +94,7 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   { path: "/artists", changeFrequency: "monthly", priority: 0.85 },
   { path: "/creator-playbook", changeFrequency: "monthly", priority: 0.78 },
   { path: "/press", changeFrequency: "monthly", priority: 0.65 },
+  { path: "/founder", changeFrequency: "monthly", priority: 0.80 },
   { path: "/advertising", changeFrequency: "monthly", priority: 0.72 },
   { path: "/creators-for-change", changeFrequency: "monthly", priority: 0.72 },
   { path: "/collaborate", changeFrequency: "monthly", priority: 0.7 },
