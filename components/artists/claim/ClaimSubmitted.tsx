@@ -4,6 +4,7 @@ import { Check, Clock, Mail, UserCheck } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatClaimDate } from "@/lib/artist-index/claim-receipt"
+import { buildLoginUrl } from "@/lib/auth-utils"
 
 const CLAIM_VERIFICATION_EMAIL = "creator-noreply@hiffi.com"
 
@@ -88,31 +89,50 @@ export function ClaimSubmitted({
       detail: "We check your social accounts against the profile. This usually takes 24–48 hours.",
       state: "current",
     },
-    {
-      icon: Mail,
-      title: "Approval email",
-      detail: (
-        <>
-          We&apos;ll email <strong className="text-foreground">{email}</strong> from{" "}
-          <strong className="text-foreground">{CLAIM_VERIFICATION_EMAIL}</strong> once you&apos;re
-          approved.
-        </>
-      ),
-      state: "upcoming",
-    },
-    {
-      icon: UserCheck,
-      title: accountSetupEnabled ? "Sign in" : "Manage your profile",
-      detail: accountSetupEnabled ? (
-        <>
-          Once approved, sign in with <strong className="text-foreground">{email}</strong> and the
-          password you just set to manage {artistName}&apos;s profile.
-        </>
-      ) : (
-        `Sign in to update ${artistName}'s profile, photos and links.`
-      ),
-      state: "upcoming",
-    },
+    ...(accountSetupEnabled
+      ? [
+          {
+            icon: Mail,
+            title: "Confirm your email",
+            detail: (
+              <>
+                We sent a confirmation link to <strong className="text-foreground">{email}</strong>.
+              </>
+            ),
+            state: "current" as const,
+          },
+          {
+            icon: UserCheck,
+            title: "Sign in anytime",
+            detail: (
+              <>
+                Use <strong className="text-foreground">{email}</strong> and the password you set. No need
+                to wait for approval.
+              </>
+            ),
+            state: "current" as const,
+          },
+        ]
+      : [
+          {
+            icon: Mail,
+            title: "Approval email",
+            detail: (
+              <>
+                We&apos;ll email <strong className="text-foreground">{email}</strong> from{" "}
+                <strong className="text-foreground">{CLAIM_VERIFICATION_EMAIL}</strong> once you&apos;re
+                approved.
+              </>
+            ),
+            state: "upcoming" as const,
+          },
+          {
+            icon: UserCheck,
+            title: "Manage your profile",
+            detail: `Sign in to update ${artistName}'s profile, photos and links.`,
+            state: "upcoming" as const,
+          },
+        ]),
   ]
   const items = signedIn ? signedInItems : reviewItems
 
@@ -137,7 +157,9 @@ export function ClaimSubmitted({
           ? emailVerified
             ? `We're reviewing your claim for ${artistName}. You'll see a banner at the top of Hiffi until it's approved.`
             : `Check your inbox to confirm your email. We're reviewing your claim for ${artistName} in the meantime.`
-          : "You don't need to do anything else right now. Keep an eye on your inbox, including spam."}
+          : accountSetupEnabled
+            ? "You can sign in now with the password you set while we review. Keep an eye on your inbox for the confirmation link."
+            : "You don't need to do anything else right now. Keep an eye on your inbox, including spam."}
       </p>
 
       <ol className="mt-8 space-y-0">
@@ -184,6 +206,15 @@ export function ClaimSubmitted({
       </ol>
 
       <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-[#0B0B0C]/10 pt-6">
+        {accountSetupEnabled && !signedIn ? (
+          <Link
+            href={buildLoginUrl(`/profile/${encodeURIComponent(artistSlug)}`)}
+            data-analytics-name="claim-submitted-sign-in"
+            className="inline-flex items-center rounded-full bg-[#E8192C] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#d01528]"
+          >
+            Sign in
+          </Link>
+        ) : null}
         <Link
           href={`/artist-index/${artistSlug}`}
           className="inline-flex items-center rounded-full bg-[#0B0B0C] px-5 py-3 text-sm font-semibold text-[#F4F1EA] transition-colors hover:bg-black"
