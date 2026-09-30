@@ -29,18 +29,12 @@ export function VerifiedBadge({ className, strokeWidth, focusable = false }: Ver
         <Tooltip.Portal>
           <Tooltip.Content
             side="top"
-            sideOffset={8}
+            sideOffset={6}
             collisionPadding={12}
-            className="z-[100] max-w-[240px] rounded-xl border border-white/10 bg-[#0B0B0C] px-3.5 py-2.5 text-left font-sans normal-case tracking-normal text-[#F4F1EA] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.6)] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95"
+            className="z-[100] whitespace-nowrap rounded-md bg-[#0B0B0C] px-2 py-1 font-sans text-[11px] font-medium normal-case tracking-normal text-[#F4F1EA] shadow-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0"
           >
-            <p className="flex items-center gap-1.5 text-[13px] font-semibold">
-              <BadgeCheck className="h-3.5 w-3.5 text-[#6F95F0]" aria-hidden />
-              Verified artist
-            </p>
-            <p className="mt-1 text-xs leading-5 text-white/60">
-              The artist has claimed this profile and runs it on Hiffi.
-            </p>
-            <Tooltip.Arrow className="fill-[#0B0B0C]" width={10} height={5} />
+            Verified artist
+            <Tooltip.Arrow className="fill-[#0B0B0C]" width={8} height={4} />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>
