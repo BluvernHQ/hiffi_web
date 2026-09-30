@@ -14,7 +14,7 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
   if (movers.length === 0) return null
 
   return (
-    <section id="movers" aria-labelledby="top-chart-movers" className="scroll-mt-24">
+    <section id="movers" aria-labelledby="top-chart-movers" className="scroll-mt-28 sm:scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <ArtistDetailEyebrow className="text-white/45">Movers</ArtistDetailEyebrow>

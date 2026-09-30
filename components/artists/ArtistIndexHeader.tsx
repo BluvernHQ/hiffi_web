@@ -3,6 +3,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ChevronRight } from "lucide-react"
 import { artistButtonSolid } from "@/components/artists/artist-styles"
+import { ArtistSectionNav } from "@/components/artists/ArtistSectionNav"
 import { cn } from "@/lib/utils"
 
 type Breadcrumb = {
@@ -35,8 +36,8 @@ export function ArtistIndexHeader({
           : "border-border/60 bg-white/95 supports-[backdrop-filter]:bg-white/80",
       )}
     >
-      <div className="flex h-16 items-center justify-between px-2 sm:px-3 md:px-4">
-        <Link href="/" className="flex shrink-0 items-center">
+      <div className="flex h-16 items-center gap-6 px-2 sm:px-3 md:px-4">
+        <Link href="/" className="flex shrink-0 items-center" data-analytics-name="artist-nav-logo">
           <Image
             src="/appbarlogo.png"
             alt="Hiffi logo"
@@ -47,12 +48,18 @@ export function ArtistIndexHeader({
             priority
           />
         </Link>
+        <ArtistSectionNav tone={tone} layout="bar" className="hidden sm:flex" />
         {claimHref ? (
-          <Link href={claimHref} className={cn(artistButtonSolid, "shrink-0")}>
+          <Link
+            href={claimHref}
+            className={cn(artistButtonSolid, "ml-auto shrink-0")}
+            data-analytics-name="artist-nav-claim-button"
+          >
             {claimLabel}
           </Link>
         ) : null}
       </div>
+      <ArtistSectionNav tone={tone} layout="tabs" className="sm:hidden" />
       {breadcrumbs?.length ? (
         <nav
           aria-label="Breadcrumb"
@@ -70,6 +77,7 @@ export function ArtistIndexHeader({
               {crumb.href ? (
                 <Link
                   href={crumb.href}
+                  data-analytics-name="artist-nav-breadcrumb-link"
                   className={cn(
                     "font-medium transition-colors hover:text-[#d01528]",
                     index === breadcrumbs.length - 1 ? "text-[#E8192C]" : "text-[#E8192C]/80",
