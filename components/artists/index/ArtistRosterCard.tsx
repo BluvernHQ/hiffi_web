@@ -1,4 +1,4 @@
-import { BadgeCheck } from "lucide-react"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import type { Artist } from "@/lib/artists"
 import { artistIndexHref } from "@/lib/artists"
 import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
@@ -67,7 +67,7 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
             {artist.name}
           </p>
           {claimState === "verified" ? (
-            <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
+            <VerifiedBadge className="h-4 w-4 text-[#4F7AE1]" />
           ) : null}
         </div>
         {meta ? (

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { BadgeCheck, Play } from "lucide-react"
+import { Play } from "lucide-react"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import type { Artist } from "@/lib/artists"
 import { formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
@@ -81,9 +82,8 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
             <h1 className="font-signal mt-3 break-words text-[clamp(2.9rem,8.5vw,7.25rem)] font-bold uppercase leading-[0.86] tracking-[-0.005em] text-balance">
               {artist.name}
               {claimState === "verified" ? (
-                <span className="ml-[0.18em] inline-flex -translate-y-[0.08em] align-middle" title="Verified artist">
-                  <BadgeCheck className="h-[0.36em] w-[0.36em] text-[#6F95F0]" strokeWidth={2.25} aria-hidden />
-                  <span className="sr-only">Verified artist</span>
+                <span className="ml-[0.18em] inline-flex -translate-y-[0.08em] align-middle">
+                  <VerifiedBadge className="h-[0.36em] w-[0.36em] text-[#6F95F0]" strokeWidth={2.25} focusable />
                 </span>
               ) : null}
             </h1>

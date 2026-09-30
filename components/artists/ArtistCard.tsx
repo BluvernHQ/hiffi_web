@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import {
   artistIndexClaimHref,
@@ -148,7 +149,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
                   {artist.name}
                 </p>
                 {artist.verified ? (
-                  <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
+                  <VerifiedBadge className="h-4 w-4 text-[#E8192C]" />
                 ) : null}
               </div>
               {isHub ? (

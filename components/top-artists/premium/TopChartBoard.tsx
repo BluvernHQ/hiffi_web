@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowDownRight, ArrowUpRight, BadgeCheck, ChevronDown, Loader2, Search } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, ChevronDown, Loader2, Search } from "lucide-react"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import { loadTopChartPageAction, loadTopChartPhotosAction } from "@/app/(main)/top-artists/actions"
 import { CHART_MODES, type ChartMode, type ChartPage } from "@/lib/top-chart"
 import type { ChartShareScope } from "@/lib/top-chart-share"
@@ -587,7 +588,7 @@ function ChartRowContent({
             {artist.artist_name}
           </span>
           {artist.claim_status === "claimed" ? (
-            <BadgeCheck className="h-4 w-4 shrink-0 text-[#6F95F0]" aria-label="Verified artist" />
+            <VerifiedBadge className="h-4 w-4 text-[#6F95F0]" />
           ) : null}
         </span>
         <span className="mt-1.5 flex min-w-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">

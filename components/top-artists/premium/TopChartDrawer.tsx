@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { ArrowDownRight, ArrowLeft, ArrowUpRight, BadgeCheck, Share2, X } from "lucide-react"
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, Share2, X } from "lucide-react"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import { topArtistSocialLinks, topArtistTier, type TopArtist } from "@/lib/top-artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { signalNarrow } from "@/lib/fonts/signal"
@@ -287,7 +288,7 @@ function DrawerProfile({
 
         <Dialog.Title className="font-signal mt-6 flex items-center gap-2 text-[2.4rem] font-bold uppercase leading-[0.9]">
           <span className="min-w-0 break-words">{artist.artist_name}</span>
-          {claimed ? <BadgeCheck className="h-6 w-6 shrink-0 text-[#6F95F0]" aria-label="Verified artist" /> : null}
+          {claimed ? <VerifiedBadge className="h-6 w-6 text-[#6F95F0]" /> : null}
         </Dialog.Title>
         <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/60">
           {place ? <span>{place}</span> : null}
