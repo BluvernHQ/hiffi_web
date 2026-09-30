@@ -67,7 +67,7 @@ export async function GET() {
               }}
             >
               <div style={{ width: 10, height: 10, borderRadius: 999, background: "#E31E24" }} />
-              Live YouTube rap index
+              Live YouTube + Instagram rap index
             </div>
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -89,7 +89,7 @@ export async function GET() {
               The 500 moving hip-hop
             </div>
             <div style={{ display: "flex", fontSize: 28, color: "#8B8A90", maxWidth: 720 }}>
-              Live movement signals across the artists shaping rap on YouTube.
+              Live movement signals across the artists shaping rap — YouTube + Instagram.
             </div>
           </div>
 

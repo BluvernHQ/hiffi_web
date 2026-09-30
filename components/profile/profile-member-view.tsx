@@ -7,6 +7,7 @@ import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
 import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
 import { AuthDialog, AUTH_DIALOG_COPY } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import { resolveUserBannerUrl } from "@/lib/artist-directory"
 import {
   getProfileFollowerCount,
   getProfileFollowingCount,
@@ -58,7 +59,7 @@ export function ProfileMemberView(props: {
     <>
       <div className="bg-background w-full">
         <ProfileCoverBanner
-          coverUrl={profileUser.coverUrl}
+          coverUrl={resolveUserBannerUrl(profileUser as Record<string, unknown>)}
           displayName={displayName}
           username={profileUser.username || username}
         />

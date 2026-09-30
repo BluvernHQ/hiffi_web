@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useId, useRef, useState } from "react"
+import * as Popover from "@radix-ui/react-popover"
 import { ArrowRight, Loader2, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -17,6 +18,9 @@ type ArtistSearchProps = {
   /** Hub: no typeahead match — clear name search and browse active filters. */
   onSearchAllProfiles?: () => void
   variant?: "default" | "hub"
+  /** Hub field on a dark masthead. */
+  tone?: "light" | "dark"
+  placeholder?: string
   className?: string
   loading?: boolean
 }
@@ -42,12 +46,16 @@ export function ArtistSearch({
   onProfileSelect,
   onSearchAllProfiles,
   variant = "default",
+  tone = "light",
+  placeholder,
   className,
   loading = false,
 }: ArtistSearchProps) {
   const isHub = variant === "hub"
+  const isDark = isHub && tone === "dark"
   const listboxId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<ArtistSearchSuggestion[]>([])
   const activeIndexRef = useRef(-1)
@@ -185,7 +193,8 @@ export function ArtistSearch({
     if (!isHub) return
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (!rootRef.current?.contains(target) && !dropdownRef.current?.contains(target)) {
         closeDropdown()
       }
     }
@@ -193,6 +202,11 @@ export function ArtistSearch({
     document.addEventListener("mousedown", handlePointerDown)
     return () => document.removeEventListener("mousedown", handlePointerDown)
   }, [closeDropdown, isHub])
+
+  useEffect(() => {
+    if (!showDropdown || activeIndex < 0) return
+    document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({ block: "nearest" })
+  }, [activeIndex, listboxId, showDropdown])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -262,13 +276,16 @@ export function ArtistSearch({
   const inputClassName = cn(
     "min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground focus:ring-0 sm:text-base",
     isHub && "py-2.5 sm:py-3",
+    isDark && "py-3.5 text-[#F4F1EA] placeholder:text-white/40 sm:py-4",
   )
 
   const fieldShell = (
     <div
       className={cn(
         "relative flex min-w-0 flex-1 items-center gap-2.5",
-        isHub
+        isDark
+          ? "rounded-full border border-white/15 bg-white/[0.06] px-5 backdrop-blur-md transition-[border-color,background-color] focus-within:border-white/40 focus-within:bg-white/[0.09] sm:px-6"
+          : isHub
           ? "rounded-2xl border border-[#E8192C]/20 bg-white px-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-[#E8192C]/45 focus-within:ring-2 focus-within:ring-[#E8192C]/12 sm:px-4"
           : "h-10 rounded-full border border-border bg-muted/40 px-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-[#E8192C]/40 focus-within:ring-2 focus-within:ring-[#E8192C]/15",
       )}
@@ -277,6 +294,7 @@ export function ArtistSearch({
         className={cn(
           "pointer-events-none shrink-0 text-muted-foreground",
           isHub ? "h-5 w-5" : "h-4 w-4",
+          isDark && "text-white/50",
         )}
         aria-hidden
       />
@@ -293,7 +311,9 @@ export function ArtistSearch({
           }
         }}
         onKeyDown={handleKeyDown}
-        placeholder={isHub ? "Search by artist name" : "Search artists…"}
+        placeholder={
+          placeholder ?? (isDark ? "Find an artist by name" : isHub ? "Search by artist name" : "Search artists…")
+        }
         className={inputClassName}
         role={isHub ? "combobox" : undefined}
         aria-expanded={isHub ? showDropdown : undefined}
@@ -308,14 +328,17 @@ export function ArtistSearch({
       />
       {showSpinner ? (
         <Loader2
-          className="h-4 w-4 shrink-0 animate-spin text-muted-foreground"
+          className={cn("h-4 w-4 shrink-0 animate-spin text-muted-foreground", isDark && "text-white/60")}
           aria-hidden
         />
       ) : query ? (
         <button
           type="button"
           onClick={handleClear}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+            isDark && "text-white/60 hover:bg-white/10 hover:text-white",
+          )}
           aria-label="Clear search"
         >
           <X className="h-4 w-4" aria-hidden />
@@ -332,49 +355,89 @@ export function ArtistSearch({
     )
   }
 
+  // Portaled so mastheads with overflow-hidden can't clip the list.
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)}>
-      <form onSubmit={handleSubmit}>{fieldShell}</form>
-
-      {showDropdown ? (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-border bg-white shadow-lg sm:mt-2.5">
+    <Popover.Root open={showDropdown && (suggestions.length > 0 || !suggestLoading)}>
+      <Popover.Anchor asChild>
+        <div ref={rootRef} className={cn("relative w-full", className)}>
+          <form onSubmit={handleSubmit}>{fieldShell}</form>
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content
+          ref={dropdownRef}
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          avoidCollisions={false}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onEscapeKeyDown={closeDropdown}
+          className={cn(
+            "z-50 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-2xl border outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1",
+            isDark
+              ? "border-white/10 bg-[#141416] text-[#F4F1EA] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8)]"
+              : "border-border bg-white shadow-lg",
+          )}
+        >
           {suggestions.length > 0 ? (
             <ul
               id={listboxId}
               role="listbox"
               aria-label="Artist suggestions"
-              className="max-h-[min(18rem,50vh)] overflow-y-auto overscroll-contain py-1"
+              className="scrollbar-none max-h-[min(20rem,var(--radix-popover-content-available-height,50vh))] overflow-y-auto overscroll-contain p-1.5"
             >
-              {suggestions.map((item, index) => (
-                <li key={item.slug} role="presentation">
-                  <button
-                    type="button"
-                    id={`${listboxId}-option-${index}`}
-                    role="option"
-                    aria-selected={activeIndex === index}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors",
-                      activeIndex === index
-                        ? "bg-[#E8192C]/8 text-foreground"
-                        : "hover:bg-muted/50",
-                    )}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectProfile(item.slug)}
-                  >
-                    <span>
-                      <span className="font-semibold text-foreground">{item.name}</span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        hiffi.com/artist-index/{item.slug}
+              {suggestions.map((item, index) => {
+                const active = activeIndex === index
+                return (
+                  <li key={item.slug} role="presentation">
+                    <button
+                      type="button"
+                      id={`${listboxId}-option-${index}`}
+                      role="option"
+                      aria-selected={active}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors",
+                        isDark
+                          ? active
+                            ? "bg-white/[0.07]"
+                            : "hover:bg-white/[0.04]"
+                          : active
+                            ? "bg-[#E8192C]/8"
+                            : "hover:bg-muted/50",
+                      )}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectProfile(item.slug)}
+                    >
+                      <span className="min-w-0">
+                        <span className={cn("block truncate font-semibold", isDark ? "text-[#F4F1EA]" : "text-foreground")}>
+                          {item.name}
+                        </span>
+                        <span
+                          className={cn(
+                            "mt-0.5 block truncate text-xs",
+                            isDark ? "text-white/40" : "text-muted-foreground",
+                          )}
+                        >
+                          hiffi.com/artist-index/{item.slug}
+                        </span>
                       </span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
-                </li>
-              ))}
+                      <ArrowRight
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-opacity",
+                          isDark ? "text-white/55" : "text-muted-foreground",
+                          active ? "opacity-100" : "opacity-0",
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
-          ) : !suggestLoading ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
+          ) : (
+            <div className={cn("px-5 py-4 text-sm", isDark ? "text-white/55" : "text-muted-foreground")}>
               {fetchError ? (
                 "Could not load suggestions. Press Enter to browse the directory."
               ) : (
@@ -382,7 +445,10 @@ export function ArtistSearch({
                   No quick matches.{" "}
                   <button
                     type="button"
-                    className="font-medium text-[#E8192C] hover:underline"
+                    className={cn(
+                      "font-semibold hover:underline",
+                      isDark ? "text-[#F4F1EA]" : "text-[#E8192C]",
+                    )}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={handleSearchAllProfiles}
                   >
@@ -391,9 +457,9 @@ export function ArtistSearch({
                 </>
               )}
             </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }

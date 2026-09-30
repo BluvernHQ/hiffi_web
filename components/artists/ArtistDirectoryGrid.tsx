@@ -1,6 +1,8 @@
 import { Loader2 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import { ArtistCard } from "@/components/artists/ArtistCard"
+import { ArtistRosterCard } from "@/components/artists/index/ArtistRosterCard"
+import { ARTIST_ROSTER_GRID, ArtistRosterSkeleton } from "@/components/artists/index/ArtistRosterSkeleton"
 import { ArtistDirectoryGridSkeleton } from "@/components/artists/ArtistDirectoryGridSkeleton"
 import { ArtistDirectoryPagination } from "@/components/artists/ArtistDirectoryPagination"
 import { artistPanelShell } from "@/components/artists/artist-styles"
@@ -24,7 +26,7 @@ type ArtistDirectoryGridProps = {
   /** Backend `has_more` — enables next when total page count is unknown. */
   hasMore?: boolean
   compactHeader?: boolean
-  cardVariant?: "default" | "hub"
+  cardVariant?: "default" | "hub" | "roster"
 }
 
 export function ArtistDirectoryGrid({
@@ -55,6 +57,46 @@ export function ArtistDirectoryGrid({
     activeFilterIds,
     paginationHref,
     onPageChange,
+  }
+
+  if (cardVariant === "roster") {
+    return (
+      <section aria-busy={isPending || undefined}>
+        <h2 className="sr-only">Artists</h2>
+        {isPending ? (
+          <>
+            <ArtistRosterSkeleton count={Math.max(artists.length, 12)} />
+            <span className="sr-only" role="status">
+              Loading artists
+            </span>
+          </>
+        ) : artists.length > 0 ? (
+          <div className={ARTIST_ROSTER_GRID}>
+            {artists.map((artist, index) => (
+              <div
+                key={artist.slug}
+                className="artist-rise"
+                style={{ animationDelay: `${Math.min(index, 11) * 40}ms` }}
+              >
+                <ArtistRosterCard artist={artist} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="border-y border-[#0B0B0C]/12 py-16 text-center">
+            <p className="font-signal text-4xl font-bold uppercase leading-none text-[#0B0B0C] sm:text-5xl">
+              No one by that name. Yet.
+            </p>
+            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#77726A]">
+              Try a shorter spelling or a stage name. If you’re an artist who isn’t indexed, you can still claim a
+              page.
+            </p>
+          </div>
+        )}
+
+        {showPagination ? <ArtistDirectoryPagination {...paginationProps} tone="paper" className="mt-14" /> : null}
+      </section>
+    )
   }
 
   const defaultSubtitle = `${totalMatches.toLocaleString()} of ${artistCount.toLocaleString()} profiles match your filters`
@@ -116,8 +158,7 @@ export function ArtistDirectoryGrid({
           ) : null}
           <div
             className={cn(
-              // minmax(0, …) so flex cards cannot expand the track past the viewport on mobile
-              "grid gap-4 [grid-template-columns:minmax(0,1fr)] sm:gap-5 sm:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:gap-6 xl:[grid-template-columns:repeat(3,minmax(0,1fr))]",
+              "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
               isPending && "pointer-events-none opacity-60",
             )}
             aria-busy={isPending || undefined}

@@ -3,11 +3,11 @@ import { getApiBaseUrl } from "@/lib/config"
 import { unwrapSuccessData } from "@/lib/api/envelope"
 import type {
   InventoryProfileListResponse,
-  InventorySort,
   PublicInventoryClaimStatus,
   PublicInventoryProfile,
 } from "@/lib/types/inventory"
 import { normalizePublicInventoryProfile } from "@/lib/types/inventory"
+import { createStaleWhileRevalidate } from "@/lib/stale-while-revalidate"
 import {
   ARTIST_INVENTORY_CACHE_TAG,
   artistInventoryUsernameTag,
@@ -15,6 +15,7 @@ import {
 
 const REVALIDATE_SECONDS = 300
 const MAX_PAGE_SIZE = 100
+const FULL_CATALOG_CONCURRENCY = 4
 
 export class InventoryFetchError extends Error {
   status: number
@@ -35,7 +36,6 @@ export type InventoryPageParams = {
   city?: string
   genre?: string
   claim_status?: PublicInventoryClaimStatus
-  sort?: InventorySort
 }
 
 export async function fetchInventoryPage(
@@ -51,7 +51,6 @@ export async function fetchInventoryPage(
   else if (params.city?.trim()) sp.set("city", params.city.trim())
   if (params.genre?.trim()) sp.set("genre", params.genre.trim().toLowerCase())
   if (params.claim_status) sp.set("claim_status", params.claim_status)
-  if (params.sort) sp.set("sort", params.sort)
 
   const usernameTag = params.username?.trim()
     ? artistInventoryUsernameTag(params.username)
@@ -68,6 +67,18 @@ export async function fetchInventoryPage(
   })
 
   if (!res.ok) {
+    const bodySnippet = await res
+      .text()
+      .then((text) => text.replace(/\s+/g, " ").slice(0, 200))
+      .catch(() => "")
+    // `server` / `cf-ray` tell a Cloudflare block apart from a backend rejection in server logs.
+    console.error("[artist-index] GET /inventory failed", {
+      status: res.status,
+      url: `${getApiBaseUrl()}/inventory?${sp.toString()}`,
+      server: res.headers.get("server"),
+      cfRay: res.headers.get("cf-ray"),
+      body: bodySnippet,
+    })
     throw new InventoryFetchError(`GET /inventory failed (${res.status})`, res.status)
   }
 
@@ -89,7 +100,6 @@ export async function fetchInventoryPage(
     ...(data.location ? { location: data.location } : {}),
     ...(data.genre ? { genre: data.genre } : {}),
     ...(data.claim_status ? { claim_status: data.claim_status } : {}),
-    ...(data.sort ? { sort: data.sort as InventoryPageParams["sort"] } : {}),
   }
 }
 
@@ -101,8 +111,37 @@ export async function fetchInventoryTotal(
   return result.total
 }
 
-export async function fetchAllInventoryProfiles(
-  params: Omit<InventoryPageParams, "limit" | "offset"> = {},
+type CatalogParams = Omit<InventoryPageParams, "limit" | "offset">
+
+let readCatalog = createCatalogCache()
+
+function createCatalogCache() {
+  return createStaleWhileRevalidate<PublicInventoryProfile[]>(REVALIDATE_SECONDS * 1000, (error) =>
+    console.error("[artist-index] catalog refresh failed:", error),
+  )
+}
+
+/**
+ * Genre pages, the sitemap and full-catalog sorts all need every profile (~170 API pages).
+ * Share one in-flight/recent result per process so concurrent renders don't each re-page the
+ * catalog — that burst is what got the server IP blocked by Cloudflare. Only the first load
+ * blocks; later reads get the last catalog while it refreshes in the background.
+ */
+export function fetchAllInventoryProfiles(params: CatalogParams = {}): Promise<PublicInventoryProfile[]> {
+  const key = JSON.stringify(
+    Object.entries(params)
+      .filter(([, value]) => value != null && value !== "")
+      .sort(([a], [b]) => a.localeCompare(b)),
+  )
+  return readCatalog(key, () => fetchAllInventoryProfilesUncached(params))
+}
+
+export function clearInventoryCatalogMemoryCache(): void {
+  readCatalog = createCatalogCache()
+}
+
+async function fetchAllInventoryProfilesUncached(
+  params: CatalogParams,
 ): Promise<PublicInventoryProfile[]> {
   const first = await fetchInventoryPage({ limit: MAX_PAGE_SIZE, offset: 0, ...params })
   const all = [...first.items]
@@ -112,21 +151,50 @@ export async function fetchAllInventoryProfiles(
   const pageCount = Math.ceil(total / MAX_PAGE_SIZE)
   if (pageCount <= 1) return all
 
-  const rest = await Promise.all(
-    Array.from({ length: pageCount - 1 }, (_, index) =>
-      fetchInventoryPage({
-        limit: MAX_PAGE_SIZE,
-        offset: (index + 1) * MAX_PAGE_SIZE,
-        ...params,
-      }),
-    ),
+  // The full catalog is ~170 pages; firing them all at once trips the API's per-IP rate limit
+  // and 403s every other server request from this host.
+  const offsets = Array.from({ length: pageCount - 1 }, (_, index) => (index + 1) * MAX_PAGE_SIZE)
+  const pages: PublicInventoryProfile[][] = new Array(offsets.length)
+  let cursor = 0
+
+  await Promise.all(
+    Array.from({ length: Math.min(FULL_CATALOG_CONCURRENCY, offsets.length) }, async () => {
+      while (cursor < offsets.length) {
+        const index = cursor++
+        const page = await fetchInventoryPage({
+          limit: MAX_PAGE_SIZE,
+          offset: offsets[index],
+          ...params,
+        })
+        pages[index] = page.items
+      }
+    }),
   )
 
-  for (const page of rest) {
-    all.push(...page.items)
+  for (const items of pages) {
+    all.push(...items)
   }
 
   return all
+}
+
+/** `GET /inventory/{username}`; `undefined` means the endpoint isn't available on this API. */
+async function fetchInventoryProfileDirect(slug: string): Promise<PublicInventoryProfile | null | undefined> {
+  const res = await fetch(`${getApiBaseUrl()}/inventory/${encodeURIComponent(slug)}`, {
+    headers: { Accept: "application/json" },
+    next: {
+      revalidate: REVALIDATE_SECONDS,
+      tags: [ARTIST_INVENTORY_CACHE_TAG, artistInventoryUsernameTag(slug)],
+    },
+  })
+  if (res.status === 404) {
+    const body = await res.text().catch(() => "")
+    return /inventory profile not found/i.test(body) ? null : undefined
+  }
+  if (!res.ok) return undefined
+  const data = unwrapSuccessData<Record<string, unknown>>(await res.json())
+  const profile = normalizePublicInventoryProfile(data)
+  return profile.username === slug ? profile : undefined
 }
 
 export const fetchInventoryProfileByUsername = cache(
@@ -135,6 +203,9 @@ export const fetchInventoryProfileByUsername = cache(
     if (!slug) return null
 
     try {
+      const direct = await fetchInventoryProfileDirect(slug).catch(() => undefined)
+      if (direct !== undefined) return direct
+
       // Backend `username` is a partial/LIKE filter. Short usernames (e.g. "fin")
       // can sit after dozens of longer matches — page until an exact username hit.
       const pageSize = MAX_PAGE_SIZE

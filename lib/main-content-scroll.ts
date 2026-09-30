@@ -21,6 +21,18 @@ export function getMainContentScrollTop(): number {
   return document.getElementById(MAIN_CONTENT_ID)?.scrollTop ?? 0
 }
 
+/** Reset the app shell scroll container (and window) to the top. */
+export function scrollMainContentToTop(behavior: ScrollBehavior = "auto"): void {
+  if (typeof document === "undefined") return
+  const mainContent = document.getElementById(MAIN_CONTENT_ID)
+  if (mainContent && mainContent.scrollTop > 0) {
+    mainContent.scrollTo({ top: 0, left: 0, behavior })
+  }
+  if (typeof window !== "undefined" && window.scrollY > 0) {
+    window.scrollTo({ top: 0, left: 0, behavior })
+  }
+}
+
 export function setLastKnownMainContentScroll(storageKey: string, scrollTop: number): void {
   if (scrollTop >= 0) {
     lastKnownScrollByKey.set(storageKey, scrollTop)

@@ -74,6 +74,8 @@ interface VideoGridProps {
   enableHoverPreview?: boolean
   /** Keep the ⋮ menu visible on cards without hover (home / profile feeds). */
   alwaysShowMoreMenu?: boolean
+  /** Tighter gutters (profile mobile video tab). */
+  dense?: boolean
 }
 
 export function VideoGrid({
@@ -93,6 +95,7 @@ export function VideoGrid({
   playlistNavigation,
   enableHoverPreview = false,
   alwaysShowMoreMenu = false,
+  dense = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -102,6 +105,9 @@ export function VideoGrid({
   const columnsPerRow = useGridColumnCount()
 
   const safeVideos = videos || []
+  const gridClassName = dense
+    ? "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 sm:gap-x-3 sm:gap-y-3 md:gap-x-4"
+    : "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3 sm:gap-x-4 sm:gap-y-4 md:gap-x-5"
 
   /** Sentinel sits one row above the bottom so the next page starts loading early. */
   const prefetchSentinelIndex =
@@ -185,7 +191,7 @@ export function VideoGrid({
   return (
     <div className="w-full">
       {isInitialLoad && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3 sm:gap-x-4 sm:gap-y-4 md:gap-x-5">
+        <div className={gridClassName}>
           {Array.from({ length: 8 }).map((_, index) => (
             <VideoCardSkeleton key={`skeleton-${index}`} />
           ))}
@@ -196,7 +202,7 @@ export function VideoGrid({
         <>
           <div
             ref={gridRef}
-            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3 sm:gap-x-4 sm:gap-y-4 md:gap-x-5"
+            className={gridClassName}
           >
             {safeVideos.map((video, index) => (
               <div

@@ -1,4 +1,5 @@
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+import type { PublicRanking } from "@/lib/types/inventory"
 
 export {
   ARTIST_DIRECTORY_PAGE_SIZE,
@@ -18,6 +19,7 @@ export {
   getArtistDirectoryFiltersAsync as getArtistDirectoryFilters,
   getAvailableArtistDirectoryFiltersAsync as getAvailableArtistDirectoryFilters,
   getOtherArtistsAsync as getOtherArtists,
+  getPopulatedGenreSlugsAsync as getPopulatedGenreSlugs,
   getRelatedArtistsAsync as getRelatedArtists,
   resolveArtistDirectoryPageAsync as resolveArtistDirectoryPage,
   sanitizeActiveFilterIdsAsync as sanitizeActiveFilterIds,
@@ -54,6 +56,10 @@ export type Artist = {
   verified: boolean
   featured: boolean
   added_date: string
+  /** Inventory `updated_at` — used for recent-claimed directory ordering. */
+  updated_at?: string
+  /** Weekly rank ladder; absent when the API predates it. */
+  ranking?: PublicRanking
 }
 
 export function artistIndexHref(slug?: string): string {

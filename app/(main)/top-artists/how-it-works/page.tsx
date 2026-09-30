@@ -1,35 +1,37 @@
 import type { Metadata } from "next"
-import { Suspense } from "react"
-import { TopArtistsEmbed } from "@/components/top-artists/top-artists-embed"
+import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
+import { TopChartHowItWorks } from "@/components/top-artists/premium/TopChartHowItWorks"
+import { signalNarrow } from "@/lib/fonts/signal"
 import { absoluteUrl } from "@/lib/seo/site"
+import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
   title: "How it works — Hiffi Hip-Hop 500",
   description:
-    "How the Hiffi Hip-Hop 500 ranking works — YouTube score weights, momentum windows, city charts, and update cadence.",
+    "How the Hiffi Hip-Hop 500 ranking works — blended YouTube + Instagram scores, momentum windows, city charts, and update cadence.",
   alternates: { canonical: absoluteUrl("/top-artists/how-it-works") },
   openGraph: {
     title: "How it works — Hiffi Hip-Hop 500",
-    description: "Plain-English methodology for the live YouTube Hip-Hop 500 ranking.",
+    description: "Plain-English methodology for the live Hip-Hop 500 ranking (YouTube + Instagram).",
     url: absoluteUrl("/top-artists/how-it-works"),
+    siteName: "Hiffi",
     type: "website",
+    images: [{ url: absoluteUrl("/top-artists/share/og-default"), width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "How it works — Hiffi Hip-Hop 500",
+    description: "Plain-English methodology for the live Hip-Hop 500 ranking (YouTube + Instagram).",
+    images: [absoluteUrl("/top-artists/share/og-default")],
   },
 }
 
 export default function TopArtistsHowItWorksPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-[100dvh] items-center justify-center bg-[#070708] text-sm text-white/60">
-          Loading…
-        </div>
-      }
-    >
-      <TopArtistsEmbed
-        documentSrc="/top-artists/how-it-works/index.html"
-        title="How the Hiffi Hip-Hop 500 works"
-        variant="how-it-works"
-      />
-    </Suspense>
+    <ArtistDirectoryShell claimHref={null} bleed tone="ink">
+      <div className={cn(signalNarrow.variable, "text-[#F4F1EA] [color-scheme:dark]")}>
+        <TopChartHowItWorks />
+      </div>
+    </ArtistDirectoryShell>
   )
 }

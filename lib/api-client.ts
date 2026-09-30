@@ -78,6 +78,9 @@ import type {
   UpdateMigrationRequestInput,
 } from "@/lib/types/youtube-migration"
 const TOKEN_KEY = "hiffi_auth_token"
+
+/** Fired when an authenticated request comes back 401 (expired or revoked session). */
+export const SESSION_REJECTED_EVENT = "hiffi:session-rejected"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
 
@@ -516,6 +519,9 @@ class ApiClient {
           status: finalResponse.status,
           responseBody: errorText, // Include response body for error handling
         }
+        if (finalResponse.status === 401 && requiresAuth && headers["Authorization"] && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(SESSION_REJECTED_EVENT))
+        }
         throw error
       }
 
@@ -558,6 +564,9 @@ class ApiClient {
         throw error
       }
       
+      // 401s were already logged as warnings above; the auth provider handles an ended session.
+      if (err?.status === 401) throw error
+
       // Log other errors normally
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       
@@ -897,6 +906,58 @@ class ApiClient {
     throw new Error(response.message || "Failed to get profile photo upload URL")
   }
 
+  // Get banner photo upload URL
+  // POST /users/banner-photo/upload - Get pre-signed URL for uploading banner photo
+  async getBannerPhotoUploadUrl(): Promise<{
+    success: boolean
+    gateway_url: string
+    path: string
+    message?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        gateway_url?: string
+        path?: string
+        message?: string
+      }
+      gateway_url?: string
+      path?: string
+      message?: string
+    }>(
+      "/users/banner-photo/upload",
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+      true,
+    )
+
+    const isSuccess = response.status === "success" || response.success
+
+    if (isSuccess) {
+      const gatewayUrl = response.data?.gateway_url || response.gateway_url || ""
+      const path = response.data?.path || response.path || ""
+
+      if (!gatewayUrl || gatewayUrl.trim() === "") {
+        throw new Error("Banner photo upload URL is missing from response. Please try again.")
+      }
+      if (!path || path.trim() === "") {
+        throw new Error("Banner photo path is missing from response. Please try again.")
+      }
+
+      return {
+        success: true,
+        gateway_url: gatewayUrl,
+        path: path,
+        message: response.data?.message || response.message,
+      }
+    }
+
+    throw new Error(response.message || "Failed to get banner photo upload URL")
+  }
+
   // Update user profile - uses PUT /users/self
   async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
     return this.updateSelfUser(data)
@@ -911,7 +972,7 @@ class ApiClient {
   // Update current user via PUT /users/self (profile fields, role downgrade to "user").
   // Upgrade to creator: use requestCreatorUpgrade + verifyCreatorUpgrade (PUT with role: "creator" is blocked).
   // When email is changed, response includes: { success: true, data: { id: "...", message: "..." } }
-  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; email?: string; [key: string]: any }): Promise<{ success: boolean; user?: any; data?: { id?: string; message?: string; [key: string]: any } }> {
+  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; banner_image?: string; email?: string; [key: string]: any }): Promise<{ success: boolean; user?: any; data?: { id?: string; message?: string; [key: string]: any } }> {
     const response = await this.request<{
       success?: boolean
       status?: string

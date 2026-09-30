@@ -5,7 +5,7 @@ import { getThumbnailUrl } from "@/lib/storage"
 export const ARTIST_INDEX_PATH = "/artist-index" as const
 export const ARTIST_INDEX_CLAIM_PATH = "/artist-index/claim" as const
 
-export const ARTIST_DIRECTORY_PAGE_SIZE = 9
+export const ARTIST_DIRECTORY_PAGE_SIZE = 12
 
 export type ArtistDirectoryFilterOption = {
   id: string
@@ -34,6 +34,15 @@ export function artistDirectoryFilterSeoHref(option: ArtistDirectoryFilterOption
   if (!option.kind || !option.slug) return null
   if (option.kind === "city") return artistIndexCityHref(option.slug)
   if (option.kind === "genre") return artistIndexGenreHref(option.slug)
+  return null
+}
+
+/** SEO landing URL for any `city:{slug}` / `genre:{slug}` filter id, curated or not. */
+export function artistDirectoryFilterIdSeoHref(filterId: string): string | null {
+  const [kind, slug = ""] = filterId.split(":")
+  if (!slug || slugifyArtistDirectorySegment(slug) !== slug) return null
+  if (kind === "city") return artistIndexCityHref(slug)
+  if (kind === "genre") return artistIndexGenreHref(slug)
   return null
 }
 
@@ -118,4 +127,15 @@ export function getArtistImageUrl(image: string | null | undefined): string | nu
   }
   if (trimmed.startsWith("/proxy/")) return null
   return getThumbnailUrl(trimmed) || null
+}
+
+/** Resolve profile cover/banner from user fields (banner_image preferred). */
+export function resolveUserBannerUrl(
+  user: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!user) return null
+  const raw = String(
+    user.banner_image ?? user.cover_image ?? user.coverUrl ?? "",
+  ).trim()
+  return raw ? getArtistImageUrl(raw) : null
 }

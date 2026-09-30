@@ -1,9 +1,9 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { apiClient, isApiUser } from "./api-client"
+import { SESSION_REJECTED_EVENT, apiClient, isApiUser } from "./api-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
 import { trackUmami, setUmamiUser } from "@/lib/umami"
@@ -50,7 +50,8 @@ interface AuthContextType {
     token: string
     user: { uid: string; username: string; name: string }
   }) => Promise<any | null>
-  logout: () => Promise<void>
+  /** `stayOnPage` skips the post-logout redirect (e.g. switching accounts on /login). */
+  logout: (options?: { stayOnPage?: boolean }) => Promise<void>
   refreshUserData: (
     forceRefresh?: boolean,
     options?: { keepSessionOnFailure?: boolean },
@@ -383,8 +384,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const loginData = {
+        // Backend stores emails lowercased and matches case-sensitively.
         ...(trimmedIdentifier.includes("@")
-          ? { email: trimmedIdentifier, password }
+          ? { email: trimmedIdentifier.toLowerCase(), password }
           : { username: trimmedIdentifier, password }),
         ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
       }
@@ -668,7 +670,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refreshUserData],
   )
 
-  const logout = async () => {
+  // A 401 on an authenticated call can mean the session was revoked (e.g. an admin deleted a
+  // pending claim) or just an endpoint refusing access. Re-check the account once before signing out.
+  const hasUserRef = useRef(false)
+  hasUserRef.current = Boolean(user)
+  const sessionCheckRef = useRef<{ inFlight: boolean; validUntil: number }>({ inFlight: false, validUntil: 0 })
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const onSessionRejected = async () => {
+      const check = sessionCheckRef.current
+      if (!hasUserRef.current || check.inFlight || Date.now() < check.validUntil) return
+      check.inFlight = true
+      try {
+        const refreshed = await refreshUserData(true)
+        if (refreshed) {
+          check.validUntil = Date.now() + 30_000
+          return
+        }
+        if (apiClient.getAuthToken()) return
+        apiClient.clearCredentials()
+        identifyAnalyticsUser(null)
+        toast({
+          title: "You've been signed out",
+          description: "Your session has ended. Sign in again to continue.",
+        })
+      } finally {
+        check.inFlight = false
+      }
+    }
+    window.addEventListener(SESSION_REJECTED_EVENT, onSessionRejected)
+    return () => window.removeEventListener(SESSION_REJECTED_EVENT, onSessionRejected)
+  }, [refreshUserData])
+
+  const logout = async (options?: { stayOnPage?: boolean }) => {
     try {
       debugLog("[hiffi] Attempting logout")
 
@@ -749,7 +784,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Conditional redirect: Stay on watch page, otherwise go home
         const currentPath = window.location.pathname
-        if (currentPath.startsWith("/watch/")) {
+        if (options?.stayOnPage || currentPath.startsWith("/watch/")) {
           debugLog("[hiffi] User logged out on watch page, staying on current page")
           router.refresh()
           // Run cleanup multiple times to catch elements added during navigation

@@ -44,6 +44,21 @@ interface NavbarProps {
   variant?: 'full' | 'minimal'
 }
 
+const NAVBAR_SECTIONS = [
+  { prefixes: ["/top-artists"], href: "/top-artists", label: "Hip-Hop 500", analytics: "navbar-hip-hop-500-link" },
+  { prefixes: ["/artist-index"], href: "/artist-index", label: "Artist Index", analytics: "navbar-artist-index-link" },
+] as const
+
+/** Section label shown beside the logo; links back to that section's home. */
+function navbarSectionLink(pathname: string | null) {
+  if (!pathname) return null
+  return (
+    NAVBAR_SECTIONS.find((section) =>
+      section.prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)),
+    ) ?? null
+  )
+}
+
 function MinimalNavbarHeader() {
   const pathname = usePathname()
   const router = useRouter()
@@ -102,6 +117,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   const isAppDownloadPage = pathname === "/app"
+  const sectionLink = navbarSectionLink(pathname)
 
   // Hide upload button on following page
   const showUploadButton = pathname !== '/following'
@@ -203,6 +219,18 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 priority
               />
             </Link>
+            {sectionLink ? (
+              <Link
+                href={sectionLink.href}
+                data-analytics-name={sectionLink.analytics}
+                className="group hidden items-center gap-3 sm:flex sm:gap-4"
+              >
+                <span className="h-5 w-px bg-border" aria-hidden />
+                <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-foreground transition-colors group-hover:text-[#E8192C]">
+                  {sectionLink.label}
+                </span>
+              </Link>
+            ) : null}
           </div>
 
           {/* Tablet/desktop: full search pill in center; mobile shows nothing here (spacer only) */}

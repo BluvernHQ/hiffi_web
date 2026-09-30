@@ -1,33 +1,47 @@
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
-import { ArtistDirectoryGridSkeleton } from "@/components/artists/ArtistDirectoryGridSkeleton"
-import { ArtistIndexIntro } from "@/components/artists/ArtistIndexIntro"
+import { artistPageContainer } from "@/components/artists/artist-layout"
+import { ArtistRosterSkeleton } from "@/components/artists/index/ArtistRosterSkeleton"
+import { cn } from "@/lib/utils"
 
 export default function ArtistIndexLoading() {
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now">
-      <div className="space-y-8 sm:space-y-10" aria-busy aria-live="polite">
-        <div className="space-y-4 sm:space-y-5">
-          <ArtistIndexIntro artistCount={0} variant="hub" />
-          <section
-            aria-label="Search artists"
-            className="rounded-2xl border border-[#E8192C]/15 bg-[#FAFAFA] p-3 shadow-sm sm:p-4"
+    <ArtistDirectoryShell claimLabel="Claim Now" bleed>
+      <div aria-busy aria-live="polite">
+        <section className="relative isolate overflow-hidden bg-[#0B0B0C]">
+          <div
+            className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_10%_0%,rgba(232,25,44,0.2),transparent_50%)]"
+            aria-hidden
+          />
+          <div
+            className={cn(
+              artistPageContainer,
+              "grid gap-10 pb-14 pt-12 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 lg:pt-20 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24",
+            )}
+            aria-hidden
           >
-            <div className="h-11 rounded-xl border border-border/60 bg-white" aria-hidden />
-          </section>
-        </div>
-
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Featured artists
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Verified and emerging hip-hop and rap artists across cities — search profiles and
-              explore official links.
-            </p>
+            <div>
+              <div className="ink-skeleton h-3 w-36 rounded-full" />
+              <div className="ink-skeleton mt-6 h-14 w-full max-w-2xl rounded-xl sm:h-24" />
+              <div className="ink-skeleton mt-3 h-14 w-3/4 max-w-xl rounded-xl sm:h-24" />
+              <div className="ink-skeleton mt-8 h-4 w-full max-w-lg rounded-full" />
+              <div className="ink-skeleton mt-8 h-14 w-full max-w-2xl rounded-full" />
+            </div>
+            <div className="hidden lg:block">
+              <div className="ink-skeleton mb-3 h-3 w-28 rounded-full" />
+              <div className="grid grid-cols-3 gap-2.5">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <div key={index} className="ink-skeleton aspect-[4/5] rounded-2xl" />
+                ))}
+              </div>
+            </div>
           </div>
-          <ArtistDirectoryGridSkeleton />
         </section>
+
+        <div className={cn(artistPageContainer, "pb-20 pt-14 sm:pt-20")} aria-hidden>
+          <div className="paper-skeleton h-3 w-28 rounded-full" />
+          <div className="paper-skeleton mt-4 h-10 w-72 max-w-full rounded-lg sm:h-12" />
+          <ArtistRosterSkeleton className="mt-10" />
+        </div>
 
         <span className="sr-only">Loading Artist Index</span>
       </div>

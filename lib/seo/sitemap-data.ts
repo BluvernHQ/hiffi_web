@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next"
 import { SITEMAP_STATIC_CONTENT_PAGES } from "@/lib/content-pages"
 import { getArtistCityPages, getArtistGenrePages } from "@/lib/artist-directory-seo"
 import { artistIndexCityHref, artistIndexCitySceneHref, artistIndexGenreHref } from "@/lib/artist-directory"
-import { getArtists } from "@/lib/artists"
+import { getArtists, getPopulatedGenreSlugs } from "@/lib/artists"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
 import { getAllAtlantaSitemapPaths } from "@/lib/atlanta/registry"
@@ -11,6 +11,14 @@ import { MOODS } from "@/lib/mood-tabs"
 export const SITEMAP_REVALIDATE_SECONDS = 3600
 
 const STATIC_LAST_MODIFIED = new Date("2026-06-01T00:00:00.000Z")
+
+/** Chart surfaces are kept out of every sitemap. */
+const SITEMAP_EXCLUDED_PREFIXES = ["/top-artists"]
+
+function isSitemapExcluded(url: string): boolean {
+  const { pathname } = new URL(url)
+  return SITEMAP_EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
 
 export function getSitemapMaxVideos(): number {
   const raw = process.env.SITEMAP_MAX_VIDEOS?.trim()
@@ -63,6 +71,12 @@ function buildStaticEntries(
     },
     {
       url: absoluteUrl("/privacy-policy"),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
+      url: absoluteUrl("/cookie-policy"),
       lastModified: STATIC_LAST_MODIFIED,
       changeFrequency: "yearly",
       priority: 0.5,
@@ -237,8 +251,15 @@ export async function buildSitemapEntries(id: number): Promise<MetadataRoute.Sit
     const profileDates = buildProfileLastModifiedByUsername(entries)
 
     if (id === 0) {
-      const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
-      const staticEntries = buildStaticEntries(cityPages, genrePages)
+      const [cityPages, genrePages, genreSlugs] = await Promise.all([
+        getArtistCityPages(),
+        getArtistGenrePages(),
+        getPopulatedGenreSlugs(),
+      ])
+      const populatedGenrePages = genrePages.filter((genre) => genreSlugs.includes(genre.slug))
+      const staticEntries = buildStaticEntries(cityPages, populatedGenrePages).filter(
+        (entry) => !isSitemapExcluded(entry.url),
+      )
       const profileEntries = buildProfileEntries(profileDates, now)
       const artistIndexEntries = await buildArtistIndexProfileEntries()
 

@@ -399,7 +399,6 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
             ? "top-16 h-[calc(100dvh-4rem)] sm:top-20 sm:h-[calc(100dvh-5rem)]"
             : "top-0 h-[100dvh]",
           // Desktop: sticky in layout row
-          // Default: top-16 = navbar height; insetBelowHeader sits in the body row under Hip-Hop 500 header
           insetBelowHeader
             ? "lg:sticky lg:left-auto lg:top-0 lg:z-auto lg:h-full lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out"
             : "lg:sticky lg:left-auto lg:top-16 lg:z-auto lg:h-[calc(100dvh-4rem)] lg:shadow-none lg:transition-all lg:duration-300 lg:ease-in-out",

@@ -5,17 +5,21 @@ import { cn } from "@/lib/utils"
 
 type ArtistDetailAboutProps = {
   artist: Artist
+  /** Live Hiffi video count when known (e.g. from /profile). */
+  hiffiVideoCount?: number
+  /** Footer CTA under the bio. Hidden on `/profile` where videos already appear below. */
+  showWatchPrompt?: boolean
 }
 
 function DetailField({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className="min-w-0">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-[11px]">
         {label}
       </dt>
       <dd
         className={cn(
-          "mt-1.5 text-sm font-medium",
+          "mt-1 break-words text-sm font-medium sm:mt-1.5",
           highlight ? "font-semibold text-[#E8192C]" : "text-foreground",
         )}
       >
@@ -25,7 +29,11 @@ function DetailField({ label, value, highlight }: { label: string; value: string
   )
 }
 
-export function ArtistDetailAbout({ artist }: ArtistDetailAboutProps) {
+export function ArtistDetailAbout({
+  artist,
+  hiffiVideoCount = 0,
+  showWatchPrompt = true,
+}: ArtistDetailAboutProps) {
   const profileStatus = artist.verified
     ? "Verified"
     : artist.claim_status === "pending"
@@ -36,16 +44,15 @@ export function ArtistDetailAbout({ artist }: ArtistDetailAboutProps) {
   const displayBio = getArtistDisplayBio(artist)
   const hasCustomBio = Boolean(artist.bio?.trim())
   const reach = getPrimaryFollowerCount(artist)
-  const hiffiVideoCount = 0
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+    <section className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6 md:p-8">
       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
         About the artist
       </h2>
-      <div className="mt-4 border-t border-border" aria-hidden />
+      <div className="mt-3 border-t border-border sm:mt-4" aria-hidden />
 
-      <dl className="mt-6 grid gap-6 sm:grid-cols-2">
+      <dl className="mt-4 grid grid-cols-2 gap-4 sm:mt-6 sm:gap-6">
         {reach != null && reach > 0 ? (
           <DetailField label="Total reach" value={formatTotalReach(reach, false)} />
         ) : null}
@@ -63,16 +70,18 @@ export function ArtistDetailAbout({ artist }: ArtistDetailAboutProps) {
 
       <p
         className={cn(
-          "mt-8 text-sm leading-relaxed text-muted-foreground",
+          "mt-6 text-sm leading-relaxed text-muted-foreground sm:mt-8",
           !hasCustomBio && "italic",
         )}
       >
         {displayBio}
       </p>
-      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        Watch their videos on Hiffi and follow their official links to stay connected with new
-        releases, visuals, and updates.
-      </p>
+      {showWatchPrompt ? (
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          Watch their videos on Hiffi and follow their official links to stay connected with new
+          releases, visuals, and updates.
+        </p>
+      ) : null}
     </section>
   )
 }

@@ -12,7 +12,7 @@ export function ArtistDirectoryGridSkeleton({
   return (
     <div
       className={cn(
-        "grid gap-4 [grid-template-columns:minmax(0,1fr)] sm:gap-5 sm:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:gap-6 xl:[grid-template-columns:repeat(3,minmax(0,1fr))]",
+        "grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6",
         "animate-pulse",
       )}
       aria-hidden
@@ -20,7 +20,7 @@ export function ArtistDirectoryGridSkeleton({
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-muted/30"
+          className="overflow-hidden rounded-2xl border border-border/60 bg-muted/30"
         >
           <div className="h-28 bg-muted/50 sm:h-32" />
           <div className="space-y-3 p-4 sm:p-5">

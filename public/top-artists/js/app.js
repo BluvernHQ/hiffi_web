@@ -6,8 +6,8 @@ const INITIAL_VISIBLE = 20;
 const LOAD_MORE_STEP = 20;
 const ACCENTS = ["#ff2b2b", "#f4f1ea", "#7e7e83", "#ff2b2b", "#b8b6b1"];
 /** Ranking payload cache — localStorage/sessionStorage (cookies can't hold ~500 artists). */
-const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v8";
-const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v1";
+const CACHE_KEY_PREFIX = "hiffi-top-artist-cache-v9";
+const CITIES_CACHE_KEY = "hiffi-top-artist-cities-v2";
 const UI_KEY = "hiffi-top-artist-ui-v4";
 /** Scroll only — sessionStorage so a new browser session always starts at the top. */
 const SCROLL_KEY = "hiffi-top-artist-scroll-v1";
@@ -122,8 +122,9 @@ function slimInventoryItem(item) {
   if (!item || typeof item !== "object") return null;
   const socials = slimSocials(item.other_socials);
   return {
-    rank: item.rank ?? item.current_rank ?? item.underground_rank ?? item.breakout_rank ?? null,
-    global_rank: item.global_rank ?? item.current_rank ?? item.youtube_rank ?? null,
+    rank: item.rank ?? item.city_rank ?? item.current_rank ?? item.underground_rank ?? item.breakout_rank ?? null,
+    global_rank:
+      item.global_rank ?? item.ranking?.global_rank ?? item.current_rank ?? item.youtube_rank ?? null,
     underground_rank: item.underground_rank ?? null,
     breakout_rank: item.breakout_rank ?? null,
     youtube_rank: item.youtube_rank ?? null,
@@ -137,9 +138,17 @@ function slimInventoryItem(item) {
     youtube_recent_avg_views: item.youtube_recent_avg_views ?? null,
     youtube_upload_velocity: item.youtube_upload_velocity ?? null,
     youtube_score: item.youtube_score ?? null,
+    final_score: item.final_score ?? null,
+    instagram_score: item.instagram_score ?? null,
     youtube_momentum_7d: item.youtube_momentum_7d ?? null,
     youtube_momentum_30d: item.youtube_momentum_30d ?? null,
     youtube_momentum_90d: item.youtube_momentum_90d ?? null,
+    instagram_follower_count: item.instagram_follower_count ?? null,
+    instagram_recent_avg_likes: item.instagram_recent_avg_likes ?? null,
+    instagram_post_velocity: item.instagram_post_velocity ?? null,
+    instagram_momentum_7d: item.instagram_momentum_7d ?? 0,
+    instagram_momentum_30d: item.instagram_momentum_30d ?? 0,
+    instagram_momentum_90d: item.instagram_momentum_90d ?? 0,
     heat_score: item.heat_score ?? null,
     engagement_score: item.engagement_score ?? null,
     momentum_score: item.momentum_score ?? null,
@@ -328,9 +337,36 @@ function isValidRisersWindow(value) {
   return value === 7 || value === 30 || value === "7" || value === "30";
 }
 
+/**
+ * `/top/cities` items: `{ id, label, ranked_count }` (canonical cities). Older APIs sent
+ * `{ location, artist_count }`. Internally `location` holds the city id (or the legacy string).
+ */
+function normalizeBannerCity(item) {
+  if (!item || typeof item !== "object") return null;
+  const id = String(item.id || "").trim();
+  if (id) {
+    return {
+      location: id,
+      label: String(item.label || id).trim(),
+      artist_count: Number(item.ranked_count ?? item.artist_count) || 0,
+      canonical: true,
+    };
+  }
+  const location = String(item.location || "").trim();
+  if (!location) return null;
+  return { location, label: "", artist_count: Number(item.artist_count) || 0, canonical: false };
+}
+
+function findBannerCity(location) {
+  const text = String(location || "").trim();
+  return text ? bannerCities.find((city) => city.location === text) || null : null;
+}
+
 function cityChipLabel(location) {
   const text = String(location || "").trim();
   if (!text) return "All";
+  const known = findBannerCity(text);
+  if (known?.label) return known.label;
   const short = text.split(",")[0].trim();
   return short || text;
 }
@@ -351,7 +387,7 @@ function renderLocationFilters() {
       const label = cityChipLabel(city.location);
       const count = Number(city.artist_count) || 0;
       return `<button type="button" data-location="${escapeAttr(city.location)}" title="${escapeAttr(
-        `${city.location} · ${count} ranked`,
+        `${city.label || city.location} · ${count} ranked`,
       )}">${escapeAttr(label)}</button>`;
     })
     .join("");
@@ -519,6 +555,22 @@ function formatVelocity(value) {
   return `${Number(value).toFixed(1)}/30d`;
 }
 
+function formatPostVelocity(value) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const n = Number(value);
+  const digits = Number.isInteger(n) ? 0 : 1;
+  return `${n.toFixed(digits)}/30d`;
+}
+
+function setDrawerMetric(id, text, { hidden = false, className = null } = {}) {
+  const el = $(id);
+  if (!el) return;
+  const cell = el.closest("div");
+  if (cell) cell.hidden = Boolean(hidden);
+  el.textContent = text;
+  if (className != null) el.className = className;
+}
+
 /** Fractional growth → percent label (e.g. 0.031 → +3.1%). */
 function formatMomentum(value) {
   if (value == null || Number.isNaN(Number(value))) return "—";
@@ -543,20 +595,27 @@ function artistIndexHref(username) {
   return `/artist-index/${encodeURIComponent(username)}`;
 }
 
+/** Navigate the host page (the ranking runs inside an iframe on /top-artists). */
+function openInHost(href) {
+  const host = window.parent && window.parent !== window ? window.parent : window;
+  host.location.assign(href);
+}
+
 /** @param {{ claimStatus?: string, username?: string }} artist */
 function claimAction(artist) {
   if (!artist.username || artist.claimStatus === "claimed") return null;
+  const href = `${artistIndexHref(artist.username)}/claim`;
   if (artist.claimStatus === "pending") {
     return {
-      href: artistIndexHref(artist.username),
+      href,
       label: "Request ownership",
-      note: "Ownership under review. Open the Artist Index profile to request ownership.",
+      note: "Ownership under review. Is this you? Request ownership on Artist Index.",
     };
   }
   return {
-    href: artistIndexHref(artist.username),
+    href,
     label: "Claim this profile",
-    note: "Is this your profile? Open it on Artist Index to claim, verify links, and get discovered.",
+    note: "Is this your profile? Claim it on Artist Index to verify links and get discovered.",
   };
 }
 
@@ -581,7 +640,9 @@ function mapArtist(item, index) {
           ? Number(item.current_rank)
           : item.rank != null && !Number.isNaN(Number(item.rank))
             ? Number(item.rank)
-            : index + 1;
+            : item.city_rank != null && !Number.isNaN(Number(item.city_rank))
+              ? Number(item.city_rank)
+              : index + 1;
   const priorRank =
     item.prior_rank != null && !Number.isNaN(Number(item.prior_rank))
       ? Number(item.prior_rank)
@@ -599,6 +660,8 @@ function mapArtist(item, index) {
   const globalRank =
     item.global_rank != null && !Number.isNaN(Number(item.global_rank))
       ? Number(item.global_rank)
+      : item.ranking?.global_rank != null && !Number.isNaN(Number(item.ranking.global_rank))
+        ? Number(item.ranking.global_rank)
       : youtubeRank != null
         ? youtubeRank
         : item.current_rank != null
@@ -607,6 +670,22 @@ function mapArtist(item, index) {
   const heatScore =
     item.heat_score != null && !Number.isNaN(Number(item.heat_score))
       ? Number(item.heat_score)
+      : null;
+  const finalScore =
+    item.final_score != null && !Number.isNaN(Number(item.final_score))
+      ? Number(item.final_score)
+      : null;
+  const youtubeScore =
+    item.youtube_score != null && !Number.isNaN(Number(item.youtube_score))
+      ? Number(item.youtube_score)
+      : null;
+  const instagramScore =
+    item.instagram_score != null && !Number.isNaN(Number(item.instagram_score))
+      ? Number(item.instagram_score)
+      : null;
+  const momentumScore =
+    item.momentum_score != null && !Number.isNaN(Number(item.momentum_score))
+      ? Number(item.momentum_score)
       : null;
   return {
     rank: currentRank,
@@ -623,17 +702,17 @@ function mapArtist(item, index) {
     videoCount: item.youtube_video_count ?? null,
     recentAvgViews: item.youtube_recent_avg_views ?? null,
     uploadVelocity: item.youtube_upload_velocity ?? null,
-    score: heatScore ?? item.momentum_score ?? item.youtube_score ?? null,
-    youtubeScore: item.youtube_score ?? null,
+    // Mode boards prefer heat/momentum; overall/city use blended final_score.
+    score: heatScore ?? momentumScore ?? finalScore ?? youtubeScore ?? null,
+    finalScore,
+    youtubeScore,
+    instagramScore,
     heatScore,
     engagementScore:
       item.engagement_score != null && !Number.isNaN(Number(item.engagement_score))
         ? Number(item.engagement_score)
         : null,
-    momentumScore:
-      item.momentum_score != null && !Number.isNaN(Number(item.momentum_score))
-        ? Number(item.momentum_score)
-        : null,
+    momentumScore,
     reachScore:
       item.reach_score != null && !Number.isNaN(Number(item.reach_score))
         ? Number(item.reach_score)
@@ -641,8 +720,15 @@ function mapArtist(item, index) {
     momentum7d: item.youtube_momentum_7d ?? null,
     momentum30d: item.youtube_momentum_30d ?? null,
     momentum90d: item.youtube_momentum_90d ?? null,
+    instagramFollowers: item.instagram_follower_count ?? null,
+    instagramRecentAvgLikes: item.instagram_recent_avg_likes ?? null,
+    instagramPostVelocity: item.instagram_post_velocity ?? null,
+    instagramMomentum7d: item.instagram_momentum_7d ?? 0,
+    instagramMomentum30d: item.instagram_momentum_30d ?? 0,
+    instagramMomentum90d: item.instagram_momentum_90d ?? 0,
     socials,
     youtubeUrl: socials.youtube || null,
+    instagramUrl: socials.instagram || null,
     previousRank: priorRank,
     priorRank,
     rankDelta,
@@ -665,12 +751,15 @@ function mapArtist(item, index) {
   };
 }
 
-/** Prefer 7d momentum, then 30d / 90d — used when rank delta is unavailable. */
-function primaryMomentum(artist) {
-  for (const key of ["momentum7d", "momentum30d", "momentum90d"]) {
-    const value = artist?.[key];
-    if (value != null && !Number.isNaN(Number(value))) return Number(value);
-  }
+/** Prefer momentum window matching the active sort; else 7d → 30d → 90d. */
+function momentumForMove(artist) {
+  if (!artist) return null;
+  if (state.sort === "momentum30d" && artist.momentum30d != null) return artist.momentum30d;
+  if (state.sort === "momentum90d" && artist.momentum90d != null) return artist.momentum90d;
+  if (state.sort === "momentum7d" && artist.momentum7d != null) return artist.momentum7d;
+  if (artist.momentum7d != null) return artist.momentum7d;
+  if (artist.momentum30d != null) return artist.momentum30d;
+  if (artist.momentum90d != null) return artist.momentum90d;
   return null;
 }
 
@@ -680,33 +769,51 @@ function movementMeta(artist) {
   else if (artist.rankDelta7d != null) delta = artist.rankDelta7d;
   else if (artist.previousRank != null) delta = artist.previousRank - artist.rank;
 
-  if (delta != null) {
-    const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-    const symbol = direction === "up" ? "↗" : direction === "down" ? "↘" : "→";
-    const amount = Math.abs(delta);
-    const label =
-      delta === 0 ? "No rank change" : `${direction} ${amount} ${amount === 1 ? "place" : "places"}`;
-    return { delta, direction, symbol, amount, label, soft: false };
+  // Prefer real rank movement when weekly snapshots provide a non-zero delta.
+  if (delta != null && !Number.isNaN(Number(delta)) && Number(delta) !== 0) {
+    const n = Number(delta);
+    const direction = n > 0 ? "up" : "down";
+    const symbol = direction === "up" ? "↗" : "↘";
+    const amount = Math.abs(n);
+    const label = `${direction} ${amount} ${amount === 1 ? "place" : "places"}`;
+    return { delta: n, direction, symbol, amount, label, soft: false, source: "rank" };
   }
 
-  // No rank-delta from API yet — derive MOVE from momentum columns.
-  const mom = primaryMomentum(artist);
-  if (mom != null) {
-    const direction = mom > 0 ? "up" : mom < 0 ? "down" : "flat";
-    const symbol = direction === "up" ? "↗" : direction === "down" ? "↘" : "→";
-    const label =
-      direction === "flat"
-        ? "Flat momentum"
-        : `${direction === "up" ? "Positive" : "Negative"} momentum ${formatMomentum(mom)}`;
-    return { delta: 0, direction, symbol, amount: 0, label, soft: true };
+  // Otherwise mirror momentum so Move matches the 7d / 30d / 90d columns.
+  const mom = momentumForMove(artist);
+  if (mom == null || Number.isNaN(Number(mom))) {
+    return {
+      delta: 0,
+      direction: "flat",
+      symbol: "→",
+      amount: 0,
+      label: "No movement data",
+      soft: true,
+      source: "none",
+    };
   }
 
-  return { delta: 0, direction: "flat", symbol: "→", amount: 0, label: "No movement data", soft: true };
+  const tone = momentumTone(mom);
+  const symbol = tone === "up" ? "↗" : tone === "down" ? "↘" : "→";
+  const label =
+    tone === "flat"
+      ? `Flat momentum ${formatMomentum(mom)}`
+      : `${tone === "up" ? "Up" : "Down"} momentum ${formatMomentum(mom)}`;
+  return {
+    delta: Number(mom),
+    direction: tone,
+    symbol,
+    amount: 0,
+    label,
+    soft: tone === "flat",
+    source: "momentum",
+  };
 }
 
 function movementHTML(artist, compact = false) {
   const move = movementMeta(artist);
-  const amountHtml = !compact && !move.soft && move.delta !== 0 ? move.amount : "";
+  const amountHtml =
+    !compact && !move.soft && move.source === "rank" && move.delta !== 0 ? move.amount : "";
   return `<span class="movement movement-${move.direction}" aria-label="${move.label}"><span aria-hidden="true">${move.symbol}</span>${amountHtml}</span>`;
 }
 
@@ -973,8 +1080,9 @@ async function fetchTopPage(limit, offset) {
 }
 
 async function fetchCityPage(limit, offset, location) {
+  const value = String(location || "").trim();
   const params = new URLSearchParams({
-    location: String(location || "").trim(),
+    [findBannerCity(value)?.canonical ? "city_id" : "location"]: value,
     limit: String(Math.min(limit, CITY_PAGE_SIZE)),
     offset: String(offset),
     enrich: "0",
@@ -1152,7 +1260,9 @@ async function fetchBannerCities() {
     if (hasCache) return bannerCities;
     throw new Error(body?.error || `Failed to load cities (${res.status})`);
   }
-  bannerCities = Array.isArray(body.data?.items) ? body.data.items : [];
+  bannerCities = Array.isArray(body.data?.items)
+    ? body.data.items.map(normalizeBannerCity).filter(Boolean)
+    : [];
   writeJsonStorage(CITIES_CACHE_KEY, { items: bannerCities, savedAt: Date.now() });
 
   if (state.location && !bannerCities.some((city) => city.location === state.location)) {
@@ -1299,7 +1409,7 @@ function emptyRankingHTML() {
 }
 
 function renderLoading() {
-  $("#artistList").innerHTML = `<div class="empty-state"><b>Loading live ranking…</b><span>Fetching YouTube-ranked artists.</span></div>`;
+  $("#artistList").innerHTML = `<div class="empty-state"><b>Loading live ranking…</b><span>Fetching ranked artists.</span></div>`;
   $("#resultsCount").textContent = "Loading…";
   $("#loadMore").hidden = true;
   $("#topThree").innerHTML = "";
@@ -1353,7 +1463,7 @@ function artistRowHTML(artist, index) {
     <button type="button" class="artist-row" data-artist-rank="${artist.rank}" data-artist-username="${escapeAttr(artist.username || "")}" style="--delay:${Math.min(index, 12) * 28}ms">
       <span class="artist-identity"><b>${pad(artist.rank, 3)}</b>${artistAvatarHTML(artist)}<strong><span class="artist-name">${artist.name}</span>${
         artist.username
-          ? `<a class="artist-profile-link" href="${buildRankingPath({ artist: artist.username })}">Open profile <span aria-hidden="true">↗</span></a>`
+          ? `<a class="artist-profile-link" href="${escapeAttr(artistIndexHref(artist.username))}" target="_parent">Open profile <span aria-hidden="true">↗</span></a>`
           : ""
       }</strong></span>
       <span data-label="Region">${artist.location || "—"}</span>
@@ -1525,8 +1635,10 @@ function buildSharePayload(artist) {
   return { headline, text: `${headline}\n\n${url}`, url, path, sharePath };
 }
 
-/** Short city token for clean URLs: "Atlanta, GA" → "atlanta". */
+/** City token for URLs: the canonical id ("atlanta-ga-us"), or "Atlanta, GA" → "atlanta" for legacy strings. */
 function citySlug(location) {
+  const known = findBannerCity(location);
+  if (known?.canonical) return known.location;
   return cityChipLabel(location)
     .toLowerCase()
     .replace(/&/g, "and")
@@ -1995,7 +2107,37 @@ function openDrawer(rank, options = {}) {
     }
   }
   $("#drawerArtistName").textContent = artist.name;
+  const scoreLabel = $("#drawerScoreLabel");
+  if (scoreLabel) {
+    scoreLabel.textContent =
+      state.mode === "heat"
+        ? "Underground heat score"
+        : state.mode === "breakout"
+          ? "Breakout momentum score"
+          : "Composite score";
+  }
   $("#drawerScore").textContent = formatScore(artist.score);
+
+  const ytScoreWrap = $("#drawerYoutubeScoreWrap");
+  const igScoreWrap = $("#drawerInstagramScoreWrap");
+  const showPlatformScores =
+    state.mode === "overall" && (artist.youtubeScore != null || artist.instagramScore != null);
+  if (ytScoreWrap) {
+    ytScoreWrap.hidden = !showPlatformScores || artist.youtubeScore == null;
+    const ytScoreEl = $("#drawerYoutubeScore");
+    if (ytScoreEl) ytScoreEl.textContent = formatScore(artist.youtubeScore);
+  }
+  if (igScoreWrap) {
+    igScoreWrap.hidden = !showPlatformScores || artist.instagramScore == null;
+    const igScoreEl = $("#drawerInstagramScore");
+    if (igScoreEl) igScoreEl.textContent = formatScore(artist.instagramScore);
+  }
+  const platformScores = $("#drawerPlatformScores");
+  if (platformScores) {
+    platformScores.hidden =
+      !showPlatformScores || (artist.youtubeScore == null && artist.instagramScore == null);
+  }
+
   $("#drawerSubscribers").textContent = formatCount(artist.subscribers);
   $("#drawerViews").textContent = formatCount(artist.views);
   $("#drawerRecentAvg").textContent = formatCount(artist.recentAvgViews);
@@ -2012,22 +2154,61 @@ function openDrawer(rank, options = {}) {
   mom30.className = `momentum momentum-${momentumTone(artist.momentum30d)}`;
   mom90.className = `momentum momentum-${momentumTone(artist.momentum90d)}`;
 
+  const igSection = $("#drawerIgSection");
+  if (igSection) igSection.hidden = state.mode !== "overall";
+
+  // Always render IG rows on overall/city (same pattern as YouTube).
+  // Optional scrape fields show "—" until present; momentum is always returned (0 until history).
+  setDrawerMetric("#drawerIgFollowers", formatCount(artist.instagramFollowers));
+  setDrawerMetric("#drawerIgAvgLikes", formatCount(artist.instagramRecentAvgLikes));
+  setDrawerMetric("#drawerIgPostVelocity", formatPostVelocity(artist.instagramPostVelocity));
+  setDrawerMetric("#drawerIgMomentum7d", formatMomentum(artist.instagramMomentum7d ?? 0), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum7d ?? 0)}`,
+  });
+  setDrawerMetric("#drawerIgMomentum30d", formatMomentum(artist.instagramMomentum30d ?? 0), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum30d ?? 0)}`,
+  });
+  setDrawerMetric("#drawerIgMomentum90d", formatMomentum(artist.instagramMomentum90d ?? 0), {
+    className: `momentum momentum-${momentumTone(artist.instagramMomentum90d ?? 0)}`,
+  });
+  const igMetrics = $("#drawerIgMetrics");
+  if (igMetrics) igMetrics.hidden = false;
+  const igEmpty = $("#drawerIgEmpty");
+  if (igEmpty) {
+    const scraped =
+      artist.instagramFollowers != null ||
+      artist.instagramRecentAvgLikes != null ||
+      artist.instagramPostVelocity != null ||
+      artist.instagramScore != null;
+    igEmpty.hidden = scraped || state.mode !== "overall";
+    igEmpty.textContent = scraped
+      ? ""
+      : "Instagram is in the blend — reach metrics appear as scrape history fills in.";
+  }
+
+  const profileLink = $("#drawerProfile");
+  if (profileLink) {
+    if (artist.username) {
+      profileLink.hidden = false;
+      profileLink.href = artistIndexHref(artist.username);
+    } else {
+      profileLink.hidden = true;
+      profileLink.removeAttribute("href");
+    }
+  }
+
   const claim = claimAction(artist);
   const claimLink = $("#drawerClaim");
   const claimNote = $("#drawerClaimNote");
   if (claim) {
     claimLink.hidden = false;
     claimLink.href = claim.href;
-    claimLink.target = "_blank";
-    claimLink.rel = "noopener noreferrer";
     claimLink.innerHTML = `${claim.label} <span>↗</span>`;
     claimNote.hidden = false;
     claimNote.textContent = claim.note;
   } else {
     claimLink.hidden = true;
     claimLink.removeAttribute("href");
-    claimLink.removeAttribute("target");
-    claimLink.removeAttribute("rel");
     claimNote.hidden = false;
     claimNote.textContent = artist.claimStatus === "claimed"
       ? "This Artist Index profile is claimed."
@@ -2044,6 +2225,26 @@ function openDrawer(rank, options = {}) {
   } else {
     yt.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${artist.name} official`)}`;
     yt.innerHTML = `Find official channel <span>↗</span>`;
+  }
+  const ig = $("#drawerInstagram");
+  if (ig) {
+    ig.target = "_blank";
+    ig.rel = "noopener noreferrer";
+    if (artist.instagramUrl) {
+      ig.hidden = false;
+      ig.href = artist.instagramUrl;
+      ig.innerHTML = `Open Instagram <span>↗</span>`;
+    } else {
+      ig.hidden = true;
+      ig.removeAttribute("href");
+    }
+  }
+  const drawerNote = $("#drawerNote");
+  if (drawerNote) {
+    drawerNote.textContent =
+      state.mode === "overall"
+        ? "Ranked by blended YouTube + Instagram score. Verify stats on each platform."
+        : "Mode board uses YouTube inventory signals. Overall / city charts blend YouTube + Instagram.";
   }
   syncSharePanel(artist);
   setSharePanelOpen(false);
@@ -2151,10 +2352,10 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     const profileLink = event.target.closest(".artist-profile-link");
     if (profileLink) {
-      const artistButton = profileLink.closest("[data-artist-rank]");
-      if (artistButton && !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) {
+      // Nested inside the row <button>, so navigate explicitly instead of relying on default activation.
+      if (!event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) {
         event.preventDefault();
-        openDrawer(artistButton.dataset.artistRank);
+        openInHost(profileLink.getAttribute("href"));
       }
       return;
     }

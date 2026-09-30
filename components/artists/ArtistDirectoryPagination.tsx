@@ -13,6 +13,8 @@ export type ArtistDirectoryPaginationProps = {
   activeFilterIds?: string[]
   paginationHref?: (page: number) => string
   onPageChange?: (page: number) => void
+  /** `paper`: ink-on-paper style for the premium hub. */
+  tone?: "default" | "paper"
   className?: string
 }
 
@@ -44,8 +46,10 @@ export function ArtistDirectoryPagination({
   activeFilterIds = [],
   paginationHref,
   onPageChange,
+  tone = "default",
   className,
 }: ArtistDirectoryPaginationProps) {
+  const isPaper = tone === "paper"
   if (totalPages <= 1 && !hasMore) return null
 
   const pageNumbers = buildPageNumbers(currentPage, totalPages)
@@ -64,12 +68,18 @@ export function ArtistDirectoryPagination({
     onPageChange?.(page)
   }
 
-  const paginationClassName =
-    "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors"
-  const paginationInactiveClassName = "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-  const paginationActiveClassName = "bg-[#E8192C] text-white pointer-events-none"
-  const paginationNavClassName =
-    "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted/40"
+  const paginationClassName = isPaper
+    ? "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 font-mono text-[13px] tabular-nums transition-colors"
+    : "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors"
+  const paginationInactiveClassName = isPaper
+    ? "text-[#0B0B0C]/55 hover:bg-[#0B0B0C]/[0.06] hover:text-[#0B0B0C]"
+    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+  const paginationActiveClassName = isPaper
+    ? "bg-[#0B0B0C] text-[#F4F1EA] pointer-events-none"
+    : "bg-[#E8192C] text-white pointer-events-none"
+  const paginationNavClassName = isPaper
+    ? "inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#0B0B0C]/15 px-3 text-sm font-semibold text-[#0B0B0C] transition-colors hover:border-[#0B0B0C]/40 sm:px-4"
+    : "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted/40"
 
   const renderPageControl = (page: number) => {
     const isCurrent = currentPage === page
@@ -143,6 +153,50 @@ export function ArtistDirectoryPagination({
     )
   }
 
+  const pageList = pageNumbers.map((entry, index) =>
+    entry === "ellipsis" ? (
+      <span
+        key={`ellipsis-${index}`}
+        className={cn("px-2 text-sm", isPaper ? "font-mono text-[#0B0B0C]/35" : "text-muted-foreground")}
+      >
+        …
+      </span>
+    ) : (
+      renderPageControl(entry)
+    ),
+  )
+
+  const nextIcon = isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />
+
+  if (isPaper) {
+    return (
+      <nav
+        aria-label="Artist directory pagination"
+        className={cn("flex items-center justify-between gap-3 border-t border-[#0B0B0C]/12 pt-8", className)}
+      >
+        {renderNavControl(
+          currentPage - 1,
+          "Previous page",
+          <>
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Previous</span>
+          </>,
+          currentPage <= 1,
+        )}
+        <div className="flex items-center gap-0.5 sm:gap-1">{pageList}</div>
+        {renderNavControl(
+          currentPage + 1,
+          "Next page",
+          <>
+            <span className="hidden sm:inline">Next</span>
+            {nextIcon}
+          </>,
+          currentPage >= totalPages && !hasMore,
+        )}
+      </nav>
+    )
+  }
+
   return (
     <nav
       aria-label="Artist directory pagination"
@@ -155,22 +209,9 @@ export function ArtistDirectoryPagination({
         currentPage <= 1,
       )}
 
-      {pageNumbers.map((entry, index) =>
-        entry === "ellipsis" ? (
-          <span key={`ellipsis-${index}`} className="px-2 text-sm text-muted-foreground">
-            …
-          </span>
-        ) : (
-          renderPageControl(entry)
-        ),
-      )}
+      {pageList}
 
-      {renderNavControl(
-        currentPage + 1,
-        "Next page",
-        isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />,
-        currentPage >= totalPages && !hasMore,
-      )}
+      {renderNavControl(currentPage + 1, "Next page", nextIcon, currentPage >= totalPages && !hasMore)}
     </nav>
   )
 }

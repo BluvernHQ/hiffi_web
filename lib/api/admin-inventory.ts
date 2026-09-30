@@ -5,6 +5,7 @@ import type {
   InventoryClaimApproveResponse,
   InventoryClaimDeleteResponse,
   InventoryClaimListResponse,
+  InventoryClaimResendEmailResponse,
   InventoryListResponse,
   InventoryUploadResult,
   InventoryClaimStatus,
@@ -14,6 +15,7 @@ import {
   normalizeInventoryClaim,
   normalizeInventoryClaimApproveResponse,
   normalizeInventoryClaimDeleteResponse,
+  normalizeInventoryClaimResendEmailResponse,
   normalizeInventoryEntry,
 } from "@/lib/types/inventory"
 
@@ -191,6 +193,22 @@ export async function adminApproveInventoryClaim(
   )
   const data = unwrapSuccessData<Record<string, unknown>>(raw)
   return normalizeInventoryClaimApproveResponse(data)
+}
+
+export async function adminResendInventoryClaimEmail(
+  ctx: AdminApiClientContext,
+  claimID: string,
+): Promise<InventoryClaimResendEmailResponse> {
+  const id = claimID.trim()
+  if (!id) throw new Error("claim id is required")
+
+  const raw = await ctx.request<unknown>(
+    `/admin/inventory/claims/${encodeURIComponent(id)}/resend-email`,
+    { method: "POST" },
+    true,
+  )
+  const data = unwrapSuccessData<Record<string, unknown>>(raw)
+  return normalizeInventoryClaimResendEmailResponse(data)
 }
 
 export async function adminDeleteInventoryClaim(

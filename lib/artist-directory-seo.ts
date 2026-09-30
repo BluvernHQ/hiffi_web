@@ -37,8 +37,9 @@ export function buildArtistIndexHubDescription(artistCount?: number): string {
     artistCount != null && artistCount > 0
       ? ` ${artistCount.toLocaleString()}+ artists indexed across multiple cities.`
       : " Artists indexed across multiple cities."
-  // Full copy for on-page intro; metadata truncates via buildArtistIndexMetadata.
-  return `Search the Hiffi Artist Index — claimable hip-hop and rap profiles by city and genre.${countClause} Find, claim, or suggest edits.`
+  return truncateMetaDescription(
+    `Search the Hiffi Artist Index — claimable hip-hop and rap profiles by city and genre.${countClause} Find, claim, or suggest edits.`,
+  )
 }
 
 /** Definitive Atlanta city-page description (distinct from hub directory copy). */
@@ -383,6 +384,7 @@ export function buildArtistGenrePageMetadata(
     keywords: genre.keywords,
     page,
     totalPages,
+    index: totalMatches !== 0,
   })
 }
 

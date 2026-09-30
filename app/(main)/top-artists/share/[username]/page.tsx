@@ -3,9 +3,10 @@ import {
   fetchTopArtistsByCityServer,
   fetchTopArtistsUpTo,
   fetchTopCitiesServer,
-  resolveExactCityLocation,
+  resolveTopCity,
 } from "@/lib/top-artists"
 import { absoluteUrl } from "@/lib/seo/site"
+import { isHiffi500Member } from "@/lib/top-chart"
 import { TopArtistShareRedirect } from "./top-artist-share-redirect"
 
 export const dynamic = "force-dynamic"
@@ -20,11 +21,12 @@ function firstParam(value: string | string[] | undefined): string {
   return String(value || "").trim()
 }
 
-function buildDeepLink(username: string, city: string, mode: string): string {
+function buildDeepLink(username: string, city: string, mode: string, windowDays: string): string {
   const params = new URLSearchParams()
   params.set("artist", username)
   if (city) params.set("city", city)
   if (mode && mode !== "overall") params.set("mode", mode)
+  if (mode === "risers" && windowDays === "30") params.set("window", "30")
   return `/top-artists?${params.toString()}`
 }
 
@@ -34,18 +36,17 @@ async function resolveArtist(username: string, citySlug: string) {
 
   if (citySlug) {
     const cities = await fetchTopCitiesServer()
-    const location =
-      resolveExactCityLocation(cities?.items ?? [], citySlug) ||
-      citySlug.replace(/-/g, " ")
-    const cityPage = await fetchTopArtistsByCityServer(location, 50, 0, {
+    const resolved = resolveTopCity(cities?.items ?? [], citySlug)
+    const query = resolved?.query ?? { location: citySlug.replace(/-/g, " ") }
+    const cityPage = await fetchTopArtistsByCityServer(query, 50, 0, {
       enrichImages: false,
     })
-    const cityArtist = cityPage?.items.find((a) => a.username.toLowerCase() === handle)
+    const cityArtist = cityPage?.items.find((a) => isHiffi500Member(a) && a.username.toLowerCase() === handle)
     if (cityArtist) {
       return {
         artist: cityArtist,
         scope: "city" as const,
-        cityLabel: location.split(",")[0]?.trim() || citySlug,
+        cityLabel: resolved?.city.label || citySlug.replace(/-/g, " "),
       }
     }
   }
@@ -66,7 +67,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (!resolved) {
     return {
       title: "Hiffi Hip-Hop 500",
-      description: "Live YouTube hip-hop ranking on Hiffi.",
+      description: "Live YouTube + Instagram hip-hop ranking on Hiffi.",
     }
   }
 
@@ -80,8 +81,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       : `${name} is #${globalRank} on the Hiffi Hip-Hop 500`
   const description =
     scope === "city"
-      ? `${name} ranks #${rank} in ${cityLabel} (global #${globalRank}) — live YouTube signal index on Hiffi.`
-      : `${name} ranks #${globalRank} on the Hiffi Hip-Hop 500 — live YouTube signal index.`
+      ? `${name} ranks #${rank} in ${cityLabel}${
+          artist.global_rank ? ` (#${artist.global_rank} on the Hiffi 500)` : ""
+        } — live YouTube + Instagram signal index on Hiffi.`
+      : `${name} ranks #${globalRank} on the Hiffi Hip-Hop 500 — live YouTube + Instagram signal index.`
 
   const pathParams = new URLSearchParams()
   if (city) pathParams.set("city", city)
@@ -115,7 +118,7 @@ export default async function TopArtistSharePage({ params, searchParams }: PageP
   const city = firstParam(sp.city)
   const mode = firstParam(sp.mode) || "overall"
   const handle = username.trim().toLowerCase().replace(/^@+/, "")
-  const target = buildDeepLink(handle, city, mode)
+  const target = buildDeepLink(handle, city, mode, firstParam(sp.window))
 
   return <TopArtistShareRedirect href={target} />
 }

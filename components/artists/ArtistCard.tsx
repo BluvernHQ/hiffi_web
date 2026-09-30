@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import {
   artistIndexClaimHref,
@@ -11,7 +12,9 @@ import {
   getArtistProfileSubtitle,
   isArtistNew,
 } from "@/lib/artists"
+import { getArtistImageUrl } from "@/lib/artist-directory"
 import { ArtistCardAvatar } from "@/components/artists/ArtistCardAvatar"
+import { ArtistRankChip } from "@/components/artists/Hiffi500RankBadge"
 import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import {
   artistCardButtonPrimary,
@@ -37,14 +40,6 @@ function HeaderBadge({ artist }: { artist: Artist }) {
     )
   }
 
-  if (artist.claim_status === "pending") {
-    return (
-      <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-foreground">
-        Under Review
-      </span>
-    )
-  }
-
   if (isArtistNew(artist)) {
     return (
       <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-foreground">
@@ -57,6 +52,14 @@ function HeaderBadge({ artist }: { artist: Artist }) {
     return (
       <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#E8192C]">
         Claim available
+      </span>
+    )
+  }
+
+  if (artist.claim_status === "pending") {
+    return (
+      <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-foreground">
+        Under Review
       </span>
     )
   }
@@ -75,11 +78,12 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
     : artist.claim_status === "pending"
       ? "Request ownership"
       : "Claim"
+  const bannerSrc = getArtistImageUrl(artist.banner_image)
 
   return (
     <article
       className={cn(
-        "group relative flex h-full min-w-0 max-w-full flex-col transition-shadow",
+        "group relative flex h-full flex-col transition-shadow",
         artistCardShell,
         artistCardInset,
         "hover:shadow-md",
@@ -96,17 +100,38 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
 
       <div className="pointer-events-none relative z-[1] flex flex-1 flex-col">
         <div className={cn(artistCardMedia, "h-28")}>
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/50 via-zinc-900 to-black"
-            aria-hidden
-          />
-          <p
-            className="absolute inset-0 flex items-center justify-center text-2xl font-bold uppercase tracking-[0.35em] text-[#E8192C]/70"
-            style={{ WebkitTextStroke: "1px rgba(232, 25, 44, 0.35)" }}
-            aria-hidden
-          >
-            HIFFI
-          </p>
+          {bannerSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={bannerSrc}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              aria-hidden
+            />
+          ) : (
+            <>
+              <div
+                className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/50 via-zinc-900 to-black"
+                aria-hidden
+              />
+              <p
+                className="absolute inset-0 flex items-center justify-center text-2xl font-bold uppercase tracking-[0.35em] text-[#E8192C]/70"
+                style={{ WebkitTextStroke: "1px rgba(232, 25, 44, 0.35)" }}
+                aria-hidden
+              >
+                HIFFI
+              </p>
+            </>
+          )}
+          {bannerSrc ? (
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10"
+              aria-hidden
+            />
+          ) : null}
+          <div className="absolute left-3 top-3">
+            <ArtistRankChip artist={artist} />
+          </div>
           <div className="absolute right-3 top-3">
             <HeaderBadge artist={artist} />
           </div>
@@ -124,7 +149,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
                   {artist.name}
                 </p>
                 {artist.verified ? (
-                  <BadgeCheck className="h-4 w-4 shrink-0 text-[#4F7AE1]" aria-label="Verified artist" />
+                  <VerifiedBadge className="h-4 w-4 text-[#E8192C]" />
                 ) : null}
               </div>
               {isHub ? (

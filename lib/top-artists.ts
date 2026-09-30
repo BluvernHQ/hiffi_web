@@ -2,19 +2,21 @@
  * Hiffi 500 — Top artists ranking backed by GET /inventory/top (+ city endpoints).
  *
  * - Global: `GET /inventory/top`
- * - Banner cities (>50 ranked): `GET /inventory/top/cities`
- * - City top 50 (exact location, local ranks): `GET /inventory/top/city?location=…`
+ * - Canonical cities (≥20 ranked): `GET /inventory/top/cities`
+ * - City top 50 (local ranks): `GET /inventory/top/city?city_id=…`
  * - Biggest risers: `GET /inventory/top/risers?window=7|30`
  * - Underground Heat: `GET /inventory/top/underground`
  * - Breakout 100: `GET /inventory/top/breakout`
  *
  * Ranking payload often omits photos — we enrich from /users/{username} when possible.
- * Score is YouTube-only today; the UI must disclose that.
+ * Overall / city charts blend YouTube + Instagram into `final_score`.
+ * Risers, breakout, and underground remain YouTube / mode-specific scores.
  */
 
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { getApiBaseUrl } from "@/lib/config"
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
+import type { PublicRanking } from "@/lib/types/inventory"
 
 export interface TopArtistSocials {
   instagram?: string
@@ -36,7 +38,12 @@ export interface TopArtist {
   /** Proxied profile photo when available (from ranking payload or /users enrichment). */
   image?: string | null
   claim_status: "unclaimed" | "pending" | "claimed"
-  youtube_score: number
+  /** Blended YouTube + Instagram score used for overall / city ranking. */
+  final_score: number
+  /** YouTube platform score; omitted when null. */
+  youtube_score?: number
+  /** Instagram platform score; omitted when null / not scraped. */
+  instagram_score?: number
   youtube_subscriber_count?: number
   youtube_view_count?: number
   youtube_video_count?: number
@@ -45,8 +52,19 @@ export interface TopArtist {
   youtube_momentum_7d?: number
   youtube_momentum_30d?: number
   youtube_momentum_90d?: number
+  instagram_follower_count?: number
+  instagram_recent_avg_likes?: number
+  instagram_post_velocity?: number
+  /** Fractional growth; `0` until history exists. */
+  instagram_momentum_7d: number
+  instagram_momentum_30d: number
+  instagram_momentum_90d: number
   /** When city charts re-number locally, preserve the global Hiffi 500 rank for share cards. */
   global_rank?: number
+  /** City charts (`/top/city?city_id=`): 1–50 within the city. Mirrored into `rank`. */
+  city_rank?: number
+  /** Weekly-snapshot ranking (present when `/top` is served from the snapshot). */
+  ranking?: PublicRanking
   /** Optional — present once weekly snapshots ship. */
   rank_delta_7d?: number | null
   rank_delta_30d?: number | null
@@ -68,16 +86,29 @@ export interface TopArtistsPage {
   fetched_at: number
 }
 
+/**
+ * A city from `GET /inventory/top/cities`. Current API: canonical `id` + `label` + `ranked_count`.
+ * Older APIs returned `{ location, artist_count }`; those map to `id: null` and keep `location`.
+ */
 export interface TopCitySummary {
+  id: string | null
+  label: string
+  region?: string
+  country?: string
+  /** Legacy exact location string (only when `id` is null). */
   location: string
-  artist_count: number
+  ranked_count: number
 }
 
 export interface TopCitiesResponse {
   items: TopCitySummary[]
   count: number
-  min_artists: number
+  min_ranked: number
+  updated_at: string | null
 }
+
+/** How to ask `/inventory/top/city` for a city chart. */
+export type TopCityQuery = { cityId: string; location?: never } | { location: string; cityId?: never }
 
 export type RisersWindow = 7 | 30
 
@@ -196,60 +227,92 @@ export const TOP_UNDERGROUND_MAX = 50
 export const TOP_BREAKOUT_PAGE_SIZE = 20
 export const TOP_BREAKOUT_MAX = 100
 export const TOP_CITY_PAGE_SIZE = 50
-export const HIFFI_500_PATH = "/hiffi-500"
-export const HIFFI_500_METHODOLOGY_PATH = "/hiffi-500/methodology"
-export const HIFFI_500_RISERS_PATH = "/hiffi-500/biggest-risers"
-export const HIFFI_500_FALLERS_PATH = "/hiffi-500/biggest-fallers"
-export const HIFFI_500_NEW_ENTRIES_PATH = "/hiffi-500/new-entries"
-export const HIFFI_500_BREAKOUT_PATH = "/hiffi-500/breakout-100"
 
-export const HIFFI_500_CITY_CHARTS = [
-  { slug: "atlanta", label: "Atlanta", live: true },
-  { slug: "houston", label: "Houston", live: false },
-  { slug: "detroit", label: "Detroit", live: false },
-  { slug: "chicago", label: "Chicago", live: false },
-  { slug: "miami", label: "Miami", live: false },
-  { slug: "new-york", label: "New York", live: false },
-  { slug: "los-angeles", label: "Los Angeles", live: false },
-  { slug: "memphis", label: "Memphis", live: false },
-  { slug: "dmv", label: "DMV", live: false },
-  { slug: "new-orleans", label: "New Orleans", live: false },
-] as const
-
-export type Hiffi500CitySlug = (typeof HIFFI_500_CITY_CHARTS)[number]["slug"]
-
-export function hiffi500CityPath(slug: string): string {
-  return `/hiffi-500/city/${slug}`
+function cityToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
 }
 
-export function hiffi500SharePath(username: string): string {
-  return `/hiffi-500/share/${encodeURIComponent(username)}`
-}
-
-/** Prefer exact banner-city location strings from `/inventory/top/cities` when available. */
-export function resolveExactCityLocation(
+/**
+ * Match a city id, slug ("atlanta"), label ("Atlanta") or legacy location string against
+ * `/inventory/top/cities`, and return how to query its chart.
+ */
+export function resolveTopCity(
   cities: TopCitySummary[],
-  cityLabelOrLocation: string,
-): string | null {
-  const needle = cityLabelOrLocation.trim().toLowerCase()
-  if (!needle) return null
-  const exact = cities.find((c) => c.location.toLowerCase() === needle)
-  if (exact) return exact.location
-  const startsWith = cities.find((c) => c.location.toLowerCase().startsWith(`${needle},`))
-  if (startsWith) return startsWith.location
-  const includes = cities.find((c) => c.location.toLowerCase().includes(needle))
-  return includes?.location ?? null
+  needle: string,
+): { query: TopCityQuery; city: TopCitySummary } | null {
+  const token = cityToken(needle)
+  if (!token) return null
+  const lower = needle.trim().toLowerCase()
+
+  const canonical = cities.filter((c) => c.id)
+  const byCanonical =
+    canonical.find((c) => c.id === token) ??
+    canonical.find((c) => cityToken(c.label) === token) ??
+    canonical.find((c) => c.id!.startsWith(`${token}-`))
+  if (byCanonical) return { query: { cityId: byCanonical.id! }, city: byCanonical }
+
+  const legacy = cities.filter((c) => !c.id && c.location)
+  const byLegacy =
+    legacy.find((c) => c.location.toLowerCase() === lower) ??
+    legacy.find((c) => c.location.toLowerCase().startsWith(`${lower},`)) ??
+    legacy.find((c) => cityToken(c.location.split(",")[0] ?? "") === token)
+  if (byLegacy) return { query: { location: byLegacy.location }, city: byLegacy }
+
+  return null
 }
 
-/** Sub-nav links for the ranking family of pages. */
-export const HIFFI_500_NAV_LINKS = [
-  { href: HIFFI_500_PATH, label: "Top 500" },
-  { href: HIFFI_500_RISERS_PATH, label: "Biggest risers" },
-  { href: HIFFI_500_FALLERS_PATH, label: "Biggest fallers" },
-  { href: HIFFI_500_NEW_ENTRIES_PATH, label: "New entries" },
-  { href: HIFFI_500_BREAKOUT_PATH, label: "Breakout 100" },
-  { href: HIFFI_500_METHODOLOGY_PATH, label: "Methodology" },
-] as const
+function normalizeTopCity(raw: Record<string, unknown>): TopCitySummary | null {
+  const id = String(raw.id ?? "").trim()
+  if (id) {
+    const region = String(raw.region ?? "").trim()
+    const country = String(raw.country ?? "").trim()
+    return {
+      id,
+      label: String(raw.label ?? id).trim(),
+      ...(region ? { region } : {}),
+      ...(country ? { country } : {}),
+      location: "",
+      ranked_count: Number(raw.ranked_count ?? raw.artist_count) || 0,
+    }
+  }
+  const location = String(raw.location ?? "").trim()
+  if (!location) return null
+  return {
+    id: null,
+    label: location.split(",")[0]?.trim() || location,
+    location,
+    ranked_count: Number(raw.artist_count) || 0,
+  }
+}
+
+function parseCitiesEnvelope(body: CitiesEnvelope): TopCitiesResponse {
+  if (!body.success) throw new Error(body.error || "Failed to load top cities")
+  const data = body.data as unknown as Record<string, unknown>
+  const items = (Array.isArray(data.items) ? data.items : [])
+    .map((item) => normalizeTopCity((item ?? {}) as Record<string, unknown>))
+    .filter((item): item is TopCitySummary => item !== null)
+  return {
+    items,
+    count: Number(data.count ?? items.length),
+    min_ranked: Number(data.min_ranked ?? data.min_artists ?? 20),
+    updated_at: data.updated_at ? String(data.updated_at) : null,
+  }
+}
+
+function topCityParams(query: TopCityQuery, limit: number, offset: number): URLSearchParams {
+  const params = new URLSearchParams({
+    limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
+    offset: String(offset),
+  })
+  if (query.cityId) params.set("city_id", query.cityId)
+  else params.set("location", query.location!.trim())
+  return params
+}
 
 type Envelope =
   | { success: true; data: Omit<TopArtistsPage, "fetched_at"> }
@@ -271,10 +334,35 @@ type BreakoutEnvelope =
   | { success: true; data: BreakoutResponse }
   | { success: false; error: string }
 
+function coalesceScore(...candidates: Array<number | null | undefined>): number {
+  for (const value of candidates) {
+    if (value != null && !Number.isNaN(Number(value))) return Number(value)
+  }
+  return 0
+}
+
 function normalizeArtist(item: TopArtist): TopArtist {
+  const youtubeScore =
+    item.youtube_score != null && !Number.isNaN(Number(item.youtube_score))
+      ? Number(item.youtube_score)
+      : undefined
+  const instagramScore =
+    item.instagram_score != null && !Number.isNaN(Number(item.instagram_score))
+      ? Number(item.instagram_score)
+      : undefined
+  const cityRank = item.city_rank != null && Number(item.city_rank) > 0 ? Number(item.city_rank) : undefined
+  const snapshotGlobalRank = item.ranking?.global_rank ?? undefined
   return {
     ...item,
+    rank: item.rank ?? cityRank ?? 0,
+    ...(item.global_rank == null && snapshotGlobalRank ? { global_rank: snapshotGlobalRank } : {}),
     image: item.image ?? getArtistImageUrl(item.banner_image) ?? null,
+    final_score: coalesceScore(item.final_score, youtubeScore, instagramScore),
+    youtube_score: youtubeScore,
+    instagram_score: instagramScore,
+    instagram_momentum_7d: item.instagram_momentum_7d ?? 0,
+    instagram_momentum_30d: item.instagram_momentum_30d ?? 0,
+    instagram_momentum_90d: item.instagram_momentum_90d ?? 0,
     rank_delta_7d: item.rank_delta_7d ?? null,
     rank_delta_30d: item.rank_delta_30d ?? null,
     previous_rank: item.previous_rank ?? null,
@@ -282,10 +370,16 @@ function normalizeArtist(item: TopArtist): TopArtist {
   }
 }
 
-/** Map risers API rows onto TopArtist so shared ranking list components can render them. */
-export function riserToTopArtist(item: RiserArtist): TopArtist {
+/**
+ * Map risers API rows onto TopArtist so shared ranking list components can render them.
+ * `rank` is the position on the risers board: `current_rank` comes from the live ranking, not the
+ * weekly snapshot behind Overall, so it can disagree with the 500. The 500 rank comes from
+ * `withChartStats`.
+ */
+export function riserToTopArtist(item: RiserArtist, position: number): TopArtist {
+  const youtubeScore = item.youtube_score
   return normalizeArtist({
-    rank: item.current_rank,
+    rank: position,
     username: item.username,
     artist_name: item.artist_name,
     bio: item.bio,
@@ -294,7 +388,8 @@ export function riserToTopArtist(item: RiserArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    youtube_score: item.youtube_score ?? 0,
+    final_score: coalesceScore(youtubeScore),
+    youtube_score: youtubeScore,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_view_count: item.youtube_view_count,
     youtube_video_count: item.youtube_video_count,
@@ -303,13 +398,19 @@ export function riserToTopArtist(item: RiserArtist): TopArtist {
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
     youtube_momentum_90d: item.youtube_momentum_90d,
-    previous_rank: item.prior_rank,
+    instagram_momentum_7d: 0,
+    instagram_momentum_30d: 0,
+    instagram_momentum_90d: 0,
     rank_delta_7d: item.rank_delta,
     is_new_entry: false,
   })
 }
 
-/** Map underground heat rows onto TopArtist for shared list UIs. */
+/**
+ * Map underground heat rows onto TopArtist for shared list UIs. These artists sit outside the
+ * Hiffi 500, and nobody outside the 500 gets a public score or overall rank, so the score fields
+ * and `youtube_rank` are dropped.
+ */
 export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
   return normalizeArtist({
     rank: item.underground_rank,
@@ -321,19 +422,21 @@ export function undergroundToTopArtist(item: UndergroundArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    youtube_score: item.youtube_score ?? item.heat_score,
+    final_score: 0,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_recent_avg_views: item.youtube_recent_avg_views,
     youtube_upload_velocity: item.youtube_upload_velocity,
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
     youtube_momentum_90d: item.youtube_momentum_90d,
-    global_rank: item.youtube_rank,
+    instagram_momentum_7d: 0,
+    instagram_momentum_30d: 0,
+    instagram_momentum_90d: 0,
     is_new_entry: false,
   })
 }
 
-/** Map breakout API rows onto TopArtist for shared list UIs. */
+/** Map breakout API rows onto TopArtist for shared list UIs. Scores are dropped as for underground heat. */
 export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
   return normalizeArtist({
     rank: item.breakout_rank,
@@ -345,12 +448,14 @@ export function breakoutToTopArtist(item: BreakoutArtist): TopArtist {
     banner_image: item.banner_image,
     image: item.image,
     claim_status: item.claim_status,
-    youtube_score: item.youtube_score ?? item.momentum_score,
+    final_score: 0,
     youtube_subscriber_count: item.youtube_subscriber_count,
     youtube_momentum_7d: item.youtube_momentum_7d,
     youtube_momentum_30d: item.youtube_momentum_30d,
     youtube_momentum_90d: item.youtube_momentum_90d,
-    global_rank: item.youtube_rank,
+    instagram_momentum_7d: 0,
+    instagram_momentum_30d: 0,
+    instagram_momentum_90d: 0,
     is_new_entry: false,
   })
 }
@@ -444,6 +549,9 @@ export async function enrichTopArtistsWithImages(artists: TopArtist[]): Promise<
   )
 }
 
+/** The public chart refreshes weekly; server renders share one API response per 5 minutes. */
+const TOP_CHART_FETCH_CACHE = { revalidate: 300, tags: ["top-chart"] }
+
 /** Server-side fetch (SSR / route handlers) — hits the API host directly. */
 export async function fetchTopArtistsServer(
   limit = TOP_ARTISTS_PAGE_SIZE,
@@ -456,7 +564,7 @@ export async function fetchTopArtistsServer(
     if (location) params.set("location", location)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     const page = parseEnvelope((await res.json()) as Envelope)
@@ -467,44 +575,33 @@ export async function fetchTopArtistsServer(
   }
 }
 
-/** Banner cities with more than 50 ranked artists (`GET /inventory/top/cities`). */
+/** Canonical cities with enough ranked artists for a chart (`GET /inventory/top/cities`). */
 export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> {
   try {
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/cities`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
-    const body = (await res.json()) as CitiesEnvelope
-    if (!body.success) return null
-    return {
-      items: Array.isArray(body.data.items) ? body.data.items : [],
-      count: body.data.count ?? body.data.items?.length ?? 0,
-      min_artists: body.data.min_artists ?? 50,
-    }
+    return parseCitiesEnvelope((await res.json()) as CitiesEnvelope)
   } catch {
     return null
   }
 }
 
-/** Exact-location city top 50 (`GET /inventory/top/city`). Local `rank` 1–50. */
+/** City top 50 (`GET /inventory/top/city`). Local `rank` 1–50. */
 export async function fetchTopArtistsByCityServer(
-  location: string,
+  query: TopCityQuery,
   limit = TOP_CITY_PAGE_SIZE,
   offset = 0,
   options?: { enrichImages?: boolean },
 ): Promise<TopArtistsPage | null> {
-  const trimmed = location.trim()
-  if (!trimmed) return null
+  if (!query.cityId?.trim() && !query.location?.trim()) return null
   try {
-    const params = new URLSearchParams({
-      location: trimmed,
-      limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
-      offset: String(offset),
-    })
+    const params = topCityParams(query, limit, offset)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/city?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     const page = parseEnvelope((await res.json()) as Envelope)
@@ -530,7 +627,7 @@ export async function fetchTopRisersServer(
     })
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/risers?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseRisersEnvelope((await res.json()) as RisersEnvelope)
@@ -586,7 +683,7 @@ export async function fetchTopUndergroundServer(
     })
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/underground?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseUndergroundEnvelope((await res.json()) as UndergroundEnvelope)
@@ -652,7 +749,7 @@ export async function fetchTopBreakoutServer(
     })
     const res = await fetch(`${getApiBaseUrl()}/inventory/top/breakout?${params}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: TOP_CHART_FETCH_CACHE,
     })
     if (!res.ok) return null
     return parseBreakoutEnvelope((await res.json()) as BreakoutEnvelope)
@@ -752,27 +849,16 @@ export async function fetchTopCitiesClient(): Promise<TopCitiesResponse> {
   const res = await fetch(`/proxy/inventory/top/cities`, {
     headers: { Accept: "application/json" },
   })
-  const body = (await res.json()) as CitiesEnvelope
-  if (!body.success) throw new Error(body.error || "Failed to load top cities")
-  return {
-    items: Array.isArray(body.data.items) ? body.data.items : [],
-    count: body.data.count ?? body.data.items?.length ?? 0,
-    min_artists: body.data.min_artists ?? 50,
-  }
+  return parseCitiesEnvelope((await res.json()) as CitiesEnvelope)
 }
 
 export async function fetchTopArtistsByCityClient(
-  location: string,
+  query: TopCityQuery,
   limit = TOP_CITY_PAGE_SIZE,
   offset = 0,
 ): Promise<TopArtistsPage> {
-  const trimmed = location.trim()
-  if (!trimmed) throw new Error("location is required")
-  const params = new URLSearchParams({
-    location: trimmed,
-    limit: String(Math.min(limit, TOP_CITY_PAGE_SIZE)),
-    offset: String(offset),
-  })
+  if (!query.cityId?.trim() && !query.location?.trim()) throw new Error("city_id is required")
+  const params = topCityParams(query, limit, offset)
   const res = await fetch(`/proxy/inventory/top/city?${params}`, {
     headers: { Accept: "application/json" },
   })
@@ -830,19 +916,10 @@ export async function fetchTopBreakoutClient(
   return parseBreakoutEnvelope(body)
 }
 
-/**
- * Rank-derived tier badge. The raw composite score is intentionally not shown
- * as a user-facing number (per API guidance) — rank + tier reads better.
- */
-export function topArtistTier(rank: number): { label: string; highlight: boolean } {
-  if (rank <= 10) return { label: "Global Velocity", highlight: true }
-  if (rank <= 50) return { label: "Hot 50", highlight: false }
-  if (rank <= 150) return { label: "Rising", highlight: false }
-  return { label: "Charting", highlight: false }
-}
+export { topArtistTier } from "@/lib/hiffi500-tier"
 
 /**
- * Public score band from YouTube score (v1) or future HPS.
+ * Public score band from blended final score (fallback: YouTube score).
  * Advisory: show bands, not raw metrics.
  */
 export function topArtistScoreBand(artist: TopArtist): {
@@ -850,7 +927,7 @@ export function topArtistScoreBand(artist: TopArtist): {
   short: string
   highlight: boolean
 } {
-  const score = artist.youtube_score
+  const score = coalesceScore(artist.final_score, artist.youtube_score)
   if (score >= 32) return { label: "Elite band", short: "Elite", highlight: true }
   if (score >= 28) return { label: "Strong band", short: "Strong", highlight: false }
   if (score >= 24) return { label: "Building band", short: "Building", highlight: false }
@@ -875,60 +952,10 @@ export function topArtistConfidence(artist: TopArtist): {
   return { level: "low", label: "Low confidence" }
 }
 
-export function hasMovementData(artist: TopArtist): boolean {
-  return (
-    artist.is_new_entry === true ||
-    (artist.rank_delta_7d != null && artist.rank_delta_7d !== 0) ||
-    (artist.rank_delta_30d != null && artist.rank_delta_30d !== 0) ||
-    artist.previous_rank != null
-  )
-}
-
 export function movementDelta7d(artist: TopArtist): number | null {
   if (artist.rank_delta_7d != null) return artist.rank_delta_7d
   if (artist.previous_rank != null) return artist.previous_rank - artist.rank
   return null
-}
-
-export function filterArtistsByCity(artists: TopArtist[], citySlug: string): TopArtist[] {
-  const city = HIFFI_500_CITY_CHARTS.find((c) => c.slug === citySlug)
-  if (!city) return []
-  const needle = city.label.toLowerCase()
-  return artists
-    .filter((a) => (a.location ?? "").toLowerCase().includes(needle))
-    .map((artist, index) => ({
-      ...artist,
-      global_rank: artist.global_rank ?? artist.rank,
-      rank: index + 1,
-    }))
-}
-
-/** Breakout 100 preview: global ranks 51–150 until momentum filters exist. */
-export function breakoutArtists(artists: TopArtist[]): TopArtist[] {
-  return artists.filter((a) => a.rank >= 51 && a.rank <= 150).slice(0, 100)
-}
-
-export function artistsWithMovement(
-  artists: TopArtist[],
-  kind: "risers" | "fallers" | "new",
-): TopArtist[] {
-  if (kind === "new") {
-    return artists.filter((a) => a.is_new_entry).sort((a, b) => a.rank - b.rank)
-  }
-  const withDelta = artists
-    .map((a) => ({ artist: a, delta: movementDelta7d(a) }))
-    .filter((entry) => entry.delta != null) as Array<{ artist: TopArtist; delta: number }>
-
-  if (kind === "risers") {
-    return withDelta
-      .filter((e) => e.delta > 0)
-      .sort((a, b) => b.delta - a.delta)
-      .map((e) => e.artist)
-  }
-  return withDelta
-    .filter((e) => e.delta < 0)
-    .sort((a, b) => a.delta - b.delta)
-    .map((e) => e.artist)
 }
 
 const SOCIAL_LABELS: Array<{ key: keyof TopArtistSocials; label: string }> = [

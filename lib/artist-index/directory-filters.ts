@@ -113,8 +113,7 @@ export function getAllDirectoryFilterOptions(): ArtistDirectoryFilterOption[] {
 
 /**
  * Map hub/city/genre UI state → GET /inventory filter params + client display sort.
- * Hub/browse uses `sort=featured` (claimed → pending → unclaimed, A→Z per tier).
- * Search uses `sort=name`.
+ * Hub default: recently claimed → pending → unclaimed (A→Z within non-claimed).
  */
 export function getGenreFilterSlug(activeFilterIds: string[]): string | undefined {
   for (const filterId of activeFilterIds) {
@@ -123,6 +122,9 @@ export function getGenreFilterSlug(activeFilterIds: string[]): string | undefine
   }
   return undefined
 }
+
+/** Genre hubs that also list untagged profiles, so they are never empty while the catalog has artists. */
+export const UNTAGGED_GENRE_SLUGS: readonly string[] = ["rap", "hip-hop"]
 
 /** Matches UI default in mapInventoryProfileToArtist when inventory genre is unset. */
 export function getEffectiveInventoryGenre(profile: PublicInventoryProfile): string {
@@ -142,7 +144,7 @@ export function profileMatchesGenreFilter(
   if (effective === slug) return true
 
   // Untagged profiles default to rap; show on rap and hip-hop genre hubs.
-  if (!profile.genre?.trim() && (slug === "rap" || slug === "hip-hop")) {
+  if (!profile.genre?.trim() && UNTAGGED_GENRE_SLUGS.includes(slug)) {
     return true
   }
 
@@ -162,7 +164,7 @@ export function buildDirectoryInventoryQuery(
     if (filter.kind === "city" && filter.location) location = filter.location
   }
 
-  const sort: InventorySort = search ? "name" : "featured"
+  const sort: InventorySort = search ? "name" : "verified_first"
 
   return {
     ...(search ? { search } : {}),

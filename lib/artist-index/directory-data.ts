@@ -6,11 +6,14 @@ import {
   fetchInventoryProfileByUsername,
   fetchInventoryTotal,
 } from "@/lib/artist-index/fetch-inventory"
-import { fetchFeaturedInventorySlice } from "@/lib/artist-index/fetch-featured-inventory-slice"
 import {
+  inventorySortNeedsFullCatalog,
+  inventorySortUsesServerPagination,
+  inventorySortUsesVerifiedFirstSlice,
   sortArtistsByDisplaySort,
   sortInventoryProfiles,
 } from "@/lib/artist-index/inventory-sort"
+import { fetchVerifiedFirstInventorySlice } from "@/lib/artist-index/fetch-verified-first-slice"
 import {
   buildDirectoryInventoryQuery,
   DIRECTORY_CITY_FILTERS,
@@ -21,10 +24,12 @@ import {
   getHubDirectoryFilterOptions,
   profileMatchesGenreFilter,
   sanitizeDirectoryFilterIds,
+  UNTAGGED_GENRE_SLUGS,
 } from "@/lib/artist-index/directory-filters"
 import { ARTIST_INVENTORY_CACHE_TAG } from "@/lib/artist-index/inventory-cache-tags"
 import { mapInventoryProfileToArtist } from "@/lib/artist-index/map-inventory-to-artist"
 import { mapInventoryProfilesToArtists } from "@/lib/artist-index/enrich-artist-images"
+import { withHiffi500Rank, withHiffi500Ranks } from "@/lib/artist-index/hiffi500-ranks"
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
 import type { Artist, ArtistDirectoryFilter } from "@/lib/artists"
 import { ARTIST_DIRECTORY_PAGE_SIZE } from "@/lib/artist-directory"
@@ -49,13 +54,14 @@ function artistToPublicInventoryProfile(artist: Artist): PublicInventoryProfile 
     location: [artist.city, artist.state].filter(Boolean).join(", ") || undefined,
     claim_status: artist.claim_status,
     ...(Object.keys(other_socials).length > 0 ? { other_socials } : {}),
+    ...(artist.ranking ? { ranking: artist.ranking } : {}),
   }
 }
 
 async function enrichArtistsWithLinkedProfiles(artists: Artist[]): Promise<Artist[]> {
   if (artists.length === 0) return artists
 
-  return Promise.all(
+  const enriched = await Promise.all(
     artists.map(async (artist) => {
       try {
         const linked = await fetchUserProfileInitial(artist.slug)
@@ -66,6 +72,7 @@ async function enrichArtistsWithLinkedProfiles(artists: Artist[]): Promise<Artis
       }
     }),
   )
+  return withHiffi500Ranks(enriched)
 }
 
 function staticFilterToArtistDirectoryFilter(
@@ -101,15 +108,36 @@ export async function getArtistBySlugAsync(slug: string): Promise<Artist | undef
     linkedProfile = null
   }
 
-  return mapInventoryProfileToArtist(profile, linkedProfile)
+  return withHiffi500Rank(mapInventoryProfileToArtist(profile, linkedProfile))
 }
 
 export async function sanitizeActiveFilterIdsAsync(activeFilterIds: string[]): Promise<string[]> {
   return sanitizeDirectoryFilterIds(activeFilterIds)
 }
 
+/**
+ * Curated genre slugs with at least one artist. `?genre=` counts explicitly tagged profiles, which is
+ * exactly what non-default genre hubs list. Fails open so an API blip never hides the genre nav.
+ */
+export const getPopulatedGenreSlugsAsync = cache(async (): Promise<string[]> => {
+  const populated = await Promise.all(
+    DIRECTORY_GENRE_FILTERS.map(async (filter) => {
+      if (UNTAGGED_GENRE_SLUGS.includes(filter.slug) || !filter.genre) return filter.slug
+      try {
+        return (await fetchInventoryTotal({ genre: filter.genre })) > 0 ? filter.slug : null
+      } catch {
+        return filter.slug
+      }
+    }),
+  )
+  return populated.filter((slug): slug is string => slug != null)
+})
+
 export async function getAvailableArtistDirectoryFiltersAsync() {
-  return getHubDirectoryFilterOptions()
+  const genreSlugs = await getPopulatedGenreSlugsAsync()
+  return getHubDirectoryFilterOptions().filter(
+    (option) => option.kind !== "genre" || (option.slug != null && genreSlugs.includes(option.slug)),
+  )
 }
 
 export async function getArtistDirectoryFiltersAsync(): Promise<ArtistDirectoryFilter[]> {
@@ -136,6 +164,8 @@ export type ArtistDirectoryPageResult = {
   pageArtists: Artist[]
   hasMore: boolean
   claimArtist?: Artist
+  /** True when the inventory API could not be reached — the page renders an outage state. */
+  unavailable?: boolean
 }
 
 /**
@@ -162,15 +192,23 @@ async function resolveArtistDirectoryPageImpl(options: {
   let hasMore: boolean
 
   if (genreFilter) {
-    // API genre filter returns 0 when inventory rows have null genre; match UI default instead.
     const allItems = await fetchAllInventoryProfiles(apiFilters)
     const filtered = allItems.filter((profile) => profileMatchesGenreFilter(profile, genreFilter))
     const sorted = sortInventoryProfiles(filtered, sort)
     totalMatches = sorted.length
     inventoryItems = sorted.slice(offset, offset + ARTIST_DIRECTORY_PAGE_SIZE)
     hasMore = offset + ARTIST_DIRECTORY_PAGE_SIZE < totalMatches
-  } else if (sort === "featured") {
-    const slice = await fetchFeaturedInventorySlice(
+  } else if (inventorySortUsesServerPagination(sort)) {
+    const inventoryPage = await fetchInventoryPage({
+      limit: ARTIST_DIRECTORY_PAGE_SIZE,
+      offset,
+      ...apiFilters,
+    })
+    inventoryItems = inventoryPage.items
+    totalMatches = inventoryPage.total
+    hasMore = inventoryPage.has_more
+  } else if (inventorySortUsesVerifiedFirstSlice(sort)) {
+    const slice = await fetchVerifiedFirstInventorySlice(
       apiFilters,
       offset,
       ARTIST_DIRECTORY_PAGE_SIZE,
@@ -178,21 +216,28 @@ async function resolveArtistDirectoryPageImpl(options: {
     inventoryItems = slice.items
     totalMatches = slice.total
     hasMore = slice.hasMore
+  } else if (inventorySortNeedsFullCatalog(sort)) {
+    const allItems = await fetchAllInventoryProfiles(apiFilters)
+    const sorted = sortInventoryProfiles(allItems, sort)
+    totalMatches = sorted.length
+    inventoryItems = sorted.slice(offset, offset + ARTIST_DIRECTORY_PAGE_SIZE)
+    hasMore = offset + ARTIST_DIRECTORY_PAGE_SIZE < totalMatches
   } else {
-    const inventoryPage = await fetchInventoryPage({
-      limit: ARTIST_DIRECTORY_PAGE_SIZE,
-      offset,
-      sort,
-      ...apiFilters,
-    })
-    inventoryItems = inventoryPage.items
-    totalMatches = inventoryPage.total
-    hasMore = inventoryPage.has_more
+    const allItems = await fetchAllInventoryProfiles(apiFilters)
+    const sorted = sortInventoryProfiles(allItems, sort)
+    totalMatches = sorted.length
+    inventoryItems = sorted.slice(offset, offset + ARTIST_DIRECTORY_PAGE_SIZE)
+    hasMore = offset + ARTIST_DIRECTORY_PAGE_SIZE < totalMatches
   }
 
-  const catalogTotal = isCleanHub ? await getCachedCatalogTotal().catch(() => 0) : 0
+  const catalogTotal =
+    isCleanHub && inventorySortUsesVerifiedFirstSlice(sort)
+      ? totalMatches
+      : isCleanHub
+        ? await getCachedCatalogTotal().catch(() => 0)
+        : 0
 
-  const pageArtists = await mapInventoryProfilesToArtists(inventoryItems)
+  const pageArtists = await withHiffi500Ranks(await mapInventoryProfilesToArtists(inventoryItems))
   const totalPages = Math.max(1, Math.ceil(totalMatches / ARTIST_DIRECTORY_PAGE_SIZE))
   const currentPage = Math.min(requestedPage, totalPages)
 
@@ -215,7 +260,30 @@ async function resolveArtistDirectoryPageImpl(options: {
   }
 }
 
-export const resolveArtistDirectoryPageAsync = cache(resolveArtistDirectoryPageImpl)
+async function resolveArtistDirectoryPageSafe(options: {
+  query?: string
+  activeFilterIds: string[]
+  page: number
+}): Promise<ArtistDirectoryPageResult> {
+  try {
+    return await resolveArtistDirectoryPageImpl(options)
+  } catch (error) {
+    console.error("[artist-index] directory page unavailable:", error)
+    return {
+      query: options.query ?? "",
+      activeFilterIds: sanitizeDirectoryFilterIds(options.activeFilterIds),
+      artistCount: 0,
+      totalMatches: 0,
+      totalPages: 1,
+      currentPage: 1,
+      pageArtists: [],
+      hasMore: false,
+      unavailable: true,
+    }
+  }
+}
+
+export const resolveArtistDirectoryPageAsync = cache(resolveArtistDirectoryPageSafe)
 
 async function fetchRelatedCandidates(artist: Artist, limit: number): Promise<Artist[]> {
   const cityLabel = artist.city.split(",")[0]?.trim()
@@ -225,14 +293,13 @@ async function fetchRelatedCandidates(artist: Artist, limit: number): Promise<Ar
     limit: Math.min(limit * 4, 100),
     offset: 0,
     location: cityLabel,
-    sort: "featured",
   })
 
   return sortArtistsByDisplaySort(
     result.items
       .map((profile) => mapInventoryProfileToArtist(profile))
       .filter((item) => item.slug !== artist.slug),
-    "featured",
+    "verified_first",
   )
 }
 
@@ -272,7 +339,6 @@ export async function getOtherArtistsAsync(artist: Artist, limit = 6): Promise<A
   const result = await fetchInventoryPage({
     limit: Math.min(limit * 3, 100),
     offset: 0,
-    sort: "featured",
   })
   const others = sortArtistsByDisplaySort(
     result.items
@@ -281,15 +347,17 @@ export async function getOtherArtistsAsync(artist: Artist, limit = 6): Promise<A
         (item) =>
           item.slug !== artist.slug && !related.some((relatedArtist) => relatedArtist.slug === item.slug),
       ),
-    "featured",
+    "verified_first",
   ).slice(0, limit - related.length)
 
   return enrichArtistsWithLinkedProfiles([...related, ...others])
 }
 
 export async function getArtistsAsync(): Promise<Artist[]> {
-  const result = await fetchAllInventoryProfiles({ sort: "featured" })
-  return result.map((profile) => mapInventoryProfileToArtist(profile))
+  const result = await fetchAllInventoryProfiles()
+  return sortInventoryProfiles(result, "verified_first").map((profile) =>
+    mapInventoryProfileToArtist(profile),
+  )
 }
 
 export async function getArtistCountAsync(): Promise<number> {
@@ -306,8 +374,10 @@ export async function getArtistCountAsync(): Promise<number> {
 
 /** @deprecated Use resolveArtistDirectoryPageAsync. */
 export const loadAllArtists = cache(async (): Promise<Artist[]> => {
-  const profiles = await fetchAllInventoryProfiles({ sort: "featured" })
-  return profiles.map((profile) => mapInventoryProfileToArtist(profile))
+  const profiles = await fetchAllInventoryProfiles()
+  return sortInventoryProfiles(profiles, "verified_first").map((profile) =>
+    mapInventoryProfileToArtist(profile),
+  )
 })
 
 export { directoryFilterToOption, getDirectoryFilterById }

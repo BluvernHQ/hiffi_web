@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Sparkles } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
+import { CLAIM_UNDER_REVIEW_MESSAGE, isClaimUnderReviewError } from "@/lib/api/inventory"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { BecomeCreatorTermsNote } from "@/components/creator/become-creator-terms"
@@ -158,6 +159,10 @@ export function BecomeCreatorCta() {
         })
       }
     } catch (error: unknown) {
+      if (isClaimUnderReviewError(error)) {
+        toast({ title: "Under review", description: CLAIM_UNDER_REVIEW_MESSAGE })
+        return
+      }
       const message = error instanceof Error ? error.message : "Something went wrong. Please try again."
       toast({
         title: "Failed to start creator upgrade",
@@ -206,6 +211,10 @@ export function BecomeCreatorCta() {
 
       await finishCreatorUpgrade()
     } catch (error: unknown) {
+      if (isClaimUnderReviewError(error)) {
+        toast({ title: "Under review", description: CLAIM_UNDER_REVIEW_MESSAGE })
+        return
+      }
       const message = error instanceof Error ? error.message : "OTP verification failed. Please try again."
       toast({
         title: "Verification failed",

@@ -62,13 +62,16 @@ export function getAtlantaSceneSections(profileCount: number): Array<{ heading: 
   ]
 }
 
-export function getAtlantaGenreLinks(): Array<{ label: string; href: string }> {
+/** Pass `genreSlugs` to drop links to genre hubs that have no artists. */
+export function getAtlantaGenreLinks(genreSlugs?: string[]): Array<{ label: string; href: string }> {
   return [
-    { label: "Trap artists", href: artistIndexGenreHref("trap") },
-    { label: "Rap artists", href: artistIndexGenreHref("rap") },
-    { label: "Drill artists", href: artistIndexGenreHref("drill") },
+    { label: "Trap artists", href: artistIndexGenreHref("trap"), genre: "trap" },
+    { label: "Rap artists", href: artistIndexGenreHref("rap"), genre: "rap" },
+    { label: "Drill artists", href: artistIndexGenreHref("drill"), genre: "drill" },
     { label: "Hip-Hop hub", href: "/hip-hop" },
   ]
+    .filter((link) => !link.genre || !genreSlugs || genreSlugs.includes(link.genre))
+    .map(({ label, href }) => ({ label, href }))
 }
 
 export function getCityFaqForSlug(citySlug: string): CityFaqItem[] | null {

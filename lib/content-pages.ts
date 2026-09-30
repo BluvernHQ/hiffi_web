@@ -7,6 +7,7 @@ export type ContentPageLink = {
 export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
   { href: "/terms-of-use", label: "Terms of Use" },
   { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/cookie-policy", label: "Cookie Policy" },
   { href: "/payment-terms", label: "Payment Terms" },
   { href: "/copyright", label: "Copyright" },
   { href: "/community-guidelines", label: "Community Guidelines" },
@@ -17,6 +18,7 @@ export const CONTENT_PAGE_LINKS: ContentPageLink[] = [
 /** Compact discover + marketing links for the app sidebar footer (YouTube-style). */
 export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
   { href: "/about", label: "About" },
+  { href: "/founder", label: "Founder Story" },
   { href: "/what-is-hiffi", label: "What is Hiffi?" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/artists", label: "Artists" },
@@ -35,6 +37,7 @@ export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
 export const SIDEBAR_FOOTER_LINKS: ContentPageLink[] = [
   { href: "/terms-of-use", label: "Terms" },
   { href: "/privacy-policy", label: "Privacy" },
+  { href: "/cookie-policy", label: "Cookies" },
   { href: "/payment-terms", label: "Payment" },
   { href: "/copyright", label: "Copyright" },
   { href: "/community-guidelines", label: "Guidelines" },
@@ -54,11 +57,17 @@ export const MARKETING_PAGE_PATHS = [
   "/creator-playbook",
   "/creators-for-change",
   "/press",
+  "/founder",
   "/community-guidelines",
 ] as const
 
 /** Lead / marketing forms that use the same minimal chrome as content pages. */
-export const MINIMAL_CHROME_PATHS = ["/collaborate"] as const
+export const MINIMAL_CHROME_PATHS = [
+  "/collaborate",
+  "/feature-request",
+  "/book-walkthrough",
+  "/hiffi-discovery-form",
+] as const
 
 export const CONTENT_PAGE_PATHS = [
   ...CONTENT_PAGE_LINKS.map((link) => link.href),
@@ -71,7 +80,6 @@ export function isContentPage(pathname: string | null): boolean {
   if (CONTENT_PAGE_PATHS.includes(pathname)) return true
   if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
   if (pathname === "/atlanta" || pathname.startsWith("/atlanta/")) return true
-  if (pathname === "/hiffi-500" || pathname.startsWith("/hiffi-500/")) return true
   return false
 }
 
@@ -87,19 +95,11 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   { path: "/artists", changeFrequency: "monthly", priority: 0.85 },
   { path: "/creator-playbook", changeFrequency: "monthly", priority: 0.78 },
   { path: "/press", changeFrequency: "monthly", priority: 0.65 },
+  { path: "/founder", changeFrequency: "monthly", priority: 0.80 },
   { path: "/advertising", changeFrequency: "monthly", priority: 0.72 },
   { path: "/creators-for-change", changeFrequency: "monthly", priority: 0.72 },
   { path: "/collaborate", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/feature-request", changeFrequency: "monthly", priority: 0.68 },
   { path: "/community-guidelines", changeFrequency: "yearly", priority: 0.55 },
   { path: "/copyright", changeFrequency: "yearly", priority: 0.5 },
-  { path: "/hiffi-500", changeFrequency: "weekly", priority: 0.94 },
-  { path: "/hiffi-500/methodology", changeFrequency: "monthly", priority: 0.8 },
-  { path: "/hiffi-500/city/atlanta", changeFrequency: "weekly", priority: 0.9 },
-  { path: "/hiffi-500/city/houston", changeFrequency: "monthly", priority: 0.7 },
-  { path: "/hiffi-500/city/detroit", changeFrequency: "monthly", priority: 0.7 },
-  { path: "/hiffi-500/city/chicago", changeFrequency: "monthly", priority: 0.7 },
-  { path: "/hiffi-500/biggest-risers", changeFrequency: "weekly", priority: 0.86 },
-  { path: "/hiffi-500/biggest-fallers", changeFrequency: "weekly", priority: 0.84 },
-  { path: "/hiffi-500/new-entries", changeFrequency: "weekly", priority: 0.84 },
-  { path: "/hiffi-500/breakout-100", changeFrequency: "weekly", priority: 0.88 },
 ]

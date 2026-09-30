@@ -49,8 +49,53 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
           </div>
 
           <div className="w-full lg:max-w-[34rem] lg:justify-self-end">
-            <div className="min-h-[18.75rem] sm:min-h-[20rem] lg:min-h-[21.5rem]">
-              <div className="relative h-full min-h-[15rem] overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] sm:min-h-[20rem] lg:min-h-[21.5rem]">
+            <div className="grid min-h-[18.75rem] grid-cols-1 gap-3 sm:min-h-[20rem] sm:grid-cols-[minmax(0,12.75rem)_minmax(0,1fr)] sm:items-stretch sm:gap-5 lg:min-h-[21.5rem] lg:grid-cols-[minmax(0,13.75rem)_minmax(0,1fr)] lg:gap-6">
+              <div className="flex min-w-0 flex-col gap-3 self-start sm:gap-3.5">
+                <div className="shrink-0 rounded-2xl border border-black/[0.06] bg-white p-3.5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] sm:p-4">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <Image
+                      src="/artist-claim/hero-profile.png"
+                      alt="Jaxson Kaine profile"
+                      width={52}
+                      height={52}
+                      className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-[52px] sm:w-[52px]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#E8192C] sm:text-[10px]">
+                        Verified
+                        <Image
+                          src="/artist-claim/icons/verified-badge.svg"
+                          alt=""
+                          width={10}
+                          height={10}
+                          className="h-2.5 w-2.5"
+                          aria-hidden
+                        />
+                      </p>
+                      <p className="mt-0.5 text-sm font-bold leading-snug text-foreground sm:mt-1 sm:text-base">
+                        Jaxson Kaine
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 rounded-2xl bg-[#1B1C1C] px-3.5 py-3 text-white shadow-sm">
+                  <Image
+                    src="/artist-claim/icons/stats-chart.svg"
+                    alt=""
+                    width={33}
+                    height={26}
+                    className="h-6 w-auto"
+                    aria-hidden
+                  />
+                  <p className="mt-2 text-2xl font-bold leading-none tracking-tight sm:text-[1.75rem]">
+                    2.4M
+                  </p>
+                  <p className="mt-1 text-sm text-white/70">Monthly Listeners</p>
+                </div>
+              </div>
+
+              <div className="relative min-h-[15rem] overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.18)] sm:min-h-0 sm:h-full">
                 <Image
                   src="/artist-claim/hero-live-stats.png"
                   alt="Artist performing on stage with live engagement stats"

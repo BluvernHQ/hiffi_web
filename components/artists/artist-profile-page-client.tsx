@@ -7,6 +7,7 @@ import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
 import { ArtistDetailInteractive } from "@/components/artists/ArtistDetailInteractive"
 import type { ArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
 import { saveArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 type ProfilePayload = {
   artist: Artist
@@ -107,20 +108,23 @@ export function ArtistProfilePageClient({
     <ArtistDirectoryShell
       claimHref={`/artist-index/${artist.slug}/claim`}
       breadcrumbs={breadcrumbs}
+      bleed
     >
       {loadError ? (
-        <div
-          className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-          role="alert"
-        >
-          {loadError}
+        <div className={`${artistPageContainer} pt-4`}>
+          <div
+            className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            role="alert"
+          >
+            {loadError}
+          </div>
         </div>
       ) : null}
 
       <div className="relative">
         {loading ? (
           <div
-            className="absolute inset-0 z-10 flex items-start justify-center bg-white/60 pt-24"
+            className="absolute inset-0 z-10 flex items-start justify-center bg-[#F4F1EA]/50 pt-40"
             role="status"
             aria-live="polite"
           >

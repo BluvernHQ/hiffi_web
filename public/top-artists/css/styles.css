@@ -8,7 +8,7 @@
 .app-sidebar-toggle{flex:0 0 auto;width:42px;height:42px;border:1px solid var(--rule);background:transparent;display:grid;place-content:center;gap:5px;padding:0;cursor:pointer}
 .app-sidebar-toggle span{display:block;width:16px;height:1.5px;background:var(--white)}
 .app-sidebar-toggle:hover{border-color:var(--red)}.app-sidebar-toggle:hover span{background:var(--red)}
-.wordmark{margin:0;display:inline-flex;align-items:center;gap:12px;width:max-content;max-width:100%;min-width:0;text-decoration:none}.wordmark-logo-link{display:flex;flex:0 0 auto;line-height:0}.wordmark-logo{height:31px;width:auto;display:block;flex:0 0 auto;object-fit:contain}.wordmark-title{font-family:var(--display);font-size:31px;font-weight:900;letter-spacing:.015em;text-transform:uppercase;line-height:1;white-space:nowrap;color:inherit;text-decoration:none}.wordmark-title span{color:var(--red)}
+.wordmark{display:inline-flex;align-items:center;gap:12px;width:max-content;max-width:100%;min-width:0;text-decoration:none}.wordmark-logo{height:31px;width:auto;display:block;flex:0 0 auto;object-fit:contain}.wordmark-title{font-family:var(--display);font-size:31px;font-weight:900;letter-spacing:.015em;text-transform:uppercase;line-height:1;white-space:nowrap}.wordmark-title span{color:var(--red)}
 .desktop-nav{display:flex;gap:clamp(38px,7vw,100px)}.desktop-nav a{font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;position:relative}.desktop-nav a:after{content:"";position:absolute;left:0;right:100%;bottom:-11px;height:2px;background:var(--red);transition:right .2s}.desktop-nav a:hover:after,.desktop-nav a:focus-visible:after{right:0}
 .header-arrow{justify-self:end;width:48px;height:48px;border:1px solid var(--red);border-radius:0;background:transparent;display:grid;place-items:center}.header-arrow span{color:var(--red);font-size:25px;transition:transform .2s}.header-arrow:hover{background:var(--red)}.header-arrow:hover span{color:white;transform:translate(3px,3px)}.menu-toggle{display:none}
 
@@ -164,4 +164,9 @@ html{scroll-padding-top:80px}
 .drawer-artist-avatar{flex:0 0 auto;width:56px;height:56px;display:grid;place-items:center;border-radius:0;overflow:hidden}
 .drawer-artist-avatar .artist-avatar{width:100%;height:100%;border-radius:0;display:grid;place-items:center;overflow:hidden}
 .drawer-artist-avatar .artist-avatar img{width:100%;height:100%;object-fit:cover;display:block}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* Drawer: Instagram metrics section */
+.drawer-metrics-label{margin:22px 0 8px;color:var(--gray);font:700 8px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.drawer-platform-scores{border-top:0}
+.drawer-metrics div[hidden],#drawerPlatformScores[hidden],#drawerIgSection[hidden],#drawerIgMetrics[hidden],#drawerIgEmpty[hidden]{display:none!important}
+.drawer-ig-empty{color:#aaa8a4;font:9px/1.65 var(--mono);margin:0 0 12px}
+.drawer-actions{display:flex;flex-wrap:wrap;gap:10px}

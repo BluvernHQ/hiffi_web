@@ -17,6 +17,10 @@ export async function GET(request: Request) {
       page,
     })
 
+    if (directory.unavailable) {
+      return NextResponse.json({ error: "Failed to load artist directory" }, { status: 503 })
+    }
+
     return NextResponse.json({
       query: directory.query,
       activeFilterIds: directory.activeFilterIds,

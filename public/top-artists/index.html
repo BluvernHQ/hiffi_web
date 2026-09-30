@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#080807">
-  <meta name="description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta name="description" content="Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram.">
   <meta property="og:title" content="Hiffi Hip-Hop 500 — Live Signal Index">
-  <meta property="og:description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta property="og:description" content="Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.hiffi.com/top-artists">
   <meta property="og:site_name" content="Hiffi">
@@ -15,7 +15,7 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Hiffi Hip-Hop 500 — Live Signal Index">
-  <meta name="twitter:description" content="Live movement signals across the 500 biggest hip-hop artists on YouTube.">
+  <meta name="twitter:description" content="Live movement signals across the 500 biggest hip-hop artists — ranked by YouTube and Instagram.">
   <meta name="twitter:image" content="https://www.hiffi.com/top-artists/share/og-default">
   <link rel="canonical" href="https://www.hiffi.com/top-artists">
   <link rel="icon" href="/hiffi_logo.png" type="image/png">
@@ -43,12 +43,10 @@
         <button class="app-sidebar-toggle" id="appSidebarToggle" type="button" aria-label="Open Hiffi menu">
           <span></span><span></span><span></span>
         </button>
-        <p class="wordmark">
-          <a class="wordmark-logo-link" href="/" target="_parent" aria-label="Hiffi home">
-            <img class="wordmark-logo" src="/appbarlogo.png" alt="Hiffi" width="132" height="32" decoding="async" />
-          </a>
-          <a class="wordmark-title" href="#top" aria-label="Hip-Hop 500 home">HIP-HOP <span>500</span></a>
-        </p>
+        <a class="wordmark" href="#top" aria-label="Hiffi Hip-Hop 500 home">
+          <img class="wordmark-logo" src="/appbarlogo.png" alt="Hiffi" width="132" height="32" decoding="async" />
+          <span class="wordmark-title">HIP-HOP <span>500</span></span>
+        </a>
       </div>
       <nav class="desktop-nav" id="primaryNav" aria-label="Primary navigation">
         <a href="#leaderboard">Leaderboard</a>
@@ -61,10 +59,10 @@
 
     <section class="hero" id="top">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="live-dot"></span> Live YouTube rap index</p>
+        <p class="eyebrow"><span class="live-dot"></span> Live YouTube + Instagram rap index</p>
         <h1>The 500<br><span>moving</span><br>hip-hop<br>right now</h1>
         <div class="hero-bottom">
-          <p class="hero-deck">The live movement signals across the artists shaping rap on the world’s biggest video platform.</p>
+          <p class="hero-deck">The live movement signals across the artists shaping rap — ranked by a blended YouTube and Instagram score.</p>
           <div class="hero-stats" aria-label="Index facts">
             <div><b>500</b><span>Tracked</span></div>
             <div><b>24/7</b><span>Signal<br>view</span></div>
@@ -86,7 +84,7 @@
           </div>
         </div>
         <div class="top-three">
-          <div class="top-three-head"><span><i class="live-dot"></i> Live ranking preview</span><small>YouTube index</small></div>
+          <div class="top-three-head"><span><i class="live-dot"></i> Live ranking preview</span><small>YT + IG index</small></div>
           <div id="topThree"></div>
         </div>
       </div>
@@ -141,7 +139,7 @@
       <div class="method-heading">
         <p class="section-kicker">Method / 03</p>
         <h2>Built on signal.<br>Not opinion.</h2>
-        <p>The Hiffi Hip-Hop 500 score is designed to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p>
+        <p>The Hiffi Hip-Hop 500 score blends YouTube and Instagram signal to show both established scale and current momentum. Every input is normalized across the tracked artist set.</p>
         <a class="how-inline-link" href="/top-artists/how-it-works" target="_parent">Full how it works <span>↗</span></a>
       </div>
       <div class="weights">
@@ -161,13 +159,11 @@
     </section>
 
     <footer>
-      <p class="wordmark">
-        <a class="wordmark-logo-link" href="/" target="_parent" aria-label="Hiffi home">
-          <img class="wordmark-logo" src="/appbarlogo.png" alt="Hiffi" width="132" height="32" decoding="async" />
-        </a>
-        <a class="wordmark-title" href="#top" aria-label="Hip-Hop 500 home">HIP-HOP <span>500</span></a>
-      </p>
-      <p>Independent index. Not affiliated with YouTube.<br>Metrics shown for may not be accurate, verify on YT.</p>
+      <a class="wordmark" href="#top">
+        <img class="wordmark-logo" src="/appbarlogo.png" alt="Hiffi" width="132" height="32" decoding="async" />
+        <span class="wordmark-title">HIP-HOP <span>500</span></span>
+      </a>
+      <p>Independent index. Not affiliated with YouTube or Instagram.<br>Metrics shown may not be accurate — verify on each platform.</p>
       <div><a href="#leaderboard">Ranking</a><a href="/top-artists/how-it-works" target="_parent">How it works</a><a href="/artist-index/claim" target="_parent">Claim</a><a href="mailto:hello@hiffi.com">Contact</a></div>
       <small>© 2026 HIFFI HIP-HOP 500</small>
     </footer>
@@ -407,7 +403,12 @@
         <div id="drawerArtistAvatar" class="drawer-artist-avatar" aria-hidden="true"></div>
         <h2 id="drawerArtistName"></h2>
       </div>
-      <div class="drawer-score"><span>YouTube composite score</span><b id="drawerScore"></b></div>
+      <div class="drawer-score"><span id="drawerScoreLabel">Composite score</span><b id="drawerScore"></b></div>
+      <div class="drawer-metrics drawer-platform-scores" id="drawerPlatformScores" hidden>
+        <div id="drawerYoutubeScoreWrap" hidden><span>YouTube score</span><b id="drawerYoutubeScore"></b></div>
+        <div id="drawerInstagramScoreWrap" hidden><span>Instagram score</span><b id="drawerInstagramScore"></b></div>
+      </div>
+      <p class="drawer-metrics-label">YouTube</p>
       <div class="drawer-metrics">
         <div><span>Subscribers</span><b id="drawerSubscribers"></b></div>
         <div><span>Lifetime views</span><b id="drawerViews"></b></div>
@@ -419,12 +420,26 @@
         <div><span>Momentum 30d</span><b id="drawerMomentum30d"></b></div>
         <div><span>Momentum 90d</span><b id="drawerMomentum90d"></b></div>
       </div>
+      <div id="drawerIgSection">
+        <p class="drawer-metrics-label">Instagram</p>
+        <p class="drawer-ig-empty" id="drawerIgEmpty" hidden>Instagram is in the blend — reach metrics appear as scrape history fills in.</p>
+        <div class="drawer-metrics" id="drawerIgMetrics">
+          <div><span>Followers</span><b id="drawerIgFollowers"></b></div>
+          <div><span>Recent avg likes</span><b id="drawerIgAvgLikes"></b></div>
+          <div><span>Post velocity</span><b id="drawerIgPostVelocity"></b></div>
+          <div><span>Momentum 7d</span><b id="drawerIgMomentum7d"></b></div>
+          <div><span>Momentum 30d</span><b id="drawerIgMomentum30d"></b></div>
+          <div><span>Momentum 90d</span><b id="drawerIgMomentum90d"></b></div>
+        </div>
+      </div>
       <div class="drawer-chart" id="drawerChart" aria-label="Signal chart"></div>
-      <p class="drawer-note">Metrics from Hiffi inventory YouTube ranking. Verify channel stats on YouTube.</p>
+      <p class="drawer-note" id="drawerNote">Ranked by blended YouTube + Instagram score. Verify stats on each platform.</p>
       <p class="drawer-claim-note" id="drawerClaimNote" hidden></p>
       <div class="drawer-actions">
-        <a class="drawer-link drawer-link-claim" id="drawerClaim" href="/artist-index" target="_blank" rel="noopener noreferrer" hidden>Claim this profile <span>↗</span></a>
+        <a class="drawer-link" id="drawerProfile" href="/artist-index" target="_parent" hidden>View artist profile <span>→</span></a>
+        <a class="drawer-link drawer-link-secondary" id="drawerClaim" href="/artist-index" target="_parent" hidden>Claim this profile <span>↗</span></a>
         <a class="drawer-link drawer-link-outline" id="drawerYoutube" href="#" target="_blank" rel="noopener noreferrer">Open YouTube channel <span>↗</span></a>
+        <a class="drawer-link drawer-link-outline" id="drawerInstagram" href="#" target="_blank" rel="noopener noreferrer" hidden>Open Instagram <span>↗</span></a>
       </div>
     </aside>
   </div>

@@ -4,6 +4,7 @@ import { ReactNode } from "react"
 import { usePathname } from "next/navigation"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
+import { ClaimStatusBanner } from "./claim-status-banner"
 import { useSidebar } from "@/lib/sidebar-context"
 import { isContentPage } from "@/lib/content-pages"
 
@@ -26,14 +27,11 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
-  const isContentPageRoute = isContentPage(pathname)
+  // Artist Index and Top Artists get the full app chrome but scroll the window.
   const isArtistIndexRoute =
-    (pathname?.startsWith("/artist-index") ?? false)
-  // Hip-Hop 500 owns its own header + sidebar chrome.
-  const isTopArtistsRoute =
-    pathname === "/top-artists" || (pathname?.startsWith("/top-artists/") ?? false)
-  const isFullBleedRoute = isArtistIndexRoute || isTopArtistsRoute
-  const showAppChrome = !isFullBleedRoute
+    (pathname?.startsWith("/artist-index") || pathname?.startsWith("/top-artists")) ?? false
+  const isContentPageRoute = isContentPage(pathname) && !isArtistIndexRoute
+  const showSidebar = !isContentPageRoute
 
   const {
     isSidebarOpen,
@@ -46,32 +44,30 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   return (
     <div
       className={
-        isFullBleedRoute
+        isArtistIndexRoute
           ? "relative flex min-h-[100dvh] flex-col bg-background"
           : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
       }
     >
-      {showAppChrome ? (
-        <Navbar
-          variant={isContentPageRoute ? "minimal" : "full"}
-          onMenuClick={
-            isContentPageRoute
-              ? undefined
-              : () => {
-                  if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-                    toggleDesktopSidebar()
-                  } else {
-                    toggleMobileSidebar()
-                  }
+      <Navbar
+        variant={isContentPageRoute ? "minimal" : "full"}
+        onMenuClick={
+          isContentPageRoute
+            ? undefined
+            : () => {
+                if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+                  toggleDesktopSidebar()
+                } else {
+                  toggleMobileSidebar()
                 }
-          }
-          currentFilter={currentFilter}
-        />
-      ) : null}
+              }
+        }
+        currentFilter={currentFilter}
+      />
 
       {/* Main Layout Container */}
-      <div className={isFullBleedRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
-        {showAppChrome && !isContentPageRoute && (
+      <div className={isArtistIndexRoute ? "flex flex-1" : "flex flex-1 overflow-hidden"}>
+        {showSidebar && (
           <Sidebar
             isMobileOpen={isSidebarOpen}
             onMobileClose={() => setIsSidebarOpen(false)}
@@ -86,15 +82,15 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         <main
           id="main-content"
           className={
-            isFullBleedRoute
+            isArtistIndexRoute
               ? "w-full min-w-0 flex-1"
               : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
           }
         >
+          <ClaimStatusBanner />
           {children}
         </main>
       </div>
     </div>
   )
 }
-

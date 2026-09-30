@@ -1,7 +1,9 @@
 import type { Artist } from "@/lib/artists"
 import type { InventorySort, PublicInventoryProfile } from "@/lib/types/inventory"
 
-function featuredDisplayRank(claimStatus: PublicInventoryProfile["claim_status"]): number {
+function claimStatusDisplayRank(
+  claimStatus: PublicInventoryProfile["claim_status"],
+): number {
   switch (claimStatus) {
     case "claimed":
       return 0
@@ -14,27 +16,43 @@ function featuredDisplayRank(claimStatus: PublicInventoryProfile["claim_status"]
   }
 }
 
-/** Claimed first; pending and unclaimed share a tier (mixed A→Z). */
-function verifiedFirstDisplayRank(claimStatus: PublicInventoryProfile["claim_status"]): number {
-  return claimStatus === "claimed" ? 0 : 1
-}
-
 function compareNames(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: "base" })
 }
 
-/** All public inventory sorts are paginated server-side via GET /inventory `sort`. */
-export function inventorySortUsesServerPagination(_sort: InventorySort): boolean {
-  return true
+function parseTimestamp(value: string | undefined): number {
+  const raw = value?.trim()
+  if (!raw) return 0
+  const ts = Date.parse(raw)
+  return Number.isNaN(ts) ? 0 : ts
 }
 
-function displayRank(
-  claimStatus: PublicInventoryProfile["claim_status"],
-  sort: InventorySort,
+/** `name` matches GET /inventory default (`artist_name ASC`) — safe to paginate on the server. */
+export function inventorySortUsesServerPagination(sort: InventorySort): boolean {
+  return sort === "name"
+}
+
+/** `verified_first` uses recent-claimed → pending → unclaimed slices — no full-catalog fetch. */
+export function inventorySortUsesVerifiedFirstSlice(sort: InventorySort): boolean {
+  return sort === "verified_first"
+}
+
+export function inventorySortNeedsFullCatalog(sort: InventorySort): boolean {
+  return sort === "newest" || sort === "oldest" || sort === "name_desc"
+}
+
+/** Claimed: most recently updated first; other statuses: A→Z by name. */
+function compareWithinClaimStatus(
+  a: PublicInventoryProfile,
+  b: PublicInventoryProfile,
 ): number {
-  return sort === "featured"
-    ? featuredDisplayRank(claimStatus)
-    : verifiedFirstDisplayRank(claimStatus)
+  if (a.claim_status === "claimed") {
+    const updatedDiff = parseTimestamp(b.updated_at) - parseTimestamp(a.updated_at)
+    if (updatedDiff !== 0) return updatedDiff
+    const createdDiff = parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
+    if (createdDiff !== 0) return createdDiff
+  }
+  return compareNames(a.artist_name, b.artist_name)
 }
 
 export function compareInventoryProfiles(
@@ -43,12 +61,24 @@ export function compareInventoryProfiles(
   sort: InventorySort,
 ): number {
   switch (sort) {
-    case "featured":
     case "verified_first": {
-      const rankDiff = displayRank(a.claim_status, sort) - displayRank(b.claim_status, sort)
+      const rankDiff =
+        claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
       if (rankDiff !== 0) return rankDiff
+      return compareWithinClaimStatus(a, b)
+    }
+    case "newest": {
+      const diff = parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
+      if (diff !== 0) return diff
       return compareNames(a.artist_name, b.artist_name)
     }
+    case "oldest": {
+      const diff = parseTimestamp(a.created_at) - parseTimestamp(b.created_at)
+      if (diff !== 0) return diff
+      return compareNames(a.artist_name, b.artist_name)
+    }
+    case "name_desc":
+      return compareNames(b.artist_name, a.artist_name)
     case "name":
     default:
       return compareNames(a.artist_name, b.artist_name)
@@ -65,12 +95,31 @@ export function sortInventoryProfiles(
 
 export function compareArtistsByDisplaySort(a: Artist, b: Artist, sort: InventorySort): number {
   switch (sort) {
-    case "featured":
     case "verified_first": {
-      const rankDiff = displayRank(a.claim_status, sort) - displayRank(b.claim_status, sort)
+      const rankDiff =
+        claimStatusDisplayRank(a.claim_status) - claimStatusDisplayRank(b.claim_status)
       if (rankDiff !== 0) return rankDiff
+      if (a.claim_status === "claimed") {
+        const updatedDiff =
+          parseTimestamp(b.updated_at ?? b.added_date) - parseTimestamp(a.updated_at ?? a.added_date)
+        if (updatedDiff !== 0) return updatedDiff
+        const createdDiff = parseTimestamp(b.added_date) - parseTimestamp(a.added_date)
+        if (createdDiff !== 0) return createdDiff
+      }
       return compareNames(a.name, b.name)
     }
+    case "newest": {
+      const diff = parseTimestamp(b.added_date) - parseTimestamp(a.added_date)
+      if (diff !== 0) return diff
+      return compareNames(a.name, b.name)
+    }
+    case "oldest": {
+      const diff = parseTimestamp(a.added_date) - parseTimestamp(b.added_date)
+      if (diff !== 0) return diff
+      return compareNames(a.name, b.name)
+    }
+    case "name_desc":
+      return compareNames(b.name, a.name)
     case "name":
     default:
       return compareNames(a.name, b.name)
