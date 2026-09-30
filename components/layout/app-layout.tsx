@@ -26,15 +26,14 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
-  const isContentPageRoute = isContentPage(pathname)
+  // Artist Index, Top Artists and Hiffi 500 get the full app chrome but scroll the window.
   const isArtistIndexRoute =
     (pathname?.startsWith("/artist-index") ||
       pathname?.startsWith("/hiffi-500") ||
       pathname?.startsWith("/top-artists")) ??
     false
-  const showAppChrome = !isArtistIndexRoute
-  const showNavbar = showAppChrome
-  const showSidebar = showAppChrome && !isContentPageRoute
+  const isContentPageRoute = isContentPage(pathname) && !isArtistIndexRoute
+  const showSidebar = !isContentPageRoute
 
   const {
     isSidebarOpen,
@@ -52,26 +51,24 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
           : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
       }
     >
-      {showNavbar ? (
-        <Navbar
-          variant={isContentPageRoute ? "minimal" : "full"}
-          onMenuClick={
-            isContentPageRoute
-              ? undefined
-              : () => {
-                  if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-                    toggleDesktopSidebar()
-                  } else {
-                    toggleMobileSidebar()
-                  }
+      <Navbar
+        variant={isContentPageRoute ? "minimal" : "full"}
+        onMenuClick={
+          isContentPageRoute
+            ? undefined
+            : () => {
+                if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+                  toggleDesktopSidebar()
+                } else {
+                  toggleMobileSidebar()
                 }
-          }
-          currentFilter={currentFilter}
-        />
-      ) : null}
+              }
+        }
+        currentFilter={currentFilter}
+      />
 
       {/* Main Layout Container */}
-      <div className={isArtistIndexRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
+      <div className={isArtistIndexRoute ? "flex flex-1" : "flex flex-1 overflow-hidden"}>
         {showSidebar && (
           <Sidebar
             isMobileOpen={isSidebarOpen}

@@ -66,11 +66,11 @@ export function TopChartDrawerProvider({
       {children}
       <Dialog.Root open={selection !== null} onOpenChange={(next) => (next ? null : close())}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <Dialog.Overlay className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <Dialog.Content
             className={cn(
               signalNarrow.variable,
-              "fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-y-auto border-l border-white/10 bg-[#0E0E10] text-[#F4F1EA] [color-scheme:dark] shadow-2xl outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:duration-200 data-[state=open]:duration-300 sm:max-w-[460px]",
+              "fixed inset-y-0 right-0 z-[90] flex w-full flex-col overflow-y-auto border-l border-white/10 bg-[#0E0E10] text-[#F4F1EA] [color-scheme:dark] shadow-2xl outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:duration-200 data-[state=open]:duration-300 sm:max-w-[460px]",
             )}
             aria-describedby={undefined}
           >

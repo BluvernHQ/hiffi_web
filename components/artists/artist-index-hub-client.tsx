@@ -295,7 +295,7 @@ export function ArtistIndexHubClient({
         <div className={cn(artistPageContainer, "space-y-14 pb-16 pt-10 sm:space-y-24 sm:pb-20 sm:pt-20")}>
           {directory.isCleanHub ? <ArtistIndexScenes cities={feature.cities} /> : null}
 
-          <section ref={gridSectionRef} aria-labelledby="artist-index-roster" className="scroll-mt-28 sm:scroll-mt-24">
+          <section ref={gridSectionRef} aria-labelledby="artist-index-roster" className="scroll-mt-24">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="min-w-0">
                 <ArtistDetailEyebrow>{roster.eyebrow}</ArtistDetailEyebrow>
@@ -376,7 +376,7 @@ export function ArtistIndexHubClient({
         </div>
       ) : null}
 
-      <div ref={gridSectionRef} className="scroll-mt-28 sm:scroll-mt-20">
+      <div ref={gridSectionRef} className="scroll-mt-20">
         <ArtistDirectoryGrid
           artists={directory.pageArtists}
           currentPage={directory.currentPage}

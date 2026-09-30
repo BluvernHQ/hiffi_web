@@ -321,7 +321,7 @@ export function TopChartBoard({
   }, [])
 
   return (
-    <section id="ranking" aria-labelledby="top-chart-heading" className="scroll-mt-28 sm:scroll-mt-24">
+    <section id="ranking" aria-labelledby="top-chart-heading" className="scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <ArtistDetailEyebrow className="text-white/45">Charts</ArtistDetailEyebrow>
