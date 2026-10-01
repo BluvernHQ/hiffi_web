@@ -1,21 +1,39 @@
 import type { AdminApiClientContext } from "./context"
 import { unwrapSuccessData } from "./envelope"
 import type {
+  CreatorAcquisition,
+  CreatorActivation,
   CreatorAttention,
+  CreatorCohorts,
+  CreatorContent,
+  CreatorDateRange,
   CreatorDetail,
   CreatorDirectoryResponse,
+  CreatorEngagement,
   CreatorFunnel,
   CreatorListParams,
+  CreatorOps,
   CreatorOverview,
+  CreatorPopulation,
+  CreatorQuality,
+  CreatorRetention,
   CreatorTrends,
   FunnelComparePeriod,
 } from "@/lib/types/admin-creators"
 import {
+  normalizeCreatorAcquisition,
+  normalizeCreatorActivation,
   normalizeCreatorAttention,
+  normalizeCreatorCohorts,
+  normalizeCreatorContent,
   normalizeCreatorDetail,
   normalizeCreatorDirectory,
+  normalizeCreatorEngagement,
   normalizeCreatorFunnel,
+  normalizeCreatorOps,
   normalizeCreatorOverview,
+  normalizeCreatorQuality,
+  normalizeCreatorRetention,
   normalizeCreatorTrends,
 } from "@/lib/types/admin-creators"
 
@@ -29,12 +47,27 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return q ? `?${q}` : ""
 }
 
+/** Prefer `to_date`; map legacy `as_of` when `to_date` missing. */
+function dateQuery(range?: CreatorDateRange): Record<string, string | undefined> {
+  if (!range) return {}
+  const toDate = range.to_date || range.as_of
+  return {
+    from_date: range.from_date,
+    to_date: toDate,
+  }
+}
+
+function metricsBase(population: CreatorPopulation): string {
+  return population === "claimed" ? "/admin/creators/claimed" : "/admin/creators"
+}
+
 export async function adminGetCreatorOverview(
   ctx: AdminApiClientContext,
-  asOf?: string,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
 ): Promise<CreatorOverview> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators/overview${buildQuery({ as_of: asOf })}`,
+    `${metricsBase(population)}/overview${buildQuery(dateQuery(range))}`,
     { method: "GET" },
     true,
   )
@@ -44,10 +77,14 @@ export async function adminGetCreatorOverview(
 export async function adminGetCreatorFunnel(
   ctx: AdminApiClientContext,
   compare?: FunnelComparePeriod,
-  asOf?: string,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
 ): Promise<CreatorFunnel> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators/funnel${buildQuery({ compare, as_of: asOf })}`,
+    `${metricsBase(population)}/funnel${buildQuery({
+      compare,
+      ...dateQuery(range),
+    })}`,
     { method: "GET" },
     true,
   )
@@ -57,10 +94,14 @@ export async function adminGetCreatorFunnel(
 export async function adminGetCreatorAttention(
   ctx: AdminApiClientContext,
   staleDays?: number,
-  asOf?: string,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
 ): Promise<CreatorAttention> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators/attention${buildQuery({ stale_days: staleDays, as_of: asOf })}`,
+    `${metricsBase(population)}/attention${buildQuery({
+      stale_days: staleDays,
+      ...dateQuery(range),
+    })}`,
     { method: "GET" },
     true,
   )
@@ -69,22 +110,132 @@ export async function adminGetCreatorAttention(
 
 export async function adminGetCreatorTrends(
   ctx: AdminApiClientContext,
-  asOf?: string,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
 ): Promise<CreatorTrends> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators/trends${buildQuery({ as_of: asOf })}`,
+    `${metricsBase(population)}/trends${buildQuery(dateQuery(range))}`,
     { method: "GET" },
     true,
   )
   return normalizeCreatorTrends(unwrapSuccessData(raw))
 }
 
+export async function adminGetCreatorAcquisition(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorAcquisition> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/acquisition${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorAcquisition(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorActivation(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorActivation> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/activation${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorActivation(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorEngagement(
+  ctx: AdminApiClientContext,
+  staleDays?: number,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorEngagement> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/engagement${buildQuery({
+      stale_days: staleDays,
+      ...dateQuery(range),
+    })}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorEngagement(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorRetention(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorRetention> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/retention${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorRetention(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorContent(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorContent> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/content${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorContent(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorQuality(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorQuality> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/quality${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorQuality(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorOps(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorOps> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/ops${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorOps(unwrapSuccessData(raw))
+}
+
+export async function adminGetCreatorCohorts(
+  ctx: AdminApiClientContext,
+  range?: CreatorDateRange,
+  population: CreatorPopulation = "organic",
+): Promise<CreatorCohorts> {
+  const raw = await ctx.request<unknown>(
+    `${metricsBase(population)}/cohorts${buildQuery(dateQuery(range))}`,
+    { method: "GET" },
+    true,
+  )
+  return normalizeCreatorCohorts(unwrapSuccessData(raw))
+}
+
 export async function adminListCreators(
   ctx: AdminApiClientContext,
   params: CreatorListParams = {},
+  population: CreatorPopulation = "organic",
 ): Promise<CreatorDirectoryResponse> {
   const raw = await ctx.request<unknown>(
-    `/admin/creators${buildQuery({
+    `${metricsBase(population)}${buildQuery({
       limit: params.limit,
       offset: params.offset,
       status: params.status,

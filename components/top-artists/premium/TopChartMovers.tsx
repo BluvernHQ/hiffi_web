@@ -51,7 +51,7 @@ export function TopChartMovers({ movers }: { movers: TopArtist[] }) {
                     </span>
                   ) : null}
                 </span>
-                <span className="font-signal mt-3.5 block truncate text-[1.45rem] font-bold uppercase leading-none text-[#F4F1EA] transition-colors group-hover:text-[#FF4D5E] sm:text-[1.6rem]">
+                <span className="font-signal -mb-[0.15em] mt-[calc(0.875rem-0.15em)] block truncate py-[0.15em] text-[1.45rem] font-bold uppercase leading-none text-[#F4F1EA] transition-colors group-hover:text-[#FF4D5E] sm:text-[1.6rem]">
                   {artist.artist_name}
                 </span>
                 <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">

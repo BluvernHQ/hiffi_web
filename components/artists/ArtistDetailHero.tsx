@@ -77,22 +77,6 @@ export function ArtistDetailHero({
           </p>
         </div>
       ) : null}
-
-      {isPending ? (
-        <div className="mb-3 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 sm:mb-4 sm:px-5">
-          <p className="text-sm text-amber-950">
-            <span className="font-semibold">This profile has a pending ownership verification.</span>{" "}
-            If you believe you are the rightful owner, you can{" "}
-            <Link
-              href={claimHref}
-              className="font-semibold text-amber-950 underline-offset-2 hover:underline"
-            >
-              request ownership
-            </Link>
-            .
-          </p>
-        </div>
-      ) : null}
     </>
   )
 

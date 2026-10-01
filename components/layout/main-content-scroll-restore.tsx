@@ -7,6 +7,7 @@ import {
   getPersistedScrollStorageKey,
   restoreMainContentScroll,
   saveMainContentScroll,
+  scrollMainContentToTop,
   setLastKnownMainContentScroll,
 } from "@/lib/main-content-scroll"
 
@@ -37,6 +38,7 @@ function saveScrollBeforeNavigate(storageKey: string, target?: Element | null) {
 export function MainContentScrollCoordinator() {
   const pathname = usePathname()
   const prevPathnameRef = useRef(pathname)
+  const popNavigationRef = useRef(false)
   const activeKey = getPersistedScrollStorageKey(pathname)
 
   useLayoutEffect(() => {
@@ -48,8 +50,12 @@ export function MainContentScrollCoordinator() {
     }
 
     const nextKey = getPersistedScrollStorageKey(pathname)
+    const isPopNavigation = popNavigationRef.current
+    popNavigationRef.current = false
     if (nextKey) {
       restoreMainContentScroll(nextKey)
+    } else if (prevPathname !== pathname && !isPopNavigation && !window.location.hash) {
+      scrollMainContentToTop()
     }
 
     prevPathnameRef.current = pathname
@@ -77,6 +83,7 @@ export function MainContentScrollCoordinator() {
     }
 
     const onPopState = () => {
+      popNavigationRef.current = true
       requestAnimationFrame(() => {
         const key = getPersistedScrollStorageKey(window.location.pathname)
         if (key) restoreMainContentScroll(key)

@@ -52,7 +52,7 @@ export function ArtistIndexFaces({ faces, className }: ArtistIndexFacesProps) {
                 </span>
               ) : null}
               <span className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3">
-                <span className="font-signal line-clamp-2 text-[13px] font-bold uppercase leading-[0.95] text-[#F4F1EA] sm:text-[15px]">
+                <span className="font-signal -mt-[0.15em] line-clamp-2 pt-[0.15em] text-[13px] font-bold uppercase leading-[0.95] text-[#F4F1EA] sm:text-[15px]">
                   {face.name}
                 </span>
                 {face.place ? (

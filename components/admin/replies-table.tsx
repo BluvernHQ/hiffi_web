@@ -11,6 +11,7 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
+import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { FilterSidebar, FilterSection, FilterField } from "./filter-sidebar"
 import { SortableHeader, SortDirection } from "./sortable-header"
 
 export function AdminRepliesTable() {
+  const { canRepliesWrite } = useAdminPermissions()
   const [replies, setReplies] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -475,6 +477,7 @@ export function AdminRepliesTable() {
                               <Link href={`/watch/${videoId}`}>View</Link>
                             </Button>
                           )}
+                          {canRepliesWrite ? (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -488,6 +491,7 @@ export function AdminRepliesTable() {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

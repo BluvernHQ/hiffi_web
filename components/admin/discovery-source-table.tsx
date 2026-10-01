@@ -51,7 +51,7 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
 
 export function AdminDiscoverySourceTable() {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
+  const { canDiscoverySourceWrite } = useAdminPermissions()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
   const [rows, setRows] = useState<DiscoverySourceSubmission[]>([])
@@ -227,7 +227,7 @@ export function AdminDiscoverySourceTable() {
               <th className="h-11 px-4 text-left text-sm font-semibold">Email</th>
               <th className="h-11 px-4 text-left text-sm font-semibold">How they found us</th>
               <th className="h-11 px-4 text-left text-sm font-semibold">Submitted</th>
-              {canWrite ? (
+              {canDiscoverySourceWrite ? (
                 <th className="h-11 px-4 text-right text-sm font-semibold">Actions</th>
               ) : null}
             </tr>
@@ -236,7 +236,7 @@ export function AdminDiscoverySourceTable() {
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={canWrite ? 5 : 4}
+                  colSpan={canDiscoverySourceWrite ? 5 : 4}
                   className="px-4 py-10 text-center text-sm text-muted-foreground"
                 >
                   No discovery survey responses yet.
@@ -261,7 +261,7 @@ export function AdminDiscoverySourceTable() {
                         : "—"}
                     </span>
                   </td>
-                  {canWrite ? (
+                  {canDiscoverySourceWrite ? (
                     <td className="px-4 py-3 text-right">
                       <Button
                         type="button"
@@ -326,7 +326,7 @@ export function AdminDiscoverySourceTable() {
                 <DetailField label="Client IP" value={selectedSubmission.client_ip} />
                 <DetailField label="Submitted" value={formatTimestamp(selectedSubmission.created_at)} />
 
-                {canWrite ? (
+                {canDiscoverySourceWrite ? (
                   <Button
                     type="button"
                     variant="destructive"

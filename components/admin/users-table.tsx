@@ -30,7 +30,7 @@ import { SortableHeader, SortDirection } from "./sortable-header"
 const USERS_PAGE_QUERY = "users_page"
 
 export function AdminUsersTable() {
-  const { canWrite } = useAdminPermissions()
+  const { canUsersWrite } = useAdminPermissions()
   const searchParams = useSearchParams()
   const router = useRouter()
   const page = useMemo(() => {
@@ -1223,7 +1223,7 @@ export function AdminUsersTable() {
                           <Button variant="ghost" size="sm" asChild>
                         <Link href={`/profile/${user.username}`}>View</Link>
                       </Button>
-                          {canWrite && (user.disabled ? (
+                          {canUsersWrite && (user.disabled ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1254,7 +1254,7 @@ export function AdminUsersTable() {
                               )}
                             </Button>
                           ))}
-                          {canWrite && (
+                          {canUsersWrite && (
                           <Button
                             variant="ghost"
                             size="sm"

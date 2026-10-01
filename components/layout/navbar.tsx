@@ -214,7 +214,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 alt="Hiffi Logo"
                 width={132}
                 height={32}
-                className="h-8 w-auto object-contain"
+                className="h-8 w-auto object-contain max-[360px]:h-7"
                 style={{ width: "auto" }}
                 priority
               />
@@ -383,7 +383,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 <Button
                   asChild
                   variant="ghost"
-                  className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent"
+                  className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent max-[360px]:hidden"
                   data-analytics-name="navbar-login-button"
                 >
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>

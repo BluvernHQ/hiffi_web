@@ -11,7 +11,7 @@ import { ProfilePicture } from "@/components/profile/profile-picture"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { creatorsDashboardHref } from "@/lib/admin/creator-nav"
+import { creatorsDashboardHref, parseCreatorsPopulation } from "@/lib/admin/creator-nav"
 import {
   CREATOR_SEGMENT_LABELS,
   CREATOR_SEGMENTS,
@@ -74,6 +74,19 @@ function StatusPills({ row }: { row: CreatorDirectoryRow }) {
       </Badge>,
     )
   }
+  if (row.source === "inventory") {
+    pills.push(
+      <Badge key="src" variant="outline">
+        Inventory
+      </Badge>,
+    )
+  } else if (row.source === "organic") {
+    pills.push(
+      <Badge key="src" variant="secondary">
+        Organic
+      </Badge>,
+    )
+  }
   if (pills.length === 0) return null
   return <div className="flex flex-wrap gap-1 mt-1">{pills}</div>
 }
@@ -92,6 +105,7 @@ export function CreatorsDirectory() {
   const genre = searchParams.get("genre") || ""
   const claimStatus = (searchParams.get("claim_status") || "") as CreatorClaimStatus | ""
   const staleDays = Number(searchParams.get("stale_days") || 14) || 14
+  const population = parseCreatorsPopulation(searchParams.get("creators_pop"))
 
   const [cityInput, setCityInput] = useState(city)
   const [genreInput, setGenreInput] = useState(genre)
@@ -111,14 +125,18 @@ export function CreatorsDirectory() {
       next.set("section", "creators")
       next.set("creators_view", "directory")
       next.delete("creator")
+      next.delete("source")
+      next.delete("creators_source")
       for (const [key, value] of Object.entries(patch)) {
         if (!value) next.delete(key)
         else next.set(key, value)
       }
+      if (population === "claimed") next.set("creators_pop", "claimed")
+      else next.delete("creators_pop")
       if (resetPage) next.delete("page")
       router.replace(`/admin/dashboard?${next.toString()}`)
     },
-    [router, searchParams],
+    [population, router, searchParams],
   )
 
   const load = useCallback(async () => {
@@ -129,17 +147,20 @@ export function CreatorsDirectory() {
     try {
       setLoading(true)
       clearNetworkError()
-      const data = await adminApiClient.adminListCreators({
-        limit: LIMIT,
-        offset: (page - 1) * LIMIT,
-        status: status || undefined,
-        upload_status: uploadStatus || undefined,
-        segment: isCreatorSegment(segment) ? segment : undefined,
-        city: city || undefined,
-        genre: genre || undefined,
-        claim_status: claimStatus || undefined,
-        stale_days: segment === "stale" ? staleDays : undefined,
-      })
+      const data = await adminApiClient.adminListCreators(
+        {
+          limit: LIMIT,
+          offset: (page - 1) * LIMIT,
+          status: status || undefined,
+          upload_status: uploadStatus || undefined,
+          segment: isCreatorSegment(segment) ? segment : undefined,
+          city: city || undefined,
+          genre: genre || undefined,
+          claim_status: claimStatus || undefined,
+          stale_days: segment === "stale" ? staleDays : undefined,
+        },
+        population,
+      )
       setRows(data.creators)
       setCount(data.count)
       setHasMore(data.has_more)
@@ -157,6 +178,7 @@ export function CreatorsDirectory() {
     guardOfflineBeforeFetch,
     handleFetchError,
     page,
+    population,
     segment,
     staleDays,
     status,
@@ -173,8 +195,8 @@ export function CreatorsDirectory() {
     if (status === "applied") return "OTP pending"
     if (status === "suspended") return "Suspended creators"
     if (status) return `${status} creators`
-    return "All creators"
-  }, [segment, status])
+    return population === "claimed" ? "Claimed creators" : "All creators"
+  }, [population, segment, status])
 
   if (!loading && networkError && rows.length === 0) {
     return (
@@ -191,7 +213,7 @@ export function CreatorsDirectory() {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border bg-muted/20 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 items-end">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 items-end">
           <label className="text-xs space-y-1">
             <span className="text-muted-foreground font-medium">Account</span>
             <select
@@ -260,7 +282,7 @@ export function CreatorsDirectory() {
             </label>
           )}
           <form
-            className="sm:col-span-2 xl:col-span-6 flex flex-wrap items-end gap-2"
+            className="sm:col-span-2 xl:col-span-5 flex flex-wrap items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault()
               replaceQuery({
@@ -290,13 +312,21 @@ export function CreatorsDirectory() {
           <p className="font-medium text-foreground">{heading}</p>
           <p className="text-muted-foreground">
             {count.toLocaleString()} result{count === 1 ? "" : "s"}
+            {population === "claimed" ? " · claimed population" : ""}
             {segment === "never_uploaded" ? " · no videos yet" : ""}
           </p>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.replace(creatorsDashboardHref({ view: "directory" }))}
+          onClick={() =>
+            router.replace(
+              creatorsDashboardHref({
+                view: "directory",
+                creators_pop: population === "claimed" ? "claimed" : undefined,
+              }),
+            )
+          }
         >
           Clear filters
         </Button>
@@ -332,7 +362,10 @@ export function CreatorsDirectory() {
                 </tr>
               ) : (
                 rows.map((row) => {
-                  const href = creatorsDashboardHref({ creator: row.username })
+                  const href = creatorsDashboardHref({
+                    creator: row.username,
+                    creators_pop: population === "claimed" ? "claimed" : undefined,
+                  })
                   const lastUpload = formatWhen(row.last_upload)
                   const lastActivity = formatWhen(row.last_activity)
                   const joined = formatWhen(row.joined)

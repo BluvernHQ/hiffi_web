@@ -35,7 +35,7 @@ function thumbUrl(path?: string): string | null {
 export function CuratedPlaylistDetail({ playlistId }: { playlistId: string }) {
   const router = useRouter()
   const { toast } = useToast()
-  const { canCurate } = useAdminPermissions()
+  const { canCuratedWrite } = useAdminPermissions()
   const [playlist, setPlaylist] = useState<CuratedPlaylistSummary | null>(null)
   const [items, setItems] = useState<CuratedPlaylistItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -235,7 +235,7 @@ export function CuratedPlaylistDetail({ playlistId }: { playlistId: string }) {
                 id="edit-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                disabled={!canCurate}
+                disabled={!canCuratedWrite}
               />
             </div>
             <div className="space-y-2">
@@ -245,10 +245,10 @@ export function CuratedPlaylistDetail({ playlistId }: { playlistId: string }) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                disabled={!canCurate}
+                disabled={!canCuratedWrite}
               />
             </div>
-            {canCurate && (
+            {canCuratedWrite && (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button onClick={handleSaveMetadata} disabled={saving} className="flex-1">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
@@ -264,7 +264,7 @@ export function CuratedPlaylistDetail({ playlistId }: { playlistId: string }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-lg">Videos ({items.length})</CardTitle>
-            {canCurate && (
+            {canCuratedWrite && (
               <Button size="sm" onClick={() => setAddOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add videos
@@ -272,7 +272,7 @@ export function CuratedPlaylistDetail({ playlistId }: { playlistId: string }) {
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {canCurate && items.length === 0 ? (
+            {canCuratedWrite && items.length === 0 ? (
               <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-8 text-center">
                 <p className="font-medium">No videos yet</p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -306,7 +306,7 @@ export function CuratedPlaylistDetail({ playlistId }: { playlistId: string }) {
                         </p>
                         <p className="text-xs text-muted-foreground truncate">{item.video_id}</p>
                       </div>
-                      {canCurate && (
+                      {canCuratedWrite && (
                         <div className="flex shrink-0 gap-1">
                           <Button
                             variant="outline"

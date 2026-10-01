@@ -46,11 +46,13 @@ export function useAdminNetworkError() {
         onGenericError?: (message: string) => void
       },
     ): boolean => {
-      console.error("[admin] Fetch failed:", error)
       if (isConnectivityError(error)) {
+        // Avoid Next.js error overlay treating a handled offline failure as an app crash.
+        console.warn("[admin] Connectivity failure (handled):", error)
         setNetworkError(userFacingNetworkMessage(error))
         return true
       }
+      console.error("[admin] Fetch failed:", error)
       if (options?.genericMessage && options.onGenericError) {
         options.onGenericError(options.genericMessage)
       }

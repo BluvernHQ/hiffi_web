@@ -1,0 +1,310 @@
+/* Flip Card */
+	.circle-slide.active .circle-slide-image {
+  	transform: rotateY(180deg);
+  }
+  
+	.circle-slide.active .circle-slide-flip {
+  	transform: rotateY(0deg);
+  } 
+  
+	.circle-slide-flip {
+  	transform: rotateY(180deg);
+  }   
+  
+	/* View Elements Card 1 */  
+	.flip-widget-point.card-1-s1 {
+  	transform: translateX(-140%) translateY(-140%) scale(0.8);  
+  }
+  
+	.flip-widget-point.card-1-s2{
+  	transform: translateX(-50%) translateY(80%) scale(0.8);    
+  }
+  
+	.flip-widget-point.card-1-s3 {
+  	transform: translateX(40%) translateY(0%) scale(0.8);    
+  }
+  
+  /* Active */
+  
+  .circle-slide.active .flip-widget-point.card-1-s1 {
+  	transform: translateX(-250%) translateY(-160%) scale(1);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-1-s2 {
+  	transform: translateX(-68%) translateY(150%) scale(1);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-1-s3 {
+  	transform: translateX(75%) translateY(40%) scale(1);
+  }
+
+	/* View Elements Card 2 */  
+
+	.flip-widget-point.card-2-s1 {
+  	transform: translateX(-180%) translateY(-120%) scale(0.8); 
+  }
+  
+	.flip-widget-point.card-2-s2 {
+  	transform: translateX(-40%) translateY(0%) scale(0.8) rotateZ(0deg); 
+  }
+  
+	.flip-widget-point.card-2-s3 {
+  	transform: translateX(0%) translateY(-20%) scale(0.8); 
+  }
+  
+	.flip-widget-point.card-2-s4 {
+  	transform: translateX(40%) translateY(20%) scale(0.8) rotateZ(0deg); 
+  }
+  
+	.flip-widget-point.card-2-s5 {
+  	transform: translateX(100%) translateY(10%) scale(0.8) rotateZ(-25deg); 
+  } 
+
+	/* Active */
+  
+  .circle-slide.active .flip-widget-point.card-2-s1 {
+  	transform: translateX(-250%) translateY(-170%) scale(1);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-2-s2 {
+  	transform: translateX(-55%) translateY(20%) scale(1) rotateZ(-25deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-2-s3 {
+  	transform: translateX(5%) translateY(-26%) scale(1) ;
+  }  
+  
+  .circle-slide.active .flip-widget-point.card-2-s4 {
+  	transform: translateX(40%) translateY(25%) scale(1) rotateZ(7deg);
+  }  
+  
+  .circle-slide.active .flip-widget-point.card-2-s5 {
+  	transform: translateX(195%) translateY(40%) scale(1) rotateZ(0deg);
+  } 
+  
+  /* View Elements Card 3 */  
+
+	.flip-widget-point.card-3-s1 {
+  	transform: translateX(-12%) translateY(0%) scale(0.8) rotateZ(-25deg); 
+  }
+  
+	.flip-widget-point.card-3-s2 {
+  	transform: translateX(12%) translateY(0%) scale(0.8) rotateZ(25deg); 
+  }
+  
+	.flip-widget-point.card-3-s3 {
+  	transform: translateX(-25%) translateY(30%) scale(0.8); 
+  }
+
+	/* Active */
+  
+  .circle-slide.active .flip-widget-point.card-3-s1 {
+  	transform: translateX(-28%) translateY(-14%) scale(1)rotateZ(0deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-3-s2 {
+  	transform: translateX(28%) translateY(14%) scale(1) rotateZ(0deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-3-s3 {
+  	transform: translateX(-58%) translateY(78%) scale(1);
+  }  
+
+  /* View Elements Card 4 */
+  
+	.flip-card-bg.card-4 {
+  	transform: translateX(0%) translateY(5%) scale(0.4); 
+  }
+
+	.flip-widget-point.card-4-s1 {
+  	transform: translateX(-20%) translateY(80%) scale(0.8); 
+  }
+  
+	.flip-widget-point.card-4-s2 {
+  	transform: translateX(40%) translateY(0%) scale(0.8); 
+  }
+  
+	.flip-widget-point.card-4-s3 {
+  	transform: translateX(75%) translateY(75%) scale(0.8); 
+  }
+
+	/* Active */
+
+  .circle-slide.active .flip-card-bg.card-4 {
+  	transform: translateX(0%) translateY(5%) scale(1);
+  }
+
+  .circle-slide.active .flip-widget-point.card-4-s1 {
+  	transform: translateX(-45%) translateY(140%) scale(1);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-4-s2 {
+  	transform: translateX(76%) translateY(18%) scale(1);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-4-s3 {
+  	transform: translateX(90%) translateY(100%) scale(1);
+  }  
+  
+  /* View Elements Card 5 */
+
+	.flip-widget-point.card-5-s1 {
+  	transform: translateX(-10%) translateY(10%) scale(1) rotateZ(0deg); 
+  }
+  
+	.flip-widget-point.card-5-s2 {
+  	transform: translateX(0%) translateY(0%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-5-s3 {
+  	transform: translateX(20%) translateY(10%) scale(1) rotateZ(0deg);
+  }
+
+	/* Active */
+
+  .circle-slide.active .flip-widget-point.card-5-s1 {
+  	transform: translateX(-47%) translateY(10%) scale(1) rotateZ(-8deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-5-s2 {
+  	transform: translateX(0%) translateY(-17%) scale(1) rotateZ(8deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-5-s3 {
+  	transform: translateX(36%) translateY(28%) scale(1) rotateZ(7.5deg);
+  }    
+
+  /* View Elements Card 5 */
+
+	.flip-card-bg.card-6 {
+  	transform: scale(0.4); 
+  }
+
+	.flip-widget-point.card-6-s1 {
+  	transform: translateX(-20%) translateY(100%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-6-s2 {
+  	transform: translateX(-80%) translateY(-30%) scale(1) rotateZ(-45deg);
+  }
+  
+	.flip-widget-point.card-6-s3 {
+  	transform: translateX(80%) translateY(45%) scale(1) rotateZ(-45deg);
+  }
+
+	/* Active */
+
+	.flip-card-bg.card-6 {
+  	transform: scale(1); 
+  }
+
+  .circle-slide.active .flip-widget-point.card-6-s1 {
+  	transform: translateX(-50%) translateY(180%) scale(1) rotateZ(0deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-6-s2 {
+  	transform: translateX(-128%) translateY(-60%) scale(1) rotateZ(0deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-6-s3 {
+  	transform: translateX(135%) translateY(85%) scale(1) rotateZ(0deg);
+  }   
+  
+  /* View Elements Card 6 */
+
+	.flip-widget-point.card-7-s1 {
+  	transform: translateX(0%) translateY(-80%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-7-s2 {
+  	transform: translateX(-50%) translateY(70%) scale(1) rotateZ(-30deg);
+  }
+  
+	.flip-widget-point.card-7-s3 {
+  	transform: translateX(-100%) translateY(45%) scale(1) rotateZ(-30deg);
+  }
+
+	.flip-widget-point.card-7-s4 {
+  	transform: translateX(0%) translateY(100%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-7-s5 {
+  	transform: translateX(100%) translateY(45%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-7-s6 {
+  	transform: translateX(70%) translateY(85%) scale(1) rotateZ(30deg);
+  }  
+  
+	/* Active */
+
+	.circle-slide.active .flip-widget-point.card-7-s1 {
+  	transform: translateX(0%) translateY(-130%) scale(1) rotateZ(0deg);
+  }
+
+  .circle-slide.active .flip-widget-point.card-7-s2 {
+  	transform: translateX(-135%) translateY(70%) scale(1) rotateZ(0deg);
+  }
+
+  .circle-slide.active .flip-widget-point.card-7-s3 {
+  	transform: translateX(-200%) translateY(85%) scale(1) rotateZ(0deg);
+  }   
+
+  .circle-slide.active .flip-widget-point.card-7-s4 {
+  	transform: translateX(0%) translateY(120%) scale(1) rotateZ(0deg);
+  } 
+
+  .circle-slide.active .flip-widget-point.card-7-s5 {
+  	transform: translateX(195%) translateY(45%) scale(1) rotateZ(0deg);
+  }
+
+  .circle-slide.active .flip-widget-point.card-7-s6 {
+  	transform: translateX(186%) translateY(85%) scale(1) rotateZ(0deg);
+  }
+
+  /* View Elements Card 8 */
+
+	.flip-widget-point.card-8-s1 {
+  	transform: translateX(-20%) translateY(0%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-8-s2 {
+  	transform: translateX(16%) translateY(0%) scale(1) rotateZ(0deg);
+  }
+  
+	.flip-widget-point.card-8-s3 {
+  	transform: translateX(-20%) translateY(60%) scale(1) rotateZ(-45deg);
+  }
+
+	.flip-widget-point.card-8-s4 {
+  	transform: translateX(100%) translateY(-46%) scale(1) rotateZ(0deg);
+  }
+
+	/* Active */
+
+  .circle-slide.active .flip-widget-point.card-8-s1 {
+  	transform: translateX(-40%) translateY(-8%) scale(1) rotateZ(-10.8deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-8-s2 {
+  	transform: translateX(36%) translateY(5%) scale(1) rotateZ(10deg);
+  }
+  
+  .circle-slide.active .flip-widget-point.card-8-s3 {
+  	transform: translateX(-40%) translateY(90%) scale(1) rotateZ(0deg);
+  }   
+
+  .circle-slide.active .flip-widget-point.card-8-s4 {
+  	transform: translateX(152%) translateY(-86%) scale(1) rotateZ(0deg);
+  } 
+  
+	/* Other */ 
+
+	.flip-widget-point {
+  	opacity: 0;
+    transition-delay: 0.2s; 
+  }
+  
+	.circle-slide.active .flip-widget-point {
+  	opacity: 1;
+  }

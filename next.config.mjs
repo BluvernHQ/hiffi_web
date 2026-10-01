@@ -45,12 +45,6 @@ const nextConfig = {
         destination: "/artist-index/:path*",
         permanent: true,
       },
-      { source: "/hiffi-500", destination: "/top-artists", permanent: true },
-      { source: "/hiffi-500/biggest-risers", destination: "/top-artists?mode=risers", permanent: true },
-      { source: "/hiffi-500/methodology", destination: "/top-artists/how-it-works", permanent: true },
-      { source: "/hiffi-500/city/:citySlug", destination: "/top-artists?city=:citySlug", permanent: true },
-      { source: "/hiffi-500/share/:username", destination: "/top-artists/share/:username", permanent: true },
-      { source: "/hiffi-500/:path*", destination: "/top-artists", permanent: true },
       {
         source: "/upload/migrate",
         destination: "/studio/tools/migrate",

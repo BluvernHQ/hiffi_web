@@ -95,7 +95,7 @@ function UtmFieldMeta({
 }
 
 export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
-  const { canWrite } = useAdminPermissions()
+  const { canUtmWrite } = useAdminPermissions()
   const { toast } = useToast()
   const [url, setUrl] = useState("")
   const [urlError, setUrlError] = useState("")
@@ -384,7 +384,7 @@ export function AdminUtmBuilder({ onCancel }: { onCancel?: () => void } = {}) {
               </>
             )}
           </Button>
-          {canWrite && (
+          {canUtmWrite && (
           <Button
             onClick={handleSave}
             size="lg"

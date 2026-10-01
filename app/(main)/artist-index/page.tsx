@@ -85,7 +85,7 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
 
   if (directory.unavailable) {
     return (
-      <ArtistDirectoryShell claimLabel={isCleanHub ? "Claim Now" : undefined}>
+      <ArtistDirectoryShell claimHref={null}>
         <section className="mx-auto max-w-xl rounded-[1.25rem] border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
           <h1 className="text-xl font-semibold text-foreground">
             The Artist Index is temporarily unavailable
@@ -99,7 +99,7 @@ export default async function ArtistIndexPage({ searchParams }: ArtistIndexPageP
   }
 
   return (
-    <ArtistDirectoryShell claimLabel={isCleanHub ? "Claim Now" : undefined} bleed>
+    <ArtistDirectoryShell claimHref={null} bleed>
       <JsonLd data={hubJsonLd} />
       <ArtistIndexHubClient
         initialDirectory={{

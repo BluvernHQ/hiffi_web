@@ -63,7 +63,7 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
         </div>
 
         <div className="mt-3.5 flex items-center gap-1.5">
-          <p className="font-signal min-w-0 truncate text-[1.45rem] font-bold uppercase leading-none text-[#0B0B0C] transition-colors group-hover:text-[#E8192C] sm:text-[1.6rem]">
+          <p className="font-signal -my-[0.15em] min-w-0 truncate py-[0.15em] text-[1.45rem] font-bold uppercase leading-none text-[#0B0B0C] transition-colors group-hover:text-[#E8192C] sm:text-[1.6rem]">
             {artist.name}
           </p>
           {claimState === "verified" ? (

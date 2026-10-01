@@ -48,7 +48,7 @@ export function ArtistDetailScene({ artist, otherArtists }: ArtistDetailScenePro
                     </span>
                   ) : null}
                 </div>
-                <p className="font-signal mt-3 truncate text-lg font-bold uppercase leading-none text-[#0B0B0C]">
+                <p className="font-signal -mb-[0.15em] mt-[calc(0.75rem-0.15em)] truncate py-[0.15em] text-lg font-bold uppercase leading-none text-[#0B0B0C]">
                   {other.name}
                 </p>
                 <p className="mt-1.5 truncate font-mono text-[10px] uppercase tracking-[0.22em] text-[#77726A]">

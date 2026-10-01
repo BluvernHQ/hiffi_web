@@ -49,7 +49,7 @@ function usageTone(pct: number): string {
 
 export function YoutubeApiKeysPanel() {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
+  const { canYoutubeKeysWrite } = useAdminPermissions()
   const [keys, setKeys] = useState<YoutubeApiKey[]>([])
   const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -216,7 +216,7 @@ export function YoutubeApiKeysPanel() {
             is used; if all active keys are exhausted, requests fail.
           </p>
         </div>
-        {canWrite && (
+        {canYoutubeKeysWrite && (
           <Button
             onClick={() => {
               resetCreateForm()
@@ -243,7 +243,7 @@ export function YoutubeApiKeysPanel() {
           <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">
             Add keys to the pool for artist ranking and related YouTube Data API clients.
           </p>
-          {canWrite && (
+          {canYoutubeKeysWrite && (
             <Button
               className="mt-5"
               onClick={() => {
@@ -267,7 +267,7 @@ export function YoutubeApiKeysPanel() {
                 <th className="px-4 py-3 text-left font-medium">Lifetime</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-left font-medium">Updated</th>
-                {canWrite && <th className="px-4 py-3 text-right font-medium">Actions</th>}
+                {canYoutubeKeysWrite && <th className="px-4 py-3 text-right font-medium">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -343,7 +343,7 @@ export function YoutubeApiKeysPanel() {
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {formatRelative(key.updated_at)}
                     </td>
-                    {canWrite && (
+                    {canYoutubeKeysWrite && (
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
                           <Button
