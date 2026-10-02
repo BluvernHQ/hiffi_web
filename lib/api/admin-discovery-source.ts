@@ -33,9 +33,13 @@ export async function adminListDiscoverySourceSubmissions(
   if (params.offset != null) qs.set("offset", String(params.offset))
   if (params.email?.trim()) qs.set("email", params.email.trim())
 
-  const endpoint = `/admin/discovery-source${qs.toString() ? `?${qs.toString()}` : ""}`
-  const raw = await ctx.request<unknown>(endpoint, undefined, true)
-  const data = assertSuccess<Record<string, unknown>>(raw)
+  const res = await ctx.proxyApiRequest<{
+    success?: boolean
+    data?: Record<string, unknown>
+    error?: string
+  }>("/proxy/admin-discovery-source", { method: "GET", searchParams: qs })
+
+  const data = assertSuccess<Record<string, unknown>>(res)
 
   const rawList = data.submissions
   const submissions = (Array.isArray(rawList) ? rawList : []).map((row) =>
@@ -56,11 +60,13 @@ export async function adminDeleteDiscoverySourceSubmission(
 ): Promise<{ deleted: true; id: string }> {
   if (!id.trim()) throw new Error("Submission id is required")
 
-  const raw = await ctx.request<unknown>(
-    `/admin/discovery-source/${encodeURIComponent(id.trim())}`,
-    { method: "DELETE" },
-    true,
-  )
+  const res = await ctx.proxyApiRequest<{
+    success?: boolean
+    data?: { deleted: true; id: string }
+    error?: string
+  }>(`/proxy/admin-discovery-source/${encodeURIComponent(id.trim())}`, {
+    method: "DELETE",
+  })
 
-  return assertSuccess<{ deleted: true; id: string }>(raw)
+  return assertSuccess<{ deleted: true; id: string }>(res)
 }

@@ -7,6 +7,7 @@ import {
   getPersistedScrollStorageKey,
   restoreMainContentScroll,
   saveMainContentScroll,
+  scrollMainContentToTop,
   setLastKnownMainContentScroll,
 } from "@/lib/main-content-scroll"
 
@@ -27,12 +28,17 @@ function saveScrollBeforeNavigate(storageKey: string, target?: Element | null) {
 }
 
 /**
- * Persists #main-content scroll for configured pages (home `/`, `/hip-hop`, etc.).
- * Mounted once in the main layout so save/restore survives route transitions and browser Back.
+ * Persists #main-content scroll for home and marketing pages (e.g. /hip-hop).
+ * Mounted once in the root layout so save/restore survives route transitions and browser Back.
+ *
+ * Important: when leaving a tall page for a shorter one (home → watch), the browser
+ * clamps scrollTop. Saves use preferLastKnown so that clamp does not overwrite the
+ * real home position captured while scrolling / on link press.
  */
 export function MainContentScrollCoordinator() {
   const pathname = usePathname()
   const prevPathnameRef = useRef(pathname)
+  const popNavigationRef = useRef(false)
   const activeKey = getPersistedScrollStorageKey(pathname)
 
   useLayoutEffect(() => {
@@ -44,8 +50,12 @@ export function MainContentScrollCoordinator() {
     }
 
     const nextKey = getPersistedScrollStorageKey(pathname)
+    const isPopNavigation = popNavigationRef.current
+    popNavigationRef.current = false
     if (nextKey) {
       restoreMainContentScroll(nextKey)
+    } else if (prevPathname !== pathname && !isPopNavigation && !window.location.hash) {
+      scrollMainContentToTop()
     }
 
     prevPathnameRef.current = pathname
@@ -73,6 +83,7 @@ export function MainContentScrollCoordinator() {
     }
 
     const onPopState = () => {
+      popNavigationRef.current = true
       requestAnimationFrame(() => {
         const key = getPersistedScrollStorageKey(window.location.pathname)
         if (key) restoreMainContentScroll(key)

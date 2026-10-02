@@ -42,7 +42,7 @@ export default function FcCtaBanner() {
           <div className="fc-cta-media-wrap">
             <img
               className="fc-cta-media"
-              src="/for-creators/fig/cta.jpg"
+              src="/for-creators/fig/cta.webp"
               alt=""
               loading="lazy"
             />

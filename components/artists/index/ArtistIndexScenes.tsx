@@ -73,7 +73,7 @@ export function ArtistIndexScenes({
                 {String(index + 1).padStart(2, "0")}
               </span>
               <span
-                className="font-signal min-w-0 flex-1 truncate text-[1.6rem] font-bold uppercase leading-none text-[#0B0B0C] transition-transform duration-300 group-hover:translate-x-1"
+                className="font-signal -my-[0.15em] min-w-0 flex-1 truncate py-[0.15em] text-[1.6rem] font-bold uppercase leading-none text-[#0B0B0C] transition-transform duration-300 group-hover:translate-x-1"
                 title={city.region ? `${city.label}, ${city.region}` : city.label}
               >
                 {city.label}

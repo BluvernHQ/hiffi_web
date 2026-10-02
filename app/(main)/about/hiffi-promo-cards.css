@@ -438,7 +438,7 @@
 .hj-card--spotlight {
   background:
     linear-gradient(180deg, rgb(0 0 0 / 55%) 0%, rgb(0 0 0 / 25%) 40%, rgb(0 0 0 / 55%) 100%),
-    url("/for-fans/connect/spotlight-bg.png") center / cover no-repeat;
+    url("/for-fans/connect/spotlight-bg.webp") center / cover no-repeat;
 }
 
 .hj-card-art--wide {

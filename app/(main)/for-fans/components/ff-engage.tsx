@@ -30,8 +30,8 @@ export default function FfEngage() {
               announcements, and daily updates.
             </p>
             <div className="ff-eng-photos" aria-hidden>
-              <img className="ff-eng-photo s1" src="/for-fans/engage/story-1.png" alt="" />
-              <img className="ff-eng-photo s2" src="/for-fans/engage/story-2.png" alt="" />
+              <img className="ff-eng-photo s1" src="/for-fans/carousel-1.webp" alt="" />
+              <img className="ff-eng-photo s2" src="/for-creators/hero-3.webp" alt="" />
             </div>
           </article>
 
@@ -43,12 +43,12 @@ export default function FfEngage() {
                 creators.
               </p>
               <div className="ff-eng-thumbs" aria-hidden>
-                <img src="/for-fans/carousel-1.jpg" alt="" className="ff-eng-thumb s1" />
+                <img src="/for-fans/carousel-1.webp" alt="" className="ff-eng-thumb s1" />
                 <div className="ff-eng-thumb-wrap">
-                  <img src="/for-fans/carousel-3.jpg" alt="" className="ff-eng-thumb s2" />
+                  <img src="/for-fans/carousel-3.webp" alt="" className="ff-eng-thumb s2" />
                   <span className="ff-eng-follow">Follow</span>
                 </div>
-                <img src="/for-fans/carousel-7.jpg" alt="" className="ff-eng-thumb s3" />
+                <img src="/for-fans/carousel-7.webp" alt="" className="ff-eng-thumb s3" />
               </div>
             </article>
 
@@ -58,13 +58,13 @@ export default function FfEngage() {
               <div className="ff-eng-icons" aria-hidden>
                 <img
                   {...{ "data-levitation": "1" }}
-                  src="/for-fans/heart-bubble.png"
+                  src="/for-fans/heart-bubble.webp"
                   alt=""
                   className="ff-eng-heart s1"
                 />
                 <img
                   {...{ "data-levitation": "2" }}
-                  src="/for-fans/heart-bubble.png"
+                  src="/for-fans/heart-bubble.webp"
                   alt=""
                   className="ff-eng-heart s2"
                 />
@@ -81,13 +81,13 @@ export default function FfEngage() {
             <div className="ff-eng-stars" aria-hidden>
               <img
                 {...{ "data-levitation": "1" }}
-                src="/for-fans/gold-star.png"
+                src="/for-fans/gold-star.webp"
                 alt=""
                 className="ff-eng-star s1"
               />
               <img
                 {...{ "data-levitation": "2" }}
-                src="/for-fans/gold-star.png"
+                src="/for-fans/gold-star.webp"
                 alt=""
                 className="ff-eng-star s2"
               />

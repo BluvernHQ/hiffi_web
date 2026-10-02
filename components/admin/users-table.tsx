@@ -437,12 +437,12 @@ export function AdminUsersTable() {
     const params = new URLSearchParams(
       fromWindow ? window.location.search.slice(1) : searchParams.toString(),
     )
-    if (!params.get("section")) params.set("section", "users")
     const current = params.get("source")?.trim().toLowerCase() || ""
     const next = appliedFilters.source.trim().toLowerCase()
     if (current === next) return
     if (next === "organic" || next === "inventory") params.set("source", next)
     else params.delete("source")
+    if (!params.get("section")) params.set("section", "users")
     router.replace(`/admin/dashboard?${params.toString()}`)
   }, [appliedFilters.source, router, searchParams])
 
@@ -598,7 +598,8 @@ export function AdminUsersTable() {
     searchQuery.trim() !== "" ||
     Object.values(filters).some((v) => v !== "") ||
     !!urlFilters.userUid ||
-    !!urlFilters.userUsername
+    !!urlFilters.userUsername ||
+    !!urlFilters.userSource
   const canGoPrev = page > 1
   const canGoNext = hasMore
   const pageOffset = Math.max(0, (page - 1) * limit)
@@ -1116,7 +1117,7 @@ export function AdminUsersTable() {
             <tbody>
                 {users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <td colSpan={10} className="h-32 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center py-8">
                       <p className="text-base font-medium">No users found</p>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -1200,6 +1201,11 @@ export function AdminUsersTable() {
                               ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
                               : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
                           }`}
+                          title={
+                            user.source === "inventory"
+                              ? "Seeded via artist inventory"
+                              : "Self-serve auth signup"
+                          }
                         >
                           {user.source === "inventory" ? "inventory" : user.source || "organic"}
                         </span>

@@ -20,7 +20,7 @@ function PodiumCard({ artist, lead }: { artist: TopArtist; lead: boolean }) {
     <TopChartArtistButton
       artist={artist}
       className={cn(
-        "group relative block w-full overflow-hidden rounded-[22px] bg-[#141416] text-left ring-1 transition-transform duration-500 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+        "group relative block w-full overflow-hidden rounded-2xl bg-[#141416] sm:rounded-[22px] text-left ring-1 transition-transform duration-500 [container-type:inline-size] hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
         lead ? "aspect-[3/4] ring-[#F2C662]/45" : "aspect-[3/4] ring-white/10",
       )}
     >
@@ -29,28 +29,28 @@ function PodiumCard({ artist, lead }: { artist: TopArtist; lead: boolean }) {
         decorative
         className="absolute inset-0 h-full w-full transition-transform duration-700 ease-out group-hover:scale-[1.04]"
       />
-      <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/10" aria-hidden />
+      <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/10" aria-hidden />
       <span
         className={cn(
-          "font-signal absolute left-3 top-2.5 font-bold leading-none tabular-nums sm:left-4 sm:top-3",
+          "font-signal absolute left-[clamp(0.6rem,8cqw,1rem)] top-[clamp(0.5rem,7cqw,0.75rem)] font-bold leading-none tabular-nums",
           lead
-            ? "bg-gradient-to-b from-[#FFF4CF] via-[#F2C662] to-[#C28A2A] bg-clip-text text-[length:clamp(2.75rem,4.4vw,4.25rem)] text-transparent"
-            : "text-[length:clamp(2rem,3vw,3rem)] text-white/85",
+            ? "bg-gradient-to-b from-[#FFF4CF] via-[#F2C662] to-[#C28A2A] bg-clip-text text-[length:clamp(2rem,32cqw,4.25rem)] text-transparent"
+            : "text-[length:clamp(1.5rem,26cqw,3rem)] text-white/85",
         )}
       >
         {artist.rank}
       </span>
-      <span className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
+      <span className="absolute inset-x-0 bottom-0 p-[clamp(0.6rem,8cqw,1rem)]">
         <span
           className={cn(
-            "font-signal line-clamp-2 font-bold uppercase leading-[0.92] text-[#F4F1EA]",
-            lead ? "text-[length:clamp(1.25rem,2vw,1.9rem)]" : "text-[length:clamp(1rem,1.5vw,1.35rem)]",
+            "font-signal -mt-[0.15em] line-clamp-2 break-words pt-[0.15em] font-bold uppercase leading-[0.92] text-[#F4F1EA]",
+            lead ? "text-[length:clamp(0.95rem,15cqw,1.9rem)]" : "text-[length:clamp(0.85rem,14cqw,1.35rem)]",
           )}
         >
           {artist.artist_name}
         </span>
         {place ? (
-          <span className="mt-1.5 block truncate font-mono text-[9px] uppercase tracking-[0.22em] text-white/55 sm:text-[10px]">
+          <span className="mt-[clamp(0.25rem,3cqw,0.375rem)] block truncate font-mono text-[length:clamp(8px,8cqw,10px)] uppercase tracking-[0.18em] text-white/55">
             {place}
           </span>
         ) : null}
@@ -121,10 +121,10 @@ export function TopChartMasthead({ podium, chartWeek, totalRanked, cityCount }: 
               <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-white/50 sm:text-[11px]">
                 This week’s top three
               </p>
-              <ol className="grid grid-cols-[1fr_1.18fr_1fr] items-end gap-2.5 sm:gap-3">
+              <ol className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.18fr)_minmax(0,1fr)] items-end gap-2 sm:gap-3">
                 {[second, first, third].map((artist, index) =>
                   artist ? (
-                    <li key={artist.username} className={cn(index === 1 && "pb-5 sm:pb-8")}>
+                    <li key={artist.username} className={cn("min-w-0", index === 1 && "pb-5 sm:pb-8")}>
                       <PodiumCard artist={artist} lead={index === 1} />
                     </li>
                   ) : (

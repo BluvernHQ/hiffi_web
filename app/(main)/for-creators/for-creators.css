@@ -87,6 +87,9 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  /* background-clip: text only paints inside the box; line-height 0.9 cuts off descenders (g, y). */
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
 }
 
 .fc-page .creator-hero-sc .description-wrapper .subheadline-l {

@@ -396,7 +396,8 @@ function DiscoverySourceCell({ claim }: { claim: InventoryClaim }) {
 
 export function InventoryClaimsTable() {
   const { toast } = useToast()
-  const { canInventoryClaimsWrite } = useAdminPermissions()
+  const { can } = useAdminPermissions()
+  const canInventoryClaimsWrite = can("inventory.claims:write")
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
   const [rows, setRows] = useState<InventoryClaim[]>([])

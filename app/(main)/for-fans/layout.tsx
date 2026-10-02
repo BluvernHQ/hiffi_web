@@ -1,4 +1,5 @@
 import { Poppins } from "next/font/google";
+import { routeMetadata } from "@/lib/seo/route-metadata";
 import AboutSiteFooter from "../about/components/hiffi-about/about-site-footer";
 import "../about/hiffi-about.css";
 import "../about/hiffi-promo-cards.css";
@@ -7,6 +8,20 @@ import "./for-fans.css";
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["100", "200", "300", "400", "500", "600", "700", "800"],
+});
+
+export const metadata = routeMetadata({
+  title: "For Fans",
+  description:
+    "Enhance your fandom on Hiffi. Discover independent hip-hop and rap artists, engage with their music videos, connect authentically, and support your favorites.",
+  path: "/for-fans",
+  keywords: [
+    "Hiffi for fans",
+    "discover hip-hop artists",
+    "rap music videos",
+    "support independent artists",
+    "hip-hop community",
+  ],
 });
 
 export default function ForFansLayout({ children }: { children: React.ReactNode }) {

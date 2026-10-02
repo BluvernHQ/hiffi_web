@@ -8,7 +8,7 @@ import { OfflineState } from "@/components/network/offline-state"
 import { useAuth } from '@/lib/auth-context'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
-import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors'
+import { isConnectivityError, networkErrorTitle, userFacingNetworkMessage } from '@/lib/network-errors'
 import { Loader2, Video } from 'lucide-react'
 
 const VIDEOS_PER_PAGE = 10
@@ -114,7 +114,7 @@ export default function FollowingPage() {
           setOfflineMessage(userFacingNetworkMessage())
         }
         toast({
-          title: isConnectivityError(error) ? "No internet connection" : "Error",
+          title: isConnectivityError(error) ? networkErrorTitle() : "Error",
           description: isConnectivityError(error)
             ? userFacingNetworkMessage()
             : "Failed to load videos from creators you follow",

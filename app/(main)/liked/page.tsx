@@ -9,7 +9,7 @@ import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { GuestLikedView } from "@/components/conversion/guest-liked-view"
 import { useToast } from "@/hooks/use-toast"
-import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
+import { isConnectivityError, networkErrorTitle, userFacingNetworkMessage } from "@/lib/network-errors"
 
 const VIDEOS_PER_PAGE = 20
 
@@ -119,7 +119,7 @@ export default function LikedVideosPage() {
           setOfflineMessage(userFacingNetworkMessage())
         }
         toast({
-          title: isConnectivityError(error) ? "No internet connection" : "Error",
+          title: isConnectivityError(error) ? networkErrorTitle() : "Error",
           description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load liked videos",
           variant: "destructive",
         })

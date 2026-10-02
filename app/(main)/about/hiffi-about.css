@@ -1321,7 +1321,7 @@ footer.footer .footer-bg {
       transparent 85%,
       var(--jam--oil-black, #0c0b0c)
     ),
-    url("/hiffi-about/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png"); */
+    url("/hiffi-about/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.webp"); */
 }
 
 /* Mobile benefits — size "The Hiffi Experience" + avoid mid-scrub flashes */
@@ -1410,8 +1410,8 @@ footer.footer .footer-bg {
 }
 
 .value-slider {
-  -webkit-mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.png");
-  mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.png");
+  -webkit-mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.webp");
+  mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.webp");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -1421,7 +1421,7 @@ footer.footer .footer-bg {
 }
 
 .values-card-light.s1 {
-  background-image: url("/hiffi-about/6821a59ae3bfe30071342502_velue-card-lights-1.png");
+  background-image: url("/hiffi-about/6821a59ae3bfe30071342502_velue-card-lights-1.webp");
 }
 
 .values-card-position.s1 .values-card-headline .headline-h5,
@@ -1685,7 +1685,7 @@ footer.footer .footer-bg {
 }
 
 .values-card-light.s2 {
-  background-image: url("/hiffi-about/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.png");
+  background-image: url("/hiffi-about/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.webp");
 }
 
 .values-video {
@@ -1845,15 +1845,15 @@ footer.footer .footer-bg {
 
 /* iPhone bezel asset */
 .iphone-frame::before {
-  background-image: url("/hiffi-about/67e2d9f393f49b4a78afdfc1_iphone.png") !important;
+  background-image: url("/hiffi-about/67e2d9f393f49b4a78afdfc1_iphone.webp") !important;
 }
 
 
 /* Screen clip to phone glass; no UI chrome overlay */
 .benefits-sticky .screen-video-embed,
 .benefits-sticky .iphone-pop-area {
-  -webkit-mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;
-  mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;
+  -webkit-mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.webp") !important;
+  mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.webp") !important;
   -webkit-mask-repeat: no-repeat !important;
   mask-repeat: no-repeat !important;
   -webkit-mask-size: contain !important;
@@ -2145,11 +2145,11 @@ footer.footer .footer-bg {
 
 /* For-creators tools section — local bg (archive CDN URLs expire) */
 .container.tools-s {
-  background-image: url("/hiffi-about/6821a59ae3bfe300713425c4_tools-bg.png") !important;
+  background-image: url("/hiffi-about/6821a59ae3bfe300713425c4_tools-bg.webp") !important;
 }
 
 @media screen and (max-width: 991px) {
   .container.tools-s {
-    background-image: url("/hiffi-about/6821a59ae3bfe300713425e4_tools-bg-p.png") !important;
+    background-image: url("/hiffi-about/6821a59ae3bfe300713425e4_tools-bg-p.webp") !important;
   }
 }

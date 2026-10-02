@@ -265,7 +265,8 @@ export type CreatorQuality = {
   population?: CreatorPopulation
   upload_rate: number
   conversions: {
-    first_upload_vs_approved: number
+    /** Organic: `first_upload_vs_approved`. Claimed: `first_upload_vs_claimed`. */
+    first_upload: number
   }
   top_cities: Array<{ label: string; count: number }>
   top_genres: Array<{ label: string; count: number }>
@@ -658,8 +659,10 @@ function claimsDaily(raw: unknown): ClaimsDailySnapshot {
 
 function labelCountRow(raw: unknown): { label: string; count: number } {
   const r = asRecord(raw)
+  const label =
+    str(r.label) || str(r.source) || str(r.city) || str(r.genre) || str(r.key)
   return {
-    label: str(r.label) || str(r.source) || str(r.key) || "Unknown",
+    label: !label || label.toLowerCase() === "(unknown)" ? "Unknown" : label,
     count: num(r.count ?? r.total),
   }
 }
@@ -880,7 +883,9 @@ export function normalizeCreatorQuality(raw: unknown): CreatorQuality {
     ...dateMeta(r),
     upload_rate: num(r.upload_rate),
     conversions: {
-      first_upload_vs_approved: num(conversions.first_upload_vs_approved),
+      first_upload: num(
+        conversions.first_upload_vs_claimed ?? conversions.first_upload_vs_approved,
+      ),
     },
     top_cities: Array.isArray(r.top_cities) ? r.top_cities.map(labelCountRow) : [],
     top_genres: Array.isArray(r.top_genres) ? r.top_genres.map(labelCountRow) : [],

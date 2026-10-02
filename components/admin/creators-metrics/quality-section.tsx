@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Loader2, RefreshCw } from "lucide-react"
 import { adminApiClient } from "@/lib/admin-api-client"
 import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
@@ -8,7 +9,7 @@ import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { MetricStatGrid, MetricsEmpty } from "@/components/admin/creators-metrics/metric-cards"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatCount, formatRate } from "@/lib/admin/creator-nav"
+import { creatorsDashboardHref, formatCount, formatRate } from "@/lib/admin/creator-nav"
 import type {
   CreatorDateRange,
   CreatorPopulation,
@@ -91,60 +92,29 @@ export function QualitySection({
             value: formatRate(data.upload_rate),
           },
           {
-            label: "First upload vs approved",
-            value: formatRate(data.conversions.first_upload_vs_approved),
+            label: population === "claimed" ? "First upload vs claimed" : "First upload vs approved",
+            value: formatRate(data.conversions.first_upload),
           },
         ]}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle>Top cities</CardTitle>
-            <CardDescription>Up to 20 cities by creator count.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-80 overflow-y-auto">
-            {data.top_cities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No city data.</p>
-            ) : (
-              data.top_cities.map((row, index) => (
-                <div
-                  key={`city-${index}-${row.label}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <span className="truncate">{row.label}</span>
-                  <span className="tabular-nums text-muted-foreground shrink-0">
-                    {formatCount(row.count)}
-                  </span>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle>Top genres</CardTitle>
-            <CardDescription>Up to 20 genres by creator count.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-80 overflow-y-auto">
-            {data.top_genres.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No genre data.</p>
-            ) : (
-              data.top_genres.map((row, index) => (
-                <div
-                  key={`genre-${index}-${row.label}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <span className="truncate">{row.label}</span>
-                  <span className="tabular-nums text-muted-foreground shrink-0">
-                    {formatCount(row.count)}
-                  </span>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+        <LabelCountCard
+          title="Top cities"
+          description="Up to 20 cities by creator count."
+          empty="No city data."
+          rows={data.top_cities}
+          filterKey="city"
+          population={population}
+        />
+        <LabelCountCard
+          title="Top genres"
+          description="Up to 20 genres by creator count."
+          empty="No genre data."
+          rows={data.top_genres}
+          filterKey="genre"
+          population={population}
+        />
       </div>
 
       <Card className="border-2">
@@ -168,5 +138,70 @@ export function QualitySection({
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function LabelCountCard({
+  title,
+  description,
+  empty,
+  rows,
+  filterKey,
+  population,
+}: {
+  title: string
+  description: string
+  empty: string
+  rows: Array<{ label: string; count: number }>
+  filterKey: "city" | "genre"
+  population: CreatorPopulation
+}) {
+  const rowClass = "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+  return (
+    <Card className="border-2">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2 max-h-80 overflow-y-auto">
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{empty}</p>
+        ) : (
+          rows.map((row, index) => {
+            const content = (
+              <>
+                <span className={cn("truncate", row.label === "Unknown" && "text-muted-foreground")}>
+                  {row.label}
+                </span>
+                <span className="tabular-nums text-muted-foreground shrink-0">
+                  {formatCount(row.count)}
+                </span>
+              </>
+            )
+            const key = `${filterKey}-${index}-${row.label}`
+            if (row.label === "Unknown") {
+              return (
+                <div key={key} className={rowClass}>
+                  {content}
+                </div>
+              )
+            }
+            return (
+              <Link
+                key={key}
+                href={creatorsDashboardHref({
+                  view: "directory",
+                  [filterKey]: row.label,
+                  creators_pop: population === "claimed" ? "claimed" : undefined,
+                })}
+                className={cn(rowClass, "hover:bg-muted/50 transition-colors")}
+              >
+                {content}
+              </Link>
+            )
+          })
+        )}
+      </CardContent>
+    </Card>
   )
 }

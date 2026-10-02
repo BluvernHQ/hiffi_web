@@ -20,6 +20,7 @@ const SIDEBAR_STORAGE_KEY = 'hiffi_sidebar_desktop_open'
 function isSidebarForcedClosedPath(pathname: string | null): boolean {
   if (!pathname) return false
   if (pathname === "/app") return true
+  if (/^\/(artist-index|top-artists)(\/|$)/.test(pathname)) return true
   // /profile/{username}/edit
   return /^\/profile\/[^/]+\/edit\/?$/.test(pathname)
 }

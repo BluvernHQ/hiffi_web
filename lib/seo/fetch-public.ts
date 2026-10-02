@@ -396,11 +396,6 @@ export type HomeFeedVideo = {
   [key: string]: unknown
 }
 
-/**
- * Fetches the first page of public videos for the homepage.
- * Used by the server component to provide initial HTML for crawlers.
- * Not cached — matches live backend order and new uploads on every request.
- */
 /** Flatten /videos/list/{username} items to the shape used in profile grids. */
 function flattenUserVideoListItems(rawVideos: unknown[]): Record<string, unknown>[] {
   if (!Array.isArray(rawVideos)) return []
@@ -487,21 +482,30 @@ export const fetchUserVideosInitial = cache(
   },
 )
 
-export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
-  try {
-    const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
-    const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    })
-    if (!res.ok) return []
-    const json = await res.json()
-    const { videos } = normalizeVideoListPayload(json)
-    return videos as HomeFeedVideo[]
-  } catch {
-    return []
-  }
-}
+/**
+ * Fetches the first page of public videos for the homepage.
+ * Used by the server snapshot and JSON-LD. React cache deduplicates those calls
+ * within one render; the no-store request still gets fresh data per page request.
+ */
+export const fetchHomeFeedInitial = cache(
+  async (limit = 10, seed?: string): Promise<HomeFeedVideo[]> => {
+    try {
+      const qs = new URLSearchParams({ limit: String(limit), offset: "0" })
+      if (seed) qs.set("seed", seed)
+      const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
+        headers: { "Content-Type": "application/json" },
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(2500),
+      })
+      if (!res.ok) return []
+      const json = await res.json()
+      const { videos } = normalizeVideoListPayload(json)
+      return videos as HomeFeedVideo[]
+    } catch {
+      return []
+    }
+  },
+)
 
 export type SitemapVideoEntry = {
   videoId: string
@@ -529,6 +533,7 @@ export async function fetchVideoEntriesForSitemap(maxVideos = 50_000): Promise<S
       const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
         headers: { "Content-Type": "application/json" },
         next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) break
 

@@ -174,7 +174,7 @@ function DrawerBody({ selection }: { selection: Selection }) {
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Profile
           </button>
-          <Dialog.Title className="font-signal min-w-0 truncate text-xl font-bold uppercase leading-none">
+          <Dialog.Title className="font-signal -my-[0.15em] min-w-0 truncate py-[0.15em] text-xl font-bold uppercase leading-none">
             {artist.artist_name}
           </Dialog.Title>
           <Dialog.Close className={cn(headerButton, "w-9")}>
@@ -242,7 +242,7 @@ function DrawerProfile({
 
   return (
     <>
-      <header className="relative isolate overflow-hidden border-b border-white/10 bg-[#0B0B0C] px-6 pb-7 pt-6 text-[#F4F1EA] sm:px-8">
+      <header className="relative isolate shrink-0 overflow-hidden border-b border-white/10 bg-[#0B0B0C] px-6 pb-7 pt-6 text-[#F4F1EA] sm:px-8">
         {photo ? (
           <div
             className="absolute inset-0 -z-10 scale-125 bg-cover bg-center opacity-35 blur-2xl"

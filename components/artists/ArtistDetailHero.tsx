@@ -8,6 +8,7 @@ import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
 import { ArtistRankSignals, publicRankSummary } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
+import { shouldShowProfileFollowerCount } from "@/lib/video-utils"
 
 type ArtistDetailHeroProps = {
   artist: Artist
@@ -74,22 +75,6 @@ export function ArtistDetailHero({
               : "to unlock"}{" "}
             brand sponsorships, paid collaborations, partner offers, and benefits worth up to $10K for
             select creators.
-          </p>
-        </div>
-      ) : null}
-
-      {isPending ? (
-        <div className="mb-3 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 sm:mb-4 sm:px-5">
-          <p className="text-sm text-amber-950">
-            <span className="font-semibold">This profile has a pending ownership verification.</span>{" "}
-            If you believe you are the rightful owner, you can{" "}
-            <Link
-              href={claimHref}
-              className="font-semibold text-amber-950 underline-offset-2 hover:underline"
-            >
-              request ownership
-            </Link>
-            .
           </p>
         </div>
       ) : null}
@@ -197,7 +182,7 @@ export function ArtistDetailHero({
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/75 sm:gap-x-5 sm:text-sm sm:tracking-[0.16em]">
-                  {followerCount != null && followerCount > 0 ? (
+                  {followerCount != null && shouldShowProfileFollowerCount(followerCount) ? (
                     <span>{formatTotalReach(followerCount, false)} Total Reach</span>
                   ) : null}
                   {hiffiVideoCount > 0 ? <span>{hiffiVideoCount} Hiffi Videos</span> : null}

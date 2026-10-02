@@ -165,20 +165,12 @@ export default function HiffiHeader() {
             <div className="nav-menu">
               <div ref={navLinksRef} className="nav-links">
                 <Link
-                  aria-label="How it works"
-                  href="/how-it-works"
-                  className="nav-link w-nav-link"
+                  aria-label="About Hiffi"
+                  href="/about"
+                  className={`nav-link w-nav-link${pathname === "/about" ? " w--current" : ""}`}
                   onClick={closeMenu}
                 >
-                  How it works
-                </Link>
-                <Link
-                  aria-label="Artists"
-                  href="/artists"
-                  className="nav-link w-nav-link"
-                  onClick={closeMenu}
-                >
-                  Artists
+                  About
                 </Link>
                 <Link
                   aria-label="For creators"

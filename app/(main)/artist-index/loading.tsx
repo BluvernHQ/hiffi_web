@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 export default function ArtistIndexLoading() {
   return (
-    <ArtistDirectoryShell claimLabel="Claim Now" bleed>
+    <ArtistDirectoryShell claimHref={null} bleed>
       <div aria-busy aria-live="polite">
         <section className="relative isolate overflow-hidden bg-[#0B0B0C]">
           <div

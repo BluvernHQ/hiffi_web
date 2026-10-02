@@ -99,7 +99,7 @@ export default function HiffiAboutBenefits() {
                       muted
                       preload="auto"
                       className="benefits-screen-video"
-                      poster={hiffiAboutAsset("values-stock-live-performance.jpg")}
+                      poster={hiffiAboutAsset("values-stock-live-performance-jpg.webp")}
                     >
                       <source src={hiffiAboutAsset("benefits-screen-video.mp4")} type="video/mp4" />
                     </video>
@@ -169,7 +169,7 @@ export default function HiffiAboutBenefits() {
                               <div className="values-video">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={hiffiAboutAsset("values-stock-live-performance.jpg")}
+                                  src={hiffiAboutAsset("values-stock-live-performance-jpg.webp")}
                                   alt="Hip-hop artist performing"
                                   className="image-cover"
                                 />
@@ -200,7 +200,7 @@ export default function HiffiAboutBenefits() {
                           <div className="values-artist">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={hiffiAboutAsset("image5.jpg")}
+                              src={hiffiAboutAsset("image5-jpg.webp")}
                               alt="Fans discovering artists on Hiffi"
                               className="image-cover"
                             />

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
@@ -22,7 +22,20 @@ import { NavbarProfileAvatar } from "@/components/profile/navbar-profile-avatar"
 import { SearchOverlay } from "@/components/search/search-overlay"
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useState, useEffect } from "react"
+import { useState, useEffect, type MouseEvent } from "react"
+import { requestHomeFeedHardReload } from "@/lib/home-feed-session"
+
+function handleLogoClick(event: MouseEvent<HTMLAnchorElement>, pathname: string, router: ReturnType<typeof useRouter>) {
+  // YouTube-style: always hard-reload discover (new seed + scroll top), even when already on `/`.
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+    return
+  }
+  event.preventDefault()
+  requestHomeFeedHardReload()
+  if (pathname !== "/") {
+    router.push("/")
+  }
+}
 
 
 interface NavbarProps {
@@ -47,10 +60,18 @@ function navbarSectionLink(pathname: string | null) {
 }
 
 function MinimalNavbarHeader() {
+  const pathname = usePathname()
+  const router = useRouter()
+
   return (
     <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-2 sm:px-3 md:px-4">
-        <Link href="/" className="flex items-center gap-3" data-analytics-name="appbar-logo">
+        <Link
+          href="/"
+          className="flex items-center gap-3"
+          data-analytics-name="appbar-logo"
+          onClick={(event) => handleLogoClick(event, pathname, router)}
+        >
           <Image
             src="/appbarlogo.png"
             alt="Hiffi Logo"
@@ -92,6 +113,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : undefined
   const isAppDownloadPage = pathname === "/app"
@@ -181,13 +203,18 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
-            <Link href="/" className="flex items-center gap-3" data-analytics-name="appbar-logo">
+            <Link
+              href="/"
+              className="flex items-center gap-3"
+              data-analytics-name="appbar-logo"
+              onClick={(event) => handleLogoClick(event, pathname, router)}
+            >
               <Image
                 src="/appbarlogo.png"
                 alt="Hiffi Logo"
                 width={132}
                 height={32}
-                className="h-8 w-auto object-contain"
+                className="h-8 w-auto object-contain max-[360px]:h-7"
                 style={{ width: "auto" }}
                 priority
               />
@@ -356,7 +383,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 <Button
                   asChild
                   variant="ghost"
-                  className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent"
+                  className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent max-[360px]:hidden"
                   data-analytics-name="navbar-login-button"
                 >
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>

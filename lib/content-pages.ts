@@ -26,6 +26,7 @@ export const SIDEBAR_FOOTER_DISCOVER_LINKS: ContentPageLink[] = [
   { href: "/advertising", label: "Advertising" },
   { href: "/creators-for-change", label: "Creators for Change" },
   { href: "/creator-playbook", label: "Creator Playbook" },
+  { href: "/feature-request", label: "Request a feature" },
   { href: "/hip-hop", label: "Hip-Hop" },
   { href: "/artist-index", label: "Artist Index" },
   { href: "/top-artists", label: "Hiffi 500" },
@@ -89,6 +90,8 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   priority: number
 }> = [
   { path: "/about", changeFrequency: "monthly", priority: 0.88 },
+  { path: "/for-creators", changeFrequency: "monthly", priority: 0.84 },
+  { path: "/for-fans", changeFrequency: "monthly", priority: 0.84 },
   { path: "/what-is-hiffi", changeFrequency: "monthly", priority: 0.82 },
   { path: "/how-it-works", changeFrequency: "monthly", priority: 0.8 },
   { path: "/artists", changeFrequency: "monthly", priority: 0.85 },

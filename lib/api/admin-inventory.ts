@@ -195,7 +195,6 @@ export async function adminApproveInventoryClaim(
   return normalizeInventoryClaimApproveResponse(data)
 }
 
-/** Re-sends the approval email (sign-in link or fresh onboarding link) for an approved claim. */
 export async function adminResendInventoryClaimEmail(
   ctx: AdminApiClientContext,
   claimID: string,

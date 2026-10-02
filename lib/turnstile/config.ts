@@ -3,16 +3,24 @@ export function getTurnstileSiteKey(): string {
   return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || ""
 }
 
+function isLocalDevHost(): boolean {
+  if (typeof window === "undefined") {
+    return process.env.NODE_ENV === "development"
+  }
+  const host = window.location.hostname
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]"
+}
+
 /**
  * True when the widget should render and forms must obtain a token before submit.
  *
  * Production / `next start`: on when a site key is configured.
- * `next dev`: off on localhost and all dev hostnames unless
- * `NEXT_PUBLIC_TURNSTILE_FORCE=true`.
+ * `next dev` and localhost: off unless `NEXT_PUBLIC_TURNSTILE_FORCE=true`.
  */
 export function isTurnstileEnabled(): boolean {
   if (!getTurnstileSiteKey()) return false
   if (process.env.NEXT_PUBLIC_TURNSTILE_FORCE === "true") return true
+  if (isLocalDevHost()) return false
   if (process.env.NODE_ENV === "development") return false
   return true
 }

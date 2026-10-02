@@ -62,7 +62,7 @@ export function DiscoveryPromoCards() {
           <span className="hj-mock-badge">Stories</span>
           <img
             className="hj-mock-phone hj-mock-phone--studio"
-            src="/for-creators/discovery/phone-studio-top.png"
+            src="/for-creators/discovery/phone-studio-top.webp"
             alt=""
             width={238}
             height={233}
@@ -79,7 +79,7 @@ export function DiscoveryPromoCards() {
         <div className="hj-mock-feed">
           <img
             className="hj-mock-phone hj-mock-phone--feed"
-            src="/for-creators/discovery/phone-feed-top.png"
+            src="/for-creators/discovery/phone-feed-top.webp"
             alt=""
             width={314}
             height={308}
@@ -131,7 +131,7 @@ export function CreationPromoCards() {
         <div className="hj-card-art-wrap">
           <img
             className="hj-card-art"
-            src="/for-creators/cards/clapper.png"
+            src="/for-creators/cards/clapper.webp"
             alt=""
             width={185}
             height={212}
@@ -151,7 +151,7 @@ export function CreationPromoCards() {
         <div className="hj-card-art-wrap">
           <img
             className="hj-card-art hj-card-art--chart"
-            src="/for-creators/cards/chart.png"
+            src="/for-creators/cards/chart.webp"
             alt=""
             width={199}
             height={212}
@@ -206,7 +206,7 @@ export function FansDiscoverPromoCards() {
           <span className="hj-mock-badge">Stories</span>
           <img
             className="hj-mock-phone hj-mock-phone--studio"
-            src="/for-fans/discovery/phone-stories.png"
+            src="/for-fans/discovery/phone-stories.webp"
             alt=""
             width={225}
             height={215}
@@ -224,7 +224,7 @@ export function FansDiscoverPromoCards() {
         <div className="hj-mock-feed">
           <img
             className="hj-mock-phone hj-mock-phone--feed"
-            src="/for-fans/discovery/phone-profile.png"
+            src="/for-fans/discovery/phone-profile.webp"
             alt=""
             width={286}
             height={283}
@@ -272,9 +272,9 @@ export function FansConnectPromoCards() {
           Dive into trending music videos and discover what&apos;s new in the HIFFI community.
         </p>
         <div className="hj-fan-stack" aria-hidden>
-          <img className="hj-fan-tile s1" src="/for-fans/connect/watch-1.png" alt="" />
-          <img className="hj-fan-tile s2" src="/for-fans/connect/watch-3.png" alt="" />
-          <img className="hj-fan-tile s3" src="/for-fans/connect/watch-2.png" alt="" />
+          <img className="hj-fan-tile s1" src="/for-fans/carousel-3.webp" alt="" />
+          <img className="hj-fan-tile s2" src="/for-fans/carousel-1.webp" alt="" />
+          <img className="hj-fan-tile s3" src="/for-fans/connect/watch-2.webp" alt="" />
           <img className="hj-fan-play" src="/for-fans/connect/watch-play.svg" alt="" />
         </div>
       </article>
@@ -284,11 +284,11 @@ export function FansConnectPromoCards() {
         <p className="hj-card-sub hj-card-sub--tight">Meet creators shaping the culture.</p>
         <div className="hj-spot-thumbs" aria-hidden>
           <div className="hj-spot-thumb s1">
-            <img src="/for-fans/connect/spot-1.png" alt="" />
+            <img src="/for-fans/connect/spot-1.webp" alt="" />
             <img className="hj-spot-plus" src="/for-fans/connect/spot-plus.svg" alt="" />
           </div>
           <div className="hj-spot-thumb s2">
-            <img src="/for-fans/connect/watch-2.png" alt="" />
+            <img src="/for-fans/connect/watch-2.webp" alt="" />
             <img className="hj-spot-plus" src="/for-fans/connect/spot-plus.svg" alt="" />
           </div>
         </div>
@@ -305,7 +305,7 @@ export function FansConnectPromoCards() {
         <div className="hj-mock-feed">
           <img
             className="hj-mock-phone hj-mock-phone--feed"
-            src="/for-fans/connect/phone-culture.png"
+            src="/for-fans/connect/phone-culture.webp"
             alt=""
             width={295}
             height={269}
@@ -320,9 +320,9 @@ export function FansConnectPromoCards() {
           conversations that keep hip-hop alive.
         </p>
         <div className="hj-crew-art" aria-hidden>
-          <img className="hj-crew-ava a1" src="/for-fans/connect/crew-1.png" alt="" />
-          <img className="hj-crew-ava a2" src="/for-fans/connect/crew-3.png" alt="" />
-          <img className="hj-crew-ava a3" src="/for-fans/connect/crew-2.png" alt="" />
+          <img className="hj-crew-ava a1" src="/for-fans/connect/crew-1.webp" alt="" />
+          <img className="hj-crew-ava a2" src="/for-fans/connect/crew-3.webp" alt="" />
+          <img className="hj-crew-ava a3" src="/for-fans/connect/crew-2.webp" alt="" />
         </div>
         <ul className="hj-crew-list">
           <li>

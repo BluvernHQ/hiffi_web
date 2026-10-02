@@ -15,7 +15,6 @@ export default function ForCreatorsHome() {
     const previousFontSize = html.style.fontSize;
     const previousScrollRestoration = history.scrollRestoration;
     const hadWModJs = html.classList.contains("w-mod-js");
-    const hadRemScale = html.classList.contains("joyjam-rem-scale");
 
     history.scrollRestoration = "manual";
     if (html.style.fontSize === "1vw") html.style.fontSize = "";
@@ -24,10 +23,13 @@ export default function ForCreatorsHome() {
     window.scrollTo(0, 0);
 
     return () => {
-      html.style.fontSize = previousFontSize;
+      // The pre-paint script in app/layout.tsx sets the rem scale before mount on hard loads,
+      // so "previous" state can't be trusted — always drop it when leaving the page.
+      html.style.fontSize =
+        previousFontSize === "1svw" || previousFontSize === "1vw" ? "" : previousFontSize;
       history.scrollRestoration = previousScrollRestoration;
       if (!hadWModJs) html.classList.remove("w-mod-js");
-      if (!hadRemScale) html.classList.remove("joyjam-rem-scale");
+      html.classList.remove("joyjam-rem-scale");
     };
   }, []);
 

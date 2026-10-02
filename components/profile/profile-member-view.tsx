@@ -11,7 +11,7 @@ import { resolveUserBannerUrl } from "@/lib/artist-directory"
 import {
   getProfileFollowerCount,
   getProfileFollowingCount,
-  shouldShowPublicFollowerCount,
+  shouldShowProfileFollowerCount,
   shouldShowPublicFollowingCount,
 } from "@/lib/video-utils"
 
@@ -52,7 +52,7 @@ export function ProfileMemberView(props: {
 
   const followerCount = getProfileFollowerCount(profileUser)
   const followingCount = getProfileFollowingCount(profileUser)
-  const showFollowerCount = shouldShowPublicFollowerCount(followerCount)
+  const showFollowerCount = shouldShowProfileFollowerCount(followerCount)
   const showFollowingCount = shouldShowPublicFollowingCount(followingCount)
 
   return (

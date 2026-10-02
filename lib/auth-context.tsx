@@ -52,7 +52,10 @@ interface AuthContextType {
   }) => Promise<any | null>
   /** `stayOnPage` skips the post-logout redirect (e.g. switching accounts on /login). */
   logout: (options?: { stayOnPage?: boolean }) => Promise<void>
-  refreshUserData: (forceRefresh?: boolean) => Promise<any | null>
+  refreshUserData: (
+    forceRefresh?: boolean,
+    options?: { keepSessionOnFailure?: boolean },
+  ) => Promise<any | null>
   /** Clear profile photo in auth cache/state immediately (used by navbar). */
   clearProfilePhoto: () => void
 }
@@ -138,7 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }, [userData])
 
-  const refreshUserData = useCallback(async (forceRefresh = false): Promise<any | null> => {
+  const refreshUserData = useCallback(async (
+    forceRefresh = false,
+    options?: { keepSessionOnFailure?: boolean },
+  ): Promise<any | null> => {
+    const keepSessionOnFailure = options?.keepSessionOnFailure === true
     const token = apiClient.getAuthToken()
     if (!token) {
       debugLog("[hiffi] No auth token, skipping user data refresh")
@@ -227,9 +234,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return newUserData
       } else {
         debugWarn("[hiffi] API returned unsuccessful response or user not found in backend")
-        setUser(null)
-        setUserData(null)
-        apiClient.clearAuthToken()
+        if (!keepSessionOnFailure) {
+          setUser(null)
+          setUserData(null)
+          apiClient.clearAuthToken()
+        }
         return null
       }
     } catch (error: unknown) {
@@ -238,15 +247,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If unauthorized (401), clear token and sign out
       const err = error as { status?: number } | null
       if (err?.status === 401 || err?.status === 404) {
-        console.warn("[hiffi] Unauthorized or user not found, clearing auth")
-        apiClient.clearAuthToken()
-        setUser(null)
-        setUserData(null)
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(USER_DATA_KEY)
-          localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+        if (!keepSessionOnFailure) {
+          console.warn("[hiffi] Unauthorized or user not found, clearing auth")
+          apiClient.clearAuthToken()
+          setUser(null)
+          setUserData(null)
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(USER_DATA_KEY)
+            localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+          }
+        } else {
+          debugWarn("[hiffi] Profile fetch failed after auth; keeping session from register/login response")
         }
-      } else {
+      } else if (!keepSessionOnFailure) {
         setUser(null)
         setUserData(null)
         // Clear cached data on error
@@ -457,7 +470,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       debugLog("[hiffi] Refreshing user data from /users/{username} to get latest details")
       let finalUserData: any = response.data.user
       try {
-        const refreshedUserData = await refreshUserData(true) // Force refresh to get latest data
+        const refreshedUserData = await refreshUserData(true, { keepSessionOnFailure: true })
         if (refreshedUserData) {
           finalUserData = refreshedUserData
           debugLog("[hiffi] User data refreshed, role:", refreshedUserData.role)
@@ -467,6 +480,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         debugWarn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
         // Continue with login response data if refresh fails
       }
+
+      // refreshUserData may fail without clearing session; ensure auth state matches login payload.
+      if (!apiClient.getAuthToken()) {
+        apiClient.setAuthToken(response.data.token)
+      }
+      setUser(response.data.user)
+      setUserData(normalizeUserProfilePictureFields(finalUserData))
 
       debugLog("[hiffi] User data set after login")
 
@@ -513,30 +533,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
       })
 
-      if (!response.success || !response.data?.token || !response.data.user) {
+      if (!response.success || !response.data?.user) {
         const errorMessage = response.error || "Registration failed. Please try again."
         return { success: false, error: errorMessage }
       }
 
-      debugLog("[hiffi] Registration successful, user:", response.data.user.username)
+      let sessionUser = response.data.user
+      let sessionToken = response.data.token
 
-      setUser(response.data.user)
-      setUserData(normalizeUserProfilePictureFields(response.data.user))
-      identifyAnalyticsUser(response.data.user.username || null)
+      // Instant signup: register should return a token; if not, sign in immediately.
+      if (!sessionToken) {
+        debugLog("[hiffi] Register returned no token — signing in with new credentials")
+        const loginResponse = await apiClient.login({
+          username,
+          password,
+          ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+        })
+        if (!loginResponse.success || !loginResponse.data?.token) {
+          return {
+            success: false,
+            error: "Account created but automatic sign-in failed. Please sign in manually.",
+          }
+        }
+        sessionUser = loginResponse.data.user
+        sessionToken = loginResponse.data.token
+      }
+
+      debugLog("[hiffi] Registration successful, user:", sessionUser.username)
+
+      setUser(sessionUser)
+      setUserData(normalizeUserProfilePictureFields(sessionUser))
+      identifyAnalyticsUser(sessionUser.username || null)
 
       if (typeof window !== "undefined") {
         localStorage.setItem(
           USER_DATA_KEY,
-          JSON.stringify(normalizeUserProfilePictureFields(response.data.user)),
+          JSON.stringify(normalizeUserProfilePictureFields(sessionUser)),
         )
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
       await new Promise((resolve) => setTimeout(resolve, 150))
 
-      let finalUserData: any = response.data.user
+      let finalUserData: any = sessionUser
       try {
-        const refreshedUserData = await refreshUserData(true)
+        const refreshedUserData = await refreshUserData(true, { keepSessionOnFailure: true })
         if (refreshedUserData) {
           finalUserData = refreshedUserData
           debugLog("[hiffi] User data refreshed after registration")
@@ -547,6 +588,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           refreshError,
         )
       }
+
+      // Profile fetch can 404 briefly after register; never drop the fresh session.
+      if (!apiClient.getAuthToken() && sessionToken) {
+        apiClient.setAuthToken(sessionToken)
+        apiClient.setCredentials(username, password)
+      }
+      setUser(sessionUser)
+      setUserData(normalizeUserProfilePictureFields(finalUserData))
 
       clearReferralCode()
 
@@ -563,7 +612,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         referralRedirectProfile ? "profile" : redirectPath || "/signup",
       )
       captureConversionEvent("conversion_signup_completed", {
-        username: response.data.user.username,
+        username: sessionUser.username,
         source: signupSource,
         has_referral_code: Boolean(referralCode),
         redirected_to: safeDestination,
@@ -573,7 +622,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         has_referral_code: Boolean(referralCode),
         referral_code: referralCode || null,
         redirected_to: safeDestination,
-        username: response.data.user.username,
+        username: sessionUser.username,
       })
       void replayPendingGuestIntents()
       resetGuestConversionSession()
@@ -616,7 +665,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
       }
 
-      return refreshUserData(true)
+      return refreshUserData(true, { keepSessionOnFailure: true })
     },
     [refreshUserData],
   )

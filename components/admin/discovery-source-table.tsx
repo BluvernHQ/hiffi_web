@@ -23,6 +23,16 @@ import type { DiscoverySourceSubmission } from "@/lib/types/discovery-source"
 
 const LIMIT_OPTIONS = [20, 50, 100]
 
+function discoverySourceErrorMessage(error: unknown): string {
+  const status = (error as { status?: number })?.status
+  const message = error instanceof Error ? error.message : ""
+  if (status === 404 || message.includes("404")) {
+    return "Discovery survey admin API is not available on this environment yet (GET /admin/discovery-source)."
+  }
+  if (message.trim()) return message
+  return "Failed to load discovery source submissions"
+}
+
 function formatTimestamp(value: string): string {
   if (!value) return "—"
   const date = new Date(value)
@@ -89,7 +99,7 @@ export function AdminDiscoverySourceTable() {
       setRows([])
       setCount(0)
       handleFetchError(error, {
-        genericMessage: "Failed to load discovery source submissions",
+        genericMessage: discoverySourceErrorMessage(error),
         onGenericError: (description) => toast({ title: "Error", description, variant: "destructive" }),
       })
     } finally {

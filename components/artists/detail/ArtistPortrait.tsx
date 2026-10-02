@@ -28,10 +28,12 @@ export function ArtistPortrait({ artist, decorative = false, className }: Artist
     )
   }
 
+  const initials = artistInitials(artist.name)
+
   return (
     <div
       className={cn(
-        "relative isolate flex aspect-square items-end overflow-hidden bg-[#141416] text-[#F4F1EA] [container-type:inline-size]",
+        "relative isolate flex aspect-square items-center justify-center overflow-hidden bg-[#141416] text-[#F4F1EA] [container-type:inline-size]",
         className,
       )}
       role={decorative ? undefined : "img"}
@@ -43,8 +45,14 @@ export function ArtistPortrait({ artist, decorative = false, className }: Artist
         aria-hidden
       />
       <div className="mood-grain absolute inset-0 -z-10 opacity-[0.08] mix-blend-overlay" aria-hidden />
-      <span className="font-signal -mb-[0.12em] ml-[6cqw] select-none text-[62cqw] font-bold leading-none tracking-tight text-[#F4F1EA]/90">
-        {artistInitials(artist.name)}
+      {/* The face's ascent equals its cap height, so centring the line box leaves capitals 0.14em high. */}
+      <span
+        className={cn(
+          "font-signal translate-y-[0.14em] select-none font-bold leading-none tracking-tight text-[#F4F1EA]/90",
+          initials.length > 1 ? "text-[44cqw]" : "text-[56cqw]",
+        )}
+      >
+        {initials}
       </span>
     </div>
   )

@@ -36,6 +36,7 @@ function SignupForm() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState("")
   const [nameError, setNameError] = useState("")
   const [usernameError, setUsernameError] = useState("")
@@ -108,6 +109,14 @@ function SignupForm() {
     }
   }
 
+  const usernameLengthError =
+    username.length > 0 && username.length < 3
+      ? "Username must be at least 3 characters"
+      : username.length > 30
+        ? "Username must be no more than 30 characters"
+        : ""
+  const showUsernameFieldError = Boolean(usernameError || usernameLengthError)
+
   useEffect(() => {
     if (username.length < 3 || username.length > 30 || !usernameRegex.test(username)) {
       setUsernameAvailable(null)
@@ -134,12 +143,14 @@ function SignupForm() {
     return () => clearTimeout(timer)
   }, [username])
 
-  if (authLoading) {
+  if (authLoading || isRedirecting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">
+            {isRedirecting ? "Welcome to Hiffi — taking you home…" : "Loading..."}
+          </p>
         </div>
       </div>
     )
@@ -250,6 +261,8 @@ function SignupForm() {
         } else {
           setError(errorMessage)
         }
+      } else {
+        setIsRedirecting(true)
       }
     } catch (err: unknown) {
       turnstileRef.current?.reset()
@@ -326,7 +339,7 @@ function SignupForm() {
                     onChange={handleUsernameChange}
                     autoComplete="off"
                     required
-                    className={`pr-10 ${usernameError ? "border-destructive" : ""}`}
+                    className={`pr-10 ${showUsernameFieldError ? "border-destructive" : ""}`}
                     minLength={3}
                     maxLength={30}
                   />
@@ -342,8 +355,13 @@ function SignupForm() {
                     </div>
                   )}
                 </div>
-                {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
+                {usernameError ? (
+                  <p className="text-xs text-destructive">{usernameError}</p>
+                ) : usernameLengthError ? (
+                  <p className="text-xs text-destructive">{usernameLengthError}</p>
+                ) : null}
                 {!usernameError &&
+                  !usernameLengthError &&
                   username.length >= 3 &&
                   username.length <= 30 &&
                   usernameRegex.test(username) &&

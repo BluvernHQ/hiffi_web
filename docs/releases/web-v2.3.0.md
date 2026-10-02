@@ -4,7 +4,7 @@
 **Shipped:** August 13, 2026  
 **Notes updated:** August 14, 2026
 
-> **Do not announce in this cut:** Latest **`/top-artists`** (Hip-Hop 500) — ships in [v2.3.1 — August 15, 2026](./web-v2.3.1.md).  
+> **Do not announce:** Latest **`/top-artists`** (Hip-Hop 500) — ranking launch remains a later release.  
 > **Next cut:** [v2.3.1 — August 15, 2026](./web-v2.3.1.md)
 
 ---
@@ -96,7 +96,7 @@ We expanded **Atlanta** scene pages, added in-product **Feedback** (profile / na
 
 **Not part of this cut (do not announce)**
 
-- Latest **`/top-artists`** / Hip-Hop 500 product — see [v2.3.1](./web-v2.3.1.md)
+- Latest **`/top-artists`** / Hip-Hop 500 product
 - Full multi-platform HPS ranking
 - Ranking in primary sidebar/footer
 - API/data licensing, index report, paid analytics

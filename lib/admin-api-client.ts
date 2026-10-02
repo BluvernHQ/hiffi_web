@@ -44,6 +44,11 @@ import {
   adminGetFeedback as feedbackAdminGet,
 } from "./api/feedback"
 import {
+  adminDeleteDiscoverySourceSubmission as discoveryAdminDelete,
+  adminListDiscoverySourceSubmissions as discoveryAdminList,
+  type AdminListDiscoverySourceParams,
+} from "./api/admin-discovery-source"
+import {
   adminListMigrationRequests as migrationAdminList,
   adminGetMigrationRequest as migrationAdminGet,
   adminUpdateMigrationRequest as migrationAdminUpdate,
@@ -136,11 +141,6 @@ import type {
 import {
   adminListCollaborationInquiries as collaborationAdminList,
 } from "./api/collaboration"
-import {
-  adminDeleteDiscoverySourceSubmission as discoveryAdminDelete,
-  adminListDiscoverySourceSubmissions as discoveryAdminList,
-  type AdminListDiscoverySourceParams,
-} from "./api/admin-discovery-source"
 import {
   getTraffic as trafficAdminGet,
   getTrafficBreakdown as trafficAdminGetBreakdown,
@@ -267,7 +267,7 @@ class AdminApiClient implements AdminApiClientContext {
         (typeof p.error === "string" && p.error) ||
         (typeof p.message === "string" && p.message) ||
         `Request failed (${res.status})`
-      throw new Error(msg)
+      throw Object.assign(new Error(msg), { status: res.status }) as ApiError
     }
 
     return parsed as T
@@ -807,18 +807,18 @@ class AdminApiClient implements AdminApiClientContext {
     return feedbackAdminGet(this, feedbackId)
   }
 
-  async adminListCollaborationInquiries(
-    params?: AdminListCollaborationInquiriesParams,
-  ): Promise<CollaborationInquiryListResponse> {
-    return collaborationAdminList(this, params)
-  }
-
   async adminListDiscoverySourceSubmissions(params?: AdminListDiscoverySourceParams) {
     return discoveryAdminList(this, params)
   }
 
   async adminDeleteDiscoverySourceSubmission(id: string) {
     return discoveryAdminDelete(this, id)
+  }
+
+  async adminListCollaborationInquiries(
+    params?: AdminListCollaborationInquiriesParams,
+  ): Promise<CollaborationInquiryListResponse> {
+    return collaborationAdminList(this, params)
   }
 
   async adminGetTraffic(range: TrafficRange = "7d"): Promise<TrafficSeriesData> {

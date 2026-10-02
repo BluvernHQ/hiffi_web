@@ -4,10 +4,10 @@ import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-ab
 
 /** Figma 159:103 phone screens — only these for the barrel */
 const PHONES = [
-  "/for-fans/hero-cards/barrel-1.png?v=2",
-  "/for-fans/hero-cards/barrel-2.png?v=2",
-  "/for-fans/hero-cards/barrel-3.png?v=2",
-  "/for-fans/hero-cards/barrel-4.png?v=2",
+  "/for-fans/hero-cards/barrel-1.webp?v=2",
+  "/for-fans/hero-cards/barrel-2.webp?v=2",
+  "/for-fans/hero-cards/barrel-3.webp?v=2",
+  "/for-fans/hero-cards/barrel-4.webp?v=2",
 ];
 const CARDS = [...PHONES, ...PHONES, PHONES[0]];
 

@@ -38,7 +38,7 @@ export default function FfCtaBanner() {
           <div className="ff-cta-media-wrap">
             <img
               className="ff-cta-media"
-              src="/for-fans/cta-boombox.jpg"
+              src="/for-fans/cta-boombox.webp"
               alt=""
               loading="lazy"
             />

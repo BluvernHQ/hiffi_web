@@ -584,7 +584,7 @@ function ChartRowContent({
       />
       <span className="min-w-0">
         <span className="flex items-center gap-1.5">
-          <span className="font-signal truncate text-[1.25rem] font-bold uppercase leading-none text-[#F4F1EA] transition-colors group-hover:text-[#FF4D5E] sm:text-[1.45rem]">
+          <span className="font-signal -my-[0.15em] truncate py-[0.15em] text-[1.25rem] font-bold uppercase leading-none text-[#F4F1EA] transition-colors group-hover:text-[#FF4D5E] sm:text-[1.45rem]">
             {artist.artist_name}
           </span>
           {artist.claim_status === "claimed" ? (

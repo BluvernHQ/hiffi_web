@@ -4,47 +4,47 @@ import { useHiffiAboutSectionInit } from "@/app/(main)/about/components/hiffi-ab
 
 const TOOLS = [
   {
-    icon: "/for-creators/icons/user.png",
+    icon: "/for-creators/icons/user.webp",
     title: "Content Sharing",
     body: "Share music and content effortlessly.",
   },
   {
-    icon: "/for-creators/icons/broadcast.png",
+    icon: "/for-creators/icons/broadcast.webp",
     title: "Trending Content",
     body: "Get discovered through trending feeds.",
   },
   {
-    icon: "/for-creators/icons/handshake.png",
+    icon: "/for-creators/icons/handshake.webp",
     title: "Community Growth",
     body: "Build stronger fan relationships.",
   },
   {
-    icon: "/for-creators/icons/community.png",
+    icon: "/for-creators/icons/community.webp",
     title: "Build Your Presence",
     body: "Showcase your creative identity.",
   },
   {
-    icon: "/for-creators/icons/target.png",
+    icon: "/for-creators/icons/target.webp",
     title: "Performance Insights",
     body: "Understand your audience better.",
   },
   {
-    icon: "/for-creators/icons/rocket.png",
+    icon: "/for-creators/icons/rocket.webp",
     title: "Smart Discovery",
     body: "Reach the right audience.",
   },
   {
-    icon: "/for-creators/icons/video.png",
+    icon: "/for-creators/icons/video.webp",
     title: "Short Videos",
     body: "Create engaging short-form content.",
   },
   {
-    icon: "/for-creators/icons/chat.png",
+    icon: "/for-creators/icons/chat.webp",
     title: "Creator Chat",
     body: "Talk with fans and share updates.",
   },
   {
-    icon: "/for-creators/icons/analytics.png",
+    icon: "/for-creators/icons/analytics.webp",
     title: "Featured Creators",
     body: "Get noticed across the platform.",
   },

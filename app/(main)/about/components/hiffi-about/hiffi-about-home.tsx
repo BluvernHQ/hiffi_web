@@ -23,11 +23,14 @@ export default function HiffiAboutHome() {
     window.scrollTo(0, 0);
 
     return () => {
-      html.style.fontSize = previousFontSize;
+      // The pre-paint script in app/layout.tsx sets the rem scale before mount on hard loads,
+      // so "previous" state can't be trusted — always drop it when leaving the page.
+      html.style.fontSize =
+        previousFontSize === "1svw" || previousFontSize === "1vw" ? "" : previousFontSize;
       document.body.style.backgroundColor = previousBackground;
       history.scrollRestoration = previousScrollRestoration;
       if (!hadWModJs) html.classList.remove("w-mod-js");
-      if (!hadRemScale) html.classList.remove("joyjam-rem-scale");
+      html.classList.remove("joyjam-rem-scale");
     };
   }, []);
 

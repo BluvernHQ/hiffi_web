@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
 import { headers } from 'next/headers'
+import { Suspense } from 'react'
 import Script from 'next/script'
 import { Geist, Geist_Mono, Bebas_Neue, DM_Sans } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
@@ -221,6 +221,7 @@ export default async function RootLayout({
       lang="en"
       className={`${_geist.variable} ${_geistMono.variable} ${_bebasNeue.variable} ${_dmSans.variable}${joyjamRem ? " joyjam-rem-scale" : ""}`}
       style={joyjamRem ? { fontSize: "1svw" } : undefined}
+      suppressHydrationWarning
     >
       <head>
         <Script id="joyjam-rem-scale" strategy="beforeInteractive">

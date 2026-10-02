@@ -32,7 +32,7 @@ export default function FcMonetize() {
             <div className="fc-create-glow" aria-hidden />
             <img
               className="fc-create-phone"
-              src="/for-creators/phone-create.png"
+              src="/for-creators/phone-create.webp"
               alt="Hiffi creator app on phone"
               width={413}
               height={495}
