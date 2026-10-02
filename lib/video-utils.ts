@@ -194,6 +194,9 @@ export const MIN_PUBLIC_VIEW_COUNT = 10_000
 /** Minimum follower/following count before showing publicly in the UI. */
 export const MIN_PUBLIC_SOCIAL_COUNT = 10_000
 
+/** Minimum follower count before showing it on a profile page. */
+export const MIN_PROFILE_FOLLOWER_COUNT = 1_000
+
 export function getVideoViewCount(
   video: { videoViews?: number; video_views?: number } | null | undefined,
 ): number {
@@ -260,6 +263,10 @@ export function getProfileFollowingCount(
 
 export function shouldShowPublicFollowerCount(count: number): boolean {
   return count >= MIN_PUBLIC_SOCIAL_COUNT
+}
+
+export function shouldShowProfileFollowerCount(count: number): boolean {
+  return count >= MIN_PROFILE_FOLLOWER_COUNT
 }
 
 export function shouldShowPublicFollowingCount(count: number): boolean {

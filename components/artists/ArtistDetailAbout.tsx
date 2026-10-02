@@ -2,6 +2,7 @@ import type { Artist } from "@/lib/artists"
 import { formatCityState, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import { cn } from "@/lib/utils"
+import { shouldShowProfileFollowerCount } from "@/lib/video-utils"
 
 type ArtistDetailAboutProps = {
   artist: Artist
@@ -53,7 +54,7 @@ export function ArtistDetailAbout({
       <div className="mt-3 border-t border-border sm:mt-4" aria-hidden />
 
       <dl className="mt-4 grid grid-cols-2 gap-4 sm:mt-6 sm:gap-6">
-        {reach != null && reach > 0 ? (
+        {reach != null && shouldShowProfileFollowerCount(reach) ? (
           <DetailField label="Total reach" value={formatTotalReach(reach, false)} />
         ) : null}
         <DetailField label="Artist name" value={artist.name} />

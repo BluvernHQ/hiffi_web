@@ -8,6 +8,7 @@ import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
 import { ArtistRankSignals, publicRankSummary } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
+import { shouldShowProfileFollowerCount } from "@/lib/video-utils"
 
 type ArtistDetailHeroProps = {
   artist: Artist
@@ -181,7 +182,7 @@ export function ArtistDetailHero({
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/75 sm:gap-x-5 sm:text-sm sm:tracking-[0.16em]">
-                  {followerCount != null && followerCount > 0 ? (
+                  {followerCount != null && shouldShowProfileFollowerCount(followerCount) ? (
                     <span>{formatTotalReach(followerCount, false)} Total Reach</span>
                   ) : null}
                   {hiffiVideoCount > 0 ? <span>{hiffiVideoCount} Hiffi Videos</span> : null}

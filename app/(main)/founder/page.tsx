@@ -294,14 +294,6 @@ export default function FounderPage() {
                 </p>
               </div>
 
-              <div className="my-6 overflow-hidden rounded-sm bg-rose-50/60 dark:bg-primary/5">
-                <div className="border-l-[3px] border-primary p-3 px-4">
-                  <p className="text-[13px] font-bold text-foreground sm:text-[14px]">
-                    HIFFI gave me my first real chance.
-                  </p>
-                </div>
-              </div>
-
               <div className="mt-12 flex items-center gap-4">
                 <Avatar className="h-16 w-16 border border-border">
                   <AvatarImage src="/inoto-kinimi-founder-photo-bg.jpg" alt="Inoto Kinimi" className="object-cover object-top" />
