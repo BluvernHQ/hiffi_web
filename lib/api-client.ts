@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "./config"
-import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
+import { userFacingNetworkMessage } from "./network-errors"
 import { login as authLogin, register as authRegister } from "@/lib/api/auth"
 import {
   uploadVideo as uploadUploadVideo,
@@ -216,6 +216,31 @@ function deleteCookie(name: string): void {
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
 }
 
+/** Delays before each retry of a read request that failed without an HTTP response. */
+const NETWORK_RETRY_DELAYS_MS = [600, 1500]
+
+/**
+ * Only GET/HEAD are retried: they are safe to repeat, whereas a POST may already
+ * have been applied by the server before the connection dropped.
+ */
+async function fetchWithNetworkRetry(url: string, init: RequestInit, method: string): Promise<Response> {
+  const retryable = method === "GET" || method === "HEAD"
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(url, init)
+    } catch (error) {
+      const canRetry =
+        retryable &&
+        error instanceof TypeError &&
+        attempt < NETWORK_RETRY_DELAYS_MS.length &&
+        !init.signal?.aborted
+      if (!canRetry) throw error
+      console.warn(`[API] ${method} ${url} - network error, retry ${attempt + 1}/${NETWORK_RETRY_DELAYS_MS.length}`)
+      await new Promise((resolve) => setTimeout(resolve, NETWORK_RETRY_DELAYS_MS[attempt]))
+    }
+  }
+}
+
 class ApiClient {
   private isRefreshing = false
   private refreshPromise: Promise<string | null> | null = null
@@ -390,10 +415,7 @@ class ApiClient {
     const startTime = Date.now()
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      })
+      const response = await fetchWithNetworkRetry(url, { ...options, headers }, method)
 
       const duration = Date.now() - startTime
 
@@ -581,7 +603,7 @@ class ApiClient {
             errMsg.includes("network request failed")))
       if (looksLikeConnectivityFailure) {
         const networkError: ApiError = {
-          message: NO_INTERNET_USER_MESSAGE,
+          message: userFacingNetworkMessage(),
           status: 0,
         }
         console.error(`[API] Connectivity failure (${getApiBaseUrl()}):`, error)

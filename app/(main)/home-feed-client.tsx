@@ -23,7 +23,12 @@ import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
 import { OPENED_VIDEO_FROM_HOME_HERO } from "@/lib/analytics/video-analytics-names"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
-import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
+import {
+  isConnectivityError,
+  isNetworkUserMessage,
+  networkErrorTitle,
+  userFacingNetworkMessage,
+} from "@/lib/network-errors"
 import { OfflineState } from "@/components/network/offline-state"
 import {
   MOODS,
@@ -373,16 +378,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         return
       }
 
-      if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        setFeedError(userFacingNetworkMessage())
-        setIsFetching(false)
-        setLoading(false)
-        setLoadingMore(false)
-        setHasMore(false)
-        if (currentOffset === 0) setVideos([])
-        return
-      }
-
       const generation = ++fetchGeneration.current
       isFetchingRef.current = true
 
@@ -473,16 +468,6 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     async (moodQuery: string, currentOffset: number, isInitialLoad = false) => {
       if (isFetchingRef.current) return
 
-      if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        setFeedError(userFacingNetworkMessage())
-        setIsFetching(false)
-        setLoading(false)
-        setLoadingMore(false)
-        setHasMore(false)
-        if (currentOffset === 0) setVideos([])
-        return
-      }
-
       const generation = ++fetchGeneration.current
       isFetchingRef.current = true
 
@@ -559,6 +544,22 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     },
     [userData, applyCacheToUi, readMainScrollTop, writeCache, restoreScrollPosition],
   )
+
+  const retryFeed = useCallback(() => {
+    setFeedError(null)
+    forceRecommendFetchRef.current = true
+    if (activeMood === null) {
+      void fetchDefaultFeed(0, true)
+    } else {
+      void fetchMoodFeed(activeMood, 0, true)
+    }
+  }, [activeMood, fetchDefaultFeed, fetchMoodFeed])
+
+  useEffect(() => {
+    if (!feedError || !isNetworkUserMessage(feedError)) return
+    window.addEventListener("online", retryFeed)
+    return () => window.removeEventListener("online", retryFeed)
+  }, [feedError, retryFeed])
 
   const applyMood = (query: string | null) => {
     if (query === activeMood) return
@@ -998,17 +999,9 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         {feedError && videos.length === 0 ? (
           <OfflineState
             className="mx-auto w-full max-w-lg"
-            title={feedError === userFacingNetworkMessage() ? "No internet connection" : "Couldn’t load videos"}
+            title={isNetworkUserMessage(feedError) ? networkErrorTitle(feedError) : "Couldn’t load videos"}
             description={feedError}
-            onRetry={() => {
-              setFeedError(null)
-              forceRecommendFetchRef.current = true
-              if (activeMood === null) {
-                void fetchDefaultFeed(0, true)
-              } else {
-                void fetchMoodFeed(activeMood, 0, true)
-              }
-            }}
+            onRetry={retryFeed}
           />
         ) : null}
 

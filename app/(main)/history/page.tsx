@@ -13,7 +13,7 @@ import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { GuestHistoryView } from "@/components/conversion/guest-history-view"
 import { useToast } from "@/hooks/use-toast"
-import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
+import { isConnectivityError, networkErrorTitle, userFacingNetworkMessage } from "@/lib/network-errors"
 
 const VIDEOS_PER_PAGE = 20
 const LOAD_THROTTLE_MS = 500
@@ -274,7 +274,7 @@ export default function HistoryPage() {
             setOfflineMessage(userFacingNetworkMessage())
           }
           toast({
-            title: isConnectivityError(error) ? "No internet connection" : "Error",
+            title: isConnectivityError(error) ? networkErrorTitle() : "Error",
             description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load watch history",
             variant: "destructive",
           })

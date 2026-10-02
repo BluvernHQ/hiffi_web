@@ -18,7 +18,7 @@ import {
   normalizeSearchQueryForRequest,
 } from '@/lib/search-query';
 import { onSearchQuerySubmitted } from '@/lib/analytics/journey-tracking';
-import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors';
+import { isConnectivityError, networkErrorTitle, userFacingNetworkMessage } from '@/lib/network-errors';
 
 const VIDEOS_PER_PAGE = 10;
 const USERS_PER_PAGE = 50;
@@ -116,7 +116,7 @@ function SearchPageContent() {
     } catch (error: any) {
       console.error('[hiffi] Failed to fetch search results:', error);
       toast({
-        title: isConnectivityError(error) ? 'No internet connection' : 'Error',
+        title: isConnectivityError(error) ? networkErrorTitle() : 'Error',
         description: isConnectivityError(error) ? userFacingNetworkMessage() : 'Failed to load search results.',
         variant: 'destructive',
       });

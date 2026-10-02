@@ -27,7 +27,7 @@ import { captureVideoCommented } from "@/lib/analytics/journey-tracking"
 import { useToast } from "@/hooks/use-toast"
 import { usePathname, useSearchParams } from "next/navigation"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
-import { isConnectivityError, userFacingNetworkMessage } from "@/lib/network-errors"
+import { isConnectivityError, networkErrorTitle, userFacingNetworkMessage } from "@/lib/network-errors"
 import { useCallback, useRef } from "react"
 
 interface Comment {
@@ -146,7 +146,7 @@ export function CommentSection({
     } catch (error) {
       console.error("[hiffi] Failed to fetch comments:", error)
       toast({
-        title: isConnectivityError(error) ? "No internet connection" : "Error",
+        title: isConnectivityError(error) ? networkErrorTitle() : "Error",
         description: isConnectivityError(error) ? userFacingNetworkMessage() : "Failed to load comments",
         variant: "destructive",
       })
