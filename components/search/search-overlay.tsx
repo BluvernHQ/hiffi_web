@@ -269,6 +269,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
       resultsShown: suggestions.length,
       from: 'overlay',
     });
+    saveRecentSearch(fromQuery);
     closeOverlay('navigated_away');
   };
 
