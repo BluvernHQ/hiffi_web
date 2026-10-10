@@ -155,6 +155,11 @@ export function validateClaimStep(step: ClaimStepId, draft: ClaimDraft): ClaimDr
     if (!errors.password && draft.confirmPassword !== draft.password) {
       errors.confirmPassword = "Passwords do not match."
     }
+    
+    if (!draft.howFound) errors.howFound = "Select how you found us."
+    else if (draft.howFound === "other" && !draft.howFoundOther.trim()) {
+      errors.howFound = "Tell us how you found us."
+    }
   }
 
   if (step === "socials") {
@@ -177,10 +182,6 @@ export function validateClaimStep(step: ClaimStepId, draft: ClaimDraft): ClaimDr
       errors.primarySound = `Keep your sound under ${CLAIM_MAX_GENRE_LENGTH} characters.`
     }
     if (!draft.openToCollab) errors.openToCollab = "Let us know if you're open to collaborations."
-    if (!draft.howFound) errors.howFound = "Select how you found us."
-    else if (draft.howFound === "other" && !draft.howFoundOther.trim()) {
-      errors.howFound = "Tell us how you found us."
-    }
   }
 
   return errors

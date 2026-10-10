@@ -33,12 +33,9 @@ export const ARTIST_INDEX_HUB_DESCRIPTION =
   "Search the Hiffi Artist Index — claimable hip-hop and rap profiles across cities and genres. Find, claim, or suggest edits."
 
 export function buildArtistIndexHubDescription(artistCount?: number): string {
-  const countClause =
-    artistCount != null && artistCount > 0
-      ? ` ${artistCount.toLocaleString()}+ artists indexed across multiple cities.`
-      : " Artists indexed across multiple cities."
+  const countStr = artistCount != null && artistCount > 0 ? `${artistCount.toLocaleString()}+ ` : ""
   return truncateMetaDescription(
-    `Search the Hiffi Artist Index — claimable hip-hop and rap profiles by city and genre.${countClause} Find, claim, or suggest edits.`,
+    `Search the Hiffi Artist Index of ${countStr}claimable hip-hop and rap profiles. Browse artists by city and genre, claim your listing, or suggest an edit.`,
   )
 }
 

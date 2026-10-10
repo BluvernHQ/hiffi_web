@@ -32,7 +32,6 @@ export function ClaimHero({
           { label: "Profile", value: STATUS_LABEL[artist.claim_status] },
           { label: "Takes", value: "About 2 minutes" },
           { label: "Review", value: "24–48 hours, by a person" },
-          { label: "Cost", value: "Free" },
         ]
 
   return (

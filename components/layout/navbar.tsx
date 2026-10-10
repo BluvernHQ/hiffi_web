@@ -62,6 +62,7 @@ function navbarSectionLink(pathname: string | null) {
 function MinimalNavbarHeader() {
   const pathname = usePathname()
   const router = useRouter()
+  const sectionLink = navbarSectionLink(pathname)
 
   return (
     <header className="sticky top-0 z-[80] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -82,6 +83,18 @@ function MinimalNavbarHeader() {
             priority
           />
         </Link>
+        {sectionLink ? (
+          <Link
+            href={sectionLink.href}
+            data-analytics-name={sectionLink.analytics}
+            className="group ml-3 flex items-center gap-3 sm:ml-4 sm:gap-4"
+          >
+            <span className="h-5 w-px bg-border" aria-hidden />
+            <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-foreground transition-colors group-hover:text-[#E8192C]">
+              {sectionLink.label}
+            </span>
+          </Link>
+        ) : null}
       </div>
     </header>
   )

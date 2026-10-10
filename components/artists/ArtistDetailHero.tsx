@@ -107,7 +107,7 @@ export function ArtistDetailHero({
         >
           {bannerSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={bannerSrc} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden />
+            <img src={bannerSrc} alt={`${artist.name} cover photo`} className="absolute inset-0 h-full w-full object-cover" />
           ) : (
             <div
               className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/70 via-[#8b0f1c] to-zinc-950"

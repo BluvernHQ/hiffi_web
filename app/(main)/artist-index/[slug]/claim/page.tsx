@@ -66,8 +66,8 @@ export default async function ArtistClaimPage({ params }: ArtistClaimPageProps) 
             isClaimed
               ? "This profile has already been claimed and is managed by the artist."
               : isPending
-                ? "This profile already has a pending claim. Set up your account and share your socials to request ownership. Our team reviews it alongside the existing claim."
-                : "Set up your artist account, add your socials and tell us about your music."
+                ? "This profile already has a pending claim. Submit your details to request ownership. Our team reviews it alongside the existing claim."
+                : "Submit your details to claim this profile and take control of your artist presence."
           }
         />
 

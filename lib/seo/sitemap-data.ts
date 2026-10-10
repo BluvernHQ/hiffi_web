@@ -13,9 +13,10 @@ export const SITEMAP_REVALIDATE_SECONDS = 3600
 const STATIC_LAST_MODIFIED = new Date("2026-06-01T00:00:00.000Z")
 
 /** Chart surfaces are kept out of every sitemap. */
-const SITEMAP_EXCLUDED_PREFIXES = ["/top-artists"]
+const SITEMAP_EXCLUDED_PREFIXES: string[] = []
 
 function isSitemapExcluded(url: string): boolean {
+  if (SITEMAP_EXCLUDED_PREFIXES.length === 0) return false
   const { pathname } = new URL(url)
   return SITEMAP_EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }

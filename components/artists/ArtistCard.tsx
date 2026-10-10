@@ -101,12 +101,10 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
       <div className="pointer-events-none relative z-[1] flex flex-1 flex-col">
         <div className={cn(artistCardMedia, "h-28")}>
           {bannerSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={bannerSrc}
-              alt=""
+              alt={`${artist.name} cover photo`}
               className="absolute inset-0 h-full w-full object-cover"
-              aria-hidden
             />
           ) : (
             <>

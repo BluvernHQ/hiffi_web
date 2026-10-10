@@ -27,10 +27,7 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
-  // Artist Index and Top Artists get the full app chrome but scroll the window.
-  const isArtistIndexRoute =
-    (pathname?.startsWith("/artist-index") || pathname?.startsWith("/top-artists")) ?? false
-  const isContentPageRoute = isContentPage(pathname) && !isArtistIndexRoute
+  const isContentPageRoute = isContentPage(pathname)
   const showSidebar = !isContentPageRoute
 
   const {
@@ -42,13 +39,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   } = useSidebar()
 
   return (
-    <div
-      className={
-        isArtistIndexRoute
-          ? "relative flex min-h-[100dvh] flex-col bg-background"
-          : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
-      }
-    >
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background">
       <Navbar
         variant={isContentPageRoute ? "minimal" : "full"}
         onMenuClick={
@@ -66,7 +57,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
       />
 
       {/* Main Layout Container */}
-      <div className={isArtistIndexRoute ? "flex flex-1" : "flex flex-1 overflow-hidden"}>
+      <div className="flex flex-1 overflow-hidden">
         {showSidebar && (
           <Sidebar
             isMobileOpen={isSidebarOpen}
@@ -81,11 +72,7 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         {/* Main Content Area - Adapts to sidebar, never affects it */}
         <main
           id="main-content"
-          className={
-            isArtistIndexRoute
-              ? "w-full min-w-0 flex-1"
-              : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
-          }
+          className="h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
         >
           <ClaimStatusBanner />
           {children}

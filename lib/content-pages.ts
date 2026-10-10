@@ -79,6 +79,7 @@ export function isContentPage(pathname: string | null): boolean {
   if (!pathname) return false
   if (CONTENT_PAGE_PATHS.includes(pathname)) return true
   if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
+  if (pathname === "/top-artists" || pathname.startsWith("/top-artists/")) return true
   if (pathname === "/atlanta" || pathname.startsWith("/atlanta/")) return true
   return false
 }
@@ -104,4 +105,14 @@ export const SITEMAP_STATIC_CONTENT_PAGES: Array<{
   { path: "/feature-request", changeFrequency: "monthly", priority: 0.68 },
   { path: "/community-guidelines", changeFrequency: "yearly", priority: 0.55 },
   { path: "/copyright", changeFrequency: "yearly", priority: 0.5 },
+  { path: "/top-artists", changeFrequency: "weekly", priority: 0.94 },
+  { path: "/top-artists/methodology", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/top-artists/city/atlanta", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/top-artists/city/houston", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/top-artists/city/detroit", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/top-artists/city/chicago", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/top-artists/biggest-risers", changeFrequency: "weekly", priority: 0.86 },
+  { path: "/top-artists/biggest-fallers", changeFrequency: "weekly", priority: 0.84 },
+  { path: "/top-artists/new-entries", changeFrequency: "weekly", priority: 0.84 },
+  { path: "/top-artists/breakout-100", changeFrequency: "weekly", priority: 0.88 },
 ]

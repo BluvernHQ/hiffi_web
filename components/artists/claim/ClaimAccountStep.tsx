@@ -59,11 +59,10 @@ function PasswordInput({
 export function ClaimAccountStep({ artistSlug, draft, errors, onChange, onEmailBlur }: ClaimAccountStepProps) {
   return (
     <ClaimSection
-      title="Create your artist account"
+      title="Claim your artist profile"
       description={
         <>
-          This becomes your login for <strong className="font-semibold text-[#0B0B0C]">@{artistSlug}</strong> once
-          our team approves your claim.
+          Submit your details to request ownership of <strong className="font-semibold text-[#0B0B0C]">@{artistSlug}</strong>.
         </>
       }
     >
@@ -119,6 +118,38 @@ export function ClaimAccountStep({ artistSlug, draft, errors, onChange, onEmailB
           />
         </ClaimField>
       </div>
+
+      <ClaimField id="claim-how-found" label="How did you hear about Hiffi?" error={errors.howFound}>
+        <select
+          id="claim-how-found"
+          value={draft.howFound}
+          onChange={(event) => onChange("howFound", event.target.value as any)}
+          aria-invalid={Boolean(errors.howFound)}
+          aria-describedby={errors.howFound ? "claim-how-found-error" : undefined}
+          className={claimInputClass}
+        >
+          <option value="" disabled>Select an option</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+          <option value="twitter">X (Twitter)</option>
+          <option value="youtube">YouTube</option>
+          <option value="friend">Friend / Colleague</option>
+          <option value="google">Google Search</option>
+          <option value="other">Other</option>
+        </select>
+      </ClaimField>
+      
+      {draft.howFound === "other" && (
+        <ClaimField id="claim-how-found-other" label="Please specify" error={errors.howFoundOther}>
+          <Input
+            id="claim-how-found-other"
+            placeholder="Tell us where you heard about us"
+            value={draft.howFoundOther}
+            onChange={(event) => onChange("howFoundOther", event.target.value)}
+            className={claimInputClass}
+          />
+        </ClaimField>
+      )}
     </ClaimSection>
   )
 }

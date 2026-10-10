@@ -203,14 +203,11 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   }
 
   const submitClaim = async () => {
-    for (const { id } of CLAIM_STEPS) {
-      const stepErrors = validateClaimStep(id, draft)
-      if (Object.keys(stepErrors).length > 0) {
-        setStep(id)
-        setErrors(stepErrors)
-        requestAnimationFrame(() => focusFirstError(stepErrors))
-        return
-      }
+    const stepErrors = validateClaimStep("account", draft)
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      requestAnimationFrame(() => focusFirstError(stepErrors))
+      return
     }
 
     const turnstile = getTurnstileTokenForSubmit()
@@ -308,25 +305,21 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (checkingEmail) return
-    const stepErrors = validateClaimStep(step, draft)
+    const stepErrors = validateClaimStep("account", draft)
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors)
       focusFirstError(stepErrors)
       return
     }
-    if (step === "account") {
-      setCheckingEmail(true)
-      const available = await isEmailAvailable(draft.email).finally(() => setCheckingEmail(false))
-      if (!available) {
-        focusFirstError(showEmailInUse())
-        return
-      }
+    
+    setCheckingEmail(true)
+    const available = await isEmailAvailable(draft.email).finally(() => setCheckingEmail(false))
+    if (!available) {
+      focusFirstError(showEmailInUse())
+      return
     }
-    if (isLastStep) {
-      void submitClaim()
-    } else {
-      goToStep(CLAIM_STEPS[stepIndex + 1].id)
-    }
+    
+    void submitClaim()
   }
 
   if (welcome) {
@@ -390,11 +383,9 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
           }}
         />
       ) : null}
-      <ClaimStepper current={step} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
-        <div key={step} className="artist-rise space-y-6">
-        {step === "account" ? (
+        <div className="artist-rise space-y-6">
           <ClaimAccountStep
             artistSlug={artist.slug}
             draft={draft}
@@ -402,20 +393,11 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
             onChange={updateField}
             onEmailBlur={() => void handleEmailBlur()}
           />
-        ) : null}
-        {step === "socials" ? (
-          <ClaimSocialsStep draft={draft} errors={errors} onSocialChange={updateSocial} />
-        ) : null}
-        {step === "profile" ? (
-          <>
-            <ClaimProfileStep draft={draft} errors={errors} onChange={updateField} />
-            <TurnstileFormField
-              action={TURNSTILE_ACTION}
-              widgetRef={turnstileRef}
-              onToken={setTurnstileToken}
-            />
-          </>
-        ) : null}
+          <TurnstileFormField
+            action={TURNSTILE_ACTION}
+            widgetRef={turnstileRef}
+            onToken={setTurnstileToken}
+          />
         </div>
 
         {submitError ? (
@@ -427,24 +409,10 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
           </p>
         ) : null}
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {stepIndex > 0 ? (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="group inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-[#0B0B0C]/60 transition-colors hover:text-[#0B0B0C]"
-            >
-              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" aria-hidden />
-              Back
-            </button>
-          ) : (
-            <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-[#77726A] sm:block">
-              Step 1 of {CLAIM_STEPS.length}
-            </span>
-          )}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="submit"
-            disabled={submitting || checkingEmail || (isLastStep && submitBlocked)}
+            disabled={submitting || checkingEmail || submitBlocked}
             className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#E8192C] px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#d01528] disabled:opacity-60"
           >
             {submitting ? (
@@ -457,15 +425,9 @@ export function ClaimForm({ artist, accountSetupEnabled }: ClaimFormProps) {
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 Checking email…
               </>
-            ) : isLastStep ? (
-              isOwnershipRequest ? (
-                "Finish & request ownership"
-              ) : (
-                "Finish & submit claim"
-              )
             ) : (
               <>
-                Continue
+                Claim
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
               </>
             )}

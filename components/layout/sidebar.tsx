@@ -167,7 +167,10 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   }
 
   // Removed mainNavItems - "All Videos" filter serves as the home navigation
-  const mainNavItems: SidebarNavItem[] = []
+  const mainNavItems: SidebarNavItem[] = [
+    { icon: UserCheck, label: "Hip-Hop 500", href: "/top-artists" },
+    { icon: ListMusic, label: "Artist Index", href: "/artist-index" },
+  ]
 
   const filterItems: SidebarFilterItem[] = [
     { icon: Home, label: "Home", value: "all" as const, href: "/" },
