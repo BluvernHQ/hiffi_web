@@ -20,7 +20,7 @@ export default function CreatorsForChangeLayout({ children }: { children: ReactN
   return (
     <>
       {children}
-      <SiteFooter />
+      <SiteFooter className="mt-0" />
     </>
   )
 }

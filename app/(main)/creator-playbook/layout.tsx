@@ -23,7 +23,7 @@ export default function CreatorPlaybookLayout({ children }: { children: ReactNod
   return (
     <>
       {children}
-      <SiteFooter />
+      <SiteFooter className="mt-0" />
     </>
   )
 }

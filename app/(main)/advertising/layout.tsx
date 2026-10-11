@@ -26,7 +26,7 @@ export default function AdvertisingLayout({ children }: { children: ReactNode })
   return (
     <>
       {children}
-      <SiteFooter />
+      <SiteFooter className="mt-0" />
     </>
   )
 }
