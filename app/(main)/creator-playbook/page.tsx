@@ -2,11 +2,13 @@ import Link from "next/link"
 import type { ReactNode } from "react"
 import {
   ArrowRight,
+  ChevronRight,
   ClipboardList,
   Crown,
   Lightbulb,
   Mic,
   Play,
+  Plus,
   ShieldCheck,
   UserRound,
 } from "lucide-react"
@@ -20,6 +22,35 @@ const PAGE_PATH = "/creator-playbook"
 const PAGE_TITLE = "Creator Playbook"
 const HERO_DESCRIPTION =
   "The Hiffi Creator Playbook for independent rappers and hip-hop artists — become a creator, upload music videos, and grow your fanbase."
+const HERO_IMAGE = "/how-it-works/devices.png"
+
+const playbookFaqItems = [
+  {
+    question: "Who is the Hiffi Creator Playbook designed for?",
+    answer:
+      "The Creator Playbook is crafted for independent rappers, MCs, beatmakers, producers, and directors who want to upload official music videos, build a dedicated fanbase, and grow across Hiffi's hip-hop ecosystem.",
+  },
+  {
+    question: "How do I become a creator and start uploading videos?",
+    answer:
+      "Sign up for a free Hiffi account, complete your profile photo and bio, and visit the Become a Creator page. Creator access is enabled instantly without long waiting periods.",
+  },
+  {
+    question: "What video formats and quality standards does Hiffi support?",
+    answer:
+      "Hiffi supports HD and 4K MP4/MOV video uploads. For optimal playback and recommendation performance, upload clear audio mixdowns and high-resolution mobile-optimized cover artwork.",
+  },
+  {
+    question: "Do artists keep rights to the music and videos they upload?",
+    answer:
+      "Yes. Independent artists maintain 100% ownership and intellectual property rights to their uploaded music and video content in accordance with Hiffi's Terms of Use.",
+  },
+  {
+    question: "How does discovery work for new creators on Hiffi?",
+    answer:
+      "New uploads can be discovered through following feeds, the dedicated Hip-Hop Hub, genre channels, city hubs like Atlanta, and the curated Hiffi Artist Directory.",
+  },
+]
 
 const BECOME_CREATOR_HREF = "/creator/apply"
 const HOW_IT_WORKS_HREF = "/how-it-works"
@@ -296,6 +327,8 @@ export default function CreatorPlaybookPage() {
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: HERO_IMAGE,
+    faqItems: playbookFaqItems,
   })
 
   return (
@@ -316,6 +349,26 @@ export default function CreatorPlaybookPage() {
           )}
         >
           <div className="min-w-0">
+            <nav aria-label="Breadcrumb" className="mb-6">
+              <ol className="flex flex-wrap items-center gap-1.5 text-xs text-white/60">
+                <li>
+                  <Link href="/" className="rounded transition-colors hover:text-white">
+                    Home
+                  </Link>
+                </li>
+                <li aria-hidden>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </li>
+                <li>Creators</li>
+                <li aria-hidden>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </li>
+                <li aria-current="page" className="font-medium text-white/90">
+                  {PAGE_TITLE}
+                </li>
+              </ol>
+            </nav>
+
             <p className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
               Creators
@@ -645,6 +698,41 @@ export default function CreatorPlaybookPage() {
             >
               <LaunchChecklist items={launchChecklist} labelledBy="launch-checklist" />
             </PlaybookCard>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section aria-labelledby="playbook-faq-heading" className="pt-2">
+          <div className="flex flex-col gap-2 border-b border-black/[0.08] pb-4 dark:border-white/10 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">FAQ</p>
+              <h2 id="playbook-faq-heading" className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Frequently Asked Questions
+              </h2>
+            </div>
+            <p className="text-xs text-muted-foreground">Everything you need to know about publishing on Hiffi</p>
+          </div>
+          <div className="mt-6 space-y-3">
+            {playbookFaqItems.map((item) => (
+              <details
+                key={item.question}
+                className="group rounded-xl border border-black/[0.07] bg-card transition-colors open:border-primary/40 hover:border-primary/30 dark:border-white/10"
+              >
+                <summary
+                  className={cn(
+                    "flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden",
+                    focusRing,
+                  )}
+                >
+                  {item.question}
+                  <Plus
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45 group-open:text-primary"
+                    aria-hidden
+                  />
+                </summary>
+                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+              </details>
+            ))}
           </div>
         </section>
 

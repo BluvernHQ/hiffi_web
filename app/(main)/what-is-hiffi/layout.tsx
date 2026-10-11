@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "Hiffi is an independent hip-hop streaming platform where artists publish music videos and grow their audience — starting from Atlanta's rap scene. Not affiliated with other HIFFI brands.",
   path: "/what-is-hiffi",
+  image: "/what-is-hiffi/hero-collage.jpg",
   keywords: [
     "what is Hiffi",
     "Hiffi streaming platform",

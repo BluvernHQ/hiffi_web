@@ -214,12 +214,37 @@ function StepCards({ steps }: { steps: Step[] }) {
   )
 }
 
+const howItWorksFaqItems = [
+  {
+    question: "How does Hiffi work for hip-hop fans?",
+    answer:
+      "Fans can stream music videos, explore underground freestyles, follow favorite artists, and discover music by genre and mood mix—completely free on web and mobile.",
+  },
+  {
+    question: "How do independent artists publish music videos on Hiffi?",
+    answer:
+      "Artists apply through the creator program or claim their Artist Index profile. Once approved, they can upload official music videos, track engagement, and reach dedicated hip-hop fans.",
+  },
+  {
+    question: "What makes Hiffi different from general video platforms?",
+    answer:
+      "Hiffi is exclusively focused on hip-hop culture, independent artists, and curated music discovery, providing a distraction-free home for rap creators and fans.",
+  },
+  {
+    question: "Can artists link their external streaming profiles and socials?",
+    answer:
+      "Yes. Artist profiles on Hiffi showcase social links (Instagram, YouTube, TikTok, Facebook) and connect fans directly to their broader digital presence.",
+  },
+]
+
 export default function HowItWorksPage() {
   const pageJsonLd = buildContentPageJsonLd({
     path: PAGE_PATH,
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: "/how-it-works/hero-rapper.png",
+    faqItems: howItWorksFaqItems,
   })
 
   return (
@@ -230,7 +255,7 @@ export default function HowItWorksPage() {
       <section className="relative isolate overflow-hidden bg-[#07070b] text-white">
         <Image
           src="/how-it-works/hero-rapper.png"
-          alt=""
+          alt="Hip-hop artist performing and sharing music on Hiffi"
           fill
           priority
           sizes="100vw"
@@ -395,6 +420,25 @@ export default function HowItWorksPage() {
           </Link>
         </section>
 
+        {/* FAQ Section */}
+        <section aria-labelledby="faq-heading" className="mt-8 rounded-2xl border border-border/70 bg-card p-6 sm:p-8">
+          <SectionLabel>FAQ</SectionLabel>
+          <h2 id="faq-heading" className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Frequently asked questions about Hiffi
+          </h2>
+          <div className="mt-6 divide-y divide-border/60">
+            {howItWorksFaqItems.map((item) => (
+              <details key={item.question} className="group py-4 first:pt-0 last:pb-0">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground hover:text-primary">
+                  {item.question}
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 group-open:text-primary" aria-hidden />
+                </summary>
+                <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         {/* Bottom CTA */}
         <section
           aria-labelledby="cta-heading"
@@ -402,7 +446,7 @@ export default function HowItWorksPage() {
         >
           <Image
             src="/how-it-works/cta-crowd.png"
-            alt=""
+            alt="Hip-hop fans and creators gathered at a Hiffi music event"
             fill
             sizes="100vw"
             className="-z-20 object-cover object-[70%_center]"

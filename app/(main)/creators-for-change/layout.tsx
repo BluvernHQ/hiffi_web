@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "Hiffi Creators for Change supports independent hip-hop artists and community leaders who use music to mentor, educate, and create positive cultural impact.",
   path: "/creators-for-change",
+  image: "/creators-for-change/hero-artist.jpg",
   keywords: [
     "Creators for Change",
     "hip-hop community impact",

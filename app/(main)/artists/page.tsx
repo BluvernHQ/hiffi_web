@@ -156,12 +156,37 @@ function IconCircle({ icon: Icon, className }: { icon: LucideIcon; className?: s
   )
 }
 
+const artistsFaqItems = [
+  {
+    question: "Who can join Hiffi as an artist?",
+    answer:
+      "Hiffi is open to all independent hip-hop artists, rappers, lyricists, beatmakers, producers, and DJs worldwide who create original music.",
+  },
+  {
+    question: "How do artists publish music videos on Hiffi?",
+    answer:
+      "Artists can apply at hiffi.com/creator/apply or claim an existing profile in the Hiffi Artist Directory. Once verified, creators can upload videos, manage thumbnails, and engage with fans.",
+  },
+  {
+    question: "What is the Hiffi Artist Index?",
+    answer:
+      "The Artist Index is a public catalog of independent hip-hop talent indexed by city and sub-genre, giving emerging artists regional and global discovery.",
+  },
+  {
+    question: "Does Hiffi take ownership of my music?",
+    answer:
+      "No. Independent artists retain 100% ownership and copyright of their music, videos, and masters.",
+  },
+]
+
 export default function ArtistsPage() {
   const pageJsonLd = buildContentPageJsonLd({
     path: PAGE_PATH,
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: "/hiffi-artists/for-artists.jpg",
+    faqItems: artistsFaqItems,
   })
 
   return (
@@ -435,12 +460,31 @@ export default function ArtistsPage() {
         </ol>
       </section>
 
+      {/* FAQ Section */}
+      <section aria-labelledby="artists-faq-heading" className={cn(container, "py-12 sm:py-16")}>
+        <Eyebrow ruled>FAQ for Artists</Eyebrow>
+        <h2 id="artists-faq-heading" className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Frequently asked questions about publishing on Hiffi
+        </h2>
+        <div className="mt-6 divide-y divide-border/60 rounded-2xl border border-border/70 bg-card p-6 sm:p-8">
+          {artistsFaqItems.map((item) => (
+            <details key={item.question} className="group py-4 first:pt-0 last:pb-0">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground hover:text-primary">
+                {item.question}
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 group-open:text-primary" aria-hidden />
+              </summary>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       {/* Final CTA */}
       <div className={cn(container, "pb-14 pt-12 sm:pb-20 sm:pt-14")}>
         <section aria-labelledby="cta-heading" className="relative isolate overflow-hidden rounded-3xl bg-[#0b0b0f] text-white">
           <Image
             src="/hiffi-artists/cta-concert.jpg"
-            alt=""
+            alt="Live hip-hop concert crowd celebrating independent music"
             fill
             sizes="(min-width: 1280px) 1200px, 100vw"
             className="-z-20 object-cover object-[75%_center] opacity-70"

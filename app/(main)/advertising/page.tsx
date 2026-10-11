@@ -146,12 +146,37 @@ function ImageCaptionCard({
   )
 }
 
+const advertisingFaqItems = [
+  {
+    question: "What advertising formats are available on Hiffi?",
+    answer:
+      "Hiffi offers sponsored video premieres, featured releases, branded hub sponsorships (e.g. Atlanta hip-hop scene and genre collections), and custom creator collaborations.",
+  },
+  {
+    question: "How do brands collaborate with Hiffi creators?",
+    answer:
+      "Brands can partner with verified independent rappers, producers, and videographers for authentic sponsorships, branded music videos, and organic community campaigns.",
+  },
+  {
+    question: "Who is the primary audience on Hiffi?",
+    answer:
+      "Hiffi reaches highly engaged hip-hop, rap, and urban music enthusiasts who come specifically to discover independent artists, underground talent, and culture-first releases.",
+  },
+  {
+    question: "How can our brand get started?",
+    answer:
+      "Reach out to our partnerships team directly via care@hiffi.com or submit the brand collaboration form at hiffi.com/collaborate.",
+  },
+]
+
 export default function AdvertisingPage() {
   const pageJsonLd = buildContentPageJsonLd({
     path: PAGE_PATH,
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: "/advertising/hero-artist.jpg",
+    faqItems: advertisingFaqItems,
   })
 
   return (
@@ -180,7 +205,7 @@ export default function AdvertisingPage() {
                   </Link>
                 </li>
                 <li aria-hidden>/</li>
-                <li className="font-medium text-white/90">Business</li>
+                <li aria-current="page" className="font-medium text-white/90">{PAGE_TITLE}</li>
               </ol>
             </nav>
 
@@ -414,12 +439,31 @@ export default function AdvertisingPage() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section aria-labelledby="advertising-faq-heading" className={cn(container, "py-12 sm:py-16")}>
+        <SectionLabel number="06">Frequently Asked Questions</SectionLabel>
+        <h2 id="advertising-faq-heading" className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Advertising and brand partnerships on Hiffi
+        </h2>
+        <div className="mt-6 divide-y divide-border/60 rounded-2xl border border-border/70 bg-card p-6 sm:p-8">
+          {advertisingFaqItems.map((item) => (
+            <details key={item.question} className="group py-4 first:pt-0 last:pb-0">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground hover:text-primary">
+                {item.question}
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 group-open:text-primary" aria-hidden />
+              </summary>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <div className={cn(container, "pb-16 pt-16 sm:pb-20 sm:pt-20")}>
+      <div className={cn(container, "pb-16 pt-8 sm:pb-20 sm:pt-10")}>
         <section aria-labelledby="cta-heading" className="relative isolate overflow-hidden rounded-3xl bg-[#0b0b0f] text-white">
           <Image
             src="/mail-assets/videos_imported_cta_strip.png"
-            alt=""
+            alt="Hiffi artist streaming and music video showcase banner"
             fill
             sizes="(min-width: 1280px) 1200px, 100vw"
             className="-z-20 scale-105 object-cover object-[center_40%] opacity-60 blur-[2px]"

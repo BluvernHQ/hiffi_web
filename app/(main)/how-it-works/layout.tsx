@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "Learn how Hiffi works for fans and independent artists — create an account, discover hip-hop music videos, upload your music, and grow your audience.",
   path: "/how-it-works",
+  image: "/how-it-works/hero-rapper.png",
   keywords: [
     "how Hiffi works",
     "Hiffi for creators",

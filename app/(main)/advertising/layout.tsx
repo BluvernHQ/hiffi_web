@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "Reach engaged hip-hop and rap audiences on Hiffi. Sponsored content, artist partnerships, and brand campaigns built for music culture.",
   path: "/advertising",
+  image: "/advertising/hero-artist.jpg",
   keywords: [
     "Hiffi advertising",
     "Hip-Hop Advertising",

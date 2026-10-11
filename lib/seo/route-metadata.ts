@@ -13,12 +13,15 @@ export function routeMetadata(opts: {
   description: string
   path: string
   keywords?: string[]
+  /** Custom OpenGraph / Twitter preview image (relative path e.g. "/what-is-hiffi/hero-collage.jpg" or full URL) */
+  image?: string
   /** Default true. Use false for auth, personalized, or internal surfaces */
   index?: boolean
 }): Metadata {
-  const { title, description, path, keywords, index = true } = opts
+  const { title, description, path, keywords, image, index = true } = opts
   const url = absoluteUrl(path)
-  const ogImage = { url: absoluteUrl("/hiffi_logo.png"), alt: SITE_NAME }
+  const ogImageUrl = image ? absoluteUrl(image) : absoluteUrl("/hiffi_logo.png")
+  const ogImage = { url: ogImageUrl, alt: `${title} | ${SITE_NAME}` }
 
   return {
     title,
@@ -45,7 +48,7 @@ export function routeMetadata(opts: {
       card: "summary_large_image",
       title: `${title} | ${SITE_NAME}`,
       description,
-      images: [absoluteUrl("/hiffi_logo.png")],
+      images: [ogImageUrl],
     },
   }
 }

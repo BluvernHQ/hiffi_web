@@ -10,6 +10,7 @@ import {
   Handshake,
   Headphones,
   Heart,
+  Plus,
   ShieldCheck,
   Star,
   Target,
@@ -24,6 +25,30 @@ const PAGE_PATH = "/creators-for-change"
 const PAGE_TITLE = "Creators for Change"
 const HERO_DESCRIPTION =
   "Supporting independent hip-hop artists and community leaders who use music to mentor, educate, and create positive cultural impact."
+const HERO_IMAGE = "/creators-for-change/hero-artist.jpg"
+
+const creatorsForChangeFaqItems = [
+  {
+    question: "What is the Hiffi Creators for Change program?",
+    answer:
+      "Creators for Change is an initiative dedicated to independent hip-hop artists, community leaders, and mentors who use music and visual storytelling to drive positive cultural impact, education, and community workshops.",
+  },
+  {
+    question: "Who can apply to become a Hiffi Creator for Change?",
+    answer:
+      "Any independent hip-hop artist, producer, or music educator actively engaged in positive community initiatives, mentorship programs, youth outreach, or cultural advocacy can apply or be nominated.",
+  },
+  {
+    question: "What support do Creators for Change receive?",
+    answer:
+      "Selected creators receive verified spotlights across Hiffi discovery surfaces, promotional features, access to creative tools, and opportunities to partner with brands and nonprofits aligned with hip-hop culture.",
+  },
+  {
+    question: "Can I nominate another hip-hop artist or mentor?",
+    answer:
+      "Yes. Anyone can nominate deserving artists by emailing care@hiffi.com with the artist's Hiffi profile and a summary of their community impact and accomplishments.",
+  },
+]
 
 const APPLY_HREF = "/creator/apply"
 const NOMINATE_HREF = "mailto:care@hiffi.com?subject=Creators%20for%20Change%20Nomination"
@@ -144,6 +169,8 @@ export default function CreatorsForChangePage() {
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: HERO_IMAGE,
+    faqItems: creatorsForChangeFaqItems,
   })
 
   return (
@@ -421,6 +448,37 @@ export default function CreatorsForChangePage() {
             <br />
             Real impact.
           </ImageCaptionCard>
+        </div>
+      </section>
+
+      {/* 06 FAQ */}
+      <section aria-labelledby="cfc-faq-heading" className="border-t border-rose-100/70 bg-[#fdf7f7] py-16 dark:border-white/5 dark:bg-muted/30 sm:py-20">
+        <div className={container}>
+          <SectionTitle number="06" eyebrow="FAQ" id="cfc-faq-heading">
+            Frequently Asked Questions
+          </SectionTitle>
+          <div className="mt-8 space-y-3">
+            {creatorsForChangeFaqItems.map((item) => (
+              <details
+                key={item.question}
+                className="group rounded-xl border border-black/[0.06] bg-card transition-colors open:border-primary/40 hover:border-primary/30 dark:border-white/10"
+              >
+                <summary
+                  className={cn(
+                    "flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden",
+                    focusRing,
+                  )}
+                >
+                  {item.question}
+                  <Plus
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45 group-open:text-primary"
+                    aria-hidden
+                  />
+                </summary>
+                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
     </div>

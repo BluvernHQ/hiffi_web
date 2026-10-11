@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "Independent hip-hop artists, rappers, producers, and DJs: create your profile, upload official music videos, and grow your audience on Hiffi.",
   path: "/artists",
+  image: "/hiffi-artists/for-artists.jpg",
   keywords: [
     "Hiffi artists",
     "independent rap artists",

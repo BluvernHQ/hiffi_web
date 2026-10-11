@@ -218,6 +218,7 @@ export default function PressPage() {
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: "/press/hero-artist.jpg",
   })
 
   return (
@@ -246,7 +247,7 @@ export default function PressPage() {
                   </Link>
                 </li>
                 <li aria-hidden>/</li>
-                <li className="font-medium text-white/90">Media</li>
+                <li aria-current="page" className="font-medium text-white/90">{PAGE_TITLE}</li>
               </ol>
             </nav>
 

@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "Hiffi press resources — company overview, brand assets, media contact, and facts for journalists covering hip-hop streaming and independent artists.",
   path: "/press",
+  image: "/press/hero-artist.jpg",
   keywords: [
     "Hiffi press kit",
     "Hiffi media",

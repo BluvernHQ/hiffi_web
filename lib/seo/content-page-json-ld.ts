@@ -5,11 +5,13 @@ export function buildContentPageJsonLd(opts: {
   title: string
   description: string
   breadcrumbLabel: string
+  primaryImage?: string
   faqItems?: Array<{ question: string; answer: string }>
 }) {
-  const { path, title, description, breadcrumbLabel, faqItems } = opts
+  const { path, title, description, breadcrumbLabel, primaryImage, faqItems } = opts
   const pageUrl = absoluteUrl(path)
   const origin = getSiteOrigin()
+  const imageUrl = primaryImage ? absoluteUrl(primaryImage) : undefined
 
   const graph: Record<string, unknown>[] = [
     {
@@ -22,6 +24,16 @@ export function buildContentPageJsonLd(opts: {
       isPartOf: { "@id": `${origin}/#website` },
       about: { "@id": `${origin}/#organization` },
       breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+      ...(imageUrl
+        ? {
+            primaryImageOfPage: {
+              "@type": "ImageObject",
+              "@id": `${pageUrl}#primaryimage`,
+              url: imageUrl,
+            },
+            image: [imageUrl],
+          }
+        : {}),
       ...(faqItems && faqItems.length > 0
         ? { mainEntity: { "@id": `${pageUrl}#faq` } }
         : {}),

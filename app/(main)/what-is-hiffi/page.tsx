@@ -18,6 +18,8 @@ import { buildSignupUrl } from "@/lib/auth-utils"
 import { buildContentPageJsonLd } from "@/lib/seo/content-page-json-ld"
 import { cn } from "@/lib/utils"
 
+import { Plus } from "lucide-react"
+
 const PAGE_PATH = "/what-is-hiffi"
 const PAGE_TITLE = "What is Hiffi?"
 // Skip on the signup page (and a completed signup) returns here.
@@ -25,29 +27,28 @@ const SIGNUP_HREF = buildSignupUrl(PAGE_PATH)
 const HERO_DESCRIPTION =
   "Hiffi is an artist-first hip-hop platform where independent artists share music videos, freestyles, and exclusive releases, and grow their audience — starting from Atlanta's rap scene. Not affiliated with other HIFFI brands."
 
-const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: [
-    {
-      "@type": "Question",
-      name: "What is Hiffi?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Hiffi is a music and video streaming platform where hip-hop creators publish official music videos and audiences watch, listen, follow artists, and support creators.",
-      },
-    },
-
-    {
-      "@type": "Question",
-      name: "Where can I access Hiffi?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "You can use Hiffi on the web at hiffi.com and through the official mobile apps on Google Play and the Apple App Store.",
-      },
-    },
-  ],
-}
+const faqItems = [
+  {
+    question: "What is Hiffi?",
+    answer:
+      "Hiffi is a music and video streaming platform where hip-hop creators publish official music videos and audiences watch, listen, follow artists, and support creators.",
+  },
+  {
+    question: "Where can I access Hiffi?",
+    answer:
+      "You can use Hiffi on the web at hiffi.com and through official mobile apps on iOS and Android.",
+  },
+  {
+    question: "Is Hiffi free for fans to watch and listen?",
+    answer:
+      "Yes, fans can explore curated hip-hop feeds, stream music videos, follow independent artists, and discover underground talent completely free.",
+  },
+  {
+    question: "How do independent artists get their music on Hiffi?",
+    answer:
+      "Independent rappers, producers, and DJs can apply through the Creator portal at hiffi.com/creator/apply or claim their existing profile in the Hiffi Artist Index to upload official videos and access creator tools.",
+  },
+]
 
 type Feature = {
   title: string
@@ -157,18 +158,19 @@ export default function WhatIsHiffiPage() {
     title: PAGE_TITLE,
     description: HERO_DESCRIPTION,
     breadcrumbLabel: PAGE_TITLE,
+    primaryImage: "/what-is-hiffi/hero-collage.jpg",
+    faqItems,
   })
 
   return (
     <div className="min-h-full overflow-x-clip bg-background">
       <JsonLd data={pageJsonLd} />
-      <JsonLd data={faqJsonLd} />
 
       {/* Hero */}
       <section className="relative isolate overflow-hidden bg-[#07070b] text-white">
         <Image
           src="/what-is-hiffi/hero-collage.jpg"
-          alt=""
+          alt="Hiffi hip-hop artists, music videos, and streaming platform"
           fill
           priority
           sizes="100vw"
@@ -382,6 +384,25 @@ export default function WhatIsHiffiPage() {
             ))}
           </ol>
         </section>
+
+        {/* FAQ Section */}
+        <section aria-labelledby="faq-heading" className="py-14 sm:py-16">
+          <SectionLabel>Frequently asked questions</SectionLabel>
+          <h2 id="faq-heading" className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            Everything you need to know about Hiffi.
+          </h2>
+          <div className="mt-8 divide-y divide-border/60 rounded-2xl border border-border/70 bg-card">
+            {faqItems.map((item) => (
+              <details key={item.question} className="group p-5 first:rounded-t-2xl last:rounded-b-2xl">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground hover:text-primary">
+                  {item.question}
+                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45 group-open:text-primary" aria-hidden />
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
       </div>
 
       {/* Bottom CTA */}
@@ -389,7 +410,7 @@ export default function WhatIsHiffiPage() {
         <section aria-labelledby="cta-heading" className="relative isolate overflow-hidden rounded-3xl bg-[#1a0306] text-white">
           <Image
             src="/what-is-hiffi/cta-crowd.jpg"
-            alt=""
+            alt="Concert crowd cheering at a live hip-hop performance"
             fill
             sizes="(min-width: 1280px) 1200px, 100vw"
             className="-z-20 object-cover object-[70%_center]"

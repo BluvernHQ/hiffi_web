@@ -7,6 +7,7 @@ export const metadata = routeMetadata({
   description:
     "The Hiffi Creator Playbook for independent rappers and hip-hop artists — become a creator, upload music videos, and grow your fanbase.",
   path: "/creator-playbook",
+  image: "/how-it-works/devices.png",
   keywords: [
     "Hiffi creator playbook",
     "upload rap music video guide",
