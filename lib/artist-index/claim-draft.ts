@@ -82,7 +82,7 @@ export function createClaimDraft(artist: Artist): ClaimDraft {
     city: cityLabel === UNKNOWN_LOCATION_LABEL ? "" : cityLabel,
     primarySound,
     primarySoundOther: primarySound === "other" ? (artist.genre[0] ?? "") : "",
-    openToCollab: "",
+    openToCollab: "yes",
     howFound: "",
     howFoundOther: "",
   }
@@ -210,10 +210,27 @@ export function loadClaimDraft(slug: string, fallback: ClaimDraft): ClaimDraft |
     const raw = window.sessionStorage.getItem(storageKey(slug))
     if (!raw) return null
     const stored = JSON.parse(raw) as Partial<StoredClaimDraft>
+    let validHowFound = stored.howFound as string | undefined
+    if (validHowFound === "search") {
+      validHowFound = "google_search" as DiscoverySource
+    } else if (
+      validHowFound &&
+      !["google_search", "email", "instagram", "chatgpt", "other"].includes(validHowFound as string)
+    ) {
+      validHowFound = ""
+    }
+
+    let validCollab = stored.openToCollab
+    if (!["yes", "maybe", "no"].includes(validCollab as string)) {
+      validCollab = "yes" as CollabOpenness
+    }
+
     return {
       ...fallback,
       ...stored,
       socials: { ...fallback.socials, ...stored.socials },
+      howFound: validHowFound as DiscoverySource | "",
+      openToCollab: validCollab as CollabOpenness,
       password: "",
       confirmPassword: "",
     }

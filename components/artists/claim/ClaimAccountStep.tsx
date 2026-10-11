@@ -9,6 +9,7 @@ import {
   type ClaimDraftErrors,
 } from "@/lib/artist-index/claim-draft"
 import { cn } from "@/lib/utils"
+import { DISCOVERY_SOURCE_OPTIONS } from "@/lib/types/inventory"
 import { ClaimField, ClaimSection, claimInputClass } from "./claim-field"
 
 type ClaimAccountStepProps = {
@@ -129,13 +130,11 @@ export function ClaimAccountStep({ artistSlug, draft, errors, onChange, onEmailB
           className={claimInputClass}
         >
           <option value="" disabled>Select an option</option>
-          <option value="tiktok">TikTok</option>
-          <option value="instagram">Instagram</option>
-          <option value="twitter">X (Twitter)</option>
-          <option value="youtube">YouTube</option>
-          <option value="friend">Friend / Colleague</option>
-          <option value="google">Google Search</option>
-          <option value="other">Other</option>
+          {DISCOVERY_SOURCE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </ClaimField>
       
