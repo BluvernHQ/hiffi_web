@@ -45,11 +45,7 @@ const playbookFaqItems = [
     answer:
       "Yes. Independent artists maintain 100% ownership and intellectual property rights to their uploaded music and video content in accordance with Hiffi's Terms of Use.",
   },
-  {
-    question: "How does discovery work for new creators on Hiffi?",
-    answer:
-      "New uploads can be discovered through following feeds, the dedicated Hip-Hop Hub, genre channels, city hubs like Atlanta, and the curated Hiffi Artist Directory.",
-  },
+ 
 ]
 
 const BECOME_CREATOR_HREF = "/creator/apply"
