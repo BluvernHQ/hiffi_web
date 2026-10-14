@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -7,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> }
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
     const targetUrl = `${getApiBaseUrl()}/admin/discovery-source/${encodeURIComponent(id)}`
 
     const response = await fetch(targetUrl, {

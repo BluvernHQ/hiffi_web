@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 /** Same-origin proxy for POST /feedback/ (submit feedback). */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
     const body = await request.text()
     const response = await fetch(`${getApiBaseUrl()}/feedback/`, {
       method: "POST",

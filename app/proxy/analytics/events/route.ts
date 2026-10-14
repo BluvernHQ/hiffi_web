@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 export async function POST(request: NextRequest) {
   try {
     const targetUrl = `${getApiBaseUrl().replace(/\/$/, "")}/analytics/events`
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
     const contentType = request.headers.get("content-type") || "application/json"
     const body = await request.text()
 

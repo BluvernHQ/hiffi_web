@@ -112,7 +112,7 @@ export function OwnerRankCard({ className }: { className?: string }) {
     }
     let cancelled = false
     fetch("/proxy/inventory/me/ranking", {
-      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      headers: { Accept: "application/json", "X-Hiffi-Authorization": `Bearer ${token}` },
       cache: "no-store",
     })
       .then(async (res) => {

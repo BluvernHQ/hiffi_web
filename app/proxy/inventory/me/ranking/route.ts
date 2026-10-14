@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 /** Same-origin proxy for GET /inventory/me/ranking (owner-only; forwards the user JWT). */
 export async function GET(request: NextRequest) {
-  const authorization = request.headers.get("authorization")
+  const authorization = incomingAuthHeader(request)
   if (!authorization) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
   }

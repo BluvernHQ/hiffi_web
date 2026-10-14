@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
 import { analyticsIngestHeaders } from "@/lib/analytics/ingest-key"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 export async function POST(request: NextRequest) {
   try {
     const targetUrl = `${getApiBaseUrl().replace(/\/$/, "")}/analytics/sessions/identify`
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
     const ingestKey = request.headers.get("x-analytics-ingest-key")
     const contentType = request.headers.get("content-type") || "application/json"
     const body = await request.text()

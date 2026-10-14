@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 type RouteContext = { params: Promise<{ referenceId: string }> }
 
@@ -7,7 +8,7 @@ type RouteContext = { params: Promise<{ referenceId: string }> }
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { referenceId } = await context.params
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
     const response = await fetch(
       `${getApiBaseUrl()}/flags/ref/${encodeURIComponent(referenceId)}`,
       {

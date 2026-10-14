@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 type RouteContext = { params: Promise<{ feedbackId: string }> }
 
@@ -8,7 +9,7 @@ async function forward(
   feedbackId: string,
   method: string,
 ): Promise<NextResponse> {
-  const authHeader = request.headers.get("authorization")
+  const authHeader = incomingAuthHeader(request)
   const headers: Record<string, string> = {
     Accept: "application/json",
   }

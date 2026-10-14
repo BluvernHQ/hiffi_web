@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 export async function GET(request: NextRequest) {
   try {
     const query = request.nextUrl.search || ""
     const targetUrl = `${getApiBaseUrl()}/analytics/events${query}`
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
 
     const response = await fetch(targetUrl, {
       method: "GET",

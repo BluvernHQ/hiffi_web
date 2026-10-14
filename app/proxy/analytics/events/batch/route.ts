@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
 import { analyticsIngestHeaders } from "@/lib/analytics/ingest-key"
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 
 function stripAdminEvents(body: string): string {
   try {
@@ -20,7 +21,7 @@ function stripAdminEvents(body: string): string {
 export async function POST(request: NextRequest) {
   try {
     const targetUrl = `${getApiBaseUrl().replace(/\/$/, "")}/analytics/events/batch`
-    const authHeader = request.headers.get("authorization")
+    const authHeader = incomingAuthHeader(request)
     const ingestKey = request.headers.get("x-analytics-ingest-key")
     const contentType = request.headers.get("content-type") || "application/json"
     const rawBody = await request.text()

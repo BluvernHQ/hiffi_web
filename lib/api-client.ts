@@ -263,7 +263,8 @@ class ApiClient {
       Accept: "application/json",
     }
     const token = this.getAuthToken()
-    if (token) headers.Authorization = `Bearer ${token}`
+    // Not Authorization: that header is nginx Basic Auth on staging.
+    if (token) headers["X-Hiffi-Authorization"] = `Bearer ${token}`
     if (options.body !== undefined) {
       headers["Content-Type"] = "application/json"
     }
