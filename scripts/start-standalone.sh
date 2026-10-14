@@ -23,4 +23,5 @@ export PORT="${PORT:-3002}"
 export HOSTNAME="${APP_HOSTNAME:-0.0.0.0}"
 
 echo "[hiffi-web] Starting standalone server on ${HOSTNAME}:${PORT}"
-exec node ".next/standalone/server.js"
+# Standalone Next does not load .env.local before auth modules initialize.
+exec node --env-file=.env.local ".next/standalone/server.js"
