@@ -78,6 +78,7 @@ import type {
   UpdateMigrationRequestInput,
 } from "@/lib/types/youtube-migration"
 const TOKEN_KEY = "hiffi_auth_token"
+const ADMIN_DASHBOARD_TOKEN_KEY = "hiffi_admin_dashboard_token"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
 

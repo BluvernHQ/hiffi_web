@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth, type SocialProvider } from "@/lib/auth-context"
 import { validateRedirect, buildSignupUrl, resolvePostAuthDestination, resolveSkipDestination } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,13 +27,31 @@ function LoginForm() {
   const [error, setError] = useState("")
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const turnstileRef = useRef<TurnstileWidgetHandle>(null)
-  const { login, user, userData, loading: authLoading } = useAuth()
+  const { login, loginWithProvider, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [socialProviders, setSocialProviders] = useState<{ google: boolean; apple: boolean }>({
+    google: false,
+    apple: false,
+  })
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null)
   
   // Get redirect parameter from URL (preserved from where user came from)
   const redirectParam = searchParams.get('redirect')
   const redirectPath = validateRedirect(redirectParam)
+
+  useEffect(() => {
+    fetch("/api/auth/providers")
+      .then((res) => res.json())
+      .then((data) => setSocialProviders({ google: data.google === true, apple: data.apple === true }))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (searchParams.get("error") === "social") {
+      setError("Social sign-in failed or was cancelled. Please try again.")
+    }
+  }, [searchParams])
 
   // Redirect if already logged in
   useEffect(() => {
@@ -87,6 +105,17 @@ function LoginForm() {
       }
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSocialLogin = async (provider: SocialProvider) => {
+    setSocialLoading(provider)
+    setError("")
+    try {
+      await loginWithProvider(provider, redirectPath)
+    } catch (err: any) {
+      setError(err.message || "This sign-in method is currently unavailable")
+      setSocialLoading(null)
     }
   }
 
@@ -199,6 +228,42 @@ function LoginForm() {
               )}
             </Button>
           </form>
+          {(socialProviders.google || socialProviders.apple) && (
+            <div className="mt-6 space-y-3">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+              {socialProviders.google && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={socialLoading !== null}
+                  onClick={() => handleSocialLogin("google")}
+                >
+                  {socialLoading === "google" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Continue with Google
+                </Button>
+              )}
+              {socialProviders.apple && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={socialLoading !== null}
+                  onClick={() => handleSocialLogin("apple")}
+                >
+                  {socialLoading === "apple" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Continue with Apple
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex justify-center">
           <div className="text-center text-sm">

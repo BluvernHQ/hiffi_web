@@ -815,6 +815,31 @@ class AdminApiClient implements AdminApiClientContext {
     }
     return { status: "error", message: response.message || "Failed to delete reply" }
   }
+
+  async getAuthProviders(): Promise<AuthProviderSetting[]> {
+    const response = await this.request<{ success?: boolean; data?: { providers?: AuthProviderSetting[] } }>(
+      "/admin/auth-providers",
+      { method: "GET" },
+      true,
+    )
+    return response.data?.providers ?? []
+  }
+
+  async updateAuthProvider(provider: string, enabled: boolean): Promise<AuthProviderSetting[]> {
+    const response = await this.request<{ success?: boolean; data?: { providers?: AuthProviderSetting[] } }>(
+      "/admin/auth-providers",
+      { method: "PATCH", body: JSON.stringify({ provider, enabled }) },
+      true,
+    )
+    return response.data?.providers ?? []
+  }
+}
+
+export interface AuthProviderSetting {
+  provider: string
+  enabled: boolean
+  updated_by?: string
+  updated_at?: string
 }
 
 export const adminApiClient = new AdminApiClient()

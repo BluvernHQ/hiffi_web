@@ -47,6 +47,7 @@ import { InventoryPanel } from "@/components/admin/inventory-panel"
 import { RankingAnomaliesPanel } from "@/components/admin/ranking-anomalies-panel"
 import { CreatorsPanel } from "@/components/admin/creators-panel"
 import { CreatorsDashboardSnapshot } from "@/components/admin/creators-dashboard-snapshot"
+import { AuthProvidersSettings } from "@/components/admin/auth-providers-settings"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -635,6 +636,18 @@ function AdminDashboardContent() {
                   <div className="flex-1 min-h-0">
                     {showSectionBody ? <AdminToolsPanel /> : <TableSkeleton />}
                   </div>
+                </div>
+              )}
+
+              {displaySection === "auth-providers" && can(PERMS.authProvidersRead) && (
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Login providers</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enable or disable Google and Apple sign-in
+                    </p>
+                  </div>
+                  {showSectionBody ? <AuthProvidersSettings /> : <TableSkeleton />}
                 </div>
               )}
             </div>

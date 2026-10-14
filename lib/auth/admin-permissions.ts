@@ -35,6 +35,8 @@ export const PERMS = {
   inventoryRankingWrite: "inventory.ranking:write",
   youtubeKeysManageRead: "youtube_keys.manage:read",
   youtubeKeysManageWrite: "youtube_keys.manage:write",
+  authProvidersRead: "auth.providers:read",
+  authProvidersWrite: "auth.providers:write",
 } as const
 
 export type Permission = (typeof PERMS)[keyof typeof PERMS]
@@ -319,6 +321,7 @@ export const ADMIN_SECTION_PERMISSION: Record<string, Permission> = {
   ranking_anomalies: PERMS.inventoryRankingRead,
   creators: PERMS.creatorsDashboardRead,
   tools: PERMS.youtubeKeysManageRead,
+  "auth-providers": PERMS.authProvidersRead,
 }
 
 export function canAccessAdminSection(admin: AdminSession | null | undefined, section: string): boolean {
