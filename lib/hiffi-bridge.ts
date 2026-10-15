@@ -1,5 +1,9 @@
 import { API_BASE_URL } from "@/lib/config"
 
+// Cloudflare challenges server-to-server requests to the public API host, so a server
+// running next to the Go API should set this to its local address (e.g. http://127.0.0.1:5001).
+const GO_API_URL = (process.env.HIFFI_API_INTERNAL_URL || API_BASE_URL).replace(/\/+$/, "")
+
 export type GoAuthResponse = {
   success: boolean
   error?: string
@@ -30,7 +34,7 @@ export function forwardedIpHeaders(req: Request): Record<string, string> {
 }
 
 async function postToGo(path: string, body: unknown, headers: Record<string, string>) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${GO_API_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
