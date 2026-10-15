@@ -149,6 +149,7 @@ const navSections: NavSection[] = [
     items: [
       { icon: ShieldCheck, label: "Team", value: "admins", permission: PERMS.adminsAccountsRead },
       { icon: KeyRound, label: "Roles", value: "admin_roles", permission: PERMS.rolesManagementRead },
+      { icon: KeyRound, label: "Login providers", value: "auth-providers", permission: PERMS.authProvidersRead },
       { icon: Wrench, label: "Tools", value: "tools", permission: PERMS.youtubeKeysManageRead },
     ],
   },

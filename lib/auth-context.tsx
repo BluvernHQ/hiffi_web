@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { SESSION_REJECTED_EVENT, apiClient, isApiUser } from "./api-client"
+import { authClient } from "./auth-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
 import { trackUmami, setUmamiUser } from "@/lib/umami"
@@ -26,6 +27,14 @@ interface User {
   username: string
 }
 
+export type SocialProvider = "google" | "apple"
+
+/** Go (Hiffi API) session returned by /auth/login and the Better Auth bridge routes. */
+interface GoSession {
+  token: string
+  user: User & { email?: string | null; email_verified?: boolean }
+}
+
 interface AuthContextType {
   user: User | null
   userData: any | null
@@ -36,6 +45,8 @@ interface AuthContextType {
     redirectPath?: string | null,
     turnstileToken?: string | null,
   ) => Promise<void>
+  loginWithProvider: (provider: SocialProvider, redirectPath?: string | null) => Promise<void>
+  completeExternalLogin: (redirectPath?: string | null) => Promise<void>
   signup: (
     username: string,
     password: string,
@@ -60,6 +71,23 @@ interface AuthContextType {
   clearProfilePhoto: () => void
 }
 
+async function postAuthRoute(path: string, body?: unknown) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const json = await res.json().catch(() => ({}))
+  return { status: res.status, ok: res.ok && json?.success === true, json }
+}
+
+/** Trades the current Better Auth session for a Go token. */
+async function exchangeBetterAuthSession() {
+  const res = await postAuthRoute("/api/auth/hiffi-token")
+  return { ...res, session: res.ok ? (res.json.data as GoSession) : null }
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const USER_DATA_KEY = "hiffi_user_data"
@@ -71,6 +99,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  const adoptGoSession = (session: GoSession) => {
+    apiClient.setAuthToken(session.token)
+    setUser(session.user)
+    setUserData(session.user)
+    if (typeof window !== "undefined") {
+      localStorage.setItem(USER_DATA_KEY, JSON.stringify(session.user))
+      localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
+    }
+  }
+
+  /** Restores a Go token from an existing Better Auth session (e.g. after Google/Apple sign-in). */
+  const restoreFromBetterAuth = async (): Promise<any | null> => {
+    try {
+      const { data } = await authClient.getSession()
+      if (!data?.session) return null
+      const { session } = await exchangeBetterAuthSession()
+      if (!session) return null
+      adoptGoSession(session)
+      return (await refreshUserData(true)) ?? session.user
+    } catch (error) {
+      console.warn("[hiffi] Could not restore session from Better Auth:", error)
+      return null
+    }
+  }
 
   const clearProfilePhoto = useCallback(() => {
     setUserData((prev: Record<string, unknown> | null) => {
@@ -289,14 +342,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const credentials = apiClient.getCredentials()
             if (credentials.username && credentials.password) {
               await login(credentials.username, credentials.password)
-            } else {
+            } else if (!(await restoreFromBetterAuth())) {
               // No way to restore, clear token
               apiClient.clearAuthToken()
               setUser(null)
               setUserData(null)
             }
           }
-        } else {
+        } else if (!(await restoreFromBetterAuth())) {
           setUser(null)
           setUserData(null)
         }
@@ -360,6 +413,114 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  /**
+   * Better Auth first. If it rejects the credentials, or the Go bridge is down,
+   * fall back to the Go login, which also copies the user into Better Auth.
+   */
+  const authenticate = async (
+    identifier: string,
+    password: string,
+    turnstileToken?: string | null,
+  ): Promise<GoSession> => {
+    const isEmail = identifier.includes("@")
+    let betterAuth: { error: { message?: string } | null } = { error: { message: "unavailable" } }
+    try {
+      betterAuth = isEmail
+        ? await authClient.signIn.email({ email: identifier, password })
+        : await authClient.signIn.username({ username: identifier, password })
+    } catch (err) {
+      debugWarn("[hiffi] Better Auth sign-in failed, using legacy login:", err)
+    }
+
+    if (!betterAuth.error) {
+      const exchanged = await exchangeBetterAuthSession()
+      if (exchanged.session) return exchanged.session
+      if (exchanged.status === 403) {
+        await authClient.signOut().catch(() => {})
+        throw new Error(exchanged.json?.error || "Login failed. Please check your credentials.")
+      }
+      debugWarn("[hiffi] Better Auth bridge failed, using legacy login:", exchanged.json?.error)
+    }
+
+    const legacy = await postAuthRoute("/api/auth/legacy-signin", {
+      identifier,
+      password,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    })
+    if (!legacy.ok) {
+      throw new Error(legacy.json?.error || "Invalid username or email, or password")
+    }
+    return legacy.json.data as GoSession
+  }
+
+  const applyGoSession = async (session: GoSession, redirectPath?: string | null) => {
+    apiClient.setAuthToken(session.token)
+    const sessionUser = { ...session.user }
+    setUser(session.user)
+    setUserData(normalizeUserProfilePictureFields(sessionUser))
+    identifyAnalyticsUser(session.user.username || null)
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(sessionUser)))
+      localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
+    }
+
+    debugLog("[hiffi] Checking if account is disabled")
+    try {
+      const userStatusResponse = await apiClient.getUserByUsername(session.user.username)
+      if (userStatusResponse.disabled === true && userStatusResponse.success === false) {
+        debugWarn("[hiffi] Account is disabled, logging out user")
+        apiClient.clearAuthToken()
+        apiClient.clearCredentials()
+        await authClient.signOut().catch(() => {})
+        setUser(null)
+        setUserData(null)
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(USER_DATA_KEY)
+          localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+        }
+        toast({
+          title: "Account Disabled",
+          description: (
+            <span>
+              Your account has been disabled. Please contact support at{" "}
+              <a
+                href="mailto:support@hiffi.com"
+                className="font-semibold text-primary underline hover:text-primary/80"
+                onClick={(e) => e.stopPropagation()}
+              >
+                support@hiffi.com
+              </a>
+              {" "}for more details or to get assistance.
+            </span>
+          ),
+          variant: "destructive",
+          duration: 10000,
+        })
+        return
+      }
+    } catch (statusError: any) {
+      if (statusError.message?.includes("disabled")) return
+      debugWarn("[hiffi] Failed to check account status, continuing with login:", statusError)
+    }
+
+    let finalUserData: any = session.user
+    try {
+      const refreshedUserData = await refreshUserData(true)
+      if (refreshedUserData) finalUserData = refreshedUserData
+    } catch (refreshError) {
+      debugWarn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
+    }
+
+    void replayPendingGuestIntents()
+    resetGuestConversionSession()
+    clearGuestHistory()
+
+    const destination = resolvePostAuthDestination(redirectPath, finalUserData)
+    debugLog("[hiffi] Redirecting after login to:", destination)
+    router.replace(destination)
+  }
+
   const login = async (
     identifier: string,
     password: string,
@@ -370,139 +531,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const trimmedIdentifier = identifier.trim()
       debugLog("[hiffi] Attempting login for:", trimmedIdentifier)
 
-      if (!password) {
-        throw new Error("Enter your password.")
-      }
-      if (passwordContainsWhitespace(password)) {
-        throw new Error("Password cannot contain spaces.")
-      }
-
-      if (trimmedIdentifier.includes("@")) {
-        if (!isValidEmailFormat(trimmedIdentifier)) {
-          throw new Error("Enter a valid email address (include @ and a domain, e.g. name@example.com).")
-        }
+      if (!password) throw new Error("Enter your password.")
+      if (passwordContainsWhitespace(password)) throw new Error("Password cannot contain spaces.")
+      if (trimmedIdentifier.includes("@") && !isValidEmailFormat(trimmedIdentifier)) {
+        throw new Error("Enter a valid email address (include @ and a domain, e.g. name@example.com).")
       }
 
-      const loginData = {
-        // Backend stores emails lowercased and matches case-sensitively.
-        ...(trimmedIdentifier.includes("@")
-          ? { email: trimmedIdentifier.toLowerCase(), password }
-          : { username: trimmedIdentifier, password }),
-        ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
-      }
-
-      const response = await apiClient.login(loginData)
-
-      if (!response.success || !response.data) {
-        throw new Error("Login failed. Please check your credentials.")
-      }
-
-      debugLog("[hiffi] Login successful, user:", response.data.user.username)
-
-      // Set initial user data from login response
-      setUser(response.data.user)
-      setUserData(normalizeUserProfilePictureFields(response.data.user))
-      identifyAnalyticsUser(response.data.user.username || null)
-
-      // Cache the user data
-      if (typeof window !== "undefined") {
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(response.data.user)))
-        localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString())
-      }
-
-      // Check if account is disabled by calling /users/{username}
-      debugLog("[hiffi] Checking if account is disabled")
-      try {
-        const userStatusResponse = await apiClient.getUserByUsername(response.data.user.username)
-
-        // Check if user account is disabled
-        // API returns { disabled: true, success: false } for disabled accounts
-        if (userStatusResponse.disabled === true && userStatusResponse.success === false) {
-          debugWarn("[hiffi] Account is disabled, logging out user")
-
-          // Clear auth state
-          apiClient.clearAuthToken()
-          apiClient.clearCredentials()
-          setUser(null)
-          setUserData(null)
-
-          // Clear cached data
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(USER_DATA_KEY)
-            localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
-          }
-
-          // Show toast notification with better UX
-          toast({
-            title: "Account Disabled",
-            description: (
-              <span>
-                Your account has been disabled. Please contact support at{" "}
-                <a
-                  href="mailto:support@hiffi.com"
-                  className="font-semibold text-primary underline hover:text-primary/80"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  support@hiffi.com
-                </a>
-                {" "}for more details or to get assistance.
-              </span>
-            ),
-            variant: "destructive",
-            duration: 10000, // Show for 10 seconds to ensure user sees it
-          })
-
-          // Return early without throwing error to avoid console noise
-          // The toast message is sufficient feedback to the user
-          return
-        }
-      } catch (statusError: any) {
-        // If the error is about disabled account, handle it silently
-        if (statusError.message?.includes("disabled")) {
-          // Already handled above, just return
-          return
-        }
-        // Otherwise, log the error but continue with login (might be network issue)
-        debugWarn("[hiffi] Failed to check account status, continuing with login:", statusError)
-      }
-
-      // Refresh user data from /users/{username} to get latest creator status and all user details
-      debugLog("[hiffi] Refreshing user data from /users/{username} to get latest details")
-      let finalUserData: any = response.data.user
-      try {
-        const refreshedUserData = await refreshUserData(true, { keepSessionOnFailure: true })
-        if (refreshedUserData) {
-          finalUserData = refreshedUserData
-          debugLog("[hiffi] User data refreshed, role:", refreshedUserData.role)
-          debugLog("[hiffi] Is creator:", refreshedUserData.role === "creator")
-        }
-      } catch (refreshError) {
-        debugWarn("[hiffi] Failed to refresh user data after login, using login response data:", refreshError)
-        // Continue with login response data if refresh fails
-      }
-
-      // refreshUserData may fail without clearing session; ensure auth state matches login payload.
-      if (!apiClient.getAuthToken()) {
-        apiClient.setAuthToken(response.data.token)
-      }
-      setUser(response.data.user)
-      setUserData(normalizeUserProfilePictureFields(finalUserData))
-
-      debugLog("[hiffi] User data set after login")
-
-      void replayPendingGuestIntents()
-      resetGuestConversionSession()
-      clearGuestHistory()
-
-      // Use redirect path if provided (from query param), otherwise go to home
-      const destination = resolvePostAuthDestination(redirectPath, finalUserData)
-      debugLog("[hiffi] Redirecting after login to:", destination)
-      router.replace(destination)
+      const session = await authenticate(trimmedIdentifier, password, turnstileToken)
+      apiClient.setCredentials(session.user.username, password)
+      await applyGoSession(session, redirectPath)
     } catch (error: any) {
       console.error("[hiffi] Sign in failed:", error)
       const errorMessage = error.message || "Failed to sign in. Please check your credentials."
       throw new Error(errorMessage)
     }
+  }
+
+  const loginWithProvider = async (provider: SocialProvider, redirectPath?: string | null) => {
+    const callbackURL = `/auth/callback${redirectPath ? `?redirect=${encodeURIComponent(redirectPath)}` : ""}`
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL,
+      errorCallbackURL: "/login?error=social",
+    })
+    if (error) {
+      throw new Error(error.message || "This sign-in method is currently unavailable")
+    }
+  }
+
+  const completeExternalLogin = async (redirectPath?: string | null) => {
+    const exchanged = await exchangeBetterAuthSession()
+    if (!exchanged.session) {
+      await authClient.signOut().catch(() => {})
+      throw new Error(exchanged.json?.error || "Sign-in failed. Please try again.")
+    }
+    await applyGoSession(exchanged.session, redirectPath)
   }
 
   const signup = async (
@@ -711,6 +774,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       apiClient.clearAuthToken()
       // Clear stored credentials
       apiClient.clearCredentials()
+      await authClient.signOut().catch((err) => console.warn("[hiffi] Better Auth sign-out failed:", err))
 
       // Clear cached data
       if (typeof window !== "undefined") {
@@ -835,6 +899,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userData,
       loading,
       login,
+      loginWithProvider,
+      completeExternalLogin,
       signup,
       establishSession,
       logout,
@@ -846,6 +912,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userData,
       loading,
       login,
+      loginWithProvider,
+      completeExternalLogin,
       signup,
       establishSession,
       logout,
