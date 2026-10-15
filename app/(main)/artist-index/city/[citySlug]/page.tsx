@@ -1,21 +1,18 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
-import { ArtistCitySceneTeaser } from "@/components/artists/ArtistCitySceneTeaser"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
-import { ArtistIndexListing } from "@/components/artists/ArtistIndexListing"
-import { ArtistSpotlightRow } from "@/components/artists/ArtistSpotlightRow"
-import { artistIndexCityHref } from "@/lib/artist-directory"
-import { ATLANTA_CITY_FAQ } from "@/lib/artist-index/city-seo-content"
+import { ArtistCollectionView } from "@/components/artists/index/ArtistCollectionView"
+import { artistIndexCityHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import {
   buildArtistCityPageMetadata,
   getArtistCityPage,
   getArtistCityPages,
 } from "@/lib/artist-directory-seo"
 import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
+import { getArtistIndexHubFeature, getCityChart } from "@/lib/artist-index/hub-data"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
-import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 
 type ArtistCityPageProps = {
   params: Promise<{ citySlug: string }>
@@ -57,20 +54,12 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
   const pageParam = await searchParams
   const parsedPage = parseInt(typeof pageParam.page === "string" ? pageParam.page : "1", 10)
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
-  const directory = await resolveArtistDirectoryPage({
-    activeFilterIds: [city.filterId],
-    page,
-  })
-
-  const isAtlanta = city.slug === "atlanta"
-  const spotlightDirectory = isAtlanta
-    ? await resolveArtistDirectoryPage({
-        activeFilterIds: [city.filterId, "new"],
-        page: 1,
-      })
-    : null
-  const spotlightArtists = spotlightDirectory?.pageArtists.slice(0, 6) ?? []
-  const filterOptions = await getAvailableArtistDirectoryFilters()
+  const [directory, filterOptions, hub, cityChart] = await Promise.all([
+    resolveArtistDirectoryPage({ activeFilterIds: [city.filterId], page }),
+    getAvailableArtistDirectoryFilters(),
+    getArtistIndexHubFeature(),
+    getCityChart(city.slug),
+  ])
 
   const pageUrl = absoluteUrl(
     artistIndexCityHref(city.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
@@ -78,6 +67,7 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
 
   return (
     <ArtistDirectoryShell
+      bleed
       breadcrumbs={[
         { label: "Artist Index", href: "/artist-index" },
         { label: city.label },
@@ -87,59 +77,29 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         data={buildArtistIndexHubJsonLd({
           artists: directory.pageArtists,
           pageUrl,
-          pageName: isAtlanta
-            ? "Atlanta hip-hop & rap artists on Hiffi"
-            : `${city.label} hip-hop & rap artists on Hiffi`,
+          pageName: `${city.headline} on Hiffi`,
           pageDescription: city.description,
           totalItemCount: directory.totalMatches,
           pageType: "CollectionPage",
-          includeFaq: isAtlanta,
-          faqItems: isAtlanta ? ATLANTA_CITY_FAQ : undefined,
+          includeFaq: false,
           breadcrumbs: [
             { name: "Artist Index", url: absoluteUrl(ARTIST_INDEX_PATH) },
             { name: city.label, url: pageUrl },
           ],
         })}
       />
-      <ArtistIndexListing
-        artists={directory.pageArtists}
-        artistCount={directory.artistCount}
-        totalMatches={directory.totalMatches}
-        currentPage={directory.currentPage}
-        totalPages={directory.totalPages}
-        query=""
-        activeFilterIds={[city.filterId]}
-        claimArtist={directory.claimArtist}
-        introTitle={isAtlanta ? "Atlanta hip-hop & rap artists" : `${city.label} hip-hop & rap artists`}
-        introDescription={city.description}
-        paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
-        showSearchControls
+      <ArtistCollectionView
+        kind="city"
+        slug={city.slug}
+        label={city.label}
+        headline={city.headline}
+        description={city.description}
+        filterId={city.filterId}
         filterOptions={filterOptions}
-        layout="hub"
-        showFaq={isAtlanta}
-        faqItems={isAtlanta ? ATLANTA_CITY_FAQ : undefined}
-        faqTitle="Atlanta Artist Index FAQ"
-        faqDescription="Common questions about finding, claiming, and browsing Atlanta rap artists on Hiffi."
-        compact
-        childrenBeforeGrid={
-          isAtlanta && spotlightArtists.length > 0 ? (
-            <ArtistSpotlightRow
-              artists={spotlightArtists}
-              title="New in Atlanta this month"
-              description="Recently indexed profiles — updated as the directory grows."
-              viewAllHref={undefined}
-            />
-          ) : undefined
-        }
-        childrenAfterGrid={
-          isAtlanta ? (
-            <ArtistCitySceneTeaser
-              citySlug={city.slug}
-              cityLabel={city.label}
-              profileCount={directory.totalMatches}
-            />
-          ) : undefined
-        }
+        directory={directory}
+        paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
+        cityChart={cityChart}
+        scenes={hub.cities}
       />
     </ArtistDirectoryShell>
   )

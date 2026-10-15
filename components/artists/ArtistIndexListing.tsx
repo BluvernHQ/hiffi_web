@@ -6,6 +6,7 @@ import { ArtistIndexControls } from "@/components/artists/ArtistIndexControls"
 import { ArtistIndexFaq } from "@/components/artists/ArtistIndexFaq"
 import { ArtistIndexIntro } from "@/components/artists/ArtistIndexIntro"
 import { ArtistIndexHubClient } from "@/components/artists/artist-index-hub-client"
+import { DirectoryNavContextSeed } from "@/components/artists/DirectoryNavContextSeed"
 import type { ReactNode } from "react"
 
 type ArtistIndexListingProps = {
@@ -33,6 +34,7 @@ type ArtistIndexListingProps = {
   layout?: "default" | "hub"
   /** Hub layout: update search/filter/clear in place without full page navigation. */
   clientDirectory?: boolean
+  hasMore?: boolean
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
 }
@@ -61,6 +63,7 @@ export function ArtistIndexListing({
   showIntro = true,
   layout = "default",
   clientDirectory = false,
+  hasMore = false,
   childrenBeforeGrid,
   childrenAfterGrid,
 }: ArtistIndexListingProps) {
@@ -79,6 +82,7 @@ export function ArtistIndexListing({
           totalPages,
           currentPage,
           pageArtists: artists,
+          hasMore: hasMore,
           isCleanHub,
         }}
         filterOptions={filterOptions}
@@ -95,6 +99,13 @@ export function ArtistIndexListing({
 
   return (
     <div className={isHub ? "space-y-8 sm:space-y-10" : "space-y-4 sm:space-y-5"}>
+      <DirectoryNavContextSeed
+        query={query}
+        activeFilterIds={activeFilterIds}
+        page={currentPage}
+        slugs={artists.map((artist) => artist.slug)}
+        totalMatches={totalMatches}
+      />
       {isHub ? (
         <div className="space-y-4 sm:space-y-5">
           <ArtistIndexIntro
@@ -145,6 +156,7 @@ export function ArtistIndexListing({
         artists={artists}
         currentPage={currentPage}
         totalPages={totalPages}
+        hasMore={hasMore}
         totalMatches={totalMatches}
         artistCount={artistCount}
         query={query}

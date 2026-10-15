@@ -3,6 +3,7 @@
 export const OPENED_VIDEO = "opened-video"
 
 export const OPENED_VIDEO_FROM_HOME = "opened-video-from-home"
+export const OPENED_VIDEO_FROM_HOME_HERO = "opened-video-from-home-hero"
 export const OPENED_VIDEO_FROM_SEARCH = "opened-video-from-search"
 export const OPENED_VIDEO_FROM_MOOD = "opened-video-from-mood"
 export const OPENED_VIDEO_FROM_PLAYLIST = "opened-video-from-playlist"

@@ -62,6 +62,8 @@ interface VideoGridProps {
   suppressEmptyState?: boolean
   /** Custom empty-state title when the grid has no items. */
   emptyTitle?: string
+  /** Optional description shown under `emptyTitle`. */
+  emptyDescription?: string
   /** Apply DM Sans to card metadata (title, artist, views). */
   metadataFontDmSans?: boolean
   /** Skip CSS fade-in on cards (use when GSAP handles entrance). */
@@ -72,6 +74,8 @@ interface VideoGridProps {
   enableHoverPreview?: boolean
   /** Keep the ⋮ menu visible on cards without hover (home / profile feeds). */
   alwaysShowMoreMenu?: boolean
+  /** Tighter gutters (profile mobile video tab). */
+  dense?: boolean
 }
 
 export function VideoGrid({
@@ -85,11 +89,13 @@ export function VideoGrid({
   hideTimestamp = false,
   suppressEmptyState = false,
   emptyTitle,
+  emptyDescription,
   metadataFontDmSans = false,
   skipCardEntrance = false,
   playlistNavigation,
   enableHoverPreview = false,
   alwaysShowMoreMenu = false,
+  dense = false,
 }: VideoGridProps) {
   const observerTarget = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -99,6 +105,9 @@ export function VideoGrid({
   const columnsPerRow = useGridColumnCount()
 
   const safeVideos = videos || []
+  const gridClassName = dense
+    ? "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-2 sm:gap-x-3 sm:gap-y-3 md:gap-x-4"
+    : "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3 sm:gap-x-4 sm:gap-y-4 md:gap-x-5"
 
   /** Sentinel sits one row above the bottom so the next page starts loading early. */
   const prefetchSentinelIndex =
@@ -182,7 +191,7 @@ export function VideoGrid({
   return (
     <div className="w-full">
       {isInitialLoad && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1">
+        <div className={gridClassName}>
           {Array.from({ length: 8 }).map((_, index) => (
             <VideoCardSkeleton key={`skeleton-${index}`} />
           ))}
@@ -193,7 +202,7 @@ export function VideoGrid({
         <>
           <div
             ref={gridRef}
-            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-0.5 sm:gap-y-1"
+            className={gridClassName}
           >
             {safeVideos.map((video, index) => (
               <div
@@ -257,9 +266,12 @@ export function VideoGrid({
 
       {!loading && safeVideos.length === 0 && !suppressEmptyState && (
         emptyTitle ? (
-          <p className="py-20 text-center text-sm text-[#555555] font-[family-name:var(--font-dm-sans)]">
-            {emptyTitle}
-          </p>
+          <div className="py-20 text-center font-[family-name:var(--font-dm-sans)]">
+            <p className="text-sm text-[#555555]">{emptyTitle}</p>
+            {emptyDescription ? (
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{emptyDescription}</p>
+            ) : null}
+          </div>
         ) : (
           <EmptyVideoState />
         )

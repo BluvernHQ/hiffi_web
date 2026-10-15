@@ -6,43 +6,188 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ## [Unreleased]
 
-## [2.3.0] — 2026-07-17
+### Notes
+
+- Track next work here after **v3.0.0** ships
+
+## [3.0.0] — 2026-09-02
+
+Release notes: [docs/releases/web-v3.0.0.md](docs/releases/web-v3.0.0.md)
 
 ### Added
 
-- Hiffi 500 (`/hiffi-500`) — standalone content page (Artist Index chrome, no app sidebar) ranking rap & hip-hop artists via `GET /inventory/top`: featured #1 banner, interactive top-5 spotlight with detail panel, searchable ranked list with tier badges, social handles, load-more pagination, claim CTA, and ItemList JSON-LD
-- Clear data-source disclosure on the ranking: "Ranked using YouTube public data only" badge plus a "Data as of" date (API `last_updated` timestamp pending backend support)
-- Same-origin proxy `GET /proxy/inventory/top` for client-side pagination
-- Hiffi 500 empty-image polish: brand monogram portraits, Artist Index-style avatars, profile photo enrichment from `/users/{username}`, and spotlight flow that starts at #2 so the hero isn’t repeated
-- Hiffi 500 product family: methodology page, Atlanta city Top 50 (+ 9 city hubs scaffolded), biggest risers/fallers, new entries, Breakout 100, weekly editorial note, score bands + confidence, Δ 7d column, share cards with OG images, subnav, and sitemap/SEO entries
+- Homepage **hero carousel** — curated editorial cards with inline playback; discover-feed fallback; skeleton while curated data loads
+- **Personalized discover feed** — home grid uses `GET /videos/recommend` instead of seeded `/videos/list`
+- Auth-aware **recommend refetch** on login/logout
+- **Mood mix chips** on home — horizontal mood selector with play action for the active mood queue
+- **`/feature-request`** — login-gated product idea form; footer + sidebar links
+- **`/hiffi-discovery-form`** — public discovery-source survey with Turnstile
+- Admin **feature request** triage — type filter, badges, parsed body, submitter username lookup
+- Admin **discovery source** panel — list/delete via same-origin proxies
+- **Instant sign-up** — register keeps session credentials; profile refresh can keep session on failure; redirect straight home
+
+### Changed
+
+- Related / Up Next prefetch prefers `/videos/recommend` (shared pool; falls back to `/videos/list`)
+- Discover empty state when recommend returns success with zero videos
+- Feed hover previews pause while the hero carousel is in view
+- SSR discover JSON-LD sourced from recommend
+
+### Fixed
+
+- Home SSR snapshot hydration mismatch when sessionStorage had a cached feed
+- Post-sign-up session no longer cleared by a brief profile 404 after register
 
 ### Notes
 
-- Live ranking remains YouTube-only. Movement lists fill when `rank_delta_7d` / `is_new_entry` ship; score bands are derived from `youtube_score` until full HPS bands exist
+- Major release. Ensure backend `/videos/recommend` is live before production deploy.
+
+## [2.3.3] — 2026-09-01
+
+Release notes: [docs/releases/web-v2.3.3.md](docs/releases/web-v2.3.3.md) (business-friendly summary; **shipped September 1, 2026**)
+
+### Fixed
+
+- Watch player **Next** no longer stalls after the first skip — Up Next queue excludes the current video and session history so recommendations do not ping-pong between the same two clips
+- Watch **Up Next** list refreshes correctly on in-place navigation (player stays mounted; related fetch no longer treats the previous video’s list as the new video’s seed)
+- Recommendation cache clears when advancing with Next so a fresh seed is not blocked by stale prefetch data
+- End-of-video autoplay uses in-place navigation (same as the player Next button) instead of a full route change
+- Video.js `MEDIA_ERR_SRC_NOT_SUPPORTED` during source switches — removed empty `src` teardown that triggered console errors; tightened error handling during in-flight source changes
+- Feed card hover preview no longer calls `flushSync` from mouse handlers (fixes React lifecycle warning on navigation)
+- **Turnstile** disabled on `localhost` / `127.0.0.1` so local login and signup are not blocked when a site key is configured
+
+
+
+## [2.3.2] — 2026-08-31
+
+Release notes: [docs/releases/web-v2.3.2.md](docs/releases/web-v2.3.2.md) (business-friendly summary; **shipped August 31, 2026**)
+
+### Added
+
+- **Discovery source** on Artist Index claims — required dropdown on the claim form (search, email, Instagram, ChatGPT, other); stored on submit and visible in the admin inventory claims table
+
+
+
+## [2.3.1] — 2026-08-15
+
+Release notes: [docs/releases/web-v2.3.1.md](docs/releases/web-v2.3.1.md) (business-friendly summary; **ready to ship August 15, 2026**)
+
+### Added
+
+- Homepage **SSR discover snapshot** — streamed real video titles, thumbnails, and `/watch/` links for crawlers/cold loads; interactive `HomeFeedClient` (scroll restore, infinite scroll) unchanged
+- **Send Feedback** entry in the main sidebar (same dialog as navbar / profile)
+- Hiffi `/profile`: Artist Index link in About when the artist is listed in the Artist Index (opens in a new tab)
+
+
+
+### Changed
+
+- Production **robots.txt** simplified to YouTube-style single `User-agent: `* (Allow + Disallows + Sitemap); removed per-bot duplicates and non-standard `Host:`; added Disallow for `/maintenance`, `/test-hls`, `/support/reports/`
+- Artist Index: hide **Watch on Hiffi** on unclaimed profiles
+- Removed Next.js `/hiffi-500` route family (engineering cleanup; **do not ship/announce latest** `/top-artists`)
+
+
+
+### Notes
+
+- Latest `/top-artists` (Hip-Hop 500) remains out of scope for communications — hold for a dedicated ranking release
+
+
+
+## [2.3.0] — 2026-08-13
+
+Release notes: [docs/releases/web-v2.3.0.md](docs/releases/web-v2.3.0.md) (business-friendly summary; **shipped August 13, 2026**)
+
+### Added
+
+- **Feedback module** — user dialog with screenshot capture (navbar/profile), submit via `/proxy/feedback`; admin Feedback list + detail under `/proxy/admin-feedback`
+- **Atlanta** editorial hubs: `/atlanta` plus genres, eras, best-of, venues, and studios (list + detail + OG images)
+- Cloudflare **Turnstile** on auth flows (widget + token on auth endpoints)
+- Sitemap routing: `sitemap.xml`, `sitemaps/[id]`, `video-sitemap.xml`, and related `lib/seo` helpers
+- Session analytics proxies under `/proxy/analytics/sessions`
+
+
+
+### Changed
+
+- Artist Index: claim CTA / hero copy tweaks; verified badge repositioned on artist detail hero
+- **Share** is a top-level action on home video cards and the watch page (moved out of the ⋯ menu); Report/Delete remain under more-actions
+
+
+
+### Fixed
+
+- Additional watch audio mute preference fix beyond the 2.2.3 Next/Previous mute behavior
+- Feedback dialog responsive layout across screen sizes
+
+
+
+### Notes
+
+- **Not announced in this release:** latest `/top-artists` / Hip-Hop 500 (separate ranking launch)
+- Out of scope: multi-platform HPS expansion, API/data licensing, index report, paid analytics
+- Follow-up: **[v2.3.1 — August 15, 2026](docs/releases/web-v2.3.1.md)**
+
+
+
+## [2.2.4] — 2026-07-16
+
+Release notes: [docs/releases/web-v2.2.4.md](docs/releases/web-v2.2.4.md) (business-friendly summary)
+
+### Added
+
+- YouTube-style home navigation: navbar logo hard-reloads the discover feed (new shuffle seed, scroll to top, mood cleared)
+
+
+
+### Fixed
+
+- Home feed scroll and loaded videos are restored when returning from watch (and other routes) instead of resetting to the top
+- Soft navigation back to home no longer shows a blocking “Loading…” state while the SSR feed refetch runs
+- Home scroll no longer gets overwritten when opening watch (shorter page was clamping `#main-content` and saving that lower value)
+- Home feed shows card skeletons while the first page loads instead of flashing “No videos yet”
+- Watch **Up Next** loads faster: smaller related fetch (16 vs 50), instant seed from the home feed when opening a video, and hover prefetch from feed cards
+- Home scroll is captured before the watch page zeroes the shared `#main-content` scroller (fixes Back restoring at top)
+
+
 
 ## [2.2.3] — 2026-07-14
+
+
 
 ### Fixed
 
 - Watch player Next/Previous no longer forces mute after switching videos (preserves audio preference across in-place source changes)
 
+
+
 ## [2.2.2] — 2026-07-07
+
+
 
 ### Added
 
 - Admin Artist Inventory detail sheet — click a row to view full description, social links, and profile metadata
 - Artist Index social links now include TikTok and Facebook when available
 
+
+
 ### Fixed
 
 - Artist Index profiles display inventory `bio` when provided, with the existing fallback copy when absent
 - Admin inventory table lists all social platforms (Instagram, YouTube, TikTok, Facebook)
 
+
+
 ## [2.2.1] — 2026-07-06
+
+
 
 ### Fixed
 
 - Send `signup_flow: "instant"` on `POST /auth/register` for instant creator signup
+
+
 
 ## [2.2.0] — 2026-06-29
 
@@ -70,6 +215,8 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Stable video analytics UI names (`lib/analytics/video-analytics-names.ts`) for watch player, Up Next sidebar, playlist queue, and overlay controls
 - Activity Logs context tags (`autoplay`, `source:*`, `nav:*`, `start:*`) and clearer human titles for playback and video-open events
 
+
+
 ### Changed
 
 - Artist Index route renamed from `/artistindex` to `/artist-index` (redirects in `next.config.mjs`)
@@ -85,9 +232,11 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Studio YouTube migration no longer requires Google channel verification (simplified migrate form)
 - Marketing copy: instant creator access for hip-hop/rap artists (no application wait) on Artists, FAQ, How it Works, and What is Hiffi
 - Hip-hop hub and Artists pages: removed algorithm gatekeeping and monetization claims
-- Advertising page section title: “Brand safety & transparency” (fixed `&amp;` entity)
+- Advertising page section title: “Brand safety & transparency” (fixed `&` entity)
 - What is Hiffi: removed outdated Kinimi Corporation reference
 - `ConversionSource` extended for mood mix, liked, history, feed preview, and unknown attribution paths
+
+
 
 ### Fixed
 
@@ -98,6 +247,8 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Admin inventory search field stays mounted while results load (spinner in field + table overlay)
 - Admin inventory upload: staged file review before import, upload progress, and leave/cancel warnings during active imports
 
+
+
 ### Removed
 
 - Static `lib/data/artists.json` artist seed (replaced by inventory API)
@@ -106,7 +257,11 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Hip-hop hub “No Algorithmic Gatekeeping” card and related copy
 - Monetization promises from Artists page and creator onboarding copy
 
+
+
 ## [2.1.0] — 2026-06-23
+
+
 
 ### Added
 
@@ -123,6 +278,8 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Admin RBAC with permission-gated sidebar and sections: Followers, Searches, Migration Requests
 - AI/GEO discovery: expanded `llms.txt`, markdown registry, citation bot rules, hip-hop-first site metadata
 
+
+
 ### Changed
 
 - Upload flow moved from `/upload` to `/studio/tools/upload` (permanent redirects)
@@ -135,24 +292,36 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - User playlists page copy clarified as personal playlists (not curated editorial)
 - YouTube migration form simplified — removed Google OAuth channel verification step
 
+
+
 ### Removed
 
 - Legacy `/api/collab` route and email-based collaboration intake
 - `forceAdminDashboardRedirect` from consumer auth flow
 - Admin role from creator upload/studio permissions (admins are a separate principal)
 
+
+
 ## [2.0.2] — 2026-06-16
+
+
 
 ### Added
 
 - App versioning: `/api/version` endpoint, build ID injection, deploy stale guard, and `RELEASES.md` runbook
+
+
 
 ### Changed
 
 - Comment input avatar alignment; view counts hidden below 10k
 - Active mood bar close control replaced with back button
 
+
+
 ## [2.0.1] — 2026-06-16
+
+
 
 ### Added
 
@@ -162,10 +331,14 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Admin activity logs date range filters
 - Mood-based playlists and active mood bar
 
+
+
 ### Changed
 
 - Save to playlist flow improvements (popover / bottom sheet)
 - Comment section and flag/report UX updates
+
+
 
 ### Fixed
 
@@ -173,25 +346,38 @@ Release notes: [docs/releases/web-v2.2.0.md](docs/releases/web-v2.2.0.md) (busin
 - Playlist picker scrolling and emoji picker layout
 - Connectivity and caching issues
 
+
+
 ## [1.0.1] — 2026-05-22
+
+
 
 ### Fixed
 
 - Save to playlist: uncheck removes saved playlist on confirm
 - Footer labeled “Save to playlist”; “Add” only counts new playlist adds
 
+
+
 ## [1.0.0] — 2026-05-16
+
+
 
 ### Added
 
 - Save to playlist flow with search, multi-select, and new playlist creation
+
+
 
 ### Changed
 
 - Playlist picker UI: bookmark icons, single sorted list
 - Auth and general UX improvements
 
+
+
 ### Fixed
 
 - Playlist name suggestion chips false validation
 - Create-playlist emoji picker layout
+

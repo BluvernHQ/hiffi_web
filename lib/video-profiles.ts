@@ -80,27 +80,64 @@ export function buildProfileMenu(
   return menu
 }
 
+/** First watch play: best available rung at or under this height (then higher, then original). */
+export const WATCH_START_MAX_HEIGHT = 720
+
+/** Encoded `Np` keys only, ascending by height. */
+export function collectEncodedProfileKeys(
+  originalProfile?: string | null,
+  availableProfiles?: string[] | null,
+): string[] {
+  const keys = new Set<string>()
+  const primaryKey = getPrimaryProfileKey(originalProfile)
+  if (primaryKey !== "original") keys.add(primaryKey)
+
+  for (const profile of availableProfiles ?? []) {
+    const key = normalizeProfileKey(profile)
+    if (key && key !== "original") keys.add(key)
+  }
+
+  return [...keys].sort((a, b) => profileHeight(a) - profileHeight(b))
+}
+
+/**
+ * Watch / SEO ladder: prefer best quality ≤ maxHeight (default 720p), then higher
+ * encoded rungs, then original.mp4 last — avoids starting on a huge original upload.
+ */
 export function buildPlaybackCandidates(
   baseUrl: string,
   originalProfile?: string | null,
   availableProfiles?: string[] | null,
+  options?: { maxHeight?: number },
 ): string[] {
-  const primaryKey = getPrimaryProfileKey(originalProfile)
-  const candidates: string[] = []
+  const maxHeight = options?.maxHeight ?? WATCH_START_MAX_HEIGHT
+  const ranked = collectEncodedProfileKeys(originalProfile, availableProfiles)
+  const underCap = ranked.filter((key) => profileHeight(key) <= maxHeight)
+  const overCap = ranked.filter((key) => profileHeight(key) > maxHeight)
+  // Highest under cap first (e.g. 720p before 480p), then over-cap, then original.
+  const underPreferred = [...underCap].sort((a, b) => profileHeight(b) - profileHeight(a))
+  const orderedKeys = [...underPreferred, ...overCap, "original"]
+  return [...new Set(orderedKeys.map((key) => profileToPlaybackUrl(baseUrl, key)))]
+}
 
-  if (primaryKey !== "original") {
-    candidates.push(profileToPlaybackUrl(baseUrl, primaryKey))
-  }
+/**
+ * Preview / hero ladder: lowest available height first (capped), original last.
+ * Keeps startup bytes small on home hero + feed hover.
+ */
+export function buildPreviewPlaybackCandidates(
+  baseUrl: string,
+  originalProfile?: string | null,
+  availableProfiles?: string[] | null,
+  options?: { maxHeight?: number },
+): string[] {
+  const maxHeight = options?.maxHeight ?? 480
+  const ranked = collectEncodedProfileKeys(originalProfile, availableProfiles)
+  const underCap = ranked.filter((key) => profileHeight(key) <= maxHeight)
+  const overCap = ranked.filter((key) => profileHeight(key) > maxHeight)
 
-  candidates.push(profileToPlaybackUrl(baseUrl, "original"))
-
-  for (const profile of availableProfiles ?? []) {
-    const key = normalizeProfileKey(profile)
-    if (!key || key === "original" || key === primaryKey) continue
-    candidates.push(profileToPlaybackUrl(baseUrl, key))
-  }
-
-  return [...new Set(candidates)]
+  // Prefer ≤maxHeight (lowest first), then next rungs, then original as last resort.
+  const orderedKeys = [...underCap, ...overCap, "original"]
+  return [...new Set(orderedKeys.map((key) => profileToPlaybackUrl(baseUrl, key)))]
 }
 
 export function profileKeyFromPlaybackUrl(url: string): string | undefined {

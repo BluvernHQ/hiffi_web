@@ -11,6 +11,7 @@ This markdown summary is for LLM discovery. The HTML page above is the authorita
 ## Related policies
 
 - Terms of Use: https://www.hiffi.com/terms-of-use
+- Cookie Policy: https://www.hiffi.com/cookie-policy
 - Payment Terms: https://www.hiffi.com/payment-terms
 
 ## Scope
@@ -49,7 +50,7 @@ Data may be processed outside your country with appropriate safeguards (standard
 
 ## Cookies
 
-Essential, performance, and analytics cookies. Consent requested for non-essential cookies where required by law.
+Essential, functional, and analytics cookies. Consent requested for non-essential cookies via on-site cookie settings. Full details: https://www.hiffi.com/cookie-policy
 
 ## Retention
 

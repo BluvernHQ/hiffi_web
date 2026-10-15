@@ -38,6 +38,27 @@ export function VideoThumbnailPlaceholder({
   )
 }
 
+function isPublicThumbnailUrl(src: string): boolean {
+  return src.includes("/thumbnails/")
+}
+
+/**
+ * Public Workers thumbnails load directly so the browser and Cloudflare can cache them.
+ * Other Workers images still go through the same-origin proxy when auth is required.
+ */
+function displayUrlFor(src: string, authenticated: boolean): string | null {
+  const trimmed = src.trim()
+  if (!trimmed) return null
+  if (!authenticated || isPublicThumbnailUrl(trimmed)) return trimmed
+
+  const workersBase = getWorkersBaseUrl()
+  if (trimmed.startsWith(workersBase)) {
+    const path = trimmed.slice(workersBase.length).replace(/^\//, "")
+    return `/proxy/image/${path}`
+  }
+  return trimmed
+}
+
 interface AuthenticatedImageProps {
   src: string
   alt: string
@@ -71,19 +92,8 @@ export function AuthenticatedImage({
   onError,
 }: AuthenticatedImageProps) {
   const [imageLoadError, setImageLoadError] = useState(false)
-
-  const getDisplayUrl = () => {
-    if (!src) return null
-
-    if (authenticated && src.startsWith(getWorkersBaseUrl())) {
-      const path = src.replace(`${getWorkersBaseUrl()}/`, "")
-      return `/proxy/image/${path}`
-    }
-
-    return src
-  }
-
-  const displayUrl = getDisplayUrl()
+  const displayUrl = displayUrlFor(src, authenticated)
+  const directThumbnail = Boolean(displayUrl && isPublicThumbnailUrl(displayUrl))
 
   const handleImageError = () => {
     setImageLoadError(true)
@@ -103,6 +113,24 @@ export function AuthenticatedImage({
   }
 
   const imageLoading = priority ? "eager" : "lazy"
+
+  if (directThumbnail) {
+    return (
+      // Native img so the browser keeps the Cloudflare response instead of re-requesting through Next.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={displayUrl}
+        alt={alt}
+        width={fill ? undefined : width}
+        height={fill ? undefined : height}
+        className={cn(fill && "absolute inset-0 size-full", className)}
+        loading={imageLoading}
+        decoding="async"
+        fetchPriority={priority ? "high" : "low"}
+        onError={handleImageError}
+      />
+    )
+  }
 
   if (fill) {
     return (

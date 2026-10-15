@@ -4,21 +4,31 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, PencilLine, X } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
-import { ArtistClaimCta } from "@/components/artists/ArtistClaimCta"
-import { ArtistDetailAbout } from "@/components/artists/ArtistDetailAbout"
-import { ArtistDetailHero } from "@/components/artists/ArtistDetailHero"
+import type { ArtistDirectoryNavContext } from "@/lib/artist-index/directory-nav-context"
+import { ArtistIndexBackLink } from "@/components/artists/ArtistIndexBackLink"
+import {
+  ArtistProfileDirectoryFooterNav,
+  ArtistProfileDirectoryHeaderNav,
+} from "@/components/artists/ArtistProfileDirectoryNav"
 import { ArtistEditForm } from "@/components/artists/ArtistEditForm"
-import { ArtistSocialLinks } from "@/components/artists/ArtistSocialLinks"
-import { ArtistOtherArtists } from "@/components/artists/ArtistOtherArtists"
+import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
+import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
+import { ArtistDetailClaimBand } from "@/components/artists/detail/ArtistDetailClaimBand"
+import { ArtistDetailListen } from "@/components/artists/detail/ArtistDetailListen"
+import { ArtistDetailMasthead } from "@/components/artists/detail/ArtistDetailMasthead"
+import { ArtistDetailScene } from "@/components/artists/detail/ArtistDetailScene"
+import { ArtistDetailStory } from "@/components/artists/detail/ArtistDetailStory"
 import { artistButtonMuted } from "@/components/artists/artist-styles"
+import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
+import { artistPageContainer } from "@/components/artists/artist-layout"
 
 type ArtistDetailInteractiveProps = {
   artist: Artist
   profilePath: string
   otherArtists: Artist[]
   initialEditMode?: boolean
+  onDirectoryNavigate?: (slug: string, context: ArtistDirectoryNavContext) => void
 }
 
 export function ArtistDetailInteractive({
@@ -26,6 +36,7 @@ export function ArtistDetailInteractive({
   profilePath,
   otherArtists,
   initialEditMode = false,
+  onDirectoryNavigate,
 }: ArtistDetailInteractiveProps) {
   const [editMode, setEditMode] = useState(initialEditMode)
 
@@ -42,9 +53,9 @@ export function ArtistDetailInteractive({
     }
   }, [])
 
-  return (
-    <div className="-mt-2 space-y-6 pb-4">
-      {editMode ? (
+  if (editMode) {
+    return (
+      <div className={cn(artistPageContainer, "space-y-6 pb-10 pt-5 sm:pt-6")}>
         <header
           id="artist-edit-panel"
           className="rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6"
@@ -90,41 +101,61 @@ export function ArtistDetailInteractive({
             </button>
           </div>
         </header>
-      ) : (
-        <>
-          <Link
-            href={ARTIST_INDEX_PATH}
-            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to Artist Index
-          </Link>
-          <ArtistDetailHero artist={artist} profilePath={profilePath} />
-        </>
-      )}
 
-      {editMode ? (
         <ArtistEditForm
           key={artist.slug}
           artist={artist}
           onCancel={closeEditMode}
           fieldIdPrefix="artist-inline-"
         />
-      ) : (
-        <>
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-10">
-            <ArtistDetailAbout artist={artist} />
-            <ArtistSocialLinks artist={artist} />
-          </div>
+      </div>
+    )
+  }
 
-          <ArtistOtherArtists
-            otherArtists={otherArtists}
-            cityLabel={artist.city.split(",")[0]?.trim() || artist.city}
-          />
+  return (
+    <div className={cn(signalNarrow.variable, "text-[#0B0B0C]")}>
+      <ArtistDetailMasthead
+        artist={artist}
+        topBar={
+          <>
+            <ArtistIndexBackLink
+              label="Artist Index"
+              className="inline-flex items-center gap-2 text-sm font-medium text-white/60 transition-colors hover:text-white"
+            />
+            <div className="flex items-center gap-2">
+              <ArtistProfileDirectoryHeaderNav
+                slug={artist.slug}
+                tone="dark"
+                onDirectoryNavigate={onDirectoryNavigate}
+              />
+              <ArtistShareButton title={artist.name} path={profilePath} />
+            </div>
+          </>
+        }
+      />
 
-          <ArtistClaimCta artist={artist} variant="banner" />
-        </>
-      )}
+      <div className={cn(artistPageContainer, "space-y-20 pb-20 pt-12 sm:space-y-24 sm:pt-16")}>
+        <ClaimReceiptBanner
+          artist={{
+            slug: artist.slug,
+            name: artist.name,
+            claim_status: artist.claim_status,
+            verified: artist.verified,
+          }}
+          fallback={null}
+        />
+
+        <div className="grid gap-14 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-20">
+          <ArtistDetailStory artist={artist} />
+          <ArtistDetailListen artist={artist} />
+        </div>
+
+        <ArtistDetailScene artist={artist} otherArtists={otherArtists} />
+
+        <ArtistDetailClaimBand artist={artist} />
+
+        <ArtistProfileDirectoryFooterNav slug={artist.slug} onDirectoryNavigate={onDirectoryNavigate} />
+      </div>
     </div>
   )
 }

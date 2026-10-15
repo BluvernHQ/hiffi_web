@@ -1,9 +1,12 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { formatCityState } from "@/lib/artists"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
+import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
+import { artistProfilePhotoAlt, formatCityState } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { artistButtonOutline, artistButtonSolid } from "@/components/artists/artist-styles"
+import { ArtistRankChip } from "@/components/artists/Hiffi500RankBadge"
 import { cn } from "@/lib/utils"
 
 type ArtistRowProps = {
@@ -25,7 +28,7 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageSrc}
-        alt=""
+        alt={artistProfilePhotoAlt(artist.name)}
         className={cn(
           "h-11 w-11 shrink-0 rounded-full object-cover",
           !artist.verified && artist.claim_status === "unclaimed" && "grayscale opacity-60",
@@ -91,7 +94,7 @@ export function ArtistRow({ artist }: ArtistRowProps) {
         <ArtistAvatar artist={artist} />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <Link
+            <ArtistProfileLink
               href={profileHref}
               className={cn(
                 "truncate text-base font-semibold transition-colors hover:text-[#E8192C]",
@@ -99,10 +102,11 @@ export function ArtistRow({ artist }: ArtistRowProps) {
               )}
             >
               {artist.name}
-            </Link>
+            </ArtistProfileLink>
             {artist.verified ? (
-              <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
+              <VerifiedBadge className="h-4 w-4 text-[#E8192C]" focusable />
             ) : null}
+            <ArtistRankChip artist={artist} tone="subtle" className="ml-1 py-0.5" />
           </div>
           <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground sm:hidden">
             <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -142,10 +146,10 @@ export function ArtistRow({ artist }: ArtistRowProps) {
           <ClaimStatusBadge artist={artist} />
         </div>
         {artist.verified ? (
-          <Link href={profileHref} className={artistButtonSolid}>
+          <ArtistProfileLink href={profileHref} className={artistButtonSolid}>
             View profile
             <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+          </ArtistProfileLink>
         ) : isPending ? (
           <Link href={claimHref} className={artistButtonOutline}>
             Request ownership

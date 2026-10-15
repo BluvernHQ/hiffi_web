@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Edit, Share2, Copy, Check, Mail } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -7,16 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { VideoGrid } from "@/components/video/video-grid"
 import { ProfileCoverBanner } from "@/components/profile/profile-default-banner"
-import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
+import { ProfileArtistIndexLink } from "@/components/profile/profile-artist-index-link"
 import { ProfilePictureDialog } from "@/components/profile/profile-picture-dialog"
 import { AuthDialog } from "@/components/auth/auth-dialog"
 import { getAvatarLetter, getColorFromName, getProfilePictureProxyUrl, getProfilePictureUrl } from "@/lib/utils"
+import { resolveUserBannerUrl } from "@/lib/artist-directory"
 
 export function ProfilePersonalView(props: {
   profileUser: any
   username: string
   currentUserData: any
   isOwnProfile: boolean
+  inInventory?: boolean
   profilePictureVersion: number
   referralUrl: string
   copied: boolean
@@ -24,8 +27,6 @@ export function ProfilePersonalView(props: {
   isLoading: boolean
   loadingMore: boolean
   hasMore: boolean
-  isEditDialogOpen: boolean
-  setIsEditDialogOpen: (open: boolean) => void
   isProfilePictureDialogOpen: boolean
   setIsProfilePictureDialogOpen: (open: boolean) => void
   authDialogOpen: boolean
@@ -34,7 +35,6 @@ export function ProfilePersonalView(props: {
   handleCopy: () => void
   loadMoreVideos: () => void
   onVideoDeleted: (videoId: string) => void
-  onEditProfileUpdated: () => Promise<void>
   onProfilePictureUpdated: () => Promise<void>
 }) {
   const {
@@ -42,6 +42,7 @@ export function ProfilePersonalView(props: {
     username,
     currentUserData,
     isOwnProfile,
+    inInventory = false,
     profilePictureVersion,
     referralUrl,
     copied,
@@ -49,8 +50,6 @@ export function ProfilePersonalView(props: {
     isLoading,
     loadingMore,
     hasMore,
-    isEditDialogOpen,
-    setIsEditDialogOpen,
     isProfilePictureDialogOpen,
     setIsProfilePictureDialogOpen,
     authDialogOpen,
@@ -59,15 +58,16 @@ export function ProfilePersonalView(props: {
     handleCopy,
     loadMoreVideos,
     onVideoDeleted,
-    onEditProfileUpdated,
     onProfilePictureUpdated,
   } = props
+
+  const router = useRouter()
 
   return (
     <>
       <div className="bg-background w-full">
         <ProfileCoverBanner
-          coverUrl={profileUser.coverUrl}
+          coverUrl={resolveUserBannerUrl(profileUser as Record<string, unknown>)}
           coverAlt="Cover"
           displayName={
             (profileUser.name && profileUser.name.trim()) || profileUser.username || username || "Artist"
@@ -131,7 +131,11 @@ export function ProfilePersonalView(props: {
               </div>
 
               <div className="flex gap-2 sm:gap-3 w-full sm:w-auto mt-3 sm:mt-0 sm:pb-4">
-                <Button className="flex-1 sm:flex-none text-xs sm:text-sm" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+                <Button
+                  className="flex-1 sm:flex-none text-xs sm:text-sm"
+                  size="sm"
+                  onClick={() => router.push(`/profile/${encodeURIComponent(username)}/edit`)}
+                >
                   <Edit className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="hidden xs:inline">Edit Details</span>
                   <span className="xs:hidden">Edit</span>
@@ -185,6 +189,12 @@ export function ProfilePersonalView(props: {
                       {profileUser.bio && profileUser.bio.trim() ? profileUser.bio.trim() : "No bio available. Click Edit to add one."}
                     </p>
                   </div>
+
+                  {inInventory ? (
+                    <div className="pt-3 border-t">
+                      <ProfileArtistIndexLink username={profileUser.username || username} />
+                    </div>
+                  ) : null}
 
                   {/* Email display below bio */}
                   {(profileUser.email || (isOwnProfile && currentUserData?.email)) && (
@@ -246,25 +256,14 @@ export function ProfilePersonalView(props: {
 
         {/* Edit Profile Dialogs */}
         {isOwnProfile && profileUser && (
-          <>
-            <EditProfileDialog
-              open={isEditDialogOpen}
-              onOpenChange={setIsEditDialogOpen}
-              currentName={profileUser.name || profileUser.username || ""}
-              currentUsername={profileUser.username || username}
-              currentEmail={profileUser.email || currentUserData?.email || ""}
-              currentBio={profileUser.bio || ""}
-              onProfileUpdated={onEditProfileUpdated}
-            />
-            <ProfilePictureDialog
-              open={isProfilePictureDialogOpen}
-              onOpenChange={setIsProfilePictureDialogOpen}
-              currentProfilePicture={profileUser.profile_picture || ""}
-              currentName={profileUser.name || profileUser.username || ""}
-              currentUsername={profileUser.username || username}
-              onProfileUpdated={onProfilePictureUpdated}
-            />
-          </>
+          <ProfilePictureDialog
+            open={isProfilePictureDialogOpen}
+            onOpenChange={setIsProfilePictureDialogOpen}
+            currentProfilePicture={profileUser.profile_picture || ""}
+            currentName={profileUser.name || profileUser.username || ""}
+            currentUsername={profileUser.username || username}
+            onProfileUpdated={onProfilePictureUpdated}
+          />
         )}
         <AuthDialog
           open={authDialogOpen}

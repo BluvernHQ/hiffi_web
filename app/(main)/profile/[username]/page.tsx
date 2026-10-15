@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { ProfileNoscriptSeo } from "@/components/profile/profile-noscript-seo"
 import { ProfileStaticBody } from "@/components/profile/profile-static-body"
+import { getArtistBySlug } from "@/lib/artists"
 import {
   checkUserPublic,
   fetchUserForSeo,
@@ -33,11 +34,19 @@ export default async function ProfileRoutePage({ params }: PageProps) {
     : []
   const videoSummaries = buildProfileVideoSummaries(initialVideos)
 
+  const inInventory =
+    (initialProfileUser as { in_inventory?: unknown } | null)?.in_inventory === true
+  const initialArtist = inInventory ? ((await getArtistBySlug(username)) ?? null) : null
+
   return (
     <>
       <ProfileStaticBody username={username} profile={seoProfile} videos={videoSummaries} />
       <ProfileNoscriptSeo username={username} profile={seoProfile} videos={videoSummaries} />
-      <ProfilePage initialProfileUser={initialProfileUser} initialVideos={initialVideos} />
+      <ProfilePage
+        initialProfileUser={initialProfileUser}
+        initialVideos={initialVideos}
+        initialArtist={initialArtist}
+      />
     </>
   )
 }

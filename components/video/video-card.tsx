@@ -4,7 +4,6 @@ import type React from "react"
 
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { flushSync } from "react-dom"
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,11 +32,11 @@ import {
   setPendingPlaybackContext,
 } from "@/lib/analytics/video-playback-context"
 import { prefetchMyPlaylists } from "@/lib/playlist-picker-cache"
+import { prefetchRelatedVideos } from "@/lib/related-videos"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -48,7 +47,8 @@ let _activeHoverSetter: ((v: boolean) => void) | null = null
 function claimHover(setter: (v: boolean) => void): void {
   if (_activeHoverSetter && _activeHoverSetter !== setter) {
     pauseActiveHoverPreview()
-    flushSync(() => _activeHoverSetter!(false))
+    const prev = _activeHoverSetter
+    queueMicrotask(() => prev(false))
   }
   _activeHoverSetter = setter
 }
@@ -222,13 +222,13 @@ export function VideoCard({
 
     const onEnter = () => {
       claimHover(setIsHovering)
-      flushSync(() => setIsHovering(true))
+      queueMicrotask(() => setIsHovering(true))
       feedPreview.requestPreview(videoId)
     }
     const onLeave = () => {
       pauseActiveHoverPreview()
       releaseHover(setIsHovering)
-      flushSync(() => setIsHovering(false))
+      queueMicrotask(() => setIsHovering(false))
       feedPreview.releasePreview(videoId)
     }
     const onMouseDown = () => {
@@ -352,6 +352,12 @@ export function VideoCard({
                 : "rounded-lg group-hover:rounded-xl group-hover:shadow-[0_8px_28px_rgba(0,0,0,0.14)] group-hover:-translate-y-0.5",
             ].join(" ")}
             onClick={handleVideoOpen}
+            onPointerEnter={() => {
+              if (!isEncoding && videoId) prefetchRelatedVideos(videoId)
+            }}
+            onMouseDown={() => {
+              if (!isEncoding && videoId) prefetchRelatedVideos(videoId)
+            }}
             aria-disabled={isEncoding}
             tabIndex={isEncoding ? -1 : undefined}
           >
@@ -497,6 +503,23 @@ export function VideoCard({
                 </AddToPlaylistDialog>
               )}
               {!isEncoding && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  data-analytics-name="video-card-share"
+                  className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShareDialogOpen(true)
+                  }}
+                  aria-label="Share video"
+                  title="Share"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              )}
+              {!isEncoding && showDeleteOption && isOwner && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                     <Button
@@ -514,31 +537,15 @@ export function VideoCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuItem
-                      className="cursor-pointer"
+                      className="text-destructive focus:text-destructive cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation()
-                        setShareDialogOpen(true)
+                        setDeleteDialogOpen(true)
                       }}
-                      data-analytics-name="video-card-share"
                     >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Video
                     </DropdownMenuItem>
-                    {showDeleteOption && isOwner && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Video
-                        </DropdownMenuItem>
-                      </>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

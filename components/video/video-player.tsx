@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
-import { getVideoUrl, getThumbnailUrl, getWorkersApiKey, getWorkersBaseUrl } from "@/lib/storage"
-import { resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
+import { getThumbnailUrl } from "@/lib/storage"
+import { playbackPathKey, reportPlaybackUrlFailed, resolveVideoSource, VideoSourceType } from "@/lib/video-resolver"
 import {
   buildFallbackUrls,
   buildProfileMenu,
@@ -43,11 +43,16 @@ import { NextUpOverlay } from "./next-up-overlay"
 import { AuthenticatedImage } from "./authenticated-image"
 import { usePlayerAudioSettings } from "@/components/video/hooks/use-player-audio-settings"
 import { generateSessionId, getResolutionProfile } from "@/components/video/video-player-utils"
+import { getPlayerVolume, setPlayerMuted, setPlayerVolume } from "@/lib/ux-prefs"
 
 // Add declaration for videojs since we're loading it from CDN
 declare global {
   interface Window {
-    videojs: any
+    videojs: any & {
+      log?: {
+        level: (level?: string) => string
+      }
+    }
   }
 }
 
@@ -84,14 +89,39 @@ interface VideoPlayerProps {
 }
 
 const STORAGE_KEYS = {
-  VOLUME: "hiffi_player_volume",
-  MUTED: "hiffi_player_muted",
   WATCH_DEVICE_ID: "hiffi_watch_device_id",
 } as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
 const EMPTY_PROFILES: string[] = []
 
 type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
+
+function getNextSuggestedVideo(
+  suggestedVideos: any[] | undefined,
+  currentVideoId: string | undefined,
+): any | undefined {
+  if (!suggestedVideos?.length) return undefined
+  const excludeId = (currentVideoId || "").trim()
+  return suggestedVideos.find((video) => {
+    const id = String(video.videoId || video.video_id || "").trim()
+    return id && id !== excludeId
+  })
+}
+
+/** Run player teardown without Video.js logging MEDIA_ERR for intentional clears. */
+function withVideoJsLogsSuppressed(run: () => void): void {
+  const log = typeof window !== "undefined" ? window.videojs?.log : undefined
+  const prevLevel =
+    log && typeof log.level === "function" ? log.level() : undefined
+  try {
+    if (log && typeof log.level === "function") log.level("off")
+    run()
+  } finally {
+    if (log && typeof log.level === "function" && prevLevel !== undefined) {
+      log.level(prevLevel)
+    }
+  }
+}
 
 /** Video.js throws if tech is torn down during navigation — never call player methods bare. */
 function readPlayerNumber(player: unknown, method: PlayerNumberMethod, fallback: number): number {
@@ -542,6 +572,27 @@ export function VideoPlayer({
     }, 3000)
   }
 
+  // Entering fullscreen may not trigger mousemove. Start the same idle countdown
+  // so controls and the cursor disappear even when the pointer stays still.
+  useEffect(() => {
+    if (!isFullscreen || !isPlaying || isMobile) return
+
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false)
+    }, 3000)
+
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+        controlsTimeoutRef.current = null
+      }
+    }
+  }, [isFullscreen, isPlaying, isMobile])
+
   const setForcedMute = (value: boolean) => {
     isForcedMuteRef.current = value
     setIsForcedMute(value)
@@ -693,15 +744,13 @@ export function VideoPlayer({
       if (autoPlay) setAutoplayInProgress(true)
       const player = playerRef.current
       if (player) {
-        // Stop previous media immediately during a source switch
-        // to avoid old audio bleeding into the next load.
+        // Pause immediately; do not set src to "" — Video.js logs MEDIA_ERR_SRC_NOT_SUPPORTED.
         try {
-          player.pause()
-          player.muted(true)
-          // Explicitly clear source to prevent the old frame from showing
-          // when the player is trying to load a new one
-          player.src({ src: "", type: "" })
-          player.error(null)
+          withVideoJsLogsSuppressed(() => {
+            player.pause()
+            player.muted(true)
+            player.error(null)
+          })
         } catch (err) {
           console.log("[hiffi] Player cleanup failed:", err)
         }
@@ -710,6 +759,7 @@ export function VideoPlayer({
       baseUrlRef.current = ""
       lastProcessedUrlRef.current = ""
       signedVideoUrlRef.current = ""
+      setSignedVideoUrl("")
       setCurrentProfile(getPrimaryProfileKey(originalProfileRef.current))
       setIsPlaying(false)
       setIsBuffering(true)
@@ -827,6 +877,18 @@ export function VideoPlayer({
         })
         if (requestId !== resolveRequestIdRef.current) return
         console.log(`[hiffi] Resolved source: ${source.type} - ${source.url}`)
+
+        const failedKey = `${videoId || ""}:${playbackPathKey(source.url)}`
+        const activeSrc = signedVideoUrlRef.current
+        const alreadyFellBack =
+          Boolean(activeSrc) &&
+          signedUrlVideoIdRef.current === (videoId || "") &&
+          playbackPathKey(activeSrc) !== playbackPathKey(source.url) &&
+          mp4FallbackAttemptsRef.current.has(failedKey)
+        if (alreadyFellBack) {
+          // Profiles arrived after a 404 fallback. Don't snap back to the missing file.
+          return
+        }
         
         // Update all related states together to reduce re-renders
         setVideoSourceType(source.type)
@@ -1293,9 +1355,19 @@ export function VideoPlayer({
       const code = error.code
       const message = error.message
       const activeVideoId = videoIdRef.current
-      const currentSrc = (player.currentSrc() || signedVideoUrlRef.current || "").trim()
+      const playerSrc = (player.currentSrc() || "").trim()
+      const trackedSrc = (signedVideoUrlRef.current || "").trim()
+
+      const dismissError = () => {
+        try {
+          player.error(null)
+        } catch {
+          // Player may be mid-dispose during route changes.
+        }
+      }
 
       const tryMp4Fallback = (errorCode: number): boolean => {
+        const currentSrc = playerSrc || trackedSrc
         let baseUrl = baseUrlRef.current
         if (!baseUrl) {
           baseUrl = currentSrc.replace(/\/[^/]+$/, "")
@@ -1306,29 +1378,35 @@ export function VideoPlayer({
           return false
         }
 
-        const attemptKey = `${activeVideoId}:${currentSrc}`
-        if (mp4FallbackAttemptsRef.current.has(attemptKey)) {
+        const failedKey = `${activeVideoId}:${playbackPathKey(currentSrc)}`
+        if (mp4FallbackAttemptsRef.current.has(failedKey)) {
           return false
         }
-        mp4FallbackAttemptsRef.current.add(attemptKey)
+        // Mark only the URL that just failed. Do not pre-mark the next try —
+        // that was stopping the ladder after the first fallback 404.
+        mp4FallbackAttemptsRef.current.add(failedKey)
+        reportPlaybackUrlFailed(currentSrc)
 
-        const candidates = buildFallbackUrls(
+        const listed = buildFallbackUrls(
           baseUrl,
           originalProfileRef.current,
           availableProfilesRef.current,
-          currentSrc,
         )
+        const cleanBase = baseUrl.replace(/\/$/, "")
+        const siblings = ["720p.mp4", "480p.mp4", "360p.mp4", "240p.mp4", "original.mp4"].map(
+          (file) => `${cleanBase}/${file}`,
+        )
+        const candidates = [...listed, ...siblings]
 
         const nextUrl = candidates.find((url) => {
           if (!url) return false
-          return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${url}`)
+          return !mp4FallbackAttemptsRef.current.has(`${activeVideoId}:${playbackPathKey(url)}`)
         })
 
         if (!nextUrl) {
           return false
         }
 
-        mp4FallbackAttemptsRef.current.add(`${activeVideoId}:${nextUrl}`)
         console.warn(`[hiffi] VideoJS Error (Code ${errorCode}), trying MP4 fallback:`, nextUrl)
 
         const fallbackKey = profileKeyFromPlaybackUrl(nextUrl)
@@ -1346,9 +1424,19 @@ export function VideoPlayer({
         return true
       }
 
-      // Ignore errors from intentional src clears while switching playlist tracks.
-      if (!currentSrc) return
-      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) return
+      // Ignore errors from intentional teardown or in-flight source switches.
+      if (isSourceSwitchingRef.current || !playerSrc) {
+        dismissError()
+        return
+      }
+      if (!trackedSrc) {
+        dismissError()
+        return
+      }
+      if (!activeVideoId || signedUrlVideoIdRef.current !== activeVideoId) {
+        dismissError()
+        return
+      }
 
       // MEDIA_ERR_NETWORK (2) — often a 404 on a missing profile file
       if (code === 2) {
@@ -1362,6 +1450,7 @@ export function VideoPlayer({
 
       // MEDIA_ERR_SRC_NOT_SUPPORTED (4) or MEDIA_ERR_DECODE (3): try alternate MP4 profiles
       if (code === 4 || code === 3) {
+        setIsBuffering(false)
         if (tryMp4Fallback(code)) {
           return
         }
@@ -1547,13 +1636,8 @@ export function VideoPlayer({
       }
     }
     
-    // Persist volume preference
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEYS.VOLUME, newVolume.toString())
-      if (newVolume > 0) {
-        localStorage.setItem(STORAGE_KEYS.MUTED, 'false')
-      }
-    }
+    setPlayerVolume(newVolume)
+    if (newVolume > 0) setPlayerMuted(false)
   }
 
   const toggleMute = () => {
@@ -1563,8 +1647,12 @@ export function VideoPlayer({
       if (isForcedMute) {
         player.muted(false)
         player.volume(volume > 0 ? volume : 1)
-        if (volume === 0) setVolume(1)
+        if (volume === 0) {
+          setVolume(1)
+          setPlayerVolume(1)
+        }
         setIsMuted(false)
+        setPlayerMuted(false)
         setForcedMute(false)
         return
       }
@@ -1574,23 +1662,16 @@ export function VideoPlayer({
       player.muted(newMuted)
       setForcedMute(false) // User manual change clears forced flag
       
-      // Persist muted preference
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEYS.MUTED, newMuted.toString())
-      }
+      setPlayerMuted(newMuted)
 
       if (newMuted) {
         setVolume(0)
       } else {
-        // Restore volume from storage or default to 1
-        const savedVolume = localStorage.getItem(STORAGE_KEYS.VOLUME)
-        const volumeToRestore = savedVolume ? parseFloat(savedVolume) : 1
+        const volumeToRestore = getPlayerVolume()
         const finalVolume = volumeToRestore > 0 ? volumeToRestore : 1
         setVolume(finalVolume)
         player.volume(finalVolume)
-        if (typeof window !== "undefined") {
-          localStorage.setItem(STORAGE_KEYS.VOLUME, finalVolume.toString())
-        }
+        setPlayerVolume(finalVolume)
       }
     }
   }
@@ -1842,10 +1923,8 @@ export function VideoPlayer({
       showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
       return
     }
-    const currentSuggestedVideos = suggestedVideosRef.current
-    if (!currentSuggestedVideos || currentSuggestedVideos.length === 0) return
-    const next = currentSuggestedVideos[0]
-    const nextId = next.videoId || next.video_id
+    const next = getNextSuggestedVideo(suggestedVideosRef.current, videoIdRef.current)
+    const nextId = next?.videoId || next?.video_id
     if (!nextId) return
 
     // Keep preference intact and retry unmuted play after the next source loads.
@@ -1904,6 +1983,7 @@ export function VideoPlayer({
     }
   }, [])
 
+  const nextUpVideo = getNextSuggestedVideo(suggestedVideos, videoId)
 
   return (
     <div
@@ -1911,7 +1991,10 @@ export function VideoPlayer({
       className="relative flex w-full flex-col"
     >
     <div
-      className="relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation"
+      className={cn(
+        "relative aspect-video bg-black rounded-none md:rounded-xl overflow-hidden group select-none touch-manipulation",
+        isPlaying && !showControls && "cursor-none [&_*]:cursor-none",
+      )}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
       tabIndex={0}
@@ -2341,9 +2424,9 @@ export function VideoPlayer({
     </div>
 
       {/* Next up: below the player on mobile, overlay on desktop (sibling so mobile does not cover video) */}
-      {showNextUpOverlay && suggestedVideos && suggestedVideos.length > 0 && (
+      {showNextUpOverlay && nextUpVideo && (
         <NextUpOverlay
-          nextVideo={suggestedVideos[0]}
+          nextVideo={nextUpVideo}
           countdownDuration={5}
           onPlay={(trigger) => {
             if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -2355,8 +2438,7 @@ export function VideoPlayer({
             if (trigger === "click") {
               markUserGestureVideoNav()
             }
-            const next = suggestedVideos[0]
-            const nextId = next?.videoId || next?.video_id
+            const nextId = nextUpVideo.videoId || nextUpVideo.video_id
             if (nextId) {
               setPendingPlaybackContext({
                 videoId: String(nextId),

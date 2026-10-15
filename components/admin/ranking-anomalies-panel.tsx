@@ -76,7 +76,7 @@ function issueBadgeClass(issueType: RankingAnomalyIssueType): string {
 
 export function RankingAnomaliesPanel() {
   const { toast } = useToast()
-  const { canWrite } = useAdminPermissions()
+  const { canRankingAnomaliesWrite } = useAdminPermissions()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
 
@@ -245,7 +245,7 @@ export function RankingAnomaliesPanel() {
   const isInitialLoad = !hasLoaded && fetching
   const isFilterPending = usernameQuery.trim() !== debouncedUsername
   const rows = tab === "open" ? openRows : closedRows
-  const colSpan = tab === "closed" ? 8 : canWrite ? 8 : 7
+  const colSpan = tab === "closed" ? 8 : canRankingAnomaliesWrite ? 8 : 7
 
   if (isInitialLoad) {
     return (
@@ -338,7 +338,7 @@ export function RankingAnomaliesPanel() {
               )}
               Refresh
             </Button>
-            {canWrite && (
+            {canRankingAnomaliesWrite && (
               <Button size="sm" onClick={() => setScanDialogOpen(true)} disabled={scanning}>
                 <ScanSearch className="mr-1.5 h-4 w-4" />
                 Scan now
@@ -409,7 +409,7 @@ export function RankingAnomaliesPanel() {
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Detected</th>
                 {tab === "closed" && <th className="px-4 py-3 font-semibold">Notes</th>}
-                {tab === "open" && canWrite && (
+                {tab === "open" && canRankingAnomaliesWrite && (
                   <th className="px-4 py-3 text-right font-semibold">Action</th>
                 )}
               </tr>
@@ -480,7 +480,7 @@ export function RankingAnomaliesPanel() {
                           {closed?.notes || "—"}
                         </td>
                       )}
-                      {tab === "open" && canWrite && (
+                      {tab === "open" && canRankingAnomaliesWrite && (
                         <td className="px-4 py-3 text-right">
                           <Button
                             size="sm"

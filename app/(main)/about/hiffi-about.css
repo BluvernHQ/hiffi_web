@@ -1,6 +1,6 @@
-/* original template rem scale — about page only; sync before JS mount.
+/* original template rem scale — about page only (html.joyjam-rem-scale); sync before JS mount.
    svw stays stable when mobile URL bar shows/hides (vw can thrash rem + rem cascade). */
-html {
+html.joyjam-rem-scale {
   font-size: 1vw;
   font-size: 1svw;
 }
@@ -148,74 +148,111 @@ html.lenis body {
   transition: none;
 }
 
-/* Desktop navbar — full horizontal menu */
-@media screen and (min-width: 992px) {
+/* Desktop / iPad navbar — JoyJam 3-zone pill: logo | links | CTA */
+@media screen and (min-width: 768px) {
+  .navbar {
+    padding: 16px 24px 0;
+    justify-content: center;
+  }
+
   .navbar .hiffi-nav-toggle,
-  .navbar .nav-open-button {
+  .navbar .nav-open-button,
+  .navbar .nav-container > .wave-area {
     display: none !important;
+  }
+
+  .navbar .nav-container,
+  .navbar .nav-container.change {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.25rem;
+    width: min(92vw, 1080px);
+    max-width: 92vw;
+    padding: 8px 10px 8px 20px !important;
+    border-radius: 999px;
+  }
+
+  .navbar .brand.navbar-s {
+    grid-column: 1;
+    flex: 0 0 auto;
+    min-width: 0;
+    width: auto;
   }
 
   .navbar .nav-menu-wrapper {
     display: flex !important;
+    grid-column: 2;
     width: auto;
     height: auto !important;
     overflow: visible !important;
     position: static;
+    justify-content: center;
   }
 
   .navbar .nav-menu {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    gap: 0 !important;
   }
 
-  .navbar .nav-container {
-    display: inline-flex;
-    align-items: center;
+  .navbar .nav-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+  }
+
+  .navbar .nav-button-wrapper {
+    grid-column: 3;
+    width: auto;
+    margin: 0;
+    justify-content: flex-end;
   }
 }
 
-/* Mobile navbar — original template floating pill, white mode */
-@media screen and (max-width: 991px) {
+/* Phone navbar — full-bleed pill aligned with hero edges */
+@media screen and (max-width: 767px) {
   .navbar {
     width: 100% !important;
-    padding: 4vw 5vw 0 !important;
-    justify-content: center !important;
-    align-items: flex-start !important;
+    max-width: none !important;
+    padding: 12px 5.6vw 0 !important;
+    justify-content: stretch !important;
+    align-items: stretch !important;
     background-color: transparent !important;
+    box-sizing: border-box !important;
   }
 
   .navbar .nav-container,
-  .navbar .nav-container.change {
+  .navbar .nav-container.change,
+  .navbar:not(.hiffi-nav-is-open) .nav-container {
     display: flex !important;
-    flex-flow: column !important;
-    justify-content: flex-start !important;
-    align-items: stretch !important;
+    flex-flow: row nowrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    align-self: stretch !important;
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: none !important;
     min-width: 0 !important;
-    margin-inline: auto !important;
-    padding: 4.2vw !important;
-    border-radius: 2rem !important;
+    margin: 0 !important;
+    padding: 8px 12px 8px 18px !important;
+    min-height: 56px !important;
+    border-radius: 999px !important;
     position: relative !important;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     background-color: #fff !important;
     border: 1px solid rgb(0 0 0 / 10%) !important;
     box-shadow: 0 2px 18px rgb(0 0 0 / 7%) !important;
-  }
-
-  /* Closed — original template compact pill */
-  .navbar:not(.hiffi-nav-is-open) .nav-container {
-    flex-flow: row nowrap !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 3vw;
-    padding: 2.8vw 3.2vw 2.8vw 4.8vw !important;
-    min-height: 13.5vw !important;
-    border-radius: 999px !important;
+    transform: none !important;
+    opacity: 1 !important;
   }
 
   .navbar.hiffi-nav-is-open .nav-container {
+    flex-flow: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
     border-radius: 7vw !important;
     padding: 4.2vw !important;
   }
@@ -229,16 +266,16 @@ html.lenis body {
     max-width: none;
     margin: 0 !important;
     align-self: center !important;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
   }
 
   .navbar .hiffi-brand-logo {
-    height: clamp(28px, 7.5vw, 36px) !important;
+    height: 28px !important;
   }
 
   .navbar .hiffi-brand-logo img {
-    height: clamp(28px, 7.5vw, 36px) !important;
+    height: 28px !important;
     width: auto !important;
   }
 
@@ -246,17 +283,17 @@ html.lenis body {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: clamp(40px, 10.5vw, 48px) !important;
-    height: clamp(40px, 10.5vw, 48px) !important;
-    min-width: clamp(40px, 10.5vw, 48px) !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
     padding: 0;
-    position: absolute !important;
-    top: 50% !important;
-    right: 3.2vw !important;
-    transform: translateY(-50%);
-    background: #fff;
-    border: 1px solid rgb(0 0 0 / 14%) !important;
-    border-radius: 0.72rem !important;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    transform: none;
+    background: transparent;
+    border: none !important;
+    border-radius: 0.5rem !important;
     cursor: pointer;
     color: #080808;
     -webkit-tap-highlight-color: transparent;
@@ -266,7 +303,7 @@ html.lenis body {
   }
 
   .navbar:not(.hiffi-nav-is-open) .nav-container {
-    padding-right: calc(3.2vw + clamp(40px, 10.5vw, 48px) + 2.4vw) !important;
+    padding-right: 10px !important;
   }
 
   .navbar.hiffi-nav-is-open .nav-open-button.hiffi-nav-toggle {
@@ -339,10 +376,14 @@ html.lenis body {
     display: none;
   }
 
-  .navbar .nav-button-wrapper {
+  .navbar:not(.hiffi-nav-is-open) .nav-button-wrapper {
+    display: none !important;
+  }
+
+  .navbar.hiffi-nav-is-open .nav-button-wrapper {
+    display: flex;
     width: 100%;
     margin-top: 1.5rem;
-    display: flex;
     justify-content: center;
   }
 
@@ -357,12 +398,52 @@ html.lenis body {
 }
 
 @media screen and (max-width: 479px) {
-  .navbar.hiffi-nav-is-open .nav-container {
-    border-radius: 8vw !important;
+  .navbar {
+    padding: 12px 24px 0 !important;
+  }
+}
+
+/* iPad — JoyJam capsule with links, px sizes (beat Webflow 991 rem) */
+@media screen and (min-width: 768px) and (max-width: 991px) {
+  .navbar {
+    padding: 14px 20px 0 !important;
+    width: 100% !important;
+    justify-content: center !important;
   }
 
-  .navbar:not(.hiffi-nav-is-open) .nav-container {
-    border-radius: 999px !important;
+  .navbar .hiffi-nav-toggle,
+  .navbar .nav-open-button {
+    display: none !important;
+  }
+
+  .navbar .nav-container,
+  .navbar .nav-container.change {
+    width: min(94vw, 760px) !important;
+    max-width: 94vw !important;
+    min-height: 52px !important;
+    padding: 6px 8px 6px 16px !important;
+    column-gap: 10px !important;
+  }
+
+  .navbar .nav-link {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    padding: 8px 8px !important;
+    white-space: nowrap;
+    text-align: left !important;
+  }
+
+  .navbar .hiffi-brand-logo,
+  .navbar .hiffi-brand-logo img,
+  .navbar .hiffi-nav-logo-img {
+    height: 24px !important;
+    width: auto !important;
+  }
+
+  .navbar .nav-button {
+    min-width: 0 !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
   }
 }
 
@@ -448,11 +529,35 @@ footer.footer .footer-bg {
 /* Template body font (Poppins) cascades in — use the site font like other pages */
 .about-site-footer {
   font-family: var(--font-sans, "Geist", sans-serif);
+  overflow: visible;
+  box-sizing: border-box;
 }
 
-/* Hiffi why-us card background (J replaced with H in asset) */
+/* Why-us right card: rings + small centered logo */
 .why-us-card.s2 {
-  background-image: url("/hiffi-about/why-us-card-bg-hiffi.png") !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #1a1a1a !important;
+  background-image: url("/hiffi-about/why-us-card-bg-rings.webp") !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+}
+
+.why-us-card.s2 .why-us-avatars {
+  display: none !important;
+}
+
+.why-us-card.s2 .why-us-card-logo {
+  display: block !important;
+  width: auto !important;
+  height: 72px !important;
+  max-width: 56px !important;
+  object-fit: contain !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 /* Hero — subtle Hiffi red atmosphere (dots + soft glows) */
@@ -513,8 +618,273 @@ footer.footer .footer-bg {
 
 /* Creators section — "An Enhanced Fan Experience" */
 .creators-headline .headline-h2,
-.creators-headline .headline-h2 .char {
-  color: #ed1c2f;
+.creators-headline .headline-h2 .char,
+.creators-headline .headline-h2 .line {
+  color: #da291c;
+  -webkit-text-fill-color: #da291c;
+}
+
+@media screen and (min-width: 768px) {
+  .creators-headline .headline-h2,
+  .creators-headline .headline-h2 .char,
+  .creators-headline .headline-h2 .line {
+    color: #da291c !important;
+    -webkit-text-fill-color: #da291c !important;
+    background: none !important;
+    background-clip: border-box !important;
+    -webkit-background-clip: border-box !important;
+  }
+}
+
+@media screen and (max-width: 991px) {
+  .creators-headline {
+    width: 100%;
+    max-width: 100%;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch;
+    gap: 0.12em;
+  }
+
+  .creators-span-top-p,
+  .creators-span-down-p {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-flow: column nowrap !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .creators-span-top-p {
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .creators-span-down-p {
+    align-items: flex-end !important;
+    text-align: right !important;
+  }
+
+  .creators-headline .headline-h2 {
+    display: block !important;
+    width: auto !important;
+    max-width: 100%;
+    font-size: clamp(32px, 10vw, 52px) !important;
+    line-height: 0.92 !important;
+    white-space: nowrap !important;
+  }
+
+  .creators-headline .headline-h2 .line,
+  .creators-headline .headline-h2 .char {
+    display: inline !important;
+    white-space: nowrap;
+  }
+}
+
+/* Phone — JoyJam: fullscreen video + staggered headline, then phone rectangle */
+@media screen and (max-width: 767px) {
+  .creators-sc {
+    background-color: #0c0c0c;
+  }
+
+  .full-container.creators-s {
+    overflow: visible;
+  }
+
+  .creators-video-sticky {
+    overflow: hidden;
+    background: #000;
+    width: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .creators-video-embed {
+    z-index: 0;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    transform: translate(0, 0) rotate(0deg);
+    transition:
+      width 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      left 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      top 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      border-radius 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  .creators-video-embed.close {
+    position: absolute !important;
+    width: 168px !important;
+    height: 300px !important;
+    left: 50% !important;
+    top: 48% !important;
+    right: auto !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 28px !important;
+    transform: translate(-50%, -50%) rotate(16deg) !important;
+    z-index: 1;
+    overflow: hidden;
+    box-shadow: 0 18px 44px rgb(0 0 0 / 28%);
+  }
+
+  .creators-sc.is-video-closed {
+    background-color: #fff;
+  }
+
+  .creators-sc.is-video-closed .creators-video-sticky {
+    background: #fff;
+    overflow: visible;
+  }
+
+  .creators-sc.is-video-closed .creators-headline .headline-h2,
+  .creators-sc.is-video-closed .creators-headline .headline-h2 .char,
+  .creators-sc.is-video-closed .creators-headline .headline-h2 .line {
+    color: #da291c !important;
+    -webkit-text-fill-color: #da291c !important;
+    text-shadow: none;
+  }
+
+  .creators-sc.is-video-closed .description-wrapper.creators-down-s .body-regular-m,
+  .creators-sc.is-video-closed .description-wrapper.creators-down-s .body-regular-m .line,
+  .creators-sc.is-video-closed .description-wrapper.creators-down-s .body-regular-m .char {
+    color: #333 !important;
+    -webkit-text-fill-color: #333 !important;
+  }
+
+  .creators-sc.is-video-closed .creators-headline {
+    gap: min(42vw, 220px) !important;
+  }
+
+  .container.creators-s {
+    padding: 96px 20px 32px !important;
+  }
+
+  .creators-slider-wrapper {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px 0 32px !important;
+    width: 100%;
+  }
+
+  .text-elements.creators-s2 {
+    align-items: stretch;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .description-wrapper.creators-s2 {
+    width: 100% !important;
+    max-width: none;
+  }
+
+  .description-wrapper.creators-s2 .body-medium-l,
+  .description-wrapper.creators-s2 .body-medium-l .line,
+  .description-wrapper.creators-s2 .body-medium-l .char {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    text-align: justify !important;
+  }
+
+  .description-wrapper.creators-s2 .body-medium-l .line {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .text-elements.creators-s2 .open-form {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .creators-end {
+    position: relative;
+    z-index: 4;
+    flex-flow: column !important;
+    justify-content: flex-start;
+    min-height: 0;
+    padding: 20px 16px 32px !important;
+    box-sizing: border-box;
+  }
+
+  .text-elements.creators-down-s {
+    position: relative;
+    z-index: 5;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .headline-wrapper.creators-down-s {
+    width: 100%;
+  }
+
+  .creators-headline {
+    width: 100% !important;
+    gap: 12px !important;
+  }
+
+  .creators-span-top-p {
+    width: 100% !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    align-self: stretch !important;
+  }
+
+  .creators-span-down-p {
+    width: 100% !important;
+    align-items: flex-end !important;
+    text-align: right !important;
+    align-self: stretch !important;
+  }
+
+  .creators-headline .headline-h2 {
+    display: block !important;
+    font-size: clamp(36px, 12vw, 48px) !important;
+    line-height: 0.88 !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    text-shadow: 0 2px 16px rgb(0 0 0 / 55%);
+  }
+
+  .description-wrapper.creators-down-s {
+    position: relative;
+    z-index: 5;
+    width: 100% !important;
+    max-width: none;
+    margin: auto 0 0;
+    padding-top: 24px !important;
+  }
+
+  .description-wrapper.creators-down-s .body-regular-m,
+  .description-wrapper.creators-down-s .body-regular-m .line,
+  .description-wrapper.creators-down-s .body-regular-m .char {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    text-align: justify !important;
+  }
+
+  .description-wrapper.creators-down-s .body-regular-m .line {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .creators-close-after {
+    width: 100%;
+    height: 1px;
+    margin-top: 8px;
+    pointer-events: none;
+  }
 }
 
 /* View-item entrance (navbar pill) */
@@ -529,6 +899,32 @@ footer.footer .footer-bg {
 [view-item="from-center"].view {
   transform: scale(1);
   opacity: 1;
+}
+
+@media screen and (max-width: 991px) {
+  html.joyjam-rem-scale .fc-page,
+  html.joyjam-rem-scale .ff-page {
+    --d: 16px;
+  }
+
+  .navbar .nav-container[view-item="from-center"],
+  .navbar .nav-container[view-item="from-center"].view {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  [view-item="from-center"] {
+    transform: translate3d(0, 18px, 0);
+    opacity: 0;
+    transition:
+      transform 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+      opacity 0.35s ease;
+  }
+
+  [view-item="from-center"].view {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 /* Wave hover effects from original template inline styles */
@@ -925,7 +1321,7 @@ footer.footer .footer-bg {
       transparent 85%,
       var(--jam--oil-black, #0c0b0c)
     ),
-    url("/hiffi-about/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png"); */
+    url("/hiffi-about/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.webp"); */
 }
 
 /* Mobile benefits — size "The Hiffi Experience" + avoid mid-scrub flashes */
@@ -1014,8 +1410,8 @@ footer.footer .footer-bg {
 }
 
 .value-slider {
-  -webkit-mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.png");
-  mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.png");
+  -webkit-mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.webp");
+  mask-image: url("/hiffi-about/67e2a6a4b631217a5c65bb23_19fa355616e92e6493f8b65260d9d720_value-slider-mask.webp");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -1025,7 +1421,7 @@ footer.footer .footer-bg {
 }
 
 .values-card-light.s1 {
-  background-image: url("/hiffi-about/6821a59ae3bfe30071342502_velue-card-lights-1.png");
+  background-image: url("/hiffi-about/6821a59ae3bfe30071342502_velue-card-lights-1.webp");
 }
 
 .values-card-position.s1 .values-card-headline .headline-h5,
@@ -1289,7 +1685,7 @@ footer.footer .footer-bg {
 }
 
 .values-card-light.s2 {
-  background-image: url("/hiffi-about/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.png");
+  background-image: url("/hiffi-about/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.webp");
 }
 
 .values-video {
@@ -1449,15 +1845,15 @@ footer.footer .footer-bg {
 
 /* iPhone bezel asset */
 .iphone-frame::before {
-  background-image: url("/hiffi-about/67e2d9f393f49b4a78afdfc1_iphone.png") !important;
+  background-image: url("/hiffi-about/67e2d9f393f49b4a78afdfc1_iphone.webp") !important;
 }
 
 
 /* Screen clip to phone glass; no UI chrome overlay */
 .benefits-sticky .screen-video-embed,
 .benefits-sticky .iphone-pop-area {
-  -webkit-mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;
-  mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.png") !important;
+  -webkit-mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.webp") !important;
+  mask-image: url("/hiffi-about/67e28231166af1be9d9d00f1_iphone-screen-mask.webp") !important;
   -webkit-mask-repeat: no-repeat !important;
   mask-repeat: no-repeat !important;
   -webkit-mask-size: contain !important;
@@ -1503,14 +1899,19 @@ footer.footer .footer-bg {
   pointer-events: none;
 }
 
-.text-elements.creators-s.over-phone .headline-h2 .char,
 .text-elements.creators-s.over-phone .headline-h2 .line {
   display: block;
   text-align: center;
 }
 
-.creators-sc {
-  background-color: #fff;
+.text-elements.creators-s.over-phone .headline-h2 .char {
+  display: inline;
+}
+
+@media screen and (min-width: 768px) {
+  .creators-sc {
+    background-color: #fff;
+  }
 }
 
 /* Hero copy — line-based split, original template-style stacking (cards untouched) */
@@ -1739,5 +2140,16 @@ footer.footer .footer-bg {
     max-width: 92vw;
     padding-inline: 0.5rem;
     box-sizing: border-box;
+  }
+}
+
+/* For-creators tools section — local bg (archive CDN URLs expire) */
+.container.tools-s {
+  background-image: url("/hiffi-about/6821a59ae3bfe300713425c4_tools-bg.webp") !important;
+}
+
+@media screen and (max-width: 991px) {
+  .container.tools-s {
+    background-image: url("/hiffi-about/6821a59ae3bfe300713425e4_tools-bg-p.webp") !important;
   }
 }

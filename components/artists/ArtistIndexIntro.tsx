@@ -15,19 +15,19 @@ export function ArtistIndexIntro({
   compact = false,
   variant = "default",
 }: ArtistIndexIntroProps) {
-  const defaultDescription = `Browse ${artistCount.toLocaleString()}+ claimable hip-hop and rap profiles — starting in Atlanta.`
+  const defaultDescription = `Browse ${artistCount.toLocaleString()}+ claimable hip-hop and rap profiles across cities.`
   const hubDescription = description ?? buildArtistIndexHubDescription(artistCount)
 
   const hubDefaultTitle = (
     <>
-      Discover{" "}
+      Discover emerging{" "}
       <span
         className="font-normal text-transparent"
         style={{ WebkitTextStroke: "1px rgba(10, 10, 10, 0.85)" }}
       >
-        Atlanta&apos;s emerging
+        hip-hop &amp; rap
       </span>{" "}
-      hip-hop &amp; rap artists
+      artists
     </>
   )
 

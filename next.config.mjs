@@ -45,10 +45,57 @@ const nextConfig = {
         destination: "/artist-index/:path*",
         permanent: true,
       },
+      { source: "/hiffi-500", destination: "/top-artists", permanent: true },
+      { source: "/hiffi-500/biggest-risers", destination: "/top-artists?mode=risers", permanent: true },
+      { source: "/hiffi-500/methodology", destination: "/top-artists/how-it-works", permanent: true },
+      { source: "/hiffi-500/city/:citySlug", destination: "/top-artists?city=:citySlug", permanent: true },
+      { source: "/hiffi-500/share/:username", destination: "/top-artists/share/:username", permanent: true },
+      { source: "/hiffi-500/:path*", destination: "/top-artists", permanent: true },
       {
         source: "/upload/migrate",
         destination: "/studio/tools/migrate",
         permanent: true,
+      },
+      {
+        source: "/top-artist",
+        destination: "/top-artists",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/",
+        destination: "/top-artists",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/how-it-works",
+        destination: "/top-artists/how-it-works",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/how-it-works/",
+        destination: "/top-artists/how-it-works",
+        permanent: true,
+      },
+      {
+        source: "/top-artist/share/:path*",
+        destination: "/top-artists/share/:path*",
+        permanent: true,
+      },
+      // Pitch deck entry: avoid /pitch (no trailing slash) resolving relative links to /
+      {
+        source: "/pitch",
+        destination: "/pitch/slide-1.html",
+        permanent: false,
+      },
+      {
+        source: "/pitch/",
+        destination: "/pitch/slide-1.html",
+        permanent: false,
+      },
+      {
+        source: "/slide-:n(\\d+)\\.html",
+        destination: "/pitch/slide-:n.html",
+        permanent: false,
       },
     ]
   },
@@ -62,22 +109,6 @@ const nextConfig = {
       {
         source: "/sitemap/:id.xml",
         destination: "/sitemaps/:id",
-      },
-      {
-        source: "/top-artist",
-        destination: "/top-artist/index.html",
-      },
-      {
-        source: "/top-artist/",
-        destination: "/top-artist/index.html",
-      },
-      {
-        source: "/top-artist/how-it-works",
-        destination: "/top-artist/how-it-works/index.html",
-      },
-      {
-        source: "/top-artist/how-it-works/",
-        destination: "/top-artist/how-it-works/index.html",
       },
       {
         source: "/:path*.md",

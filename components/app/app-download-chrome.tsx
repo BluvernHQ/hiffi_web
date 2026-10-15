@@ -6,6 +6,7 @@ import { Anton, Special_Elite } from "next/font/google"
 import { AppleAppStoreIcon, GooglePlayStoreIcon } from "@/components/app/store-platform-icons"
 import { cn } from "@/lib/utils"
 import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
+import { hasFunctionalConsent } from "@/lib/cookie-consent"
 
 type OsState = "pending" | "desktop" | "ios" | "android" | "other-mobile"
 export type PlatformHint = "ios" | "android" | "unknown"
@@ -26,7 +27,9 @@ function writePlatformCache(platform: "ios" | "android") {
   try {
     if (typeof window !== "undefined") {
       sessionStorage.setItem(PLATFORM_SESSION_KEY, platform)
-      document.cookie = `${PLATFORM_COOKIE_KEY}=${platform}; Max-Age=${PLATFORM_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`
+      if (hasFunctionalConsent()) {
+        document.cookie = `${PLATFORM_COOKIE_KEY}=${platform}; Max-Age=${PLATFORM_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`
+      }
     }
   } catch {
     // no-op

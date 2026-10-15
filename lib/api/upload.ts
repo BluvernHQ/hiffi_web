@@ -122,6 +122,44 @@ export async function reportUploadFailed(
   return { success: false, message: response.message || "Failed to cleanup upload bridge" }
 }
 
+const R2_HOST_SUFFIX = ".r2.cloudflarestorage.com"
+
+function resolveUploadTarget(presignedUrl: string): {
+  requestUrl: string
+  contentTypeHeader: boolean
+} {
+  try {
+    const parsed = new URL(presignedUrl)
+    if (
+      typeof window !== "undefined" &&
+      parsed.protocol === "https:" &&
+      parsed.hostname.endsWith(R2_HOST_SUFFIX)
+    ) {
+      // Same-origin proxy — R2 CORS preflight often 403s from the browser.
+      return {
+        requestUrl: `/proxy/r2-upload/put?url=${encodeURIComponent(presignedUrl)}`,
+        contentTypeHeader: true,
+      }
+    }
+  } catch {
+    // Fall through to direct upload.
+  }
+  return { requestUrl: presignedUrl, contentTypeHeader: false }
+}
+
+function uploadErrorMessage(status: number, bodyText: string, fallbackStatusText: string): string {
+  if (bodyText) {
+    try {
+      const parsed = JSON.parse(bodyText) as { error?: string }
+      if (parsed?.error) return parsed.error
+    } catch {
+      // non-JSON
+    }
+    return `Upload failed with status ${status}: ${bodyText.slice(0, 300)}`
+  }
+  return `Upload failed with status ${status}: ${fallbackStatusText}`
+}
+
 export async function uploadFile(
   _ctx: ApiClientContext,
   url: string,
@@ -131,6 +169,8 @@ export async function uploadFile(
 ): Promise<void> {
   const fileBuffer = await file.arrayBuffer()
   const startTime = Date.now()
+  const { requestUrl, contentTypeHeader } = resolveUploadTarget(url)
+  const contentType = file.type || "application/octet-stream"
 
   if (onProgress) {
     return new Promise((resolve, reject) => {
@@ -142,7 +182,7 @@ export async function uploadFile(
 
       xhr.addEventListener("load", () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve()
-        else reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText || xhr.statusText}`))
+        else reject(new Error(uploadErrorMessage(xhr.status, xhr.responseText || "", xhr.statusText)))
       })
 
       xhr.addEventListener("error", () => {
@@ -152,7 +192,10 @@ export async function uploadFile(
       xhr.addEventListener("abort", () => reject(new Error("Upload was aborted")))
 
       try {
-        xhr.open("PUT", url, true)
+        xhr.open("PUT", requestUrl, true)
+        if (contentTypeHeader) {
+          xhr.setRequestHeader("Content-Type", contentType)
+        }
         onXhrReady?.(xhr)
         xhr.send(fileBuffer)
       } catch (e) {
@@ -162,10 +205,14 @@ export async function uploadFile(
     })
   }
 
-  const res = await fetch(url, { method: "PUT", body: fileBuffer })
+  const res = await fetch(requestUrl, {
+    method: "PUT",
+    headers: contentTypeHeader ? { "Content-Type": contentType } : undefined,
+    body: fileBuffer,
+  })
   if (!res.ok) {
     const errorText = await res.text().catch(() => res.statusText)
-    throw new Error(`Upload failed with status ${res.status}: ${errorText}`)
+    throw new Error(uploadErrorMessage(res.status, errorText, res.statusText))
   }
 }
 

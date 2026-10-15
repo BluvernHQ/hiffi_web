@@ -70,24 +70,14 @@ export function getVideoUrl(videoPath: string): string {
 }
 
 /**
- * @deprecated Use the video streaming proxy (/proxy/video/stream) instead.
+ * @deprecated Prefer direct Workers URLs. Do not use /proxy/video/stream for viewers.
  */
 export async function fetchVideoWithAuth(videoUrl: string): Promise<string> {
-  console.warn("[storage] fetchVideoWithAuth is deprecated and causes memory exhaustion. Use the streaming proxy instead.")
+  console.warn("[storage] fetchVideoWithAuth is deprecated and causes memory exhaustion. Use direct Workers playback instead.")
   if (!videoUrl) throw new Error("Video URL is required")
 
-  const apiKey = getWorkersApiKey()
-  if (!apiKey) {
-    console.error("[hiffi] No API key found (NEXT_PUBLIC_WORKERS_API_KEY not set), video will fail to load")
-    throw new Error("API key not configured")
-  }
-
   try {
-    const response = await fetch(videoUrl, {
-      headers: {
-        "x-api-key": apiKey,
-      },
-    })
+    const response = await fetch(videoUrl)
 
     if (!response.ok) {
       throw new Error(`Failed to fetch video: ${response.status} ${response.statusText}`)

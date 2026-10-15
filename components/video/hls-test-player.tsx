@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import Script from "next/script"
-import { getWorkersApiKey } from "@/lib/storage"
 
 // Add declaration for videojs since we're loading it from CDN
 declare global {
@@ -23,7 +22,7 @@ interface Profile {
   path: string
 }
 
-export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) {
+export function HLSTestPlayer({ baseUrl, videoId }: HLSTestPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
   const [profiles, setProfiles] = useState<Record<string, Profile>>({})
@@ -54,12 +53,6 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
       if (!target) return false;
 
       const hook = (options: any) => {
-        const effectiveApiKey = apiKey || getWorkersApiKey()
-        if (effectiveApiKey) {
-          options.headers = options.headers || {}
-          options.headers["x-api-key"] = effectiveApiKey
-        }
-
         // Fix HLS segment URLs to include 'segments/' directory
         if (options.uri) {
           const hlsSegmentPattern = /(\/videos\/[^\/]+\/hls\/[^\/]+\/)(seg_\d+\.ts|seg_\d+\.m4s)$/
@@ -97,9 +90,7 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
       const cleanBaseUrl = baseUrl.replace(/\/$/, "")
       const profilesUrl = `${cleanBaseUrl}/videos/${videoId}/hls/profiles.json`
       try {
-        const effectiveApiKey = apiKey || getWorkersApiKey()
-        const headers: Record<string, string> = effectiveApiKey ? { "x-api-key": effectiveApiKey } : {}
-        const response = await fetch(profilesUrl, { headers })
+        const response = await fetch(profilesUrl)
         if (!response.ok) throw new Error("Failed to load profiles.json")
         const data = await response.json()
         setProfiles(data)
@@ -128,7 +119,7 @@ export function HLSTestPlayer({ baseUrl, videoId, apiKey }: HLSTestPlayerProps) 
     return () => {
       setCurrentProfile("auto")
     }
-  }, [isReady, baseUrl, videoId, apiKey])
+  }, [isReady, baseUrl, videoId])
 
   const switchQuality = (profile: string) => {
     if (!playerRef.current || !baseUrl || !videoId) return

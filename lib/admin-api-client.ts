@@ -5,7 +5,6 @@ import type { AdminSession } from "./auth/admin-types"
 import { isValidAdminSession } from "./auth/admin-types"
 import {
   adminLogin as authAdminLogin,
-  adminVerifyInvite as authAdminVerifyInvite,
   adminRequestPasswordReset,
   adminVerifyPasswordReset,
   type AdminLoginResponse,
@@ -45,6 +44,11 @@ import {
   adminGetFeedback as feedbackAdminGet,
 } from "./api/feedback"
 import {
+  adminDeleteDiscoverySourceSubmission as discoveryAdminDelete,
+  adminListDiscoverySourceSubmissions as discoveryAdminList,
+  type AdminListDiscoverySourceParams,
+} from "./api/admin-discovery-source"
+import {
   adminListMigrationRequests as migrationAdminList,
   adminGetMigrationRequest as migrationAdminGet,
   adminUpdateMigrationRequest as migrationAdminUpdate,
@@ -64,12 +68,35 @@ import {
 import {
   adminInviteAdmin as apiAdminInviteAdmin,
   adminListAdmins as apiAdminListAdmins,
+  adminUpdateAdmin as apiAdminUpdateAdmin,
   type AdminRow,
 } from "./api/admin-admins"
+import {
+  adminCreateRole as apiAdminCreateRole,
+  adminDeleteRole as apiAdminDeleteRole,
+  adminListRoles as apiAdminListRoles,
+  adminUpdateRole as apiAdminUpdateRole,
+  type AdminRoleRow,
+} from "./api/admin-roles"
+import {
+  adminGetPermissionsCatalog as apiAdminGetPermissionsCatalog,
+  type AdminPermissionsCatalog,
+} from "./api/admin-permissions-catalog"
+import {
+  adminListYoutubeApiKeys as apiAdminListYoutubeApiKeys,
+  adminCreateYoutubeApiKey as apiAdminCreateYoutubeApiKey,
+  adminUpdateYoutubeApiKey as apiAdminUpdateYoutubeApiKey,
+  adminDeleteYoutubeApiKey as apiAdminDeleteYoutubeApiKey,
+  type YoutubeApiKey,
+  type CreateYoutubeApiKeyInput,
+  type UpdateYoutubeApiKeyInput,
+} from "./api/admin-youtube-api-keys"
 import {
   adminListInventory as apiAdminListInventory,
   adminListInventoryClaims as apiAdminListInventoryClaims,
   adminApproveInventoryClaim as apiAdminApproveInventoryClaim,
+  adminDeleteInventoryClaim as apiAdminDeleteInventoryClaim,
+  adminResendInventoryClaimEmail as apiAdminResendInventoryClaimEmail,
   adminUploadInventory as apiAdminUploadInventory,
   adminDownloadInventoryTemplate as apiAdminDownloadInventoryTemplate,
   adminExportInventory as apiAdminExportInventory,
@@ -82,6 +109,24 @@ import {
   adminCloseRankingAnomaly as apiAdminCloseRankingAnomaly,
   adminScanRankingAnomalies as apiAdminScanRankingAnomalies,
 } from "./api/admin-ranking-anomalies"
+import {
+  adminGetCreatorOverview as apiAdminGetCreatorOverview,
+  adminGetCreatorFunnel as apiAdminGetCreatorFunnel,
+  adminGetCreatorAttention as apiAdminGetCreatorAttention,
+  adminGetCreatorTrends as apiAdminGetCreatorTrends,
+  adminGetCreatorAcquisition as apiAdminGetCreatorAcquisition,
+  adminGetCreatorActivation as apiAdminGetCreatorActivation,
+  adminGetCreatorEngagement as apiAdminGetCreatorEngagement,
+  adminGetCreatorRetention as apiAdminGetCreatorRetention,
+  adminGetCreatorContent as apiAdminGetCreatorContent,
+  adminGetCreatorQuality as apiAdminGetCreatorQuality,
+  adminGetCreatorOps as apiAdminGetCreatorOps,
+  adminGetCreatorCohorts as apiAdminGetCreatorCohorts,
+  adminListCreators as apiAdminListCreators,
+  adminGetCreator as apiAdminGetCreator,
+  adminSuspendCreator as apiAdminSuspendCreator,
+  adminUnsuspendCreator as apiAdminUnsuspendCreator,
+} from "./api/admin-creators"
 import type {
   AdminListContentFlagsParams,
   ContentFlag,
@@ -96,6 +141,14 @@ import type {
 import {
   adminListCollaborationInquiries as collaborationAdminList,
 } from "./api/collaboration"
+import {
+  getTraffic as trafficAdminGet,
+  getTrafficBreakdown as trafficAdminGetBreakdown,
+  type BreakdownDimension,
+  type TrafficBreakdownData,
+  type TrafficRange,
+  type TrafficSeriesData,
+} from "./api/admin-traffic"
 import { getFlagsConfig as flagsGetFlagsConfig } from "./api/flags"
 import type {
   AdminListCollaborationInquiriesParams,
@@ -214,7 +267,7 @@ class AdminApiClient implements AdminApiClientContext {
         (typeof p.error === "string" && p.error) ||
         (typeof p.message === "string" && p.message) ||
         `Request failed (${res.status})`
-      throw new Error(msg)
+      throw Object.assign(new Error(msg), { status: res.status }) as ApiError
     }
 
     return parsed as T
@@ -234,7 +287,20 @@ class AdminApiClient implements AdminApiClientContext {
       }
     }
 
-    const response = await fetch(url, { ...options, headers })
+    let response: Response
+    try {
+      response = await fetch(url, { ...options, headers })
+    } catch (error) {
+      // Normalize browser network failures (CORS, DNS, server down) for callers.
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to fetch"
+      throw Object.assign(new Error(message), {
+        status: 0,
+        cause: error,
+      }) as ApiError
+    }
 
     if (response.status === 401 && requiresAuth) {
       this.clearSession()
@@ -269,20 +335,37 @@ class AdminApiClient implements AdminApiClientContext {
 
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
-  async login(username: string, password: string): Promise<AdminLoginResponse> {
-    return authAdminLogin(this, { username, password })
+  async login(
+    username: string,
+    password: string,
+    turnstileToken?: string | null,
+  ): Promise<AdminLoginResponse> {
+    return authAdminLogin(this, {
+      username,
+      password,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    })
   }
 
-  async verifyInvite(id: string, otp: string): Promise<AdminLoginResponse> {
-    return authAdminVerifyInvite(this, { id, otp })
+  async requestPasswordReset(email: string, turnstileToken?: string | null) {
+    return adminRequestPasswordReset(this, {
+      email,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    })
   }
 
-  async requestPasswordReset(email: string) {
-    return adminRequestPasswordReset(this, email)
-  }
-
-  async verifyPasswordReset(data: { id: string; otp: string; new_password: string }) {
-    return adminVerifyPasswordReset(this, data)
+  async verifyPasswordReset(data: {
+    id: string
+    otp: string
+    new_password: string
+    turnstile_token?: string | null
+  }) {
+    return adminVerifyPasswordReset(this, {
+      id: data.id,
+      otp: data.otp,
+      new_password: data.new_password,
+      ...(data.turnstile_token ? { turnstile_token: data.turnstile_token } : {}),
+    })
   }
 
   async getVideo(videoId: string) {
@@ -306,6 +389,65 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminListAdmins(params?: { limit?: number; offset?: number }) {
     return apiAdminListAdmins(this, params)
+  }
+
+  async adminUpdateAdmin(
+    adminId: string,
+    body: {
+      role?: string
+      disabled?: boolean
+      password?: string
+    },
+  ) {
+    return apiAdminUpdateAdmin(this, adminId, body)
+  }
+
+  async adminListRoles() {
+    return apiAdminListRoles(this)
+  }
+
+  async adminGetPermissionsCatalog(): Promise<AdminPermissionsCatalog> {
+    return apiAdminGetPermissionsCatalog(this)
+  }
+
+  async adminCreateRole(body: {
+    role_key: string
+    display_name: string
+    permissions: string[]
+  }) {
+    return apiAdminCreateRole(this, body)
+  }
+
+  async adminUpdateRole(
+    roleKey: string,
+    body: {
+      display_name?: string
+      permissions?: string[]
+    },
+  ) {
+    return apiAdminUpdateRole(this, roleKey, body)
+  }
+
+  async adminDeleteRole(roleKey: string) {
+    return apiAdminDeleteRole(this, roleKey)
+  }
+
+  // ─── Tools / YouTube API keys ───────────────────────────────────────────────
+
+  async adminListYoutubeApiKeys() {
+    return apiAdminListYoutubeApiKeys(this)
+  }
+
+  async adminCreateYoutubeApiKey(body: CreateYoutubeApiKeyInput) {
+    return apiAdminCreateYoutubeApiKey(this, body)
+  }
+
+  async adminUpdateYoutubeApiKey(id: string, body: UpdateYoutubeApiKeyInput) {
+    return apiAdminUpdateYoutubeApiKey(this, id, body)
+  }
+
+  async adminDeleteYoutubeApiKey(id: string) {
+    return apiAdminDeleteYoutubeApiKey(this, id)
   }
 
   // ─── Artist inventory ───────────────────────────────────────────────────────
@@ -333,6 +475,14 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminApproveInventoryClaim(claimID: string) {
     return apiAdminApproveInventoryClaim(this, claimID)
+  }
+
+  async adminResendInventoryClaimEmail(claimID: string) {
+    return apiAdminResendInventoryClaimEmail(this, claimID)
+  }
+
+  async adminDeleteInventoryClaim(claimID: string) {
+    return apiAdminDeleteInventoryClaim(this, claimID)
   }
 
   async adminDownloadInventoryTemplate() {
@@ -375,6 +525,114 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminScanRankingAnomalies() {
     return apiAdminScanRankingAnomalies(this)
+  }
+
+  // ─── Creators ────────────────────────────────────────────────────────────────
+
+  async adminGetCreatorOverview(
+    range?: Parameters<typeof apiAdminGetCreatorOverview>[1],
+    population?: Parameters<typeof apiAdminGetCreatorOverview>[2],
+  ) {
+    return apiAdminGetCreatorOverview(this, range, population)
+  }
+
+  async adminGetCreatorFunnel(
+    compare?: Parameters<typeof apiAdminGetCreatorFunnel>[1],
+    range?: Parameters<typeof apiAdminGetCreatorFunnel>[2],
+    population?: Parameters<typeof apiAdminGetCreatorFunnel>[3],
+  ) {
+    return apiAdminGetCreatorFunnel(this, compare, range, population)
+  }
+
+  async adminGetCreatorAttention(
+    staleDays?: number,
+    range?: Parameters<typeof apiAdminGetCreatorAttention>[2],
+    population?: Parameters<typeof apiAdminGetCreatorAttention>[3],
+  ) {
+    return apiAdminGetCreatorAttention(this, staleDays, range, population)
+  }
+
+  async adminGetCreatorTrends(
+    range?: Parameters<typeof apiAdminGetCreatorTrends>[1],
+    population?: Parameters<typeof apiAdminGetCreatorTrends>[2],
+  ) {
+    return apiAdminGetCreatorTrends(this, range, population)
+  }
+
+  async adminGetCreatorAcquisition(
+    range?: Parameters<typeof apiAdminGetCreatorAcquisition>[1],
+    population?: Parameters<typeof apiAdminGetCreatorAcquisition>[2],
+  ) {
+    return apiAdminGetCreatorAcquisition(this, range, population)
+  }
+
+  async adminGetCreatorActivation(
+    range?: Parameters<typeof apiAdminGetCreatorActivation>[1],
+    population?: Parameters<typeof apiAdminGetCreatorActivation>[2],
+  ) {
+    return apiAdminGetCreatorActivation(this, range, population)
+  }
+
+  async adminGetCreatorEngagement(
+    staleDays?: number,
+    range?: Parameters<typeof apiAdminGetCreatorEngagement>[2],
+    population?: Parameters<typeof apiAdminGetCreatorEngagement>[3],
+  ) {
+    return apiAdminGetCreatorEngagement(this, staleDays, range, population)
+  }
+
+  async adminGetCreatorRetention(
+    range?: Parameters<typeof apiAdminGetCreatorRetention>[1],
+    population?: Parameters<typeof apiAdminGetCreatorRetention>[2],
+  ) {
+    return apiAdminGetCreatorRetention(this, range, population)
+  }
+
+  async adminGetCreatorContent(
+    range?: Parameters<typeof apiAdminGetCreatorContent>[1],
+    population?: Parameters<typeof apiAdminGetCreatorContent>[2],
+  ) {
+    return apiAdminGetCreatorContent(this, range, population)
+  }
+
+  async adminGetCreatorQuality(
+    range?: Parameters<typeof apiAdminGetCreatorQuality>[1],
+    population?: Parameters<typeof apiAdminGetCreatorQuality>[2],
+  ) {
+    return apiAdminGetCreatorQuality(this, range, population)
+  }
+
+  async adminGetCreatorOps(
+    range?: Parameters<typeof apiAdminGetCreatorOps>[1],
+    population?: Parameters<typeof apiAdminGetCreatorOps>[2],
+  ) {
+    return apiAdminGetCreatorOps(this, range, population)
+  }
+
+  async adminGetCreatorCohorts(
+    range?: Parameters<typeof apiAdminGetCreatorCohorts>[1],
+    population?: Parameters<typeof apiAdminGetCreatorCohorts>[2],
+  ) {
+    return apiAdminGetCreatorCohorts(this, range, population)
+  }
+
+  async adminListCreators(
+    params?: Parameters<typeof apiAdminListCreators>[1],
+    population?: Parameters<typeof apiAdminListCreators>[2],
+  ) {
+    return apiAdminListCreators(this, params, population)
+  }
+
+  async adminGetCreator(username: string) {
+    return apiAdminGetCreator(this, username)
+  }
+
+  async adminSuspendCreator(username: string) {
+    return apiAdminSuspendCreator(this, username)
+  }
+
+  async adminUnsuspendCreator(username: string) {
+    return apiAdminUnsuspendCreator(this, username)
   }
 
   // ─── Curated playlists ──────────────────────────────────────────────────────
@@ -549,10 +807,30 @@ class AdminApiClient implements AdminApiClientContext {
     return feedbackAdminGet(this, feedbackId)
   }
 
+  async adminListDiscoverySourceSubmissions(params?: AdminListDiscoverySourceParams) {
+    return discoveryAdminList(this, params)
+  }
+
+  async adminDeleteDiscoverySourceSubmission(id: string) {
+    return discoveryAdminDelete(this, id)
+  }
+
   async adminListCollaborationInquiries(
     params?: AdminListCollaborationInquiriesParams,
   ): Promise<CollaborationInquiryListResponse> {
     return collaborationAdminList(this, params)
+  }
+
+  async adminGetTraffic(range: TrafficRange = "7d"): Promise<TrafficSeriesData> {
+    return trafficAdminGet(this, range)
+  }
+
+  async adminGetTrafficBreakdown(
+    dimension: BreakdownDimension,
+    range: TrafficRange = "7d",
+    limit = 20,
+  ): Promise<TrafficBreakdownData> {
+    return trafficAdminGetBreakdown(this, dimension, range, limit)
   }
 
   async adminListMigrationRequests(params?: AdminListMigrationRequestsParams) {
@@ -638,4 +916,13 @@ class AdminApiClient implements AdminApiClientContext {
 
 export const adminApiClient = new AdminApiClient()
 
-export type { CuratedPlaylistSummary, CuratedPlaylistItem, AdminRow, AdminCommentRow, AdminReplyRow, AdminUserRow, AdminVideoRow }
+export type {
+  CuratedPlaylistSummary,
+  CuratedPlaylistItem,
+  AdminRow,
+  AdminCommentRow,
+  AdminReplyRow,
+  AdminUserRow,
+  AdminVideoRow,
+  YoutubeApiKey,
+}

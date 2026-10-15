@@ -13,32 +13,17 @@ export type AdminLoginResponse = {
 
 export async function adminLogin(
   ctx: AdminApiClientContext,
-  data: { username: string; password: string },
+  data: { username: string; password: string; turnstile_token?: string },
 ): Promise<AdminLoginResponse> {
   const response = await ctx.request<AdminLoginResponse>(
     "/admin/auth/login",
     {
       method: "POST",
-      body: JSON.stringify({ username: data.username, password: data.password }),
-    },
-    false,
-  )
-  if (response.success && response.data?.token) {
-    ctx.setAuthToken(response.data.token)
-    ctx.setAdminData(response.data.admin)
-  }
-  return response
-}
-
-export async function adminVerifyInvite(
-  ctx: AdminApiClientContext,
-  data: { id: string; otp: string },
-): Promise<AdminLoginResponse> {
-  const response = await ctx.request<AdminLoginResponse>(
-    "/admin/auth/verify-invite",
-    {
-      method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        username: data.username,
+        password: data.password,
+        ...(data.turnstile_token ? { turnstile_token: data.turnstile_token } : {}),
+      }),
     },
     false,
   )
@@ -51,13 +36,16 @@ export async function adminVerifyInvite(
 
 export async function adminRequestPasswordReset(
   ctx: AdminApiClientContext,
-  email: string,
+  data: { email: string; turnstile_token?: string },
 ): Promise<{ success: boolean; data?: { id: string } }> {
   return ctx.request(
     "/admin/auth/reset-password/request",
     {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({
+        email: data.email,
+        ...(data.turnstile_token ? { turnstile_token: data.turnstile_token } : {}),
+      }),
     },
     false,
   )
@@ -65,13 +53,18 @@ export async function adminRequestPasswordReset(
 
 export async function adminVerifyPasswordReset(
   ctx: AdminApiClientContext,
-  data: { id: string; otp: string; new_password: string },
+  data: { id: string; otp: string; new_password: string; turnstile_token?: string },
 ): Promise<{ success: boolean }> {
   return ctx.request(
     "/admin/auth/reset-password/verify",
     {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        id: data.id,
+        otp: data.otp,
+        new_password: data.new_password,
+        ...(data.turnstile_token ? { turnstile_token: data.turnstile_token } : {}),
+      }),
     },
     false,
   )

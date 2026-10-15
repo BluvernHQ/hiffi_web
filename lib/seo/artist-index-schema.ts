@@ -31,7 +31,7 @@ export function buildArtistIndexHubJsonLd(options?: {
   const pageName = options?.pageName ?? "Hiffi Artist Index"
   const pageDescription =
     options?.pageDescription ??
-    "Browse Atlanta hip-hop and rap artists on the Hiffi Artist Index. Search by artist name or filter by genre."
+    "Browse hip-hop and rap artists across cities on the Hiffi Artist Index. Search by artist name and explore claimable profiles."
   const pageType = options?.pageType ?? "WebPage"
   const includeFaq = options?.includeFaq ?? true
 

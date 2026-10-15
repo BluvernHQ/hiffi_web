@@ -7,6 +7,14 @@ const CANONICAL_HOST = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.hiffi.c
   .replace(/^https?:\/\//, "")
   .replace(/\/$/, "")
 
+function nextWithJoyjam(req: NextRequest) {
+  const requestHeaders = new Headers(req.headers)
+  if (/^\/(about|for-fans|for-creators)(\/|$)/.test(req.nextUrl.pathname)) {
+    requestHeaders.set("x-joyjam-rem", "1")
+  }
+  return NextResponse.next({ request: { headers: requestHeaders } })
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
@@ -32,7 +40,7 @@ export function middleware(req: NextRequest) {
   }
 
   if (!MAINTENANCE_MODE) {
-    const res = NextResponse.next()
+    const res = nextWithJoyjam(req)
     // Reduce stale HTML after deploys (old shell pointing at new server / Server Actions).
     // RSC/Flight fetches typically do not prioritize `text/html` in Accept the same way.
     const accept = req.headers.get("accept") || ""
@@ -58,10 +66,11 @@ export function middleware(req: NextRequest) {
     normalizedPathname.startsWith("/llms-md") ||
     normalizedPathname.startsWith("/sitemap") ||
     normalizedPathname.startsWith("/sitemaps") ||
-    normalizedPathname.startsWith("/appbarlogo") // allow logo used on maintenance page
+    normalizedPathname.startsWith("/appbarlogo") || // allow logo used on maintenance page
+    normalizedPathname.startsWith("/mail-template")
 
   if (isAllowed) {
-    return NextResponse.next()
+    return nextWithJoyjam(req)
   }
 
   const url = req.nextUrl.clone()

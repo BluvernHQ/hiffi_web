@@ -1,8 +1,8 @@
+import { HIFFI_APP_STORE_URL, HIFFI_PLAY_STORE_URL } from "@/lib/app-download"
+import { ORGANIZATION_SAME_AS } from "@/lib/seo/social"
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site"
 
 const DEFAULT_SITE_NAME = "Hiffi"
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.hiffi.app"
-const APP_STORE_URL = "https://apps.apple.com/us/app/hiffi/id6759672725"
 
 export function organizationSchemaId(): string {
   return `${getSiteOrigin()}/#organization`
@@ -10,6 +10,14 @@ export function organizationSchemaId(): string {
 
 export function webSiteSchemaId(): string {
   return `${getSiteOrigin()}/#website`
+}
+
+export function iosAppSchemaId(): string {
+  return `${HIFFI_APP_STORE_URL}#app`
+}
+
+export function androidAppSchemaId(): string {
+  return `${HIFFI_PLAY_STORE_URL}#app`
 }
 
 function parseSameAsUrls(raw: string): string[] {
@@ -54,10 +62,9 @@ export function buildOrganizationJsonLd(): Record<string, unknown> {
   if (legal) node.legalName = legal
 
   const sameAsRaw = process.env.NEXT_PUBLIC_ORG_SAME_AS?.trim()
-  const defaultProfiles = [PLAY_STORE_URL, APP_STORE_URL]
   const sameAsUrls = sameAsRaw
-    ? uniqueUrls([...parseSameAsUrls(sameAsRaw), ...defaultProfiles])
-    : defaultProfiles
+    ? uniqueUrls([...ORGANIZATION_SAME_AS, ...parseSameAsUrls(sameAsRaw)])
+    : [...ORGANIZATION_SAME_AS]
   if (sameAsUrls.length) node.sameAs = sameAsUrls
 
   const street = process.env.NEXT_PUBLIC_ORG_ADDRESS_STREET?.trim()
@@ -115,32 +122,57 @@ export function buildWebSiteJsonLd(): Record<string, unknown> {
   }
 }
 
-export function buildSitewideJsonLd(): Record<string, unknown> {
+function freeOffer() {
+  return {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  }
+}
+
+/** iOS + Android MobileApplication nodes linked to Organization. */
+export function buildMobileApplicationJsonLdNodes(): Record<string, unknown>[] {
   const orgId = organizationSchemaId()
   const name = process.env.NEXT_PUBLIC_ORG_NAME?.trim() || DEFAULT_SITE_NAME
+  const downloadPage = absoluteUrl("/app")
 
-  const androidAppNode: Record<string, unknown> = {
-    "@type": "MobileApplication",
-    "@id": `${PLAY_STORE_URL}#app`,
-    name,
-    operatingSystem: "Android",
-    applicationCategory: "EntertainmentApplication",
-    url: PLAY_STORE_URL,
-    publisher: { "@id": orgId },
-  }
+  return [
+    {
+      "@type": "MobileApplication",
+      "@id": androidAppSchemaId(),
+      name,
+      operatingSystem: "Android",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_PLAY_STORE_URL,
+      downloadUrl: HIFFI_PLAY_STORE_URL,
+      installUrl: HIFFI_PLAY_STORE_URL,
+      sameAs: [downloadPage],
+      offers: freeOffer(),
+      publisher: { "@id": orgId },
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": iosAppSchemaId(),
+      name,
+      operatingSystem: "iOS",
+      applicationCategory: "MusicApplication",
+      url: HIFFI_APP_STORE_URL,
+      downloadUrl: HIFFI_APP_STORE_URL,
+      installUrl: HIFFI_APP_STORE_URL,
+      sameAs: [downloadPage],
+      offers: freeOffer(),
+      publisher: { "@id": orgId },
+    },
+  ]
+}
 
-  const iosAppNode: Record<string, unknown> = {
-    "@type": "MobileApplication",
-    "@id": `${APP_STORE_URL}#app`,
-    name,
-    operatingSystem: "iOS",
-    applicationCategory: "EntertainmentApplication",
-    url: APP_STORE_URL,
-    publisher: { "@id": orgId },
-  }
-
+export function buildSitewideJsonLd(): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
-    "@graph": [buildOrganizationJsonLd(), buildWebSiteJsonLd(), androidAppNode, iosAppNode],
+    "@graph": [
+      buildOrganizationJsonLd(),
+      buildWebSiteJsonLd(),
+      ...buildMobileApplicationJsonLdNodes(),
+    ],
   }
 }

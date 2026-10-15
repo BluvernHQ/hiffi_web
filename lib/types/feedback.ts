@@ -49,6 +49,11 @@ export interface FeedbackSubmission {
   id: string
   /** JWT uid when the submitter was logged in; omitted if anonymous. */
   user_id?: string
+  /**
+   * Submitter account email from `users`.
+   * Present only when `email_sent` is true and the user has an email on file.
+   */
+  email?: string
   description: string
   /** Public CDN URL if a screenshot was attached. */
   screenshot_url?: string

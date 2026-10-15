@@ -12,6 +12,11 @@ export const metadata = routeMetadata({
     "hip-hop platform rules",
     "artist community standards",
     "Hiffi house rules",
+    "music platform community guidelines",
+    "creator platform rules",
+    "rap artist community standards",
+    "Hiffi content rules",
+    "Hiffi safety guidelines",
   ],
 })
 

@@ -1,10 +1,16 @@
 "use client"
 
+import { useEffect } from "react"
 import Script from "next/script"
 import { usePathname } from "next/navigation"
 import { isAdminAnalyticsSurface } from "@/lib/analytics/admin-analytics-guard"
+import {
+  disableThirdPartyAnalytics,
+  enableThirdPartyAnalytics,
+} from "@/lib/analytics/third-party-analytics"
 import { ClarityTracker } from "@/components/analytics/clarity-tracker"
 import { GATracker } from "@/components/analytics/ga-tracker"
+import { useAnalyticsAllowed } from "@/hooks/use-cookie-consent"
 
 type ThirdPartyAnalyticsShellProps = {
   clarityId?: string | null
@@ -29,8 +35,17 @@ export function ThirdPartyAnalyticsShell({
 }: ThirdPartyAnalyticsShellProps) {
   const pathname = usePathname() || ""
   const isAdminRoute = isAdminAnalyticsSurface(pathname)
+  const analyticsAllowed = useAnalyticsAllowed()
 
-  if (isAdminRoute) {
+  useEffect(() => {
+    if (isAdminRoute || !analyticsAllowed) {
+      disableThirdPartyAnalytics(gaId)
+      return
+    }
+    enableThirdPartyAnalytics(gaId)
+  }, [analyticsAllowed, gaId, isAdminRoute])
+
+  if (isAdminRoute || !analyticsAllowed) {
     return null
   }
 

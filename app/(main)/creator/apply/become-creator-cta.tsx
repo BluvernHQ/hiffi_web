@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Sparkles } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
+import { CLAIM_UNDER_REVIEW_MESSAGE, isClaimUnderReviewError } from "@/lib/api/inventory"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { BecomeCreatorTermsNote } from "@/components/creator/become-creator-terms"
@@ -158,6 +159,10 @@ export function BecomeCreatorCta() {
         })
       }
     } catch (error: unknown) {
+      if (isClaimUnderReviewError(error)) {
+        toast({ title: "Under review", description: CLAIM_UNDER_REVIEW_MESSAGE })
+        return
+      }
       const message = error instanceof Error ? error.message : "Something went wrong. Please try again."
       toast({
         title: "Failed to start creator upgrade",
@@ -206,6 +211,10 @@ export function BecomeCreatorCta() {
 
       await finishCreatorUpgrade()
     } catch (error: unknown) {
+      if (isClaimUnderReviewError(error)) {
+        toast({ title: "Under review", description: CLAIM_UNDER_REVIEW_MESSAGE })
+        return
+      }
       const message = error instanceof Error ? error.message : "OTP verification failed. Please try again."
       toast({
         title: "Verification failed",
@@ -263,14 +272,14 @@ export function BecomeCreatorCta() {
             className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base"
           >
             {isLoggedOut
-              ? "Sign in to get started"
+              ? "Start your creator journey"
               : upgradeStep === "otp"
                 ? "Verify your email"
                 : "Ready to start creating?"}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             {isLoggedOut
-              ? "Create an account or sign in, then confirm below to enable creator uploads."
+              ? "Create a free account or sign in to unlock creator tools, upload music videos, and publish your first release on Hiffi."
               : upgradeStep === "otp"
                 ? upgradeMessage ||
                   `We've sent a 6-digit code to ${accountEmail}. Enter it below to complete your creator upgrade.`

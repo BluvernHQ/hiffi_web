@@ -11,9 +11,8 @@ import {
 /**
  * Cloudflare Turnstile widget (explicit render mode).
  *
- * When NEXT_PUBLIC_TURNSTILE_SITE_KEY is not set the widget renders nothing
- * and forms must treat the challenge as disabled — this keeps local dev and
- * preview environments working before keys are provisioned.
+ * When Turnstile is disabled (no site key, or `next dev`) the widget renders
+ * nothing and forms must not require a token — auth calls omit turnstile_token.
  *
  * Tokens are single-use and expire (~5 min): after a failed submit the parent
  * must call reset() via ref so the user gets a fresh token.
@@ -28,6 +27,7 @@ declare global {
           sitekey: string
           action?: string
           theme?: "light" | "dark" | "auto"
+          size?: "normal" | "compact" | "flexible"
           callback: (token: string) => void
           "expired-callback"?: () => void
           "error-callback"?: () => void
@@ -72,14 +72,12 @@ function loadTurnstileScript(): Promise<void> {
   return scriptPromise
 }
 
-export function getTurnstileSiteKey(): string {
-  return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
-}
+import {
+  getTurnstileSiteKey,
+  isTurnstileEnabled,
+} from "@/lib/turnstile/config"
 
-/** True when a site key is configured and forms should require a token. */
-export function isTurnstileEnabled(): boolean {
-  return getTurnstileSiteKey() !== ""
-}
+export { getTurnstileSiteKey, isTurnstileEnabled }
 
 export interface TurnstileWidgetHandle {
   /** Force a fresh challenge (required after any failed submit — tokens are single-use). */
@@ -92,10 +90,12 @@ export interface TurnstileWidgetProps {
   /** Called with a token when solved, and with null when the token expires or errors. */
   onToken: (token: string | null) => void
   className?: string
+  /** Prefer compact in narrow sidebars (e.g. profile About). */
+  size?: "normal" | "compact" | "flexible"
 }
 
 export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
-  function TurnstileWidget({ action, onToken, className }, ref) {
+  function TurnstileWidget({ action, onToken, className, size = "normal" }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const widgetIdRef = useRef<string | null>(null)
     const onTokenRef = useRef(onToken)
@@ -124,6 +124,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
             sitekey: siteKey,
             action,
             theme: "light",
+            size,
             callback: (token) => onTokenRef.current(token),
             "expired-callback": () => onTokenRef.current(null),
             "error-callback": () => onTokenRef.current(null),
@@ -140,7 +141,7 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
           widgetIdRef.current = null
         }
       }
-    }, [action])
+    }, [action, size])
 
     if (!isTurnstileEnabled()) return null
 

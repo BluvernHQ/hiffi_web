@@ -44,7 +44,7 @@ export function ArtistClaimLanding({ artistCount }: ArtistClaimLandingProps) {
               <ArtistClaimSearch variant="claim" />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Indexing {countLabel}+ artists in Atlanta today.
+              Indexing {countLabel}+ artists across cities.
             </p>
           </div>
 

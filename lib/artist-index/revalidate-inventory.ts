@@ -1,4 +1,5 @@
 import { revalidatePath, revalidateTag } from "next/cache"
+import { clearInventoryCatalogMemoryCache } from "@/lib/artist-index/fetch-inventory"
 import {
   ARTIST_INVENTORY_CACHE_TAG,
   artistInventoryUsernameTag,
@@ -16,6 +17,7 @@ export { ARTIST_INVENTORY_CACHE_TAG, artistInventoryUsernameTag }
 export function revalidateArtistInventory(username?: string | null): void {
   // Immediate expiry — do not serve stale claim_status after approve/submit.
   revalidateTag(ARTIST_INVENTORY_CACHE_TAG, { expire: 0 })
+  clearInventoryCatalogMemoryCache()
 
   const slug = username?.trim().toLowerCase()
   if (slug) {

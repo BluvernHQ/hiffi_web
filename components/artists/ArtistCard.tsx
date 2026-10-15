@@ -1,16 +1,20 @@
 import Link from "next/link"
 import { ArrowRight, BadgeCheck, MapPin } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
+import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import {
   artistIndexClaimHref,
   artistIndexEditHref,
   artistIndexHref,
+  formatArtistCityDisplay,
   formatCityState,
   getArtistProfileSubtitle,
-  getShortCityLabel,
   isArtistNew,
 } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
+import { ArtistCardAvatar } from "@/components/artists/ArtistCardAvatar"
+import { ArtistRankChip } from "@/components/artists/Hiffi500RankBadge"
 import { getArtistDisplayBio } from "@/lib/artist-directory-seo"
 import {
   artistCardButtonPrimary,
@@ -24,37 +28,6 @@ import { cn } from "@/lib/utils"
 type ArtistCardProps = {
   artist: Artist
   variant?: "default" | "hub"
-}
-
-function ArtistCardAvatar({ artist }: { artist: Artist }) {
-  const initials = artist.name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-
-  const imageSrc = getArtistImageUrl(artist.image)
-
-  if (imageSrc) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={imageSrc}
-        alt={`${artist.name} profile photo`}
-        className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg"
-      />
-    )
-  }
-
-  return (
-    <div
-      className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-black text-xl font-bold text-white shadow-lg"
-      aria-hidden
-    >
-      {initials}
-    </div>
-  )
 }
 
 function HeaderBadge({ artist }: { artist: Artist }) {
@@ -105,6 +78,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
     : artist.claim_status === "pending"
       ? "Request ownership"
       : "Claim"
+  const bannerSrc = getArtistImageUrl(artist.banner_image)
 
   return (
     <article
@@ -115,28 +89,47 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
         "hover:shadow-md",
       )}
     >
-      <Link
+      <ArtistProfileLink
         href={profileHref}
         prefetch
         className="absolute inset-0 z-0 rounded-[inherit] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8192C] focus-visible:ring-offset-2"
         aria-label={`View ${artist.name} profile`}
       >
         <span className="sr-only">View {artist.name} profile</span>
-      </Link>
+      </ArtistProfileLink>
 
       <div className="pointer-events-none relative z-[1] flex flex-1 flex-col">
         <div className={cn(artistCardMedia, "h-28")}>
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/50 via-zinc-900 to-black"
-            aria-hidden
-          />
-          <p
-            className="absolute inset-0 flex items-center justify-center text-2xl font-bold uppercase tracking-[0.35em] text-[#E8192C]/70"
-            style={{ WebkitTextStroke: "1px rgba(232, 25, 44, 0.35)" }}
-            aria-hidden
-          >
-            HIFFI
-          </p>
+          {bannerSrc ? (
+            <img
+              src={bannerSrc}
+              alt={`${artist.name} cover photo`}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <>
+              <div
+                className="absolute inset-0 bg-gradient-to-br from-[#E8192C]/50 via-zinc-900 to-black"
+                aria-hidden
+              />
+              <p
+                className="absolute inset-0 flex items-center justify-center text-2xl font-bold uppercase tracking-[0.35em] text-[#E8192C]/70"
+                style={{ WebkitTextStroke: "1px rgba(232, 25, 44, 0.35)" }}
+                aria-hidden
+              >
+                HIFFI
+              </p>
+            </>
+          )}
+          {bannerSrc ? (
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10"
+              aria-hidden
+            />
+          ) : null}
+          <div className="absolute left-3 top-3">
+            <ArtistRankChip artist={artist} />
+          </div>
           <div className="absolute right-3 top-3">
             <HeaderBadge artist={artist} />
           </div>
@@ -154,7 +147,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
                   {artist.name}
                 </p>
                 {artist.verified ? (
-                  <BadgeCheck className="h-4 w-4 shrink-0 text-[#E8192C]" aria-label="Verified artist" />
+                  <VerifiedBadge className="h-4 w-4 text-[#E8192C]" />
                 ) : null}
               </div>
               {isHub ? (
@@ -168,7 +161,7 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
             </div>
             {!isHub ? (
               <span className="shrink-0 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-                {getShortCityLabel(artist)}
+                {formatArtistCityDisplay(artist)}
               </span>
             ) : null}
           </div>
@@ -196,14 +189,14 @@ export function ArtistCard({ artist, variant = "default" }: ArtistCardProps) {
       </div>
 
       <div className={cn("relative z-[2] mt-5 px-1 pb-1", isHub ? "" : "grid grid-cols-2 gap-3")}>
-        <Link
+        <ArtistProfileLink
           href={profileHref}
           prefetch
           className={cn(artistCardButtonPrimary, "w-full", isHub && "inline-flex gap-2")}
         >
           View profile
           {isHub ? <ArrowRight className="h-4 w-4" aria-hidden /> : null}
-        </Link>
+        </ArtistProfileLink>
         {!isHub ? (
           <Link
             href={secondaryHref}

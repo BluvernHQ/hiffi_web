@@ -37,7 +37,15 @@ export function getEnvironment(): Environment {
   return 'beta'
 }
 
+/**
+ * Server-side requests prefer `API_INTERNAL_URL` (e.g. `http://127.0.0.1:8080` when the API runs on
+ * the same host) so SSR traffic skips Cloudflare and per-IP rate limits. Browsers never see it —
+ * the variable is not `NEXT_PUBLIC_`, and every server use of this URL is a fetch target.
+ */
 export function getApiBaseUrl(): string {
+  if (typeof window === 'undefined' && process.env.API_INTERNAL_URL) {
+    return process.env.API_INTERNAL_URL.replace(/\/+$/, '')
+  }
   return process.env.NEXT_PUBLIC_API_URL || environmentDefaults[getEnvironment()].apiBaseUrl
 }
 

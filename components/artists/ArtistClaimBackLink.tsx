@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+import { getArtistDirectoryReturnUrl } from "@/lib/artist-index/directory-nav-context"
 
 /** Browser-style back control; falls back to Artist Index with no history. */
 export function ArtistClaimBackLink() {
@@ -14,11 +15,7 @@ export function ArtistClaimBackLink() {
       href={ARTIST_INDEX_PATH}
       onClick={(event) => {
         event.preventDefault()
-        if (typeof window !== "undefined" && window.history.length > 1) {
-          router.back()
-          return
-        }
-        router.push(ARTIST_INDEX_PATH)
+        router.push(getArtistDirectoryReturnUrl())
       }}
       className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
     >

@@ -1,11 +1,11 @@
 /** Client-safe artist directory helpers — no bundled artist data. */
 
-import { getProfilePictureProxyUrl } from "@/lib/utils"
+import { getThumbnailUrl } from "@/lib/storage"
 
 export const ARTIST_INDEX_PATH = "/artist-index" as const
 export const ARTIST_INDEX_CLAIM_PATH = "/artist-index/claim" as const
 
-export const ARTIST_DIRECTORY_PAGE_SIZE = 9
+export const ARTIST_DIRECTORY_PAGE_SIZE = 12
 
 export type ArtistDirectoryFilterOption = {
   id: string
@@ -34,6 +34,15 @@ export function artistDirectoryFilterSeoHref(option: ArtistDirectoryFilterOption
   if (!option.kind || !option.slug) return null
   if (option.kind === "city") return artistIndexCityHref(option.slug)
   if (option.kind === "genre") return artistIndexGenreHref(option.slug)
+  return null
+}
+
+/** SEO landing URL for any `city:{slug}` / `genre:{slug}` filter id, curated or not. */
+export function artistDirectoryFilterIdSeoHref(filterId: string): string | null {
+  const [kind, slug = ""] = filterId.split(":")
+  if (!slug || slugifyArtistDirectorySegment(slug) !== slug) return null
+  if (kind === "city") return artistIndexCityHref(slug)
+  if (kind === "genre") return artistIndexGenreHref(slug)
   return null
 }
 
@@ -90,8 +99,6 @@ export const HUB_INLINE_FILTER_SPECS = [
   { kind: "genre" as const, slug: "hip-hop" },
   { kind: "genre" as const, slug: "rap" },
   { kind: "genre" as const, slug: "trap" },
-  { kind: "status" as const, slug: "verified" },
-  { kind: "status" as const, slug: "new" },
 ]
 
 export function pickHubInlineFilters(
@@ -106,9 +113,29 @@ export const HUB_FILTER_LABEL_OVERRIDES: Partial<Record<string, string>> = {
   new: "New Uploads",
 }
 
-/** Resolve API profile picture paths (e.g. ProfileProto/users/…) for browser img src. */
+/**
+ * Resolve API profile picture paths (e.g. ProfileProto/users/…) for browser img src.
+ * Uses the direct Workers CDN URL (same pattern as video/thumbnails) — not /proxy/profile-picture.
+ */
 export function getArtistImageUrl(image: string | null | undefined): string | null {
   const trimmed = image?.trim()
   if (!trimmed) return null
-  return getProfilePictureProxyUrl(trimmed)
+  // Unwrap legacy proxy paths so callers always get a direct CDN URL.
+  if (trimmed.startsWith("/proxy/profile-picture/")) {
+    const path = trimmed.slice("/proxy/profile-picture/".length).replace(/^\//, "")
+    return path ? getThumbnailUrl(path) : null
+  }
+  if (trimmed.startsWith("/proxy/")) return null
+  return getThumbnailUrl(trimmed) || null
+}
+
+/** Resolve profile cover/banner from user fields (banner_image preferred). */
+export function resolveUserBannerUrl(
+  user: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!user) return null
+  const raw = String(
+    user.banner_image ?? user.cover_image ?? user.coverUrl ?? "",
+  ).trim()
+  return raw ? getArtistImageUrl(raw) : null
 }

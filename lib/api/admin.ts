@@ -180,6 +180,7 @@ export async function adminCounters(
   success: boolean
   counters: {
     users: number
+    organic_users: number
     videos: number
     comments: number
     replies: number
@@ -208,6 +209,7 @@ export async function adminCounters(
     success: ok,
     counters: {
       users: Number(raw.users ?? 0),
+      organic_users: Number(raw.organic_users ?? 0),
       videos: Number(raw.videos ?? 0),
       comments: Number(raw.comments ?? 0),
       replies: Number(raw.replies ?? 0),

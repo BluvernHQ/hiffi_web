@@ -44,7 +44,7 @@ Hiffi is positioned consistently as a **hip-hop-first music and video streaming 
 | **AI markdown** | `content/llms/*.md` → `/*.md` rewrite | Machine-readable mirrors (e.g. `/faq.md`, `/artist-index.md`) |
 | **Canonical host** | `middleware.ts` | Apex → `www.hiffi.com` 308 redirect |
 
-**Production requirement:** `NEXT_PUBLIC_ENV=prod` — non-prod environments serve `robots.txt` with `Disallow: /`.
+**Production requirement:** `NEXT_PUBLIC_ENV=prod` — non-prod environments serve `robots.txt` with `Disallow: /` for all crawlers (including AI bots) so staging is not indexed or cited.
 
 ---
 

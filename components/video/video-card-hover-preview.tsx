@@ -9,7 +9,7 @@ import {
 } from "@/lib/feed-preview/preview-audio-preference"
 import { trackFeedPreviewEnded, trackFeedPreviewStarted } from "./feed-video-preview-provider"
 
-const PREVIEW_VOLUME = 0.8
+const PREVIEW_VOLUME = 0.5
 
 // Global single-active-preview lock.
 // Stores both the DOM element and a React state reset callback so that

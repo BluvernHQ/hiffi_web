@@ -20,28 +20,54 @@ import {
 } from "@/components/auth/turnstile-widget"
 
 function LoginForm() {
-  const [identifier, setIdentifier] = useState("")
+  const searchParams = useSearchParams()
+  // Approved artist claims link here with the claim email pre-filled.
+  const requestedEmail = searchParams.get("email")?.trim().toLowerCase() ?? ""
+  const [identifier, setIdentifier] = useState(requestedEmail)
+  const [signingOut, setSigningOut] = useState(false)
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const turnstileRef = useRef<TurnstileWidgetHandle>(null)
-  const { login, user, userData, loading: authLoading } = useAuth()
+  const { login, logout, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
   
   // Get redirect parameter from URL (preserved from where user came from)
   const redirectParam = searchParams.get('redirect')
   const redirectPath = validateRedirect(redirectParam)
 
+  const currentEmail = typeof userData?.email === "string" ? userData.email.trim().toLowerCase() : ""
+  const currentUsername = typeof userData?.username === "string" ? userData.username : ""
+  // Linked for a specific account (e.g. approved claim) while signed in as someone else.
+  const alreadyTargetAccount =
+    currentEmail === requestedEmail ||
+    (Boolean(currentUsername) && redirectPath === `/profile/${encodeURIComponent(currentUsername)}`)
+  const needsAccountSwitch = Boolean(user && requestedEmail && !alreadyTargetAccount)
+
+  const forgotPasswordParams = new URLSearchParams()
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim())) forgotPasswordParams.set("email", identifier.trim())
+  if (redirectPath) forgotPasswordParams.set("redirect", redirectPath)
+  const forgotPasswordQuery = forgotPasswordParams.toString()
+  const forgotPasswordHref = forgotPasswordQuery ? `/forgot-password?${forgotPasswordQuery}` : "/forgot-password"
+
   // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && !needsAccountSwitch) {
       const destination = resolvePostAuthDestination(redirectPath, userData)
       router.replace(destination)
     }
-  }, [user, userData, authLoading, router, redirectPath])
+  }, [user, userData, authLoading, router, redirectPath, needsAccountSwitch])
+
+  const handleSwitchAccount = async () => {
+    setSigningOut(true)
+    try {
+      await logout({ stayOnPage: true })
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -51,6 +77,49 @@ function LoginForm() {
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
+      </div>
+    )
+  }
+
+  if (user && needsAccountSwitch) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="mb-4 flex justify-center">
+              <Logo size={48} />
+            </div>
+            <CardTitle className="text-center text-2xl font-bold">Switch account</CardTitle>
+            <CardDescription className="text-center">
+              You&apos;re signed in as{" "}
+              <strong className="text-foreground">
+                {currentUsername ? `@${currentUsername}` : currentEmail || "another account"}
+              </strong>
+              . Sign out to continue as <strong className="text-foreground">{requestedEmail}</strong>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => void handleSwitchAccount()}
+              disabled={signingOut}
+              data-analytics-name="login-switch-account-button"
+            >
+              {signingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Sign out and continue
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => router.replace("/")}
+              disabled={signingOut}
+            >
+              Stay signed in as {currentUsername ? `@${currentUsername}` : "current account"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -169,7 +238,7 @@ function LoginForm() {
               </div>
               <div className="flex justify-end">
                 <Link 
-                  href="/forgot-password" 
+                  href={forgotPasswordHref}
                   className="text-sm font-medium text-primary hover:underline"
                 >
                   Forgot password?

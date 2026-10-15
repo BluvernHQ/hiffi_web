@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { VideoGrid } from '@/components/video/video-grid';
@@ -18,7 +18,6 @@ import { canReportContentTarget } from '@/lib/report/ownership';
 import { format } from 'date-fns';
 import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl, isCreator } from '@/lib/utils';
 import { shareUrl } from '@/lib/share';
-import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { ProfilePictureDialog } from '@/components/profile/profile-picture-dialog';
 import { AuthDialog, AUTH_DIALOG_COPY } from '@/components/auth/auth-dialog';
 import { addPendingFollowIntent } from '@/lib/guest-conversion/pending-intents';
@@ -26,6 +25,10 @@ import { markGuestFollowAttempt } from '@/lib/guest-conversion/session';
 import { ProfilePersonalView } from '@/components/profile/profile-personal-view';
 import { ProfilePublicView } from '@/components/profile/profile-public-view';
 import { ProfileMemberView } from '@/components/profile/profile-member-view';
+import { ProfileInventoryView } from '@/components/profile/profile-inventory-view';
+import type { Artist } from '@/lib/artists';
+import { mapUserProfileToArtist } from '@/lib/artist-index/map-user-profile-to-artist';
+import { scrollMainContentToTop } from '@/lib/main-content-scroll';
 import { debugLog, debugWarn } from '@/lib/debug';
 
 const VIDEOS_PER_PAGE = 10;
@@ -35,6 +38,8 @@ export type ProfilePageProps = {
   initialProfileUser?: Record<string, unknown> | null;
   /** First page of public videos from server. */
   initialVideos?: Record<string, unknown>[];
+  /** Artist Index inventory row when `in_inventory` (UI reuse on profile). */
+  initialArtist?: Artist | null;
 };
 
 function sortVideosByUpdatedDateStatic(videos: Record<string, unknown>[]): Record<string, unknown>[] {
@@ -57,6 +62,7 @@ function sortVideosByUpdatedDateStatic(videos: Record<string, unknown>[]): Recor
 export default function ProfilePage({
   initialProfileUser = null,
   initialVideos = [],
+  initialArtist = null,
 }: ProfilePageProps = {}) {
   const params = useParams();
   const router = useRouter();
@@ -70,6 +76,10 @@ export default function ProfilePage({
   const [isFollowingAction, setIsFollowingAction] = useState(false);
   const [followActionType, setFollowActionType] = useState<"follow" | "unfollow" | null>(null);
   const [profileUser, setProfileUser] = useState<any>(() => initialProfileUser ?? null);
+  const [inInventory, setInInventory] = useState(
+    () => (initialProfileUser as { in_inventory?: unknown } | null)?.in_inventory === true,
+  );
+  const [artist, setArtist] = useState<Artist | null>(() => initialArtist ?? null);
   const [userVideos, setUserVideos] = useState<any[]>(() => sortedInitialVideos);
   const [isLoading, setIsLoading] = useState(() => !initialProfileUser);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -77,7 +87,6 @@ export default function ProfilePage({
   const [offset, setOffset] = useState(() => sortedInitialVideos.length);
   const [isFetching, setIsFetching] = useState(false);
   const [hasTriedFetch, setHasTriedFetch] = useState(() => !!initialProfileUser);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isProfilePictureDialogOpen, setIsProfilePictureDialogOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -95,6 +104,12 @@ export default function ProfilePage({
   userVideosRef.current = userVideos;
 
   const username = params.username as string;
+
+  // #main-content is a persistent scroll shell — reset so profile opens at the hero, not mid-feed.
+  useLayoutEffect(() => {
+    scrollMainContentToTop("auto")
+  }, [username])
+
   const isOwnProfile = currentUserData?.username === username;
   const reportViewer = user
     ? { uid: user.uid, username: currentUserData?.username ?? user.username }
@@ -230,6 +245,11 @@ export default function ProfilePage({
 
         debugLog("[hiffi] Final profile_picture value before setting state:", (profileData as any)?.profile_picture)
 
+        const inventoryListed = response?.in_inventory === true
+        if (profileData && typeof profileData === "object") {
+          profileData.in_inventory = inventoryListed
+        }
+        setInInventory(inventoryListed)
         setProfileUser(profileData);
         serverHasProfileRef.current = true;
 
@@ -438,12 +458,48 @@ export default function ProfilePage({
     profileSyncInFlightRef.current = false;
     ownProfileVideosSyncedRef.current = false;
     setProfileUser(initialProfileUser ?? null);
+    setInInventory(
+      (initialProfileUser as { in_inventory?: unknown } | null)?.in_inventory === true,
+    );
+    setArtist(initialArtist ?? null);
     setUserVideos(sortedInitialVideos);
     setIsLoading(!initialProfileUser);
     setHasTriedFetch(!!initialProfileUser);
     setHasMore(sortedInitialVideos.length === VIDEOS_PER_PAGE);
     setOffset(sortedInitialVideos.length);
-  }, [username, initialProfileUser, sortedInitialVideos, initialVideos]);
+  }, [username, initialProfileUser, initialArtist, sortedInitialVideos, initialVideos]);
+
+  // Load Artist Index row for inventory profiles (UI reuse — no route merge).
+  useEffect(() => {
+    if (!username || !inInventory) {
+      if (!inInventory) setArtist(null);
+      return;
+    }
+    if (artist?.slug === username.trim().toLowerCase()) return;
+
+    let cancelled = false;
+    const slug = username.trim().toLowerCase();
+
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/artist-index/profile?slug=${encodeURIComponent(slug)}`,
+        );
+        if (!response.ok) {
+          if (!cancelled) setArtist(null);
+          return;
+        }
+        const data = (await response.json()) as { artist?: Artist };
+        if (!cancelled) setArtist(data.artist ?? null);
+      } catch {
+        if (!cancelled) setArtist(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [username, inInventory, artist?.slug]);
 
   // Single profile sync when auth is ready — do not depend on profileUser/videos (avoids fetch loops).
   useEffect(() => {
@@ -727,48 +783,6 @@ export default function ProfilePage({
     return null;
   }
 
-  // Members viewing their own profile — personal settings layout (no creator videos grid)
-  if (!profileIsCreator && isOwnProfile) {
-    return (
-      <ProfilePersonalView
-        profileUser={profileUser}
-        username={username}
-        currentUserData={currentUserData}
-        isOwnProfile={isOwnProfile}
-        profilePictureVersion={profilePictureVersion}
-        referralUrl={referralUrl}
-        copied={copied}
-        userVideos={userVideos}
-        isLoading={isLoading}
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        isEditDialogOpen={isEditDialogOpen}
-        setIsEditDialogOpen={setIsEditDialogOpen}
-        isProfilePictureDialogOpen={isProfilePictureDialogOpen}
-        setIsProfilePictureDialogOpen={setIsProfilePictureDialogOpen}
-        authDialogOpen={authDialogOpen}
-        setAuthDialogOpen={setAuthDialogOpen}
-        handleShare={handleShare}
-        handleCopy={handleCopy}
-        loadMoreVideos={loadMoreVideos}
-        onVideoDeleted={(videoId) => {
-          setUserVideos((prev) => prev.filter((v) => ((v as any).videoId || v.video_id) !== videoId))
-        }}
-        onEditProfileUpdated={async () => {
-          setProfilePictureVersion((prev) => prev + 1)
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          await fetchUserData(true)
-        }}
-        onProfilePictureUpdated={async () => {
-          setProfilePictureVersion((prev) => prev + 1)
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          await fetchUserData(true)
-        }}
-      />
-    );
-  }
-
-  // Members (non-creators) viewed by someone else — no videos / creator chrome
   const profileReportType = profileIsCreator ? "creator" : "user"
   const reportUserDialog =
     canReportProfile ? (
@@ -787,12 +801,97 @@ export default function ProfilePage({
       />
     ) : null;
 
+  // All creators — Artist Index detail UI on /profile (inventory data when available).
+  if (profileIsCreator) {
+    const displayArtist =
+      artist ?? mapUserProfileToArtist(profileUser as Record<string, unknown>, username)
+
+    return (
+      <>
+        <ProfileInventoryView
+          artist={displayArtist}
+          profileUser={profileUser}
+          username={username}
+          isOwnProfile={isOwnProfile}
+          email={
+            String(profileUser.email || (isOwnProfile ? currentUserData?.email : "") || "").trim() ||
+            undefined
+          }
+          showClaimCta={inInventory}
+          isFollowing={isFollowing}
+          isFollowingAction={isFollowingAction}
+          followActionType={followActionType}
+          referralUrl={referralUrl}
+          copied={copied}
+          userVideos={userVideos}
+          isLoading={isLoading}
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          isProfilePictureDialogOpen={isProfilePictureDialogOpen}
+          setIsProfilePictureDialogOpen={setIsProfilePictureDialogOpen}
+          authDialogOpen={authDialogOpen}
+          setAuthDialogOpen={setAuthDialogOpen}
+          handleShare={handleShare}
+          handleCopy={handleCopy}
+          handleFollow={handleFollow}
+          loadMoreVideos={loadMoreVideos}
+          onVideoDeleted={(videoId) => {
+            setUserVideos((prev) => prev.filter((v) => (v.videoId || v.video_id) !== videoId))
+          }}
+          onProfilePictureUpdated={async () => {
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            await fetchUserData(true)
+          }}
+          onReport={canReportProfile ? () => setReportDialogOpen(true) : undefined}
+        />
+        {reportUserDialog}
+      </>
+    )
+  }
+
+  // Members viewing their own profile — personal settings layout (no creator videos grid)
+  if (!profileIsCreator && isOwnProfile) {
+    return (
+      <ProfilePersonalView
+        profileUser={profileUser}
+        username={username}
+        currentUserData={currentUserData}
+        isOwnProfile={isOwnProfile}
+        inInventory={inInventory}
+        profilePictureVersion={profilePictureVersion}
+        referralUrl={referralUrl}
+        copied={copied}
+        userVideos={userVideos}
+        isLoading={isLoading}
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        isProfilePictureDialogOpen={isProfilePictureDialogOpen}
+        setIsProfilePictureDialogOpen={setIsProfilePictureDialogOpen}
+        authDialogOpen={authDialogOpen}
+        setAuthDialogOpen={setAuthDialogOpen}
+        handleShare={handleShare}
+        handleCopy={handleCopy}
+        loadMoreVideos={loadMoreVideos}
+        onVideoDeleted={(videoId) => {
+          setUserVideos((prev) => prev.filter((v) => ((v as any).videoId || v.video_id) !== videoId))
+        }}
+        onProfilePictureUpdated={async () => {
+          setProfilePictureVersion((prev) => prev + 1)
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          await fetchUserData(true)
+        }}
+      />
+    );
+  }
+
+  // Members (non-creators) viewed by someone else — no videos / creator chrome
   if (!profileIsCreator && !isOwnProfile) {
     return (
       <>
         <ProfileMemberView
           profileUser={profileUser}
           username={username}
+          inInventory={inInventory}
           isFollowing={isFollowing}
           isFollowingAction={isFollowingAction}
           followActionType={followActionType}
@@ -808,7 +907,6 @@ export default function ProfilePage({
     );
   }
 
-  // Creator profiles — videos grid, stats, follow
   return (
     <>
     <ProfilePublicView
@@ -816,6 +914,7 @@ export default function ProfilePage({
       username={username}
       currentUserData={currentUserData}
       isOwnProfile={isOwnProfile}
+      inInventory={inInventory}
       isFollowing={isFollowing}
       isFollowingAction={isFollowingAction}
       followActionType={followActionType}
@@ -826,8 +925,6 @@ export default function ProfilePage({
       isLoading={isLoading}
       loadingMore={loadingMore}
       hasMore={hasMore}
-      isEditDialogOpen={isEditDialogOpen}
-      setIsEditDialogOpen={setIsEditDialogOpen}
       isProfilePictureDialogOpen={isProfilePictureDialogOpen}
       setIsProfilePictureDialogOpen={setIsProfilePictureDialogOpen}
       authDialogOpen={authDialogOpen}
@@ -838,10 +935,6 @@ export default function ProfilePage({
       loadMoreVideos={loadMoreVideos}
       onVideoDeleted={(videoId) => {
         setUserVideos((prev) => prev.filter((v) => (v.videoId || v.video_id) !== videoId))
-      }}
-      onEditProfileUpdated={async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        await fetchUserData(true)
       }}
       onProfilePictureUpdated={async () => {
         await new Promise((resolve) => setTimeout(resolve, 100))

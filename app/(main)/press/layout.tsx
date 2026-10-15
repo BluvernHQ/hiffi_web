@@ -7,12 +7,18 @@ export const metadata = routeMetadata({
   description:
     "Hiffi press resources — company overview, brand assets, media contact, and facts for journalists covering hip-hop streaming and independent artists.",
   path: "/press",
+  image: "/press/hero-artist.jpg",
   keywords: [
     "Hiffi press kit",
     "Hiffi media",
     "Hiffi press contact",
     "hip-hop streaming press",
     "Kinimi Corporation Hiffi",
+    "Hiffi company overview",
+    "Hiffi brand assets",
+    "independent artist platform press",
+    "hip-hop music app press kit",
+    "music video streaming platform press",
   ],
 })
 
@@ -20,7 +26,7 @@ export default function PressLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      <SiteFooter />
+      <SiteFooter className="mt-0" />
     </>
   )
 }

@@ -15,6 +15,8 @@ import {
   type CollaborationFormFieldErrors,
 } from "@/lib/api/collaboration"
 import { COLLABORATION_FIELD_LIMITS } from "@/lib/types/collaboration-inquiry"
+import { TurnstileFormField } from "@/components/auth/turnstile-form-field"
+import { useTurnstileForm } from "@/hooks/use-turnstile-form"
 
 const fieldClass =
   "border-0 bg-muted/55 shadow-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:bg-muted/40"
@@ -107,6 +109,13 @@ export function BrandCollaborationForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const {
+    turnstileRef,
+    setTurnstileToken,
+    submitBlocked,
+    resetTurnstile,
+    getTurnstileTokenForSubmit,
+  } = useTurnstileForm("collaboration")
 
   const artistNote = useMemo(() => {
     if (!referredArtist) return null
@@ -146,11 +155,20 @@ export function BrandCollaborationForm() {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
+    const turnstile = getTurnstileTokenForSubmit()
+    if (!turnstile.ok) {
+      setErrors({ form: turnstile.error })
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      await submitCollaborationInquiry(form)
+      await submitCollaborationInquiry(form, {
+        ...(turnstile.token ? { turnstile_token: turnstile.token } : {}),
+      })
       setSubmitted(true)
     } catch (error) {
+      resetTurnstile()
       setErrors({
         form: error instanceof Error ? error.message : "Something went wrong. Please try again.",
       })
@@ -319,12 +337,19 @@ export function BrandCollaborationForm() {
       <div className="border-t border-border/40 pt-10 sm:pt-12">
         {errors.form ? <p className="mb-4 text-center text-sm text-destructive">{errors.form}</p> : null}
 
+        <TurnstileFormField
+          action="collaboration"
+          widgetRef={turnstileRef}
+          onToken={setTurnstileToken}
+          className="mb-6"
+        />
+
         <Button
           type="button"
           size="lg"
           className="h-12 w-full rounded-lg text-[15px] font-semibold shadow-none"
           data-analytics-name="brand-collaboration-submit-button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || submitBlocked}
           onClick={() => void handleSubmit()}
         >
           {isSubmitting ? "Submitting…" : "Submit collaboration request"}

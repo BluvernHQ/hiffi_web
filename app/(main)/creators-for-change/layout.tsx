@@ -5,13 +5,15 @@ import { SiteFooter } from "@/components/layout/site-footer"
 export const metadata = routeMetadata({
   title: "Creators for Change",
   description:
-    "Hiffi's commitment to amplifying hip-hop creators who use their platform for community impact, mentorship, and positive culture.",
+    "Hiffi Creators for Change supports independent hip-hop artists and community leaders who use music to mentor, educate, and create positive cultural impact.",
   path: "/creators-for-change",
+  image: "/creators-for-change/hero-artist.jpg",
   keywords: [
     "Creators for Change",
     "hip-hop community impact",
     "artist mentorship",
     "Hiffi creators program",
+    "positive hip-hop culture",
   ],
 })
 
@@ -19,7 +21,7 @@ export default function CreatorsForChangeLayout({ children }: { children: ReactN
   return (
     <>
       {children}
-      <SiteFooter />
+      <SiteFooter className="mt-0" />
     </>
   )
 }

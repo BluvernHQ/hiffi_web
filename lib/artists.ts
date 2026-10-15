@@ -1,4 +1,5 @@
 import { ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+import type { PublicRanking } from "@/lib/types/inventory"
 
 export {
   ARTIST_DIRECTORY_PAGE_SIZE,
@@ -18,6 +19,7 @@ export {
   getArtistDirectoryFiltersAsync as getArtistDirectoryFilters,
   getAvailableArtistDirectoryFiltersAsync as getAvailableArtistDirectoryFilters,
   getOtherArtistsAsync as getOtherArtists,
+  getPopulatedGenreSlugsAsync as getPopulatedGenreSlugs,
   getRelatedArtistsAsync as getRelatedArtists,
   resolveArtistDirectoryPageAsync as resolveArtistDirectoryPage,
   sanitizeActiveFilterIdsAsync as sanitizeActiveFilterIds,
@@ -54,6 +56,10 @@ export type Artist = {
   verified: boolean
   featured: boolean
   added_date: string
+  /** Inventory `updated_at` — used for recent-claimed directory ordering. */
+  updated_at?: string
+  /** Weekly rank ladder; absent when the API predates it. */
+  ranking?: PublicRanking
 }
 
 export function artistIndexHref(slug?: string): string {
@@ -98,8 +104,21 @@ export function formatStateCode(state: string): string {
   return state.trim().toUpperCase()
 }
 
+export const UNKNOWN_LOCATION_LABEL = "Location unknown"
+
 export function getShortCityLabel(artist: Artist): string {
   return formatCityName(artist.city.split(",")[0]?.trim() || artist.city)
+}
+
+/** City label for UI — never invents a city when location is missing. */
+export function formatArtistCityDisplay(artist: Artist): string {
+  return getShortCityLabel(artist) || UNKNOWN_LOCATION_LABEL
+}
+
+/** Accessible / SEO alt text for artist profile photos. */
+export function artistProfilePhotoAlt(name: string): string {
+  const trimmed = name.trim() || "Artist"
+  return `${trimmed} — hip-hop artist profile photo`
 }
 
 export type ArtistDirectoryFilter = {
@@ -158,6 +177,7 @@ export function getPrimaryFollowerCount(artist: Artist): number | null {
 export function formatCityState(artist: Artist): string {
   const city = formatCityName(artist.city)
   const state = formatStateCode(artist.state)
+  if (!city) return UNKNOWN_LOCATION_LABEL
   if (!state) return city
   return `${city}, ${state}`
 }

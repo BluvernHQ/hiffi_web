@@ -1,4 +1,5 @@
 import type { Artist } from "@/lib/artists"
+import { artistProfilePhotoAlt } from "@/lib/artists"
 import { getArtistImageUrl } from "@/lib/artist-directory"
 import { cn } from "@/lib/utils"
 
@@ -29,7 +30,7 @@ export function ArtistAvatar({ artist, size = "md", className }: ArtistAvatarPro
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageSrc}
-        alt=""
+        alt={artistProfilePhotoAlt(artist.name)}
         className={cn(
           "shrink-0 rounded-full object-cover",
           sizeClasses[size],

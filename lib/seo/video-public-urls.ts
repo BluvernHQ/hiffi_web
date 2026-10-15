@@ -76,6 +76,34 @@ export function buildSeoVideoStreamProxyUrl(mp4WorkersUrl: string): string {
   return absoluteUrl(`/proxy/video/stream?url=${encodeURIComponent(workersUrl)}`)
 }
 
+/**
+ * If a URL is our SEO/nginx video proxy, return the underlying Workers URL.
+ * Viewer playback must use Workers directly — never relay through /proxy/video/stream.
+ */
+export function unwrapVideoStreamProxyUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return ""
+
+  try {
+    const parsed = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? new URL(trimmed)
+      : trimmed.startsWith("/")
+        ? new URL(trimmed, getSiteOrigin())
+        : null
+    if (!parsed) return trimmed
+    if (!parsed.pathname.includes("/proxy/video/stream")) return trimmed
+
+    const nested = parsed.searchParams.get("url")?.trim() || ""
+    if (!nested) return trimmed
+    if (!nested.includes(".hiffi.workers.dev") && !nested.startsWith(getWorkersBaseUrl())) {
+      return trimmed
+    }
+    return nested
+  } catch {
+    return trimmed
+  }
+}
+
 export function isProgressiveMp4Url(url: string): boolean {
   return Boolean(url.trim()) && PROGRESSIVE_MP4_RE.test(url) && !HLS_RE.test(url)
 }

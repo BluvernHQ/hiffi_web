@@ -326,7 +326,7 @@ flowchart TD
 | Hip-Hop Hub | `/hip-hop` | Mood SEO, search, artist index | Marketing hub with JSON-LD |
 | Mood SEO Page | `/hip-hop/mood/{slug}` | Search only | **No live player** — dead end for playback intent |
 | Artist Index | `/artist-index` | Filter, artist detail, claim | **No app chrome** — isolated layout |
-| Claim Landing | `/artist-index/claim` | Search → claim form | **No login required** |
+| Claim Landing | `/artist-index/claim` | Search → claim form | Claim form sets up account details (email + password) in-flow |
 | Content Pages | Legal, FAQ, support links | Read-only | Minimal chrome; `SiteFooter` on marketing pages |
 
 ---
@@ -373,7 +373,7 @@ flowchart TD
         EP5([Entry: City/genre page]) --> AP
 
         AP --> A3{Action}
-        A3 -->|Claim profile| CF[Claim Form — no auth]
+        A3 -->|Claim profile| CF[Claim Form — account, socials, profile]
         A3 -->|Suggest edit| EDIT[Inline Edit Form]
         A3 -->|View Hiffi profile| PR
         A3 -->|External social| T_EXT((End: Exit — external))
@@ -388,7 +388,7 @@ flowchart TD
 | Profile Page | `/profile/{username}` | Videos, follow, share | Public; API 401 shows inline sign-in prompt |
 | Auth Dialog — Follow | Follow (guest) | Auth → return to profile | Pending follow intent replayed |
 | Artist Directory Profile | `/artist-index/{slug}` | Claim, edit, Hiffi profile | Inventory system; separate from watch links |
-| Claim Form | `/artist-index/{slug}/claim` | Submit confirmation | Name + email only; `POST /api/inventory/claims` |
+| Claim Form | `/artist-index/{slug}/claim` | Pending-review timeline | 3 steps: account → socials → city/sound/collab; `POST /api/inventory/claims` (extra fields forwarded when `INVENTORY_CLAIM_ACCOUNT_SETUP=true`) |
 | Inline Edit Form | `?edit=1` on artist page | Submit suggestion | No auth required for suggest-edit |
 | Watch Page | Click creator video | Watch journey | Infinite scroll on video grid (10/page) |
 

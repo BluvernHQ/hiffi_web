@@ -1,5 +1,6 @@
 import {
   buildSitemapEntries,
+  buildStaticOnlyEntries,
   entriesToUrlsetXml,
   getSitemapChunkIds,
   sitemapXmlResponse,
@@ -20,11 +21,20 @@ export async function GET(_request: Request, context: RouteContext) {
     return new Response("Not Found", { status: 404 })
   }
 
-  const ids = await getSitemapChunkIds()
-  if (!ids.includes(id)) {
-    return new Response("Not Found", { status: 404 })
-  }
+  try {
+    const ids = await getSitemapChunkIds()
+    if (!ids.includes(id)) {
+      return new Response("Not Found", { status: 404 })
+    }
 
-  const entries = await buildSitemapEntries(id)
-  return sitemapXmlResponse(entriesToUrlsetXml(entries))
+    const entries = await buildSitemapEntries(id)
+    return sitemapXmlResponse(entriesToUrlsetXml(entries))
+  } catch (error) {
+    console.error(`[hiffi] sitemaps/${id} failed:`, error)
+    if (id !== 0) {
+      return new Response("Not Found", { status: 404 })
+    }
+    const entries = await buildStaticOnlyEntries()
+    return sitemapXmlResponse(entriesToUrlsetXml(entries))
+  }
 }

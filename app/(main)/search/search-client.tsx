@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { VideoGrid } from '@/components/video/video-grid';
-import { Search, Loader2, User, Video } from 'lucide-react';
+import { ArrowRight, Loader2, Search, User, Video } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getColorFromName, getAvatarLetter, getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
-import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { getProfilePictureUrl, getProfilePictureProxyUrl } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SearchCreatorCard } from '@/components/search/search-creator-card';
+import { AuthDialog } from '@/components/auth/auth-dialog';
+import { addPendingFollowIntent } from '@/lib/guest-conversion/pending-intents';
+import { markGuestFollowAttempt } from '@/lib/guest-conversion/session';
 import {
   getUserSearchTerm,
   isSuspiciousSqlLikeQuery,
@@ -18,10 +20,12 @@ import {
   normalizeSearchQueryForRequest,
 } from '@/lib/search-query';
 import { onSearchQuerySubmitted } from '@/lib/analytics/journey-tracking';
-import { isConnectivityError, userFacingNetworkMessage } from '@/lib/network-errors';
+import { isConnectivityError, networkErrorTitle, userFacingNetworkMessage } from '@/lib/network-errors';
 
 const VIDEOS_PER_PAGE = 10;
 const USERS_PER_PAGE = 50;
+const TOP_CREATORS_PREVIEW = 6;
+const FEATURED_VIDEOS_PREVIEW = 6;
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
@@ -38,7 +42,81 @@ function SearchPageContent() {
   const [activeTab, setActiveTab] = useState<'all' | 'videos' | 'users'>('all');
   const [currentQuery, setCurrentQuery] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user, userData } = useAuth();
   const [userProfilePictures, setUserProfilePictures] = useState<Map<string, string>>(new Map());
+  const [followedUsernames, setFollowedUsernames] = useState<Set<string>>(new Set());
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authDialogUser, setAuthDialogUser] = useState<{ username: string; displayName: string } | null>(null);
+
+  const currentUsername = userData?.username || user?.username || null;
+
+  useEffect(() => {
+    if (!user) {
+      setFollowedUsernames(new Set());
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFollowing = async () => {
+      try {
+        const response = await apiClient.getFollowingList(100, 0);
+        if (cancelled || !response.success || !response.following) return;
+
+        const usernames = new Set(
+          response.following
+            .map((entry) => entry.followed_to_username || entry.followed_to)
+            .filter(Boolean),
+        );
+        setFollowedUsernames(usernames);
+      } catch (error) {
+        console.error('[hiffi] Failed to load following list for search:', error);
+      }
+    };
+
+    loadFollowing();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const isUserFollowed = useCallback(
+    (searchUser: any) => {
+      const username = searchUser?.username;
+      if (!username) return false;
+
+      return (
+        searchUser.following === true ||
+        searchUser.isfollowing === true ||
+        searchUser.is_following === true ||
+        followedUsernames.has(username)
+      );
+    },
+    [followedUsernames],
+  );
+
+  const handleFollowingChange = useCallback((username: string, following: boolean) => {
+    setFollowedUsernames((prev) => {
+      const next = new Set(prev);
+      if (following) {
+        next.add(username);
+      } else {
+        next.delete(username);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleRequestAuth = useCallback(
+    (username: string, displayName: string) => {
+      addPendingFollowIntent(username, displayName);
+      markGuestFollowAttempt();
+      setAuthDialogUser({ username, displayName });
+      setAuthDialogOpen(true);
+    },
+    [],
+  );
 
   const fetchSearchResults = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -116,7 +194,7 @@ function SearchPageContent() {
     } catch (error: any) {
       console.error('[hiffi] Failed to fetch search results:', error);
       toast({
-        title: isConnectivityError(error) ? 'No internet connection' : 'Error',
+        title: isConnectivityError(error) ? networkErrorTitle() : 'Error',
         description: isConnectivityError(error) ? userFacingNetworkMessage() : 'Failed to load search results.',
         variant: 'destructive',
       });
@@ -188,6 +266,33 @@ function SearchPageContent() {
     }
   }, [searchParams, currentQuery]);
 
+  const getCreatorAvatarSrc = (user: any) => {
+    const profilePicPath = user.profile_picture || user.image || '';
+    const blobUrl = userProfilePictures.get(user.username || user.uid || '');
+    return blobUrl || (profilePicPath ? getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true) : undefined);
+  };
+
+  const renderCreatorCards = (users: any[]) => (
+    <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 lg:grid-cols-3">
+      {users.map((searchUser: any) => (
+        <SearchCreatorCard
+          key={searchUser.uid || searchUser.username}
+          user={searchUser}
+          avatarSrc={getCreatorAvatarSrc(searchUser)}
+          fill
+          initialFollowing={isUserFollowed(searchUser)}
+          isAuthenticated={Boolean(user)}
+          currentUsername={currentUsername}
+          onRequestAuth={handleRequestAuth}
+          onFollowingChange={handleFollowingChange}
+        />
+      ))}
+    </div>
+  );
+
+  const featuredVideos = videoResults.slice(0, FEATURED_VIDEOS_PREVIEW);
+  const previewCreators = userResults.slice(0, TOP_CREATORS_PREVIEW);
+
   return (
     <div className="w-full px-3 py-4 sm:px-4 md:px-4 lg:pl-4 lg:pr-6">
         <div className="w-full">
@@ -198,7 +303,8 @@ function SearchPageContent() {
               </div>
               {query && (videoResults.length > 0 || userResults.length > 0) && (
                 <p className="text-muted-foreground text-xs sm:text-sm md:text-base">
-                  Results for <span className="font-semibold text-foreground">"{query}"</span>
+                  Showing top results for{' '}
+                  <span className="font-semibold text-foreground">&apos;{query}&apos;</span>
                 </p>
               )}
             </div>
@@ -213,52 +319,68 @@ function SearchPageContent() {
                 </div>
               ) : videoResults.length > 0 || userResults.length > 0 ? (
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'all' | 'videos' | 'users')} className="space-y-4 sm:space-y-6">
-                  <TabsList className="grid w-full max-w-md grid-cols-3 text-xs sm:text-sm">
-                    <TabsTrigger value="all" className="gap-1 sm:gap-2 px-2 sm:px-4">All</TabsTrigger>
-                    <TabsTrigger value="videos" className="gap-1 sm:gap-2 px-2 sm:px-4"><Video className="h-3.5 w-3.5" /> Videos</TabsTrigger>
-                    <TabsTrigger value="users" className="gap-2"><User className="h-4 w-4" /> Users</TabsTrigger>
+                  <TabsList className="inline-flex h-auto w-fit gap-2 rounded-full bg-transparent p-0">
+                    <TabsTrigger
+                      value="all"
+                      className="rounded-full border border-transparent bg-muted px-5 py-2 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+                    >
+                      All
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="users"
+                      className="gap-1.5 rounded-full border border-transparent bg-muted px-5 py-2 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+                    >
+                      <User className="h-3.5 w-3.5" />
+                      Users
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="videos"
+                      className="gap-1.5 rounded-full border border-transparent bg-muted px-5 py-2 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+                    >
+                      <Video className="h-3.5 w-3.5" />
+                      Videos
+                    </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="all" className="space-y-8 mt-6">
-                    {userResults.length > 0 && (
+                  <TabsContent value="all" className="mt-6 space-y-8 sm:space-y-10">
+                    {previewCreators.length > 0 && (
                       <div>
-                        <div className="flex items-center gap-2 mb-4"><User className="h-5 w-5 text-muted-foreground" /><h2 className="text-xl font-bold">Users</h2></div>
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                          {userResults.map((user: any) => {
-                            const profilePicPath = user.profile_picture || user.image || '';
-                            const blobUrl = userProfilePictures.get(user.username || user.uid || '');
-                            const avatarSrc = blobUrl || (profilePicPath ? getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true) : undefined);
-                            return (
-                              <Link key={user.uid || user.username} href={`/profile/${user.username}`}>
-                                <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/20 cursor-pointer h-full">
-                                  <CardContent className="p-6">
-                                    <div className="flex items-center gap-4">
-                                      <Avatar className="h-16 w-16">
-                                        <AvatarImage src={avatarSrc} />
-                                        <AvatarFallback style={{ backgroundColor: getColorFromName(user.username || 'U') }}>{getAvatarLetter({ username: user.username }, 'U')}</AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold text-lg truncate">@{user.username}</h3>
-                                        <p className="text-sm text-muted-foreground">View profile</p>
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              </Link>
-                            );
-                          })}
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <h2 className="text-lg font-bold sm:text-xl">Users</h2>
+                          {userCount > TOP_CREATORS_PREVIEW && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('users')}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                            >
+                              View all users ({userCount})
+                              <ArrowRight className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
+                        {renderCreatorCards(previewCreators)}
                       </div>
                     )}
 
-                    {videoResults.length > 0 && (
+                    {featuredVideos.length > 0 && (
                       <div>
-                        <div className="flex items-center gap-2 mb-4"><Video className="h-5 w-5 text-muted-foreground" /><h2 className="text-xl font-bold">Videos</h2></div>
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <h2 className="text-lg font-bold sm:text-xl">Videos</h2>
+                          {(videoCount > FEATURED_VIDEOS_PREVIEW || videoResults.length > FEATURED_VIDEOS_PREVIEW) && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('videos')}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                            >
+                              See all videos
+                              <ArrowRight className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                         <VideoGrid
-                          videos={videoResults}
-                          loading={loadingInitial || loadingMoreVideos}
-                          hasMore={hasMoreVideos}
-                          onLoadMore={loadMoreVideos}
+                          videos={featuredVideos}
+                          loading={false}
+                          hasMore={false}
                           openVideoUiName="opened-video-from-search"
                           hideTimestamp
                         />
@@ -277,32 +399,9 @@ function SearchPageContent() {
                     />
                   </TabsContent>
 
-                  <TabsContent value="users" className="mt-6">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {userResults.map((user: any) => {
-                        const profilePicPath = user.profile_picture || user.image || '';
-                        const blobUrl = userProfilePictures.get(user.username || user.uid || '');
-                        const avatarSrc = blobUrl || (profilePicPath ? getProfilePictureUrl({ profile_picture: profilePicPath, image: profilePicPath }, true) : undefined);
-                        return (
-                          <Link key={user.uid || user.username} href={`/profile/${user.username}`}>
-                            <Card className="hover:shadow-lg transition-all duration-200 hover:border-primary/20 cursor-pointer h-full">
-                              <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                  <Avatar className="h-16 w-16">
-                                    <AvatarImage src={avatarSrc} />
-                                    <AvatarFallback style={{ backgroundColor: getColorFromName(user.username || 'U') }}>{getAvatarLetter({ username: user.username }, 'U')}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-lg truncate">@{user.username}</h3>
-                                    <p className="text-sm text-muted-foreground">View profile</p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        );
-                      })}
-                    </div>
+                  <TabsContent value="users" className="mt-6 space-y-4">
+                    <h2 className="text-lg font-bold sm:text-xl">Users</h2>
+                    {renderCreatorCards(userResults)}
                   </TabsContent>
                 </Tabs>
               ) : (
@@ -324,6 +423,16 @@ function SearchPageContent() {
             </div>
           )}
         </div>
+
+        <AuthDialog
+          open={authDialogOpen}
+          onOpenChange={setAuthDialogOpen}
+          title="Never miss a drop"
+          description="Sign up to follow artists and get notified when they upload something new."
+          artistUsername={authDialogUser?.username}
+          artistDisplayName={authDialogUser?.displayName}
+          conversionTrigger="follow_attempt"
+        />
       </div>
   );
 }

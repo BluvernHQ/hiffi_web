@@ -4,6 +4,7 @@ import { ReactNode } from "react"
 import { usePathname } from "next/navigation"
 import { Navbar } from "./navbar"
 import { Sidebar } from "./sidebar"
+import { ClaimStatusBanner } from "./claim-status-banner"
 import { useSidebar } from "@/lib/sidebar-context"
 import { isContentPage } from "@/lib/content-pages"
 
@@ -27,9 +28,7 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentFilter, onFilterChange }: AppLayoutProps) {
   const pathname = usePathname()
   const isContentPageRoute = isContentPage(pathname)
-  const isArtistIndexRoute =
-    (pathname?.startsWith("/artist-index") || pathname?.startsWith("/hiffi-500")) ?? false
-  const showAppChrome = !isArtistIndexRoute
+  const showSidebar = !isContentPageRoute
 
   const {
     isSidebarOpen,
@@ -40,34 +39,26 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
   } = useSidebar()
 
   return (
-    <div
-      className={
-        isArtistIndexRoute
-          ? "relative flex min-h-[100dvh] flex-col bg-background"
-          : "relative flex h-[100dvh] flex-col overflow-hidden bg-background"
-      }
-    >
-      {showAppChrome ? (
-        <Navbar
-          variant={isContentPageRoute ? "minimal" : "full"}
-          onMenuClick={
-            isContentPageRoute
-              ? undefined
-              : () => {
-                  if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-                    toggleDesktopSidebar()
-                  } else {
-                    toggleMobileSidebar()
-                  }
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <Navbar
+        variant={isContentPageRoute ? "minimal" : "full"}
+        onMenuClick={
+          isContentPageRoute
+            ? undefined
+            : () => {
+                if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+                  toggleDesktopSidebar()
+                } else {
+                  toggleMobileSidebar()
                 }
-          }
-          currentFilter={currentFilter}
-        />
-      ) : null}
+              }
+        }
+        currentFilter={currentFilter}
+      />
 
       {/* Main Layout Container */}
-      <div className={isArtistIndexRoute ? "flex flex-1 flex-col" : "flex flex-1 overflow-hidden"}>
-        {showAppChrome && !isContentPageRoute && (
+      <div className="flex flex-1 overflow-hidden">
+        {showSidebar && (
           <Sidebar
             isMobileOpen={isSidebarOpen}
             onMobileClose={() => setIsSidebarOpen(false)}
@@ -81,16 +72,12 @@ export function AppLayout({ children, currentFilter, onFilterChange }: AppLayout
         {/* Main Content Area - Adapts to sidebar, never affects it */}
         <main
           id="main-content"
-          className={
-            isArtistIndexRoute
-              ? "w-full min-w-0 flex-1"
-              : "h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
-          }
+          className="h-[calc(100dvh-4rem)] w-full min-w-0 flex-1 overflow-y-auto"
         >
+          <ClaimStatusBanner />
           {children}
         </main>
       </div>
     </div>
   )
 }
-

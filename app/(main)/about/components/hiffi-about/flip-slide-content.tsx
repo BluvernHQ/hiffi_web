@@ -51,12 +51,12 @@ export function FlipSlideContent({ variant }: { variant: string }) {
           </div>
           <div className="flip-widget-point card-1-s2">
             <div className="flip-pop-message card-1-s1">
-              <AssetImg file="6821a59ae3bfe300713424c3_d08ce3661a205725180d474b3cd53898_flip-pop-1.png" />
+              <AssetImg file="6821a59ae3bfe300713424c3_d08ce3661a205725180d474b3cd53898_flip-pop-1.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-1-s3">
             <div className="flip-pop-message card-1-s2">
-              <AssetImg file="6821a59ae3bfe300713424c2_b6c2aea695bd15b96e4bfaf6535e2479_flip-pop-2.png" />
+              <AssetImg file="6821a59ae3bfe300713424c2_b6c2aea695bd15b96e4bfaf6535e2479_flip-pop-2.webp" />
             </div>
           </div>
         </>
@@ -106,7 +106,7 @@ export function FlipSlideContent({ variant }: { variant: string }) {
           </div>
           <div className="flip-widget-point card-3-s3">
             <div className="flip-total-views">
-              <AssetImg file="6821a59ae3bfe300713424d3_fc98d38aff4dffc8afd94f42c1eab9f5_total-view.png" />
+              <AssetImg file="6821a59ae3bfe300713424d3_fc98d38aff4dffc8afd94f42c1eab9f5_total-view.webp" />
             </div>
           </div>
         </>
@@ -119,17 +119,17 @@ export function FlipSlideContent({ variant }: { variant: string }) {
           </div>
           <div className="flip-widget-point card-4-s1">
             <div className="flip-pop-message card-3-s1">
-              <AssetImg file="6821a59ae3bfe300713424dd_750b966be6242b87fdf33a12295a6f44_flip-pop-4.png" />
+              <AssetImg file="6821a59ae3bfe300713424dd_750b966be6242b87fdf33a12295a6f44_flip-pop-4.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-4-s2">
             <div className="flip-pop-message card-3-s2">
-              <AssetImg file="6821a59ae3bfe300713424d8_24e3a162301510f41ea1c4c884099164_flip-pop-3.png" />
+              <AssetImg file="6821a59ae3bfe300713424d8_24e3a162301510f41ea1c4c884099164_flip-pop-3.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-4-s3">
             <div className="flip-heart">
-              <AssetImg file="6821a59ae3bfe300713424c4_f5d273eae9e37c73ea577bd11e67be74_flip-heart.png" />
+              <AssetImg file="6821a59ae3bfe300713424c4_f5d273eae9e37c73ea577bd11e67be74_flip-heart.webp" />
             </div>
           </div>
         </>
@@ -162,17 +162,17 @@ export function FlipSlideContent({ variant }: { variant: string }) {
           </div>
           <div className="flip-widget-point card-6-s1">
             <div className="flip-pop-message card-6-s1">
-              <AssetImg file="6821a59ae3bfe300713424dc_fc21ddd00bd49dc6b4190a23a3088d9f_flip-pop-5.png" />
+              <AssetImg file="6821a59ae3bfe300713424dc_fc21ddd00bd49dc6b4190a23a3088d9f_flip-pop-5.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-6-s2">
             <div className="flip-creator-badge">
-              <AssetImg file="6821a59ae3bfe30071342505_93cccebfba4ae808a28c6abf32eafad3_creator-badge.png" />
+              <AssetImg file="6821a59ae3bfe30071342505_93cccebfba4ae808a28c6abf32eafad3_creator-badge.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-6-s3">
             <div className="flip-silver-heart">
-              <AssetImg file="6821a59ae3bfe300713424fa_452489448372a2b52dca22c327350682_silver-heart.png" />
+              <AssetImg file="6821a59ae3bfe300713424fa_452489448372a2b52dca22c327350682_silver-heart.webp" />
             </div>
           </div>
         </>
@@ -182,32 +182,32 @@ export function FlipSlideContent({ variant }: { variant: string }) {
         <>
           <div className="flip-widget-point card-7-s1">
             <div className="flip-sound-icon">
-              <AssetImg file="6821a59ae3bfe300713424d7_6beadf83eca9123c8921b9f7e166dce0_flip-sound.png" />
+              <AssetImg file="6821a59ae3bfe300713424d7_6beadf83eca9123c8921b9f7e166dce0_flip-sound.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-7-s2">
             <div className="flip-pin-point s1">
-              <AssetImg file="6821a59ae3bfe30071342506_e0c30de2532df02a4ad8245e76135b32_flip-pin-point-5.png" />
+              <AssetImg file="6821a59ae3bfe30071342506_e0c30de2532df02a4ad8245e76135b32_flip-pin-point-5.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-7-s3">
             <div className="flip-pin-point s2">
-              <AssetImg file="6821a59ae3bfe30071342508_123298ddd3fe4fa5ab38cc015fdd88a9_flip-pin-point-1.png" />
+              <AssetImg file="6821a59ae3bfe30071342508_123298ddd3fe4fa5ab38cc015fdd88a9_flip-pin-point-1.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-7-s4">
             <div className="flip-pin-point s3">
-              <AssetImg file="6821a59ae3bfe30071342504_ff53200cb5c9c9e4470fb35c98db0c98_flip-pin-point-4.png" />
+              <AssetImg file="6821a59ae3bfe30071342504_ff53200cb5c9c9e4470fb35c98db0c98_flip-pin-point-4.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-7-s5">
             <div className="flip-pin-point s4">
-              <AssetImg file="6821a59ae3bfe300713424de_e620baf98c1ccae05a0feeda5f8affd7_flip-pin-point-2.png" />
+              <AssetImg file="6821a59ae3bfe300713424de_e620baf98c1ccae05a0feeda5f8affd7_flip-pin-point-2.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-7-s6">
             <div className="flip-pin-point s5">
-              <AssetImg file="6821a59ae3bfe300713424fb_aae41ee859311f36740bbfb4f9bfa473_flip-pin-point-3.png" />
+              <AssetImg file="6821a59ae3bfe300713424fb_aae41ee859311f36740bbfb4f9bfa473_flip-pin-point-3.webp" />
             </div>
           </div>
         </>
@@ -229,7 +229,7 @@ export function FlipSlideContent({ variant }: { variant: string }) {
           </div>
           <div className="flip-widget-point card-8-s3">
             <div className="flip-headphones">
-              <AssetImg file="6821a59ae3bfe300713424fc_5cca5f9d77cba5e173a785cbf8553c76_flip-headphones.png" />
+              <AssetImg file="6821a59ae3bfe300713424fc_5cca5f9d77cba5e173a785cbf8553c76_flip-headphones.webp" />
             </div>
           </div>
           <div className="flip-widget-point card-8-s4">

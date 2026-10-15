@@ -92,6 +92,7 @@ export function normalizeFeedbackSubmission(raw: unknown): FeedbackSubmission {
   return {
     id: String(r.id ?? ""),
     user_id: nullableString(r.user_id),
+    email: nullableString(r.email),
     description: String(r.description ?? ""),
     screenshot_url: nullableString(r.screenshot_url),
     allow_contact: r.allow_contact === true,

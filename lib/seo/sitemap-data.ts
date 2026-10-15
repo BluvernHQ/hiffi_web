@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next"
 import { SITEMAP_STATIC_CONTENT_PAGES } from "@/lib/content-pages"
 import { getArtistCityPages, getArtistGenrePages } from "@/lib/artist-directory-seo"
 import { artistIndexCityHref, artistIndexCitySceneHref, artistIndexGenreHref } from "@/lib/artist-directory"
-import { getArtists } from "@/lib/artists"
+import { getArtists, getPopulatedGenreSlugs } from "@/lib/artists"
 import { fetchVideoEntriesForSitemap, type SitemapVideoEntry } from "@/lib/seo/fetch-public"
 import { absoluteUrl } from "@/lib/seo/site"
 import { getAllAtlantaSitemapPaths } from "@/lib/atlanta/registry"
@@ -11,6 +11,15 @@ import { MOODS } from "@/lib/mood-tabs"
 export const SITEMAP_REVALIDATE_SECONDS = 3600
 
 const STATIC_LAST_MODIFIED = new Date("2026-06-01T00:00:00.000Z")
+
+/** Chart surfaces are kept out of every sitemap. */
+const SITEMAP_EXCLUDED_PREFIXES: string[] = []
+
+function isSitemapExcluded(url: string): boolean {
+  if (SITEMAP_EXCLUDED_PREFIXES.length === 0) return false
+  const { pathname } = new URL(url)
+  return SITEMAP_EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
 
 export function getSitemapMaxVideos(): number {
   const raw = process.env.SITEMAP_MAX_VIDEOS?.trim()
@@ -63,6 +72,12 @@ function buildStaticEntries(
     },
     {
       url: absoluteUrl("/privacy-policy"),
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
+      url: absoluteUrl("/cookie-policy"),
       lastModified: STATIC_LAST_MODIFIED,
       changeFrequency: "yearly",
       priority: 0.5,
@@ -145,13 +160,29 @@ function buildStaticEntries(
 }
 
 async function buildArtistIndexProfileEntries(): Promise<MetadataRoute.Sitemap> {
-  const artists = await getArtists()
-  return artists.map((artist) => ({
-    url: absoluteUrl(`/artist-index/${artist.slug}`),
-    lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
-    changeFrequency: "monthly" as const,
-    priority: 0.75,
-  }))
+  try {
+    const artists = await getArtists()
+    return artists.map((artist) => ({
+      url: absoluteUrl(`/artist-index/${artist.slug}`),
+      lastModified: artist.added_date ? new Date(artist.added_date) : STATIC_LAST_MODIFIED,
+      changeFrequency: "monthly" as const,
+      priority: 0.75,
+    }))
+  } catch (error) {
+    console.warn("[hiffi] sitemap: skipping artist index profiles (API unavailable):", error)
+    return []
+  }
+}
+
+/** Static routes only — used when video/API fetches fail during build or runtime. */
+export async function buildStaticOnlyEntries(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
+    return buildStaticEntries(cityPages, genrePages)
+  } catch (error) {
+    console.warn("[hiffi] sitemap: static fallback without city/genre pages:", error)
+    return buildStaticEntries([], [])
+  }
 }
 
 function buildProfileLastModifiedByUsername(entries: SitemapVideoEntry[]): Map<string, Date> {
@@ -189,7 +220,12 @@ let cachedVideoEntries: SitemapVideoEntry[] | null = null
 
 export async function getAllVideoEntries(): Promise<SitemapVideoEntry[]> {
   if (!cachedVideoEntries) {
-    cachedVideoEntries = await fetchVideoEntriesForSitemap(getSitemapMaxVideos())
+    try {
+      cachedVideoEntries = await fetchVideoEntriesForSitemap(getSitemapMaxVideos())
+    } catch (error) {
+      console.warn("[hiffi] sitemap: skipping video entries (API unavailable):", error)
+      cachedVideoEntries = []
+    }
   }
   return cachedVideoEntries
 }
@@ -209,28 +245,43 @@ export async function getSitemapChunkIds(): Promise<number[]> {
 }
 
 export async function buildSitemapEntries(id: number): Promise<MetadataRoute.Sitemap> {
-  const now = new Date()
-  const entries = await getAllVideoEntries()
-  const chunkSize = getSitemapVideoChunkSize()
-  const profileDates = buildProfileLastModifiedByUsername(entries)
+  try {
+    const now = new Date()
+    const entries = await getAllVideoEntries()
+    const chunkSize = getSitemapVideoChunkSize()
+    const profileDates = buildProfileLastModifiedByUsername(entries)
 
-  if (id === 0) {
-    const [cityPages, genrePages] = await Promise.all([getArtistCityPages(), getArtistGenrePages()])
-    const staticEntries = buildStaticEntries(cityPages, genrePages)
-    const profileEntries = buildProfileEntries(profileDates, now)
-    const artistIndexEntries = await buildArtistIndexProfileEntries()
+    if (id === 0) {
+      const [cityPages, genrePages, genreSlugs] = await Promise.all([
+        getArtistCityPages(),
+        getArtistGenrePages(),
+        getPopulatedGenreSlugs(),
+      ])
+      const populatedGenrePages = genrePages.filter((genre) => genreSlugs.includes(genre.slug))
+      const staticEntries = buildStaticEntries(cityPages, populatedGenrePages).filter(
+        (entry) => !isSitemapExcluded(entry.url),
+      )
+      const profileEntries = buildProfileEntries(profileDates, now)
+      const artistIndexEntries = await buildArtistIndexProfileEntries()
 
-    if (entries.length <= chunkSize) {
-      return [...staticEntries, ...artistIndexEntries, ...buildVideoEntries(entries, now), ...profileEntries]
+      if (entries.length <= chunkSize) {
+        return [...staticEntries, ...artistIndexEntries, ...buildVideoEntries(entries, now), ...profileEntries]
+      }
+
+      return [...staticEntries, ...artistIndexEntries, ...profileEntries]
     }
 
-    return [...staticEntries, ...artistIndexEntries, ...profileEntries]
+    const chunkIndex = id - 1
+    const start = chunkIndex * chunkSize
+    const chunk = entries.slice(start, start + chunkSize)
+    return buildVideoEntries(chunk, now)
+  } catch (error) {
+    console.warn(`[hiffi] sitemap chunk ${id} failed, using static fallback:`, error)
+    if (id === 0) {
+      return buildStaticOnlyEntries()
+    }
+    return []
   }
-
-  const chunkIndex = id - 1
-  const start = chunkIndex * chunkSize
-  const chunk = entries.slice(start, start + chunkSize)
-  return buildVideoEntries(chunk, now)
 }
 
 export function escapeXml(value: string): string {

@@ -17,18 +17,19 @@ function pickSocialUrl(record: Record<string, unknown>, ...keys: string[]): stri
 
 function parseCityState(location: string | undefined): { city: string; state: string } {
   const trimmed = location?.trim()
-  if (trimmed) {
-    const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean)
-    if (parts.length >= 2) {
-      return {
-        city: formatCityName(parts.slice(0, -1).join(", ")),
-        state: formatStateCode(parts[parts.length - 1]),
-      }
-    }
-    return { city: formatCityName(trimmed), state: "GA" }
+  if (!trimmed) {
+    return { city: "", state: "" }
   }
 
-  return { city: "Atlanta", state: "GA" }
+  const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean)
+  if (parts.length >= 2) {
+    return {
+      city: formatCityName(parts.slice(0, -1).join(", ")),
+      state: formatStateCode(parts[parts.length - 1]),
+    }
+  }
+
+  return { city: formatCityName(trimmed), state: "" }
 }
 
 export function mapInventoryProfileToArtist(
@@ -44,8 +45,19 @@ export function mapInventoryProfileToArtist(
   let bannerImage: string | null = null
   let followers = 0
   let contactEmail: string | null = null
-  let addedDate = "1970-01-01T00:00:00.000Z"
+  let addedDate = profile.created_at?.trim() || "1970-01-01T00:00:00.000Z"
+  let updatedAt = profile.updated_at?.trim() || undefined
   let { city, state } = parseCityState(profile.location ?? undefined)
+  const genreLabel = profile.genre?.trim()
+  const genres = genreLabel
+    ? [genreLabel.charAt(0).toUpperCase() + genreLabel.slice(1)]
+    : ["Rap"]
+
+  const inventoryBanner = profile.banner_image?.trim()
+  if (inventoryBanner) {
+    bannerImage = getArtistImageUrl(inventoryBanner)
+    image = bannerImage
+  }
 
   let ig = getInventorySocialUrl(profile, "instagram") ?? null
   let yt = getInventorySocialUrl(profile, "youtube") ?? null
@@ -57,16 +69,25 @@ export function mapInventoryProfileToArtist(
       : null
 
   if (linked) {
-    name = String(linked.name ?? name).trim() || name
+    // Display name always comes from inventory artist_name — not linked user.name (claimant legal name).
+    if (!profile.artist_name.trim()) {
+      name = String(linked.name ?? name).trim() || name
+    }
     const linkedBio = String(linked.bio ?? "").trim()
     if (linkedBio) bio = linkedBio
     const profilePicture = String(linked.profile_picture ?? linked.image ?? "").trim()
-    image = getArtistImageUrl(profilePicture)
-    const linkedBanner = String(linked.banner_image ?? linked.cover_image ?? "").trim()
-    bannerImage = linkedBanner ? getArtistImageUrl(linkedBanner) : null
+    const linkedImage = getArtistImageUrl(profilePicture)
+    if (linkedImage) image = linkedImage
+    // Prefer the creator's uploaded banner when present so Artist Index matches /profile.
+    const linkedBanner = String(linked.banner_image ?? linked.cover_image ?? linked.coverUrl ?? "").trim()
+    if (linkedBanner) {
+      bannerImage = getArtistImageUrl(linkedBanner)
+    }
     followers = Number(linked.followers ?? 0)
     contactEmail = typeof linked.email === "string" ? linked.email.trim() || null : null
     addedDate = String(linked.created_at ?? addedDate)
+    const linkedUpdated = String(linked.updated_at ?? "").trim()
+    if (linkedUpdated) updatedAt = linkedUpdated
     ;({ city, state } = parseCityState(
       typeof linked.location === "string" ? linked.location : profile.location ?? undefined,
     ))
@@ -97,10 +118,10 @@ export function mapInventoryProfileToArtist(
   return {
     slug: username,
     name,
-    rank: 0,
+    rank: profile.ranking?.global_rank ?? 0,
     city,
     state,
-    genre: ["Rap"],
+    genre: genres,
     bio,
     image,
     banner_image: bannerImage,
@@ -118,5 +139,7 @@ export function mapInventoryProfileToArtist(
     verified: profile.claim_status === "claimed",
     featured: false,
     added_date: addedDate,
+    ...(updatedAt ? { updated_at: updatedAt } : {}),
+    ...(profile.ranking ? { ranking: profile.ranking } : {}),
   }
 }

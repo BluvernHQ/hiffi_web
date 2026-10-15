@@ -2167,7 +2167,7 @@ textarea.w-select {
 
 @font-face {
 	font-family: Texgyreadventor;
-	src: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713424ba_texgyreadventor-regular.otf)format("opentype");
+	src: url(/hiffi-about/6821a59ae3bfe300713424ba_texgyreadventor-regular.otf)format("opentype");
 	font-weight: 400;
 	font-style: normal;
 	font-display: swap
@@ -2175,7 +2175,7 @@ textarea.w-select {
 
 @font-face {
 	font-family: Texgyreadventor;
-	src: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713424bd_texgyreadventor-bold.otf)format("opentype");
+	src: url(/hiffi-about/6821a59ae3bfe300713424bd_texgyreadventor-bold.otf)format("opentype");
 	font-weight: 700;
 	font-style: normal;
 	font-display: swap
@@ -2422,7 +2422,7 @@ p {
 
 .circle-slide-flip.s1 {
 	background-color: #dbe6d6;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe3007134251f_45ba1cf20198611a97c45e83addf77ef_flip-card-bg-1.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe3007134251f_45ba1cf20198611a97c45e83addf77ef_flip-card-bg-1.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: contain
@@ -2451,7 +2451,7 @@ p {
 
 .circle-slide-flip.s7 {
 	border: .4rem solid var(--base--white);
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342503_db56ff815a91678980d4cf069485d7cd_flip-card-bg-4.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342503_db56ff815a91678980d4cf069485d7cd_flip-card-bg-4.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover
@@ -3369,7 +3369,7 @@ p {
 .iphone-ui {
 	z-index: 20;
 	pointer-events: none;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe3007134251c_30d98c3b6533e329b53b2758ca6463d9_iphone-ui.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe3007134251c_30d98c3b6533e329b53b2758ca6463d9_iphone-ui.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -3509,7 +3509,7 @@ p {
 
 .benefits-bg {
 	aspect-ratio: 14/7.3;
-	/* background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)15%, var(--base--transparent)48%, var(--base--transparent)85%, var(--jam--oil-black)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.png); */
+	/* background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)15%, var(--base--transparent)48%, var(--base--transparent)85%, var(--jam--oil-black)), url(/hiffi-about/6821a59ae3bfe3007134257b_81fb073865cac008dd36047191152dc4_benefits-bg.webp); */
 	background-position: 0 0, 50%;
 	background-repeat: repeat, no-repeat;
 	background-size: auto, contain;
@@ -3667,7 +3667,7 @@ p {
 .values-card-light {
 	z-index: 100;
 	pointer-events: none;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://d3e54v103j8qbb.cloudfront.net/img/background-image.svg);
+	background-image: url(/hiffi-about/background-image.svg);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: 100% 100%;
@@ -3676,11 +3676,11 @@ p {
 }
 
 .values-card-light.s2 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.png)
+	background-image: url(/hiffi-about/6821a59ae3bfe3007134257a_ecc72813f30bc9ffb526eb99fdf2b8da_velue-card-lights-2.webp)
 }
 
 .values-card-light.s1 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342502_velue-card-lights-1.png)
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342502_velue-card-lights-1.webp)
 }
 
 .iphone-frame-css {
@@ -3896,7 +3896,7 @@ p {
 }
 
 .container.tools-s {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425c4_tools-bg.png);
+	background-image: url(/hiffi-about/6821a59ae3bfe300713425c4_tools-bg.webp);
 	background-position: 50% -120%;
 	background-repeat: no-repeat;
 	background-size: 122%;
@@ -4018,7 +4018,7 @@ p {
 .container.why-we-s {
 	grid-column-gap: 8rem;
 	grid-row-gap: 8rem;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68357f0dc41873e8f677d239_why-we-bg.png);
+	background-image: url(/hiffi-about/68357f0dc41873e8f677d239_why-we-bg.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -4206,7 +4206,7 @@ p {
 }
 
 .creators-slide-content.s2 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe3007134257f_823621b20a6be3edbb4980b7bd051b3b_creator-card-2.webp), linear-gradient(#f79c35, #f17532 50%, #ff5c01);
+	background-image: url(/hiffi-about/6821a59ae3bfe3007134257f_823621b20a6be3edbb4980b7bd051b3b_creator-card-2.webp), linear-gradient(#f79c35, #f17532 50%, #ff5c01);
 	background-position: 50% 0, 0 0;
 	background-repeat: no-repeat, repeat;
 	background-size: contain, auto;
@@ -4405,7 +4405,7 @@ p {
 }
 
 .fans-benefits-s-cover.light-s {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342604_fan-phone-light.png);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342604_fan-phone-light.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover
@@ -4498,7 +4498,7 @@ p {
 .cta-front-card {
 	backface-visibility: hidden;
 	border-radius: calc(var(--_sizes---corner-radius--m) - var(--_sizes---stroke-line));
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://d3e54v103j8qbb.cloudfront.net/img/background-image.svg);
+	background-image: url(/hiffi-about/background-image.svg);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover;
@@ -4514,12 +4514,12 @@ p {
 }
 
 .cta-front-card.s1 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342586_8d6a9bd5efbab4b3b6ad4c0a1c7a059b_cta-bg-1.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342586_8d6a9bd5efbab4b3b6ad4c0a1c7a059b_cta-bg-1.webp);
 	overflow: hidden
 }
 
 .cta-front-card.s2 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342584_d205412d5bbcd28888feb152e05732f7_cta-bg-2.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342584_d205412d5bbcd28888feb152e05732f7_cta-bg-2.webp);
 	overflow: hidden
 }
 
@@ -4644,7 +4644,7 @@ p {
 }
 
 .why-us-card.s2 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342583_why-us-card-bg.png);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342583_why-us-card-bg.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover;
@@ -5063,7 +5063,7 @@ p {
 
 .footer-bg {
 	aspect-ratio: 100/57;
-	background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)10%), linear-gradient(90deg, var(--jam--oil-black), var(--base--transparent)35%, var(--base--transparent)65%, var(--jam--oil-black)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342585_footer-bg.png);
+	background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)10%), linear-gradient(90deg, var(--jam--oil-black), var(--base--transparent)35%, var(--base--transparent)65%, var(--jam--oil-black)), url(/hiffi-about/6821a59ae3bfe30071342585_footer-bg.webp);
 	background-position: 0 0, 0 0, 50% 100%;
 	background-repeat: repeat, repeat, no-repeat;
 	background-size: auto, auto, contain;
@@ -5279,7 +5279,7 @@ p {
 
 .invest-bg {
 	aspect-ratio: 100/51.8;
-	background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)10%, var(--base--transparent)90%, var(--jam--oil-black)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342588_invest-bg.png);
+	background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)10%, var(--base--transparent)90%, var(--jam--oil-black)), url(/hiffi-about/6821a59ae3bfe30071342588_invest-bg.webp);
 	background-position: 0 0, 50%;
 	background-repeat: repeat, no-repeat;
 	background-size: auto, contain;
@@ -5348,7 +5348,7 @@ p {
 }
 
 .div-block {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425a6_Hero.png);
+	background-image: url(/hiffi-about/6821a59ae3bfe300713425a6_Hero.webp);
 	background-position: 50% 0;
 	background-repeat: no-repeat;
 	background-size: 100% 100%;
@@ -5463,7 +5463,7 @@ p {
 	border: var(--_sizes---stroke-line)solid var(--other--stroke-color);
 	border-radius: var(--_sizes---corner-radius--m);
 	background-color: var(--jam--secondary-black);
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425ab_1504cf6c4514056a1ef9f4a5bbef7da5_banner-light.png);
+	background-image: url(/hiffi-about/6821a59ae3bfe300713425ab_1504cf6c4514056a1ef9f4a5bbef7da5_banner-light.webp);
 	background-position: 0 100%;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -5647,7 +5647,7 @@ p {
 .tab-slide-content.first-s {
 	padding: var(--_sizes---content-space--l);
 	box-shadow: none;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425b2_tab-slide-bg.jpg);
+	background-image: url(/hiffi-about/6821a59ae3bfe300713425b2_tab-slide-bg.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover;
@@ -6005,7 +6005,7 @@ p {
 
 .fan-hero-bg {
 	aspect-ratio: 10/6;
-	background-image: linear-gradient(180deg, var(--base--transparent)90%, var(--jam--oil-black)), linear-gradient(90deg, var(--jam--oil-black), var(--base--transparent)10%, var(--base--transparent)90%, var(--jam--oil-black)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425c7_fan-hero-bg.png);
+	background-image: linear-gradient(180deg, var(--base--transparent)90%, var(--jam--oil-black)), linear-gradient(90deg, var(--jam--oil-black), var(--base--transparent)10%, var(--base--transparent)90%, var(--jam--oil-black)), url(/hiffi-about/6821a59ae3bfe300713425c7_fan-hero-bg.webp);
 	background-position: 0 0, 0 0, 50%;
 	background-repeat: repeat, repeat, no-repeat;
 	background-size: auto, auto, contain;
@@ -6465,7 +6465,7 @@ p {
 
 .about-hero-bg {
 	aspect-ratio: 100/52;
-	background-image: linear-gradient(180deg, var(--base--transparent), var(--base--transparent)80%, var(--jam--oil-black)), linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)10%, var(--base--transparent)90%, var(--jam--oil-black)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425eb_about-hero-bg.png);
+	background-image: linear-gradient(180deg, var(--base--transparent), var(--base--transparent)80%, var(--jam--oil-black)), linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)10%, var(--base--transparent)90%, var(--jam--oil-black)), url(/hiffi-about/6821a59ae3bfe300713425eb_about-hero-bg.webp);
 	pointer-events: none;
 	background-position: 0 0, 0 0, 50% 0;
 	background-size: auto, auto, contain;
@@ -6697,7 +6697,7 @@ p {
 }
 
 .started-avatars-bg {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425f0_started-avatars-bg.png);
+	background-image: url(/hiffi-about/6821a59ae3bfe300713425f0_started-avatars-bg.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -7735,7 +7735,7 @@ p {
 .checkbox.w--redirected-checked {
 	border-color: var(--jam--orange);
 	background-color: var(--jam--orange);
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342611_checked.svg);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342611_checked.svg);
 	background-position: 50%;
 	background-size: contain;
 	margin-top: 0;
@@ -7850,14 +7850,14 @@ p {
 }
 
 .select-form-card.s1 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342586_8d6a9bd5efbab4b3b6ad4c0a1c7a059b_cta-bg-1.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342586_8d6a9bd5efbab4b3b6ad4c0a1c7a059b_cta-bg-1.webp);
 	background-position: 0 0;
 	background-repeat: no-repeat;
 	background-size: cover
 }
 
 .select-form-card.s2 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342584_d205412d5bbcd28888feb152e05732f7_cta-bg-2.webp);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342584_d205412d5bbcd28888feb152e05732f7_cta-bg-2.webp);
 	background-position: 0 0;
 	background-repeat: no-repeat;
 	background-size: cover
@@ -8080,7 +8080,7 @@ p {
 .checkbox-custom.w--redirected-checked {
 	border-color: var(--jam--orange);
 	background-color: var(--jam--orange);
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342611_checked.svg);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342611_checked.svg);
 	background-position: 50%;
 	background-size: contain;
 	margin-top: 0;
@@ -8093,7 +8093,7 @@ p {
 
 .checkbox-custom.checked {
 	background-color: var(--jam--orange);
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe30071342611_checked.svg);
+	background-image: url(/hiffi-about/6821a59ae3bfe30071342611_checked.svg);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: contain
@@ -8183,7 +8183,7 @@ p {
 
 .invest-bg-s1 {
 	aspect-ratio: 5.2/4.6;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/683566013dc189d95ce06b28_invest-hero-bg-1.png);
+	background-image: url(/hiffi-about/683566013dc189d95ce06b28_invest-hero-bg-1.webp);
 	background-position: 0 0;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -8203,7 +8203,7 @@ p {
 
 .invest-bg-s2 {
 	aspect-ratio: 6.4/4;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6835660142b94c0b94316442_invest-hero-bg-2.png);
+	background-image: url(/hiffi-about/6835660142b94c0b94316442_invest-hero-bg-2.webp);
 	background-position: 100% 0;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -8278,7 +8278,7 @@ p {
 
 .why-we-card-light {
 	opacity: 0;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68357274c8fa14616843a4e4_why-we-center-card-bg.png);
+	background-image: url(/hiffi-about/68357274c8fa14616843a4e4_why-we-center-card-bg.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover;
@@ -8383,21 +8383,21 @@ p {
 }
 
 .stat-card.s1 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68359b5ef7b7c0f87db2fa04_stat-bg-2.webp);
+	background-image: url(/hiffi-about/68359b5ef7b7c0f87db2fa04_stat-bg-2.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: 100% 105%
 }
 
 .stat-card.s2 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68359b5e7609053af4b5a2bb_stat-bg-3.webp);
+	background-image: url(/hiffi-about/68359b5e7609053af4b5a2bb_stat-bg-3.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: 100% 105%
 }
 
 .stat-card.s3 {
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68359b5e8533e05309d133e2_stat-bg-4.webp);
+	background-image: url(/hiffi-about/68359b5e8533e05309d133e2_stat-bg-4.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: 100% 105%
@@ -8465,7 +8465,7 @@ p {
 }
 
 .stat-card-bg {
-	background-image: linear-gradient(180deg, var(--jam--oil-black)22%, var(--base--transparent)26%), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68359b5fe6106f73c750ef1b_stat-bg-1.png);
+	background-image: linear-gradient(180deg, var(--jam--oil-black)22%, var(--base--transparent)26%), url(/hiffi-about/68359b5fe6106f73c750ef1b_stat-bg-1.webp);
 	background-position: 0 0, 54%;
 	background-repeat: repeat, no-repeat;
 	background-size: auto, cover;
@@ -8722,7 +8722,7 @@ p {
 
 .invest-contact-lines {
 	aspect-ratio: 7.5/3.7;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6835df4a93a50b568cbaad2d_invest-contact-lines.png);
+	background-image: url(/hiffi-about/6835df4a93a50b568cbaad2d_invest-contact-lines.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -8791,7 +8791,7 @@ p {
 .opport-slide.first-s {
 	padding: var(--_sizes---content-space--l);
 	box-shadow: none;
-	background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425b2_tab-slide-bg.jpg);
+	background-image: url(/hiffi-about/6821a59ae3bfe300713425b2_tab-slide-bg.webp);
 	background-position: 50%;
 	background-repeat: no-repeat;
 	background-size: cover;
@@ -9495,7 +9495,7 @@ p {
 
 	.benefits-bg {
 		aspect-ratio: 10/20;
-		/* background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)15%, var(--base--transparent)48%, var(--base--transparent)85%, var(--jam--oil-black)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe3007134260f_465848268cc696b2f54df0a2420c0e39_benefits-bg-p.png); */
+		/* background-image: linear-gradient(180deg, var(--jam--oil-black), var(--base--transparent)15%, var(--base--transparent)48%, var(--base--transparent)85%, var(--jam--oil-black)), url(/hiffi-about/6821a59ae3bfe3007134260f_465848268cc696b2f54df0a2420c0e39_benefits-bg-p.webp); */
 		background-size: auto, cover
 	}
 
@@ -9631,7 +9631,7 @@ p {
 	}
 
 	.container.tools-s {
-		background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425e4_tools-bg-p.png);
+		background-image: url(/hiffi-about/6821a59ae3bfe300713425e4_tools-bg-p.webp);
 		background-position: 50% 0;
 		background-size: contain;
 		padding-top: 26rem
@@ -10030,7 +10030,7 @@ p {
 
 	.footer-bg {
 		aspect-ratio: 26/50;
-		background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425e5_fan-hero-bg-p.avif);
+		background-image: url(/hiffi-about/6821a59ae3bfe300713425e5_fan-hero-bg-p.avif);
 		background-position: 50% 0;
 		background-repeat: no-repeat;
 		background-size: cover;
@@ -10125,7 +10125,7 @@ p {
 
 	.invest-bg {
 		aspect-ratio: 51.8/100;
-		background-image: linear-gradient(180deg, var(--base--950), var(--base--transparent)20%, var(--base--transparent)78%, var(--base--950)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425e6_invest-bg-p.avif);
+		background-image: linear-gradient(180deg, var(--base--950), var(--base--transparent)20%, var(--base--transparent)78%, var(--base--950)), url(/hiffi-about/6821a59ae3bfe300713425e6_invest-bg-p.avif);
 		background-position: 0 0, 50%;
 		background-repeat: repeat, no-repeat;
 		background-size: auto, cover
@@ -10164,7 +10164,7 @@ p {
 	}
 
 	.monetize-banner {
-		background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425e3_08588bba698894999e309555819e2850_banner-light-p.png);
+		background-image: url(/hiffi-about/6821a59ae3bfe300713425e3_08588bba698894999e309555819e2850_banner-light-p.webp);
 		background-position: 50% 100%;
 		justify-content: flex-start;
 		align-items: flex-start;
@@ -10331,7 +10331,7 @@ p {
 
 	.fan-hero-bg {
 		aspect-ratio: auto;
-		background-image: linear-gradient(180deg, var(--base--transparent)90%, var(--base--950)), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/6821a59ae3bfe300713425e5_fan-hero-bg-p.avif);
+		background-image: linear-gradient(180deg, var(--base--transparent)90%, var(--base--950)), url(/hiffi-about/6821a59ae3bfe300713425e5_fan-hero-bg-p.avif);
 		background-position: 0 0, 50% 0;
 		background-repeat: repeat, no-repeat;
 		background-size: auto, cover;
@@ -11304,7 +11304,7 @@ p {
 	}
 
 	.stat-card.s3 {
-		background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/68359b5e8533e05309d133e2_stat-bg-4.webp);
+		background-image: url(/hiffi-about/68359b5e8533e05309d133e2_stat-bg-4.webp);
 		background-position: 0 0;
 		background-size: cover
 	}
@@ -11339,7 +11339,7 @@ p {
 	}
 
 	.stat-card-bg {
-		background-image: linear-gradient(180deg, var(--base--transparent)45%, var(--jam--oil-black)72%), url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/684188f4424158f1c50b4f15_why-us-bg-p.png);
+		background-image: linear-gradient(180deg, var(--base--transparent)45%, var(--jam--oil-black)72%), url(/hiffi-about/684188f4424158f1c50b4f15_why-us-bg-p.webp);
 		background-position: 0 0, 54%;
 		background-repeat: repeat, no-repeat;
 		background-size: auto, contain;
@@ -11454,7 +11454,7 @@ p {
 
 	.invest-contact-lines {
 		aspect-ratio: 5/7;
-		background-image: url(https://web.archive.org/web/20250719043044im_/https://cdn.prod.website-files.com/6821a59ae3bfe30071342488/683ef673b15362b785973827_f2398677dc0944db691ee61d4badd258_invest-contact-lines-p.png);
+		background-image: url(/hiffi-about/683ef673b15362b785973827_f2398677dc0944db691ee61d4badd258_invest-contact-lines-p.webp);
 		width: 92rem;
 		margin-left: auto;
 		margin-right: auto;

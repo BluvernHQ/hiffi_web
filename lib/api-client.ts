@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "./config"
-import { NO_INTERNET_USER_MESSAGE } from "./network-errors"
+import { userFacingNetworkMessage } from "./network-errors"
 import { login as authLogin, register as authRegister } from "@/lib/api/auth"
 import {
   uploadVideo as uploadUploadVideo,
@@ -78,6 +78,9 @@ import type {
   UpdateMigrationRequestInput,
 } from "@/lib/types/youtube-migration"
 const TOKEN_KEY = "hiffi_auth_token"
+
+/** Fired when an authenticated request comes back 401 (expired or revoked session). */
+export const SESSION_REJECTED_EVENT = "hiffi:session-rejected"
 const USERNAME_COOKIE = "hiffi_username"
 const PASSWORD_COOKIE = "hiffi_password"
 
@@ -163,6 +166,31 @@ export interface VideoListItem {
   following: boolean
 }
 
+function flattenVideoListItems(rawVideos: unknown[]): Video[] {
+  return (rawVideos || []).map((item: any) => {
+    if (item?.video) {
+      const videoData: Video & Record<string, unknown> = {
+        ...item.video,
+        following: item.following || false,
+      }
+      if (item.profile_picture) {
+        videoData.user_profile_picture = item.profile_picture
+      }
+      if (item.user?.profile_picture) {
+        videoData.user_profile_picture = item.user.profile_picture
+      }
+      if (item.video.user?.profile_picture) {
+        videoData.user_profile_picture = item.video.user.profile_picture
+      }
+      if (item.video.profile_picture) {
+        videoData.user_profile_picture = item.video.profile_picture
+      }
+      return videoData
+    }
+    return item as Video
+  })
+}
+
 // Cookie utilities
 function setCookie(name: string, value: string, days: number = 30): void {
   if (typeof document === "undefined") return
@@ -186,6 +214,31 @@ function getCookie(name: string): string | null {
 function deleteCookie(name: string): void {
   if (typeof document === "undefined") return
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
+}
+
+/** Delays before each retry of a read request that failed without an HTTP response. */
+const NETWORK_RETRY_DELAYS_MS = [600, 1500]
+
+/**
+ * Only GET/HEAD are retried: they are safe to repeat, whereas a POST may already
+ * have been applied by the server before the connection dropped.
+ */
+async function fetchWithNetworkRetry(url: string, init: RequestInit, method: string): Promise<Response> {
+  const retryable = method === "GET" || method === "HEAD"
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(url, init)
+    } catch (error) {
+      const canRetry =
+        retryable &&
+        error instanceof TypeError &&
+        attempt < NETWORK_RETRY_DELAYS_MS.length &&
+        !init.signal?.aborted
+      if (!canRetry) throw error
+      console.warn(`[API] ${method} ${url} - network error, retry ${attempt + 1}/${NETWORK_RETRY_DELAYS_MS.length}`)
+      await new Promise((resolve) => setTimeout(resolve, NETWORK_RETRY_DELAYS_MS[attempt]))
+    }
+  }
 }
 
 class ApiClient {
@@ -362,10 +415,7 @@ class ApiClient {
     const startTime = Date.now()
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      })
+      const response = await fetchWithNetworkRetry(url, { ...options, headers }, method)
 
       const duration = Date.now() - startTime
 
@@ -491,6 +541,9 @@ class ApiClient {
           status: finalResponse.status,
           responseBody: errorText, // Include response body for error handling
         }
+        if (finalResponse.status === 401 && requiresAuth && headers["Authorization"] && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(SESSION_REJECTED_EVENT))
+        }
         throw error
       }
 
@@ -533,6 +586,9 @@ class ApiClient {
         throw error
       }
       
+      // 401s were already logged as warnings above; the auth provider handles an ended session.
+      if (err?.status === 401) throw error
+
       // Log other errors normally
       console.error(`[API] ${method} ${url} - ERROR after ${duration}ms:`, error)
       
@@ -547,7 +603,7 @@ class ApiClient {
             errMsg.includes("network request failed")))
       if (looksLikeConnectivityFailure) {
         const networkError: ApiError = {
-          message: NO_INTERNET_USER_MESSAGE,
+          message: userFacingNetworkMessage(),
           status: 0,
         }
         console.error(`[API] Connectivity failure (${getApiBaseUrl()}):`, error)
@@ -717,6 +773,8 @@ class ApiClient {
     success: boolean
     user?: ApiUser | null
     following?: boolean
+    /** True when this username has an Artist Index inventory listing. */
+    in_inventory?: boolean
     disabled?: boolean
   }> {
     try {
@@ -727,9 +785,11 @@ class ApiClient {
         data?: {
           user: ApiUser
           following?: boolean
+          in_inventory?: boolean
         }
         user?: ApiUser
         following?: boolean
+        in_inventory?: boolean
       }>(`/users/${username}`, {}, true)
       
       // Check if account is disabled (API returns { disabled: true, success: false })
@@ -738,12 +798,13 @@ class ApiClient {
           success: false,
           user: null,
           following: false,
+          in_inventory: false,
           disabled: true,
         }
       }
       
       // Normalize response structure
-      // New API format: { success: true, data: { user: {...}, following: false } }
+      // New API format: { success: true, data: { user: {...}, following: false, in_inventory?: boolean } }
       // Old format: { success: true, user: {...} }
       if (response.success || response.status === "success") {
         // Extract from data object if present
@@ -752,6 +813,7 @@ class ApiClient {
             success: true,
             user: response.data.user,
             following: response.data.following,
+            in_inventory: response.data.in_inventory === true,
             disabled: false,
           }
         }
@@ -760,6 +822,7 @@ class ApiClient {
           success: true,
           user: response.user,
           following: response.following,
+          in_inventory: response.in_inventory === true,
           disabled: false,
         }
       }
@@ -768,6 +831,7 @@ class ApiClient {
         success: false,
         user: null,
         following: false,
+        in_inventory: false,
         disabled: false,
       }
     } catch (error: unknown) {
@@ -782,6 +846,7 @@ class ApiClient {
               success: false,
               user: null,
               following: false,
+              in_inventory: false,
               disabled: true,
             }
           }
@@ -798,6 +863,7 @@ class ApiClient {
           success: false,
           user: null,
           following: false,
+          in_inventory: false,
           disabled: false,
         }
       }
@@ -862,6 +928,58 @@ class ApiClient {
     throw new Error(response.message || "Failed to get profile photo upload URL")
   }
 
+  // Get banner photo upload URL
+  // POST /users/banner-photo/upload - Get pre-signed URL for uploading banner photo
+  async getBannerPhotoUploadUrl(): Promise<{
+    success: boolean
+    gateway_url: string
+    path: string
+    message?: string
+  }> {
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        gateway_url?: string
+        path?: string
+        message?: string
+      }
+      gateway_url?: string
+      path?: string
+      message?: string
+    }>(
+      "/users/banner-photo/upload",
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+      true,
+    )
+
+    const isSuccess = response.status === "success" || response.success
+
+    if (isSuccess) {
+      const gatewayUrl = response.data?.gateway_url || response.gateway_url || ""
+      const path = response.data?.path || response.path || ""
+
+      if (!gatewayUrl || gatewayUrl.trim() === "") {
+        throw new Error("Banner photo upload URL is missing from response. Please try again.")
+      }
+      if (!path || path.trim() === "") {
+        throw new Error("Banner photo path is missing from response. Please try again.")
+      }
+
+      return {
+        success: true,
+        gateway_url: gatewayUrl,
+        path: path,
+        message: response.data?.message || response.message,
+      }
+    }
+
+    throw new Error(response.message || "Failed to get banner photo upload URL")
+  }
+
   // Update user profile - uses PUT /users/self
   async updateSelf(data: { name?: string; profile_picture?: string; [key: string]: any }): Promise<{ success: boolean; user?: any }> {
     return this.updateSelfUser(data)
@@ -876,7 +994,7 @@ class ApiClient {
   // Update current user via PUT /users/self (profile fields, role downgrade to "user").
   // Upgrade to creator: use requestCreatorUpgrade + verifyCreatorUpgrade (PUT with role: "creator" is blocked).
   // When email is changed, response includes: { success: true, data: { id: "...", message: "..." } }
-  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; email?: string; [key: string]: any }): Promise<{ success: boolean; user?: any; data?: { id?: string; message?: string; [key: string]: any } }> {
+  async updateSelfUser(data: { name?: string; username?: string; role?: string; bio?: string; location?: string; website?: string; profile_picture?: string; banner_image?: string; email?: string; [key: string]: any }): Promise<{ success: boolean; user?: any; data?: { id?: string; message?: string; [key: string]: any } }> {
     const response = await this.request<{
       success?: boolean
       status?: string
@@ -1439,37 +1557,7 @@ class ApiClient {
       const responseCount = response.data?.count || response.count
       const responseSeed = response.data?.seed || response.seed
       
-      // Transform videos array to flatten structure and include following status
-      // New API format: [{ video: {...}, following: boolean, profile_picture: string }]
-      // Transform to: [{ ...video, following: boolean, user_profile_picture: string }]
-      // Also preserve any user profile picture data
-      const videos = rawVideos.map((item: any) => {
-        // If item has 'video' property, it's the new format
-        if (item.video) {
-          const videoData: any = {
-            ...item.video,
-            following: item.following || false,
-          }
-          // Preserve user profile picture from the response
-          // API returns profile_picture at the same level as video and following
-          if (item.profile_picture) {
-            videoData.user_profile_picture = item.profile_picture
-          }
-          // Also check other possible locations for backward compatibility
-          if (item.user?.profile_picture) {
-            videoData.user_profile_picture = item.user.profile_picture
-          }
-          if (item.video.user?.profile_picture) {
-            videoData.user_profile_picture = item.video.user.profile_picture
-          }
-          if (item.video.profile_picture) {
-            videoData.user_profile_picture = item.video.profile_picture
-          }
-          return videoData
-        }
-        // Otherwise, it's already in the old format (backward compatibility)
-        return item
-      })
+      const videos = flattenVideoListItems(rawVideos)
       
       return {
         success: true,
@@ -1487,6 +1575,70 @@ class ApiClient {
       videos: [],
       limit: limit,
       offset: offset,
+      count: 0,
+    }
+  }
+
+  // GET /videos/recommend - Personalized home/discovery feed (optional auth)
+  async getVideoRecommendations(data: { offset?: number; limit?: number } = {}): Promise<{
+    success: boolean
+    videos: Video[]
+    limit: number
+    offset: number
+    count: number
+  }> {
+    const limit = data.limit || 20
+    const offset = data.offset !== undefined ? data.offset : 0
+
+    const params = new URLSearchParams()
+    params.append("offset", offset.toString())
+    params.append("limit", limit.toString())
+
+    const url = `/videos/recommend?${params.toString()}`
+
+    const response = await this.request<{
+      success?: boolean
+      status?: string
+      data?: {
+        videos?: VideoListItem[] | null
+        limit?: number
+        offset?: number
+        count?: number
+      }
+      videos?: VideoListItem[] | null
+      limit?: number
+      offset?: number
+      count?: number
+    }>(
+      url,
+      { method: "GET" },
+      true, // Send Bearer token when logged in; endpoint works without auth
+    )
+
+    const isSuccess = response.status === "success" || response.success
+
+    if (isSuccess) {
+      const rawVideos = response.data?.videos ?? response.videos ?? []
+      const responseLimit = response.data?.limit ?? response.limit
+      const responseOffset = response.data?.offset ?? response.offset
+      const responseCount = response.data?.count ?? response.count
+
+      const videos = flattenVideoListItems(Array.isArray(rawVideos) ? rawVideos : [])
+
+      return {
+        success: true,
+        videos,
+        limit: responseLimit ?? limit,
+        offset: responseOffset ?? offset,
+        count: responseCount ?? videos.length,
+      }
+    }
+
+    return {
+      success: false,
+      videos: [],
+      limit,
+      offset,
       count: 0,
     }
   }
@@ -2791,6 +2943,7 @@ class ApiClient {
     username?: string
     name?: string
     role?: string
+    source?: string
     uid?: string
     followers_min?: number
     followers_max?: number
@@ -2891,6 +3044,7 @@ class ApiClient {
     success: boolean
     counters: {
       users: number
+      organic_users: number
       videos: number
       comments: number
       replies: number

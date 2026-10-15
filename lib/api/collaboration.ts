@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from "@/lib/config"
 import type { AdminApiClientContext } from "./context"
 import { assertSuccess, extractApiError } from "./envelope"
 import type {
@@ -115,8 +114,9 @@ function normalizeInquiry(raw: Record<string, unknown>): CollaborationInquiry {
 
 export async function submitCollaborationInquiry(
   form: CollaborationInquiryForm,
+  options?: { turnstile_token?: string },
 ): Promise<CollaborationSubmitResponse> {
-  const payload: CollaborationInquiryForm = {
+  const payload: CollaborationInquiryForm & { turnstile_token?: string } = {
     brand_name: form.brand_name.trim(),
     contact_name: form.contact_name.trim(),
     contact_email: form.contact_email.trim(),
@@ -127,8 +127,9 @@ export async function submitCollaborationInquiry(
   if (website) payload.website = website
   const anythingElse = form.anything_else?.trim()
   if (anythingElse) payload.anything_else = anythingElse
+  if (options?.turnstile_token) payload.turnstile_token = options.turnstile_token
 
-  const res = await fetch(`${getApiBaseUrl()}/collaboration/`, {
+  const res = await fetch("/api/collaboration", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

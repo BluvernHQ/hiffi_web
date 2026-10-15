@@ -1,0 +1,1146 @@
+/* Figma For Fans — HTML cards + JoyJam fan-hero barrel + split / view-item */
+
+.ff-page {
+  --d: 1rem;
+  --ff-red: #da291c;
+  --ff-red-soft: #f14d5d;
+  --ff-blue: #3b82f6;
+  --ff-ink: #0c0c0c;
+  --ff-muted: #737373;
+  --ff-radius: calc(2.2 * var(--d));
+  --hiffi-red: #da291c;
+  background: #fff;
+  color: var(--ff-ink);
+}
+
+.ff-page .ff-wrap {
+  width: min(calc(83 * var(--d)), 92vw);
+  margin-inline: auto;
+}
+
+.ff-page .ff-h2 {
+  margin: 0 0 calc(2.4 * var(--d));
+  color: var(--ff-ink);
+  -webkit-text-fill-color: var(--ff-ink);
+  font-size: clamp(calc(2.8 * var(--d)), 4.5vw, calc(4.6 * var(--d)));
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-align: center;
+}
+
+.ff-page .ff-h2 .char,
+.ff-page .ff-cta-title .char,
+.ff-page .ff-display .char,
+.ff-page .fan-hero-sc .display-l .char {
+  display: inline !important;
+}
+
+.ff-page .ff-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(3.4 * var(--d));
+  padding: calc(0.85 * var(--d)) calc(2 * var(--d));
+  border-radius: 999px;
+  background: var(--ff-red);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: calc(1.05 * var(--d));
+  text-decoration: none;
+  border: none;
+  white-space: nowrap;
+}
+
+.ff-page .ff-btn:hover {
+  filter: brightness(1.05);
+}
+
+.ff-page .ff-sec {
+  padding: calc(4.5 * var(--d)) 0 calc(1 * var(--d));
+}
+
+/* Hero: JoyJam fan-hero layout (absolute barrel + bottom copy), HIFFI skin */
+.ff-page .fan-hero-sc {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.ff-page .fan-hero-sc .display-l {
+  color: var(--ff-ink);
+  -webkit-text-fill-color: var(--ff-ink);
+  /* vw so first paint matches 1svw rem even before html scale is on */
+  font-size: 9.72vw;
+}
+
+.ff-page .container.fan-hero-s {
+  padding-top: 26vw;
+  position: relative;
+}
+
+/* Phone 360 — match JoyJam: large centered barrel, huge 3-line type, then copy + CTA */
+@media screen and (max-width: 479px) {
+  .ff-page .fan-hero-sc {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .ff-page .container.fan-hero-s {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    min-height: 0 !important;
+    padding: 64px 22px 32px !important;
+    overflow: visible !important;
+    gap: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .ff-page .text-elements.fan-hero-s {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    max-width: none;
+    z-index: 20;
+    padding: 0;
+    margin-top: 8px;
+  }
+
+  .ff-page .headline-wrapper.fan-hero-s {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .ff-page .fan-hero-sc .display-l {
+    font-size: 52px !important;
+    line-height: 0.86;
+    letter-spacing: -0.05em;
+    font-weight: 700;
+  }
+
+  .ff-page .carousel-wrapper {
+    position: relative !important;
+    order: -1;
+    inset: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    height: 300px !important;
+    margin: 0 auto 12px !important;
+    overflow: visible;
+  }
+
+  .ff-page .fan-hero-sc .carousel {
+    perspective: 900px !important;
+    transform: rotateX(16deg) rotateY(0deg) rotate(18deg) !important;
+  }
+
+  .ff-page .fan-hero-sc .card {
+    width: 80px !important;
+    height: auto !important;
+    aspect-ratio: 164 / 319 !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+  transform-style: preserve-3d;
+  }
+
+  .ff-page .description-wrapper.fan-hero-s {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    max-width: none;
+    gap: 18px;
+    padding-top: 16px;
+  }
+
+  .ff-page .fans-hero-sc {
+    order: 0;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .ff-page .fan-hero-sc .subheadline-l {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .ff-page .fan-hero-button-wrapper {
+    order: 1;
+    width: auto;
+  }
+
+  .ff-page .fan-hero-button-wrapper .ff-btn {
+    width: auto;
+    min-width: 148px;
+    min-height: 48px;
+    padding: 12px 28px;
+    font-size: 16px;
+  }
+}
+
+/* 480+ — JoyJam keeps two columns at ~504px: headline left, large phones right */
+@media screen and (min-width: 480px) {
+  .ff-page .fan-hero-sc {
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
+
+  .ff-page .container.fan-hero-s {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 3vw;
+    min-height: 0;
+    height: auto;
+    padding: 132px 5vw 28px;
+    overflow: visible;
+  }
+
+  .ff-page .text-elements.fan-hero-s {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    position: relative;
+    z-index: 20;
+    grid-column: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .ff-page .headline-wrapper.fan-hero-s {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .ff-page .fan-hero-sc .display-l {
+    font-size: clamp(42px, 10.5vw, 88px);
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+  }
+
+  .ff-page .description-wrapper.fan-hero-s {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    gap: 16px 20px;
+    width: 100%;
+    max-width: 100%;
+    padding-top: 20px;
+    box-sizing: border-box;
+  }
+
+  .ff-page .fan-hero-button-wrapper {
+    order: 0;
+    flex: 0 0 auto;
+  }
+
+  .ff-page .fans-hero-sc {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .ff-page .fan-hero-sc .subheadline-l {
+    font-size: clamp(13px, 1.2vw, 16px);
+    line-height: 1.45;
+  }
+
+  .ff-page .carousel-wrapper {
+    position: relative !important;
+    z-index: 6;
+    grid-column: 2;
+    inset: auto !important;
+    width: 100% !important;
+    height: min(42vw, 420px) !important;
+    margin: 0;
+    transform: none !important;
+    overflow: visible;
+    isolation: isolate;
+  }
+
+  .ff-page .fan-hero-sc .card {
+    width: clamp(64px, 8.5vw, 110px);
+  }
+
+  .ff-page .fan-hero-bg {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+/* ~504px JoyJam: phones as large as the left type column */
+@media screen and (min-width: 480px) and (max-width: 767px) {
+  .ff-page .container.fan-hero-s {
+    padding: 64px 4vw 20px;
+    column-gap: 2vw;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: end;
+  }
+
+  .ff-page .fan-hero-sc .display-l {
+    font-size: clamp(40px, 11.2vw, 56px);
+  }
+
+  .ff-page .description-wrapper.fan-hero-s {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding-top: 12px;
+  }
+
+  .ff-page .fan-hero-sc .subheadline-l {
+    font-size: 12px;
+  }
+
+  .ff-page .carousel-wrapper {
+    height: min(52vw, 320px) !important;
+    align-self: center;
+    overflow: visible;
+  }
+
+  .ff-page .fan-hero-sc .card {
+    width: clamp(52px, 12vw, 72px);
+  }
+}
+
+@media screen and (min-width: 768px) and (max-width: 991px) {
+  .ff-page .container.fan-hero-s {
+    padding: 88px 4.5vw 32px;
+  }
+
+  .ff-page .fan-hero-sc .display-l {
+    font-size: clamp(42px, 6.6vw, 58px);
+  }
+
+  .ff-page .fan-hero-sc .subheadline-l {
+    font-size: 13px;
+  }
+
+  .ff-page .carousel-wrapper {
+    height: min(44vw, 340px) !important;
+  }
+
+  .ff-page .fan-hero-sc .card {
+    width: clamp(56px, 8.8vw, 80px);
+  }
+}
+
+@media screen and (min-width: 480px) {
+  .ff-page .fan-hero-sc .headline-wrapper.fan-hero-s {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+.ff-page .fan-hero-sc .display-l .line,
+.ff-page .fan-hero-sc .ff-hero-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.ff-page .fan-hero-sc .subheadline-l {
+  color: var(--ff-ink);
+}
+
+.ff-page .fan-hero-sc .span-neutral-400 {
+  color: var(--ff-muted);
+}
+
+.ff-page .fan-hero-sc .fan-hero-bg {
+  background-image:
+    linear-gradient(180deg, transparent 90%, #fff),
+    linear-gradient(90deg, #fff, transparent 12%, transparent 88%, #fff),
+    radial-gradient(
+      ellipse 70% 55% at 72% 42%,
+      rgb(218 41 28 / 32%) 0%,
+      rgb(241 77 93 / 12%) 38%,
+      transparent 70%
+    ),
+    radial-gradient(circle, rgb(12 12 12 / 7%) 1px, transparent 1.15px);
+  background-position: 0 0, 0 0, 50%, 50%;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, contain, calc(1.55 * var(--d)) calc(1.55 * var(--d));
+}
+
+.ff-page .fan-hero-sc .card {
+  aspect-ratio: 164 / 319 !important;
+  height: auto !important;
+  border-radius: 18px !important;
+  overflow: visible;
+  transform-style: preserve-3d;
+  will-change: transform;
+  backface-visibility: visible;
+}
+
+.ff-page .fan-hero-sc .card-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  backface-visibility: hidden;
+}
+
+.ff-page .fan-hero-sc .card-face--back {
+  transform: rotateY(180deg);
+}
+
+.ff-page .fan-hero-sc .carousel {
+  contain: none;
+  perspective: 900px !important;
+  transform-style: preserve-3d;
+  transform: rotateX(16deg) rotateY(0deg) rotate(18deg);
+}
+
+.ff-page [view-item="from-center"] {
+  transition:
+    transform 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.25s ease;
+}
+
+/* First reveal hitch: scale() on these heavy cards; slide/fade stays on compositor */
+.ff-page .ff-engage [view-item="from-center"],
+.ff-page .ff-connect [view-item="from-center"] {
+  transform: translate3d(0, calc(1.8 * var(--d)), 0);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.ff-page .ff-engage [view-item="from-center"].view,
+.ff-page .ff-connect [view-item="from-center"].view {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+
+.ff-page .fan-hero-sc .card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Discover — closer to Figma 371×488 without empty stretch */
+.ff-page .ff-discover.ff-sec {
+  padding-top: calc(2.5 * var(--d));
+  padding-bottom: calc(1 * var(--d));
+}
+
+.ff-page .ff-discover .hj-card-row,
+.ff-page .ff-connect .hj-card-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  grid-template-columns: none !important;
+  gap: 22px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 8px;
+  padding-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  scrollbar-width: none;
+}
+
+.ff-page .ff-discover .hj-card-row::-webkit-scrollbar,
+.ff-page .ff-connect .hj-card-row::-webkit-scrollbar {
+  display: none;
+}
+
+.ff-page .ff-discover .hj-card-row.is-dragging,
+.ff-page .ff-connect .hj-card-row.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+}
+
+.ff-page .ff-discover .hj-card,
+.ff-page .ff-connect .hj-card {
+  flex: 0 0 371px !important;
+  width: 371px !important;
+  min-width: 371px !important;
+  max-width: 371px !important;
+  height: 488px !important;
+  min-height: 488px !important;
+  max-height: 488px !important;
+  aspect-ratio: auto !important;
+  scroll-snap-align: start;
+}
+
+.ff-page .hj-card {
+  min-height: 0;
+  aspect-ratio: 371 / 440;
+}
+
+.ff-page .hj-mock-panel {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.ff-page .hj-mock-feed {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.ff-page .hj-card-art-wrap {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* —— Engage (Figma asymmetric) —— */
+.ff-page .ff-engage-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1.05fr;
+  gap: calc(1.4 * var(--d));
+  align-items: stretch;
+}
+
+.ff-page .ff-engage-mid {
+  display: grid;
+  gap: calc(1.4 * var(--d));
+}
+
+.ff-page .ff-eng-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(22 * var(--d));
+  padding: calc(1.7 * var(--d)) calc(1.5 * var(--d)) calc(1.4 * var(--d));
+  border-radius: var(--ff-radius);
+  color: #fff;
+  overflow: hidden;
+}
+
+.ff-page .ff-eng-card--blue {
+  background: #3b82f6;
+  box-shadow: inset 20px 20px 250px 0 rgb(0 0 0 / 25%);
+  min-height: 100%;
+}
+
+.ff-page .ff-eng-card--gray {
+  background: #7b7b7b;
+  min-height: calc(14.8 * var(--d));
+}
+
+.ff-page .ff-eng-card--magenta {
+  background: #c41e3a;
+  min-height: calc(14.8 * var(--d));
+}
+
+.ff-page .ff-eng-card--coral {
+  background: linear-gradient(180deg, #f14d5d 0%, #e8655e 55%, #da291c 100%);
+  min-height: 100%;
+}
+
+.ff-page .ff-eng-title {
+  margin: 0;
+  font-size: clamp(calc(1.35 * var(--d)), 1.6vw, calc(1.75 * var(--d)));
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.ff-page .ff-eng-copy {
+  margin: calc(0.7 * var(--d)) 0 0;
+  max-width: 28ch;
+  font-size: calc(0.95 * var(--d));
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgb(255 255 255 / 90%);
+}
+
+.ff-page .ff-eng-art {
+  display: block;
+  width: min(calc(18 * var(--d)), 100%);
+  margin: auto auto 0;
+  pointer-events: none;
+}
+
+.ff-page .ff-eng-photos {
+  position: relative;
+  margin-top: auto;
+  min-height: calc(15 * var(--d));
+}
+
+.ff-page .ff-eng-photo {
+  position: absolute;
+  width: calc(15.2 * var(--d));
+  height: calc(15.2 * var(--d));
+  object-fit: cover;
+  border-radius: calc(1.25 * var(--d));
+  border: 3px solid #fff;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 22%);
+}
+
+.ff-page .ff-eng-photo.s1 {
+  left: calc(0.4 * var(--d));
+  bottom: calc(0.2 * var(--d));
+  z-index: 1;
+}
+
+.ff-page .ff-eng-photo.s2 {
+  left: calc(2.4 * var(--d));
+  bottom: calc(1.6 * var(--d));
+  z-index: 2;
+}
+
+.ff-page .ff-eng-thumbs {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: calc(0.4 * var(--d));
+  margin-top: auto;
+  min-height: calc(8.5 * var(--d));
+  padding-top: calc(1 * var(--d));
+}
+
+.ff-page .ff-eng-thumb {
+  width: calc(5.2 * var(--d));
+  height: calc(5.2 * var(--d));
+  object-fit: cover;
+  border-radius: calc(1 * var(--d));
+  border: 3px solid #fff;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
+}
+
+.ff-page .ff-eng-thumb.s1 {
+  transform: rotate(-12deg) translateY(calc(0.4 * var(--d)));
+}
+
+.ff-page .ff-eng-thumb.s2 {
+  width: calc(5.8 * var(--d));
+  height: calc(5.8 * var(--d));
+  transform: rotate(4deg);
+}
+
+.ff-page .ff-eng-thumb.s3 {
+  transform: rotate(14deg) translateY(calc(0.3 * var(--d)));
+}
+
+.ff-page .ff-eng-thumb-wrap {
+  position: relative;
+}
+
+.ff-page .ff-eng-follow {
+  position: absolute;
+  left: calc(-0.4 * var(--d));
+  bottom: calc(-0.35 * var(--d));
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(1.6 * var(--d));
+  padding: calc(0.15 * var(--d)) calc(0.65 * var(--d));
+  border-radius: 999px;
+  background: var(--ff-red);
+  color: #fff;
+  font-size: calc(0.7 * var(--d));
+  font-weight: 600;
+}
+
+.ff-page .ff-eng-icons,
+.ff-page .ff-eng-stars {
+  position: relative;
+  margin-top: auto;
+  min-height: calc(7.5 * var(--d));
+}
+
+.ff-page .ff-eng-stars {
+  /* Figma 148:585 / 148:586 — stars fill lower half */
+  min-height: calc(14 * var(--d));
+}
+
+.ff-page .ff-eng-heart,
+.ff-page .ff-eng-star {
+  position: absolute;
+  width: calc(5.5 * var(--d));
+  height: auto;
+  pointer-events: none;
+}
+
+.ff-page .ff-eng-heart.s1 {
+  left: calc(0.5 * var(--d));
+  bottom: calc(0.2 * var(--d));
+  transform: rotate(-12deg);
+}
+
+.ff-page .ff-eng-heart.s2 {
+  left: calc(3.2 * var(--d));
+  bottom: calc(1.4 * var(--d));
+  width: calc(4.6 * var(--d));
+  transform: rotate(10deg);
+}
+
+.ff-page .ff-eng-star.s1 {
+  /* large star ≈ 56% of 371px card */
+  left: 12%;
+  bottom: calc(0.2 * var(--d));
+  width: min(calc(13.5 * var(--d)), 58%);
+  transform: rotate(-4deg);
+}
+
+.ff-page .ff-eng-star.s2 {
+  /* small star ≈ 20% of card / ~35% of large */
+  right: 6%;
+  bottom: calc(8.2 * var(--d));
+  width: min(calc(4.8 * var(--d)), 22%);
+  transform: rotate(12deg);
+}
+
+/* —— Support masonry (Figma staggered heights) —— */
+.ff-page .ff-support-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: calc(1.25 * var(--d));
+  max-width: calc(52 * var(--d));
+  margin-inline: auto;
+  align-items: start;
+}
+
+.ff-page .ff-sup-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+  grid-template-rows: auto 1fr;
+  gap: calc(0.35 * var(--d)) calc(0.8 * var(--d));
+  padding: calc(1.35 * var(--d)) calc(1.3 * var(--d)) calc(1.2 * var(--d));
+  border-radius: var(--ff-radius);
+  color: #fff;
+  overflow: hidden;
+}
+
+.ff-page .ff-sup-card--short {
+  min-height: calc(14.8 * var(--d));
+}
+
+.ff-page .ff-sup-card--tall {
+  min-height: calc(19.8 * var(--d));
+}
+
+.ff-page .ff-sup-card--dark {
+  background: #2d2d2d;
+}
+
+.ff-page .ff-sup-card--blue {
+  background: #3b82f6;
+}
+
+.ff-page .ff-sup-badge {
+  grid-column: 1;
+  grid-row: 1;
+  width: calc(3.1 * var(--d));
+  height: calc(3.1 * var(--d));
+  object-fit: contain;
+  border-radius: calc(0.9 * var(--d));
+}
+
+.ff-page .ff-sup-copy {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  z-index: 1;
+}
+
+.ff-page .ff-sup-title {
+  margin: 0;
+  font-size: clamp(calc(1.2 * var(--d)), 1.5vw, calc(1.55 * var(--d)));
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  max-width: 12ch;
+}
+
+.ff-page .ff-sup-text {
+  margin: calc(0.45 * var(--d)) 0 0;
+  max-width: 18ch;
+  font-size: calc(0.9 * var(--d));
+  font-weight: 200;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 88%);
+}
+
+.ff-page .ff-sup-art {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  width: 100%;
+  max-height: calc(11 * var(--d));
+  align-self: end;
+  justify-self: end;
+  object-fit: contain;
+  object-position: right bottom;
+  pointer-events: none;
+}
+
+.ff-page .ff-sup-card--tall .ff-sup-art {
+  max-height: calc(13.5 * var(--d));
+}
+
+/* —— CTA —— */
+.ff-page .ff-cta {
+  padding: calc(3 * var(--d)) 0 calc(5.5 * var(--d));
+}
+
+.ff-page .ff-cta-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 calc(2.2 * var(--d));
+  text-align: center;
+  font-size: clamp(calc(3.6 * var(--d)), 7vw, calc(6.4 * var(--d)));
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.82;
+  color: var(--ff-ink);
+}
+
+.ff-page .ff-cta-line {
+  display: block;
+}
+
+.ff-page .ff-cta-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(2.4 * var(--d));
+  align-items: center;
+  padding: calc(2.6 * var(--d)) calc(2.8 * var(--d));
+  border-radius: calc(2.6 * var(--d));
+  background: #f2f2f2;
+}
+
+.ff-page .ff-cta-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: calc(34 * var(--d));
+}
+
+.ff-page .ff-cta-lead {
+  margin: 0 0 calc(1 * var(--d));
+  font-size: clamp(calc(1.25 * var(--d)), 1.6vw, calc(1.55 * var(--d)));
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--ff-ink);
+}
+
+.ff-page .ff-cta-sub {
+  margin: 0 0 calc(1.8 * var(--d));
+  color: #6b6b6b;
+  font-size: calc(1.05 * var(--d));
+  line-height: 1.45;
+}
+
+.ff-page .ff-cta-media-wrap {
+  width: 100%;
+  border-radius: calc(1.8 * var(--d));
+  overflow: hidden;
+}
+
+.ff-page .ff-cta-media {
+  display: block;
+  width: 100%;
+  min-height: calc(28 * var(--d));
+  object-fit: cover;
+  aspect-ratio: 487 / 448;
+}
+
+@media (max-width: 991px) {
+  .ff-page {
+    --d: 16px;
+    overflow-x: clip;
+  }
+
+  .ff-page .ff-wrap {
+    width: min(92vw, calc(83 * var(--d)));
+  }
+
+  .ff-page .ff-h2 {
+    font-size: clamp(32px, 8vw, 52px);
+    margin-bottom: calc(1.4 * var(--d));
+  }
+
+  .ff-page .ff-cta-title {
+    font-size: clamp(40px, 12vw, 72px);
+  }
+
+  .ff-page .hj-card {
+    aspect-ratio: auto;
+    min-height: 0;
+  }
+
+  .ff-page [view-item="from-center"],
+  .ff-page .ff-engage [view-item="from-center"],
+  .ff-page .ff-connect [view-item="from-center"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Phone / iPad — swipe carousel */
+@media (max-width: 1023px) {
+  .ff-page .ff-cta-copy .ff-btn {
+    width: 100%;
+  }
+
+  .ff-page .ff-cta-copy {
+    max-width: none;
+    align-items: stretch;
+  }
+
+  .ff-page .hj-mock-panel,
+  .ff-page .hj-mock-feed {
+    min-height: calc(14 * var(--d));
+  }
+
+  .ff-page .ff-engage-grid {
+    display: flex !important;
+    flex-wrap: nowrap;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
+    padding-inline: 16px;
+    margin-inline: -16px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-x pan-y;
+  }
+
+  .ff-page .ff-engage-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ff-page .ff-engage-grid.is-dragging {
+    cursor: grabbing;
+    scroll-snap-type: none;
+  }
+
+  .ff-page .ff-engage-mid {
+    display: contents;
+  }
+
+  .ff-page .ff-eng-card {
+    position: relative !important;
+    flex: 0 0 320px;
+    width: 320px;
+    min-width: 320px;
+    max-width: 320px;
+    min-height: 420px;
+    height: auto;
+    transform: none !important;
+    scroll-snap-align: start;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .ff-page .ff-eng-copy {
+    max-width: none;
+  }
+
+  .ff-page .ff-eng-photos {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    min-height: 180px;
+    overflow: hidden;
+  }
+
+  .ff-page .ff-eng-photo {
+    position: relative;
+    left: auto !important;
+    bottom: auto !important;
+    width: 42%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+    flex: 0 0 42%;
+  }
+
+  .ff-page .ff-support-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ff-page .ff-sup-card {
+    grid-template-columns: 1fr auto;
+    min-height: calc(11 * var(--d));
+  }
+
+  .ff-page .ff-cta-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Wide desktop — 3-up / engage 3-col */
+@media (min-width: 1024px) {
+  .ff-page .ff-wrap {
+    width: min(92vw, 72rem);
+  }
+
+  .ff-page .ff-h2 {
+    font-size: clamp(40px, 5.5vw, 64px);
+  }
+
+  .ff-page .ff-engage-grid {
+    display: grid !important;
+    grid-template-columns: 1.05fr 1fr 1.05fr;
+    gap: 1.15rem;
+    overflow: visible;
+    scroll-snap-type: none;
+    padding-inline: 0;
+    margin-inline: 0;
+    cursor: auto;
+    user-select: auto;
+  }
+
+  .ff-page .ff-engage-mid {
+    display: grid !important;
+    gap: 1.15rem;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .ff-page .ff-eng-card {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    flex: none;
+    scroll-snap-align: unset;
+  }
+
+  .ff-page .ff-eng-card--blue,
+  .ff-page .ff-eng-card--coral {
+    min-height: 100%;
+  }
+
+  .ff-page .ff-support-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ff-page .ff-cta-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ff-page .ff-btn {
+    width: auto;
+  }
+}
+
+/* —— Section lock: Hiffi full-page barrels, not cubes —— */
+.ff-page .ff-discover [view-item],
+.ff-page .ff-engage [view-item],
+.ff-page .ff-connect [view-item],
+.ff-page .ff-support [view-item],
+.ff-page .ff-cta [view-item] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.ff-page .hj-card,
+.ff-page .ff-eng-card,
+.ff-page .ff-sup-card {
+  border-radius: 36px !important;
+}
+
+.ff-page .ff-cta-panel {
+  border-radius: 40px !important;
+}
+
+.ff-page .ff-h2 {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+
+.ff-page .ff-sec {
+  padding: 56px 0 28px;
+}
+
+.ff-page .ff-wrap {
+  width: min(92vw, 1120px);
+  margin-inline: auto;
+  padding-inline: 0;
+}
+
+@media (min-width: 768px) {
+  .ff-page .ff-sec {
+    padding: 72px 0 36px;
+  }
+
+  .ff-page .hj-card {
+    min-height: 440px;
+    aspect-ratio: 371 / 460;
+  }
+
+  .ff-page .ff-engage-grid {
+    min-height: 440px;
+  }
+
+  .ff-page .ff-eng-card--blue,
+  .ff-page .ff-eng-card--coral {
+    min-height: 440px;
+  }
+
+  .ff-page .ff-support-grid {
+    max-width: none;
+    gap: 20px;
+  }
+
+  .ff-page .ff-sup-card--short,
+  .ff-page .ff-sup-card--tall {
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 767px) {
+  .ff-page .ff-wrap {
+    width: 100%;
+    padding-inline: 22px;
+    box-sizing: border-box;
+  }
+
+  .ff-page .ff-h2 {
+    font-size: 40px;
+    margin-bottom: 20px;
+  }
+
+  .ff-page .hj-card,
+  .ff-page .ff-eng-card {
+    border-radius: 28px !important;
+    min-height: 380px;
+  }
+
+  .ff-page .ff-support-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px;
+    max-width: none;
+  }
+
+  .ff-page .ff-sup-card {
+    min-height: 160px !important;
+    border-radius: 24px !important;
+    padding: 14px;
+  }
+
+  .ff-page .ff-cta-title {
+    font-size: 42px;
+  }
+
+  .ff-page .ff-cta-panel {
+    padding: 20px;
+    gap: 20px;
+  }
+}

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkersApiKey, getWorkersBaseUrl } from '@/lib/storage'
+import { getWorkersBaseUrl } from '@/lib/storage'
 
 /**
- * Profile picture proxy that fetches images from Workers with x-api-key header
+ * Profile picture proxy that fetches images from Workers (no auth header).
  * This allows the browser to display profile pictures that require authentication
  * 
  * Path: /proxy/profile-picture/[...path]
@@ -32,23 +32,8 @@ export async function GET(
     
     console.log(`[hiffi] Profile picture proxy: fetching from Workers: ${workersUrl}`)
 
-    // Get the API key for Workers authentication
-    const apiKey = getWorkersApiKey()
-    if (!apiKey) {
-      console.error('[hiffi] Profile picture proxy: API key not configured')
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      )
-    }
-
-    // Fetch image from Workers with x-api-key header
-    // Don't cache to ensure fresh images after profile picture updates
     const response = await fetch(workersUrl, {
-      headers: {
-        'x-api-key': apiKey,
-      },
-      cache: 'no-store', // Don't cache profile pictures
+      next: { revalidate: 3600 },
     })
     
     console.log(`[hiffi] Profile picture proxy: Workers response status: ${response.status} ${response.statusText}`)
@@ -76,15 +61,12 @@ export async function GET(
     // Get content type from Workers response
     const contentType = response.headers.get('content-type') || 'image/jpeg'
     
-    // Return the image with appropriate headers
-    // Use no-cache for profile pictures to ensure fresh images after updates
+    // Browser + CDN cache: avatars are keyed by uid path; allow reuse on ranking "load more".
     return new NextResponse(imageBlob, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'no-cache, no-store, must-revalidate', // Don't cache profile pictures
-        'Pragma': 'no-cache',
-        'Expires': '0',
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       },

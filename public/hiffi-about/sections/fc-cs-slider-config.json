@@ -1,0 +1,6 @@
+[
+  { "id": "fc-1", "mode": "default", "draggable": true },
+  { "id": "fc-2", "mode": "default", "draggable": true },
+  { "id": "fc-3", "mode": "default", "draggable": true },
+  { "id": "fc-4", "mode": "default", "draggable": true }
+]

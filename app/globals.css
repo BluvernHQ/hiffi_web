@@ -157,6 +157,108 @@
   }
 }
 
+/* Hiffi 500 rank plate — slow light sweep */
+@keyframes rank-sheen {
+  0%,
+  72% {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(360%) skewX(-20deg);
+  }
+}
+
+.rank-sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.rank-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: translateX(-160%) skewX(-20deg);
+  animation: rank-sheen 7s ease-in-out 1.2s infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rank-sheen::after {
+    display: none;
+  }
+}
+
+/* Artist detail — condensed display face (needs signalNarrow.variable on an ancestor) */
+.font-signal {
+  font-family: var(--font-signal), "Arial Narrow", "Helvetica Neue", sans-serif;
+  font-stretch: condensed;
+}
+
+@keyframes artist-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.artist-rise {
+  animation: artist-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artist-rise {
+    animation: none;
+  }
+}
+
+/* Paper skeleton — a slow warm sheen instead of a flat pulse */
+@keyframes paper-sheen {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.paper-skeleton {
+  background-color: rgba(11, 11, 12, 0.06);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: paper-sheen 1.6s ease-in-out infinite;
+}
+
+.ink-skeleton {
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: paper-sheen 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-skeleton,
+  .ink-skeleton {
+    animation: none;
+  }
+}
+
 /* Mood picker — subtle film grain on orbs */
 .mood-grain {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");

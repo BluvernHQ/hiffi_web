@@ -141,7 +141,7 @@
 | Field | Copy |
 |-------|------|
 | **Title** | {Artist name} — {City} {Genre} Artist \| Hiffi |
-| **Description** | Artist bio (trimmed), or fallback: *{Name} is an emerging {genre} artist from {city} indexed on Hiffi…* |
+| **Description** | Artist bio (trimmed), or fallback: *{Name} is a {genre} artist from {city} on the Hiffi Artist Index…* |
 | **Social preview image** | Artist photo when available |
 | **Schemas** | ProfilePage + **MusicGroup** (genre, city, Spotify/IG/YouTube links via sameAs) |
 

@@ -37,7 +37,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     )
   }
 
-  if (pathname === "/about") {
+  if (pathname === "/about" || pathname === "/for-creators" || pathname === "/for-fans") {
     return <>{children}</>
   }
 

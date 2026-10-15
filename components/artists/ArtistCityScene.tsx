@@ -12,6 +12,8 @@ type ArtistCitySceneProps = {
   className?: string
   /** When true, the page wrapper supplies the H1 — omit the card headline block. */
   asPage?: boolean
+  /** Genres with at least one artist; links to empty genre hubs are left out. */
+  genreSlugs?: string[]
 }
 
 export function ArtistCityScene({
@@ -20,11 +22,12 @@ export function ArtistCityScene({
   profileCount,
   className,
   asPage = false,
+  genreSlugs,
 }: ArtistCitySceneProps) {
   if (citySlug !== "atlanta") return null
 
   const sections = getAtlantaSceneSections(profileCount)
-  const genreLinks = getAtlantaGenreLinks()
+  const genreLinks = getAtlantaGenreLinks(genreSlugs)
   const countLabel = profileCount > 0 ? profileCount.toLocaleString() : "800"
 
   return (

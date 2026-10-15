@@ -9,6 +9,10 @@ import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { getProfilePictureUrl, getColorFromName, getAvatarLetter, getProfilePictureProxyUrl } from "@/lib/utils"
+import {
+  PROFILE_IMAGE_ACCEPT,
+  validateProfileImageFile,
+} from "@/lib/profile-image-upload"
 
 interface ProfilePictureDialogProps {
   open: boolean
@@ -72,25 +76,12 @@ export function ProfilePictureDialog({
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type - only JPG allowed
-    const validTypes = ['image/jpeg', 'image/jpg']
-    if (!validTypes.includes(file.type.toLowerCase())) {
+    const validationError = validateProfileImageFile(file, "Profile photo")
+    if (validationError) {
       setHasError(true)
       toast({
-        title: "Invalid file type",
-        description: "Only JPG images are allowed for profile photos.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
-      setHasError(true)
-      toast({
-        title: "File too large",
-        description: "Profile photo must be less than 10MB.",
+        title: "Invalid image",
+        description: validationError,
         variant: "destructive",
       })
       return
@@ -308,7 +299,7 @@ export function ProfilePictureDialog({
         <DialogHeader>
           <DialogTitle>Edit Profile Picture</DialogTitle>
           <DialogDescription>
-            Upload a new profile picture. JPG format only, max 10MB.
+            Upload a new profile picture. Any image format, max 10MB.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -363,13 +354,13 @@ export function ProfilePictureDialog({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/jpg"
+                accept={PROFILE_IMAGE_ACCEPT}
                 onChange={handleImageSelect}
                 className="hidden"
                 disabled={uploadingImage}
               />
               <p className="text-xs text-muted-foreground">
-                JPG only, max 10MB
+                Any image format, max 10MB
               </p>
               {uploadingImage && (
                 <div className="space-y-1">

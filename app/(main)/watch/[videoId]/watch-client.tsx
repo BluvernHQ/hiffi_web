@@ -28,6 +28,13 @@ import { shareUrl } from "@/lib/share"
 import { apiClient } from "@/lib/api-client"
 import { getThumbnailUrl } from "@/lib/storage"
 import {
+  clearRelatedVideosCache,
+  getCachedRelatedVideos,
+  getInstantRelatedFromHomeFeed,
+  getRelatedVideosOnce,
+  setCachedRelatedVideos,
+} from "@/lib/related-videos"
+import {
   getPlaylistSession,
   setPlaylistSession,
   type PlaylistVideoMeta,
@@ -45,6 +52,7 @@ import {
   onPlaylistTrackAdvanced,
 } from "@/lib/analytics/journey-tracking"
 import { setPendingPlaybackContext } from "@/lib/analytics/video-playback-context"
+import { scrollMainContentToTop } from "@/lib/main-content-scroll"
 import {
   PLAYLIST_QUEUE_CLICK,
   UP_NEXT_SIDEBAR_CLICK,
@@ -101,6 +109,36 @@ let persistedWatchUiState: {
   upvoteState: { upvoted: boolean; downvoted: boolean }
 } | null = null
 
+const WATCH_BACK_STACK_KEY = "hiffi_watch_back_stack"
+
+type StoredWatchBackStack = { videoId: string; stack: string[] }
+
+function readWatchBackStack(videoId: string): string[] {
+  if (typeof window === "undefined" || !videoId) return []
+  try {
+    const raw = sessionStorage.getItem(WATCH_BACK_STACK_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as StoredWatchBackStack
+    if (!parsed || parsed.videoId !== videoId || !Array.isArray(parsed.stack)) return []
+    return parsed.stack.filter((id) => typeof id === "string" && id && id !== videoId)
+  } catch {
+    return []
+  }
+}
+
+function writeWatchBackStack(videoId: string, stack: string[]) {
+  if (typeof window === "undefined" || !videoId) return
+  try {
+    const payload: StoredWatchBackStack = {
+      videoId,
+      stack: stack.filter((id) => id && id !== videoId),
+    }
+    sessionStorage.setItem(WATCH_BACK_STACK_KEY, JSON.stringify(payload))
+  } catch {
+    // Ignore quota / private-mode failures. Previous still works for this page load.
+  }
+}
+
 const videoResponseCache = new Map<string, any>()
 const inFlightVideoResponse = new Map<string, Promise<any>>()
 
@@ -129,52 +167,10 @@ async function getVideoResponseOnce(videoId: string, forceFresh = false) {
   return request
 }
 
-const relatedVideosCache = new Map<string, any[]>()
-const inFlightRelatedVideos = new Map<string, Promise<any[]>>()
-const RELATED_FETCH_TIMEOUT_MS = 12000
-
-async function getRelatedVideosOnce(videoId: string) {
-  if (relatedVideosCache.has(videoId)) {
-    return relatedVideosCache.get(videoId) || []
-  }
-
-  const inFlight = inFlightRelatedVideos.get(videoId)
-  if (inFlight) {
-    return inFlight
-  }
-
-  const request = (async () => {
-    const seed = getSeed()
-    const videosResponse = await Promise.race([
-      apiClient.getVideoList({ offset: 0, limit: 50, seed }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Related videos request timed out")), RELATED_FETCH_TIMEOUT_MS),
-      ),
-    ])
-    const videosArray = videosResponse.videos || []
-    const filteredVideos = videosArray.filter((v: any) => (v.video_id || v.videoId) !== videoId)
-
-    const shuffled = [...filteredVideos]
-    for (let i: number = shuffled.length - 1; i > 0; i--) {
-      const j: number = Math.floor(Math.random() * (i + 1))
-      const temp = shuffled[i]
-      shuffled[i] = shuffled[j]
-      shuffled[j] = temp
-    }
-
-    const nextRelated = shuffled.slice(0, 12)
-    relatedVideosCache.set(videoId, nextRelated)
-    return nextRelated
-  })().finally(() => {
-    inFlightRelatedVideos.delete(videoId)
-  })
-
-  inFlightRelatedVideos.set(videoId, request)
-  return request
-}
-
 function mapSeoVideoToClient(seo: SeoVideo) {
   const artist = (seo.creatorDisplayName || seo.creatorUsername || "").trim()
+  // Human playback must use Workers directly — never SEO contentUrl (/proxy/video/stream).
+  const playback = (seo.playbackUrl || "").trim()
   return {
     video_id: seo.videoId,
     videoId: seo.videoId,
@@ -182,8 +178,12 @@ function mapSeoVideoToClient(seo: SeoVideo) {
     videoTitle: seo.title,
     video_description: seo.description,
     videoDescription: seo.description,
-    video_url: seo.contentUrl,
-    streaming_url: seo.contentUrl,
+    video_url: playback,
+    streaming_url: playback,
+    storage_video_url: seo.storageVideoPath || "",
+    original_profile: seo.originalProfile ?? undefined,
+    originalProfile: seo.originalProfile ?? undefined,
+    profiles: seo.profiles ?? undefined,
     user_username: seo.creatorUsername,
     userUsername: seo.creatorUsername,
     user_name: artist,
@@ -239,14 +239,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
 
   // Main feed/content is rendered inside #main-content (custom scroll container),
   // so we must reset that container when entering or switching videos on watch.
+  // Do NOT re-save home scroll from DOM here — by mount time the shorter watch
+  // page has often clamped scrollTop downward and would overwrite the real position
+  // already captured on the home feed link press.
   useLayoutEffect(() => {
-    const mainContent = document.getElementById("main-content")
-    if (mainContent && mainContent.scrollTop > 0) {
-      mainContent.scrollTo({ top: 0, left: 0, behavior: "auto" })
-    }
-    if (window.scrollY > 0) {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
-    }
+    scrollMainContentToTop("auto")
   }, [pathname, currentVideoId])
 
   // Sync currentVideoId when the URL param changes via real Next.js navigation
@@ -257,15 +254,26 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     if (id && id !== currentVideoId) {
       setCurrentVideoId(id)
       videoHistoryRef.current = [] // External navigation resets internal history
+      writeWatchBackStack(id, [])
       setPlayerBackStackEpoch((n) => n + 1)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.videoId])
 
   // Stack of previously played video IDs for in-place back navigation.
+  // sessionStorage keeps it across refresh; it only applies to the video id that was saved.
   const videoHistoryRef = useRef<string[]>([])
   /** Bumped whenever the stack is pushed/popped/cleared so we can derive UI from ref length. */
   const [playerBackStackEpoch, setPlayerBackStackEpoch] = useState(0)
+
+  useEffect(() => {
+    const restored = readWatchBackStack(currentVideoId)
+    if (restored.length === 0) return
+    videoHistoryRef.current = restored
+    setPlayerBackStackEpoch((n) => n + 1)
+    // Only the id from the first paint (the refreshed URL).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const isInPlaceNavigationRef = useRef(false)
   const [playlistContext, setPlaylistContext] = useState<{
     playlistId: string
@@ -326,6 +334,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     isInPlaceNavigationRef.current = true
     if (pushHistory) {
       videoHistoryRef.current.push(currentVideoId)
+      writeWatchBackStack(nextId, videoHistoryRef.current)
       setPlayerBackStackEpoch((n) => n + 1)
     }
     setCurrentVideoId(nextId)
@@ -341,6 +350,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const handlePlayerNext = (nextId: string) => {
     // Use a fresh recommendation seed whenever the user advances to next.
     resetSeed()
+    clearRelatedVideosCache()
     if (playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1) {
       const nextIndex = playlistContext.currentIndex + 1
       const playlistNextId = playlistContext.videoIds[nextIndex]
@@ -412,6 +422,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
     const prevId = videoHistoryRef.current.pop()
     if (prevId) {
+      writeWatchBackStack(prevId, videoHistoryRef.current)
       isInPlaceNavigationRef.current = true
       setCurrentVideoId(prevId)
       if (typeof window !== "undefined") {
@@ -457,6 +468,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         } else {
           videoHistoryRef.current = []
         }
+        writeWatchBackStack(newId, videoHistoryRef.current)
         setPlayerBackStackEpoch((n) => n + 1)
       }
 
@@ -507,12 +519,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     }
     return null
   })
-  const [playerVideo, setPlayerVideo] = useState<any>(() => {
-    if (activeVideo && (activeVideo.videoId === params.videoId || activeVideo.video_id === params.videoId)) {
-      return activeVideo
-    }
-    return null
-  })
+  const [playerVideo, setPlayerVideo] = useState<any>(null)
   
   const [videoCreator, setVideoCreator] = useState<any>(() => {
     const routeId = (Array.isArray(params.videoId) ? params.videoId[0] : (params.videoId as string)) || ""
@@ -533,8 +540,14 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const [relatedVideos, setRelatedVideos] = useState<any[]>(() => {
     const persistedVideo = persistedWatchUiState?.video
     const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
-    if (!persistedId || persistedId !== routeVideoId) return []
-    return persistedWatchUiState?.relatedVideos ?? []
+    if (persistedId && persistedId === routeVideoId) {
+      const fromPersist = persistedWatchUiState?.relatedVideos ?? []
+      if (fromPersist.length > 0) return fromPersist
+    }
+    const fromCache = getCachedRelatedVideos(routeVideoId)
+    if (fromCache && fromCache.length > 0) return fromCache
+    // Opening from home: show feed neighbors immediately while the API refresh runs.
+    return getInstantRelatedFromHomeFeed(routeVideoId)
   })
   
   // Only show initial loading spinner if we don't have SSR seed or persisted context
@@ -592,13 +605,45 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
   const currentVideoIdRef = useRef<string | null>(null)
   const pendingVideoIdRef = useRef<string | null>(null)
   
-  // Keep previously shown recommendations available across route transitions.
-  const visibleRelatedVideos = relatedVideos.length > 0 ? relatedVideos : (persistedWatchUiState?.relatedVideos || [])
+  // Keep list tied to React state only — module persist during render caused SSR/client mismatch.
+  const visibleRelatedVideos = relatedVideos
+
+  useEffect(() => {
+    if (!routeVideoId) return
+
+    let seeded: any[] = []
+    const persistedVideo = persistedWatchUiState?.video
+    const persistedId = persistedVideo?.video_id || persistedVideo?.videoId
+    if (persistedId && persistedId === routeVideoId) {
+      seeded = persistedWatchUiState?.relatedVideos ?? []
+    }
+    if (seeded.length === 0) {
+      seeded = getCachedRelatedVideos(routeVideoId) ?? []
+    }
+    if (seeded.length > 0) {
+      setRelatedVideos(seeded)
+    }
+  }, [routeVideoId])
 
   // Memoize sliced suggested videos to prevent unnecessary re-renders and glitches 
   // when toggling description or other UI states.
   // Show more videos in YouTube-style compact layout
-  const sidebarSuggestedVideos = useMemo(() => visibleRelatedVideos.slice(0, 20), [visibleRelatedVideos])
+  const excludeFromQueue = useCallback(
+    (videos: typeof relatedVideos) => {
+      const skip = new Set<string>()
+      if (currentVideoId) skip.add(currentVideoId)
+      for (const id of videoHistoryRef.current) skip.add(id)
+      return videos.filter((v) => {
+        const id = v.videoId || v.video_id
+        return id && !skip.has(id)
+      })
+    },
+    [currentVideoId, playerBackStackEpoch],
+  )
+  const sidebarSuggestedVideos = useMemo(
+    () => excludeFromQueue(visibleRelatedVideos.slice(0, 20)),
+    [excludeFromQueue, visibleRelatedVideos],
+  )
   const playerSuggestedVideos = useMemo(() => {
     const playlistQueue =
       playlistContext && playlistContext.currentIndex < playlistContext.videoIds.length - 1
@@ -615,11 +660,11 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
         : []
 
     if (playlistQueue.length > 0) {
-      return playlistQueue
+      return excludeFromQueue(playlistQueue)
     }
 
-    return visibleRelatedVideos.slice(0, 8)
-  }, [playlistContext, playlistVideoMeta, visibleRelatedVideos])
+    return excludeFromQueue(visibleRelatedVideos.slice(0, 8))
+  }, [playlistContext, playlistVideoMeta, visibleRelatedVideos, excludeFromQueue])
 
   useEffect(() => {
     currentVideoIdRef.current = video ? (video.video_id || video.videoId) : null
@@ -1134,6 +1179,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           } else {
             // Start loading the new media immediately in the player, but keep old metadata on screen.
             setPlayerVideo(completeVideo)
+            // Drop the full-bleed spinner once we have a stream URL — the player shows its own buffer state.
+            setIsLoading(false)
             // Keep current video details visible until player confirms new media is ready.
             setPendingVideo((pending) => {
               if (!pending || pending.videoId !== videoId) return pending
@@ -1253,44 +1300,40 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
     const videoId = currentVideoId
 
     async function fetchRelated() {
-      const isInitialRelatedLoad = relatedVideos.length === 0
+      // Only treat the visible list as an instant seed when it already belongs to this video.
+      const hadInstantRelatedForCurrent =
+        lastFetchedRelatedIdRef.current === videoId && relatedVideos.length > 0
       latestRelatedRequestIdRef.current = videoId
       try {
-        if (isInitialRelatedLoad) {
+        if (!hadInstantRelatedForCurrent) {
           setIsRelatedLoading(true)
         }
 
         debugLog("[hiffi] Fetching updated recommendations for:", videoId)
         const nextRelatedVideos = await getRelatedVideosOnce(videoId)
         if (latestRelatedRequestIdRef.current !== videoId) return
-
-        if (isInitialRelatedLoad) {
-          setRelatedVideos(nextRelatedVideos)
-          lastFetchedRelatedIdRef.current = videoId
-        } else {
-          // Defer recommendation list swap until the newly selected video is playable.
-          if (pendingVideoIdRef.current === videoId) {
-            setPendingVideo((pending) => {
-              if (!pending || pending.videoId !== videoId) return pending
-              return {
-                ...pending,
-                recommendations: nextRelatedVideos,
-              }
-            })
-          } else if (currentVideoIdRef.current === videoId) {
-            // Pending may already be committed; apply recommendations when they arrive.
-            setRelatedVideos(nextRelatedVideos)
+        if (!nextRelatedVideos.length) {
+          if (hadInstantRelatedForCurrent) {
             lastFetchedRelatedIdRef.current = videoId
           }
+          return
         }
+
+        setRelatedVideos(nextRelatedVideos)
+        lastFetchedRelatedIdRef.current = videoId
+        setCachedRelatedVideos(videoId, nextRelatedVideos)
+
+        setPendingVideo((pending) => {
+          if (!pending || pending.videoId !== videoId) return pending
+          return { ...pending, recommendations: nextRelatedVideos }
+        })
       } catch (suggestionsError) {
         debugWarn("[hiffi] Failed to fetch related videos:", suggestionsError)
-        // Allow reconnect/refetch attempt for this video.
         if (lastFetchedRelatedIdRef.current === videoId) {
           lastFetchedRelatedIdRef.current = null
         }
       } finally {
-        if (isInitialRelatedLoad) {
+        if (!hadInstantRelatedForCurrent) {
           setIsRelatedLoading(false)
         }
       }
@@ -1744,12 +1787,13 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
       }
     }
 
-    // Autoplay next video from suggested videos
+    // Autoplay next video from suggested videos (in-place to preserve player state)
     if (sidebarSuggestedVideos && sidebarSuggestedVideos.length > 0) {
       const nextVideo = sidebarSuggestedVideos[0]
       const nextVideoId = nextVideo.videoId || nextVideo.video_id
       if (nextVideoId) {
         resetSeed()
+        clearRelatedVideosCache()
         setPendingPlaybackContext({
           videoId: nextVideoId,
           openSource: "recommended",
@@ -1758,7 +1802,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
           isAutoplay: true,
         })
         debugLog("[hiffi] Autoplaying next video:", nextVideoId)
-        router.push(`/watch/${nextVideoId}`)
+        navigateToVideo(nextVideoId)
       }
     }
   }
@@ -1889,29 +1933,34 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           <Bookmark className="h-5 w-5" />
                         </Button>
                       </AddToPlaylistDialogLazy>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            data-analytics-name={WATCH_MORE_ACTIONS}
-                            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-                            aria-label="More actions"
-                            title="More"
-                          >
-                            <MoreHorizontal className="h-5 w-5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem
-                            data-analytics-name="shared-video"
-                            onClick={() => setShareDialogOpen(true)}
-                          >
-                            <Share2 className="h-4 w-4" />
-                            Share
-                          </DropdownMenuItem>
-                          {canReportVideo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        data-analytics-name="shared-video"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                        onClick={() => setShareDialogOpen(true)}
+                        aria-label="Share video"
+                        title="Share"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                      {canReportVideo && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              data-analytics-name={WATCH_MORE_ACTIONS}
+                              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                              aria-label="More actions"
+                              title="More"
+                            >
+                              <MoreHorizontal className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
                               data-analytics-name="report-video"
                               onClick={() => setReportDialogOpen(true)}
@@ -1919,9 +1968,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                               <Flag className="h-4 w-4" />
                               Report
                             </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   )}
                 </div>

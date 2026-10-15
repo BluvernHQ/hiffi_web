@@ -60,7 +60,25 @@ function normalizeVideoListPayload(json: unknown): {
 
   const videos: VideoRecord[] = raw.map((item) => {
     if (item && typeof item === "object" && "video" in item) {
-      return (item as { video: VideoRecord }).video
+      const row = item as {
+        video: VideoRecord
+        following?: boolean
+        profile_picture?: string
+        user?: { profile_picture?: string }
+      }
+      const videoData: VideoRecord & Record<string, unknown> = {
+        ...row.video,
+        following: row.following || false,
+      }
+      // Sibling profile_picture on list items (same shape as apiClient.getVideoList).
+      const pic =
+        (typeof row.profile_picture === "string" && row.profile_picture.trim()) ||
+        (typeof row.user?.profile_picture === "string" && row.user.profile_picture.trim()) ||
+        ""
+      if (pic) {
+        videoData.user_profile_picture = pic
+      }
+      return videoData as VideoRecord
     }
     return item as VideoRecord
   })
@@ -89,8 +107,17 @@ export type SeoVideo = {
   description: string
   /** Google-crawlable thumbnail on hiffi.com (/proxy/image/…). */
   thumbnailUrl: string
-  /** Google-crawlable progressive MP4 on hiffi.com (/proxy/video/stream?url=…). */
+  /** Google-crawlable progressive MP4 on hiffi.com (/proxy/video/stream?url=…). Schema/crawlers only. */
   contentUrl: string
+  /**
+   * Direct Workers MP4 for the watch player (no nginx proxy hop).
+   * Prefer this over contentUrl for any human playback.
+   */
+  playbackUrl: string
+  /** Storage / gateway base used to rebuild profile ladders after hydration. */
+  storageVideoPath?: string
+  originalProfile?: string | null
+  profiles?: string[] | null
   creatorUsername: string
   /** Display name for SEO titles and MusicVideoObject (falls back to username). */
   creatorDisplayName: string
@@ -125,33 +152,45 @@ function resolveSeoVideoWorkersMp4Url(
   storagePath: string | undefined,
   originalProfile?: string | null,
   availableProfiles?: string[] | null,
-): string {
+): { playbackUrl: string; seoWorkersUrl: string } {
   const gateway = String(gatewayUrl || "").trim()
   const nested = String(storagePath || "").trim()
 
+  let candidates: string[] = []
+
   if (gateway && !HLS_RE.test(gateway) && PROGRESSIVE_MP4_RE.test(gateway)) {
     const direct = gateway.startsWith("http") ? gateway : getVideoUrl(gateway)
-    if (isProgressiveMp4Url(direct)) return direct
+    if (isProgressiveMp4Url(direct)) {
+      candidates = [direct]
+    }
   }
 
-  const baseUrl = gateway && !HLS_RE.test(gateway)
-    ? gateway.replace(/\/$/, "")
-    : nested
-      ? resolveVideoBaseUrl(nested)
-      : ""
+  if (candidates.length === 0) {
+    const baseUrl = gateway && !HLS_RE.test(gateway)
+      ? gateway.replace(/\/$/, "")
+      : nested
+        ? resolveVideoBaseUrl(nested)
+        : ""
 
-  if (baseUrl) {
-    const candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles)
-    const mp4 = candidates.find((url) => isProgressiveMp4Url(url))
-    if (mp4) return mp4
+    if (baseUrl) {
+      candidates = buildPlaybackCandidates(baseUrl, originalProfile, availableProfiles).filter(
+        (url) => isProgressiveMp4Url(url),
+      )
+    }
   }
 
-  if (nested) {
+  if (candidates.length === 0 && nested) {
     const nestedUrl = nested.startsWith("http") ? nested : getVideoUrl(nested)
-    if (isProgressiveMp4Url(nestedUrl)) return nestedUrl
+    if (isProgressiveMp4Url(nestedUrl)) candidates = [nestedUrl]
   }
 
-  return ""
+  const playbackUrl = candidates[0] || ""
+  // Schema/crawler proxy: prefer original.mp4 (always present after upload) over
+  // encoded rungs that may still be processing → 404 on /proxy/video/stream.
+  const seoWorkersUrl =
+    candidates.find((url) => /\/original\.mp4(?:\?.*)?$/i.test(url)) || playbackUrl
+
+  return { playbackUrl, seoWorkersUrl }
 }
 
 function buildAuthHeaders(): Record<string, string> {
@@ -165,86 +204,123 @@ function buildAuthHeaders(): Record<string, string> {
   return headers
 }
 
-export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
-  if (!videoId) return null
+async function fetchVideoJson(videoId: string, headers: Record<string, string>) {
+  return fetch(`${getApiBaseUrl()}/videos/${encodeURIComponent(videoId)}`, {
+    headers,
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  })
+}
+
+/**
+ * Public read used by the watch page.
+ * An authenticated server token that the API rejects must not hide a public video.
+ * Only HTTP 404 (or a hidden video) means the page should 404.
+ */
+export const lookupVideoForWatch = cache(async (videoId: string): Promise<
+  | { status: "ok"; video: SeoVideo }
+  | { status: "missing" }
+  | { status: "unavailable" }
+> => {
+  if (!videoId) return { status: "missing" }
   try {
-    const res = await fetch(`${getApiBaseUrl()}/videos/${encodeURIComponent(videoId)}`, {
-      headers: buildAuthHeaders(),
-      next: { revalidate: REVALIDATE_SECONDS },
-    })
-    if (!res.ok) return null
+    const authed = buildAuthHeaders()
+    let res = await fetchVideoJson(videoId, authed)
+    if ((res.status === 401 || res.status === 403) && authed.Authorization) {
+      const { Authorization: _ignored, ...publicHeaders } = authed
+      res = await fetchVideoJson(videoId, publicHeaders)
+    }
+    if (res.status === 404) return { status: "missing" }
+    if (!res.ok) return { status: "unavailable" }
+
     const json = await res.json()
-    const norm = normalizeGetVideoPayload(json)
-    if (!norm || !norm.video) return null
-
-    const v = norm.video
-    if ((v as Record<string, unknown>).hidden === true) return null
-    const id = v.video_id || videoId
-    const title = (v.video_title || "Video").trim() || "Video"
-    const description = (v.video_description || "").trim()
-    const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
-    const raw = v as Record<string, unknown>
-    const workersMp4 = resolveSeoVideoWorkersMp4Url(
-      norm.video_url,
-      v.video_url,
-      (raw.original_profile ?? raw.originalProfile) as string | undefined,
-      Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null,
-    )
-    const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
-    const contentUrl = workersMp4 ? buildSeoVideoStreamProxyUrl(workersMp4) : ""
-    const creator = (v.user_username || "").trim()
-    const dataVideo =
-      json && typeof json === "object"
-        ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video
-        : undefined
-    const nestedRaw =
-      dataVideo && typeof dataVideo === "object" ? (dataVideo as Record<string, unknown>) : null
-
-    let creatorDisplayName = String(
-      raw.user_name ?? raw.userName ?? raw.creator_name ?? raw.artist_name ?? "",
-    ).trim()
-    if (!creatorDisplayName && creator && process.env.HIFFI_SERVER_READ_BEARER?.trim()) {
-      const profile = await fetchUserForSeo(creator)
-      creatorDisplayName = (profile?.name || creator).trim()
-    } else if (!creatorDisplayName) {
-      creatorDisplayName = creator
-    }
-    const durRaw =
-      raw.video_duration ??
-      raw.video_duration_seconds ??
-      raw.duration_seconds ??
-      raw.duration ??
-      nestedRaw?.video_duration ??
-      nestedRaw?.video_duration_seconds ??
-      nestedRaw?.duration_seconds ??
-      nestedRaw?.duration ??
-      null
-    const durationSeconds =
-      typeof durRaw === "number" && durRaw > 0
-        ? durRaw
-        : typeof durRaw === "string" && parseFloat(durRaw) > 0
-        ? parseFloat(durRaw)
-        : undefined
-
-    return {
-      videoId: id,
-      title,
-      description,
-      thumbnailUrl: thumb,
-      contentUrl,
-      creatorUsername: creator,
-      creatorDisplayName,
-      createdAt: v.created_at,
-      updatedAt: v.updated_at,
-      viewCount: typeof raw.video_views === "number" ? raw.video_views : undefined,
-      upvotes: typeof raw.video_upvotes === "number" ? raw.video_upvotes : undefined,
-      tags: Array.isArray(raw.video_tags) ? raw.video_tags : undefined,
-      durationSeconds,
-    }
+    const video = seoVideoFromPayload(videoId, json)
+    if (!video) return { status: "missing" }
+    return { status: "ok", video }
   } catch {
-    return null
+    return { status: "unavailable" }
   }
 })
+
+export const fetchVideoForSeo = cache(async (videoId: string): Promise<SeoVideo | null> => {
+  const lookedUp = await lookupVideoForWatch(videoId)
+  return lookedUp.status === "ok" ? lookedUp.video : null
+})
+
+function seoVideoFromPayload(videoId: string, json: unknown): SeoVideo | null {
+  const norm = normalizeGetVideoPayload(json)
+  if (!norm || !norm.video) return null
+
+  const v = norm.video
+  if ((v as Record<string, unknown>).hidden === true) return null
+  const id = v.video_id || videoId
+  const title = (v.video_title || "Video").trim() || "Video"
+  const description = (v.video_description || "").trim()
+  const rawThumb = v.video_thumbnail ? getThumbnailUrl(v.video_thumbnail) : ""
+  const raw = v as Record<string, unknown>
+  const originalProfile =
+    (raw.original_profile ?? raw.originalProfile) as string | undefined
+  const profiles = Array.isArray(raw.profiles) ? (raw.profiles as string[]) : null
+  const { playbackUrl, seoWorkersUrl } = resolveSeoVideoWorkersMp4Url(
+    norm.video_url,
+    v.video_url,
+    originalProfile,
+    profiles,
+  )
+  const thumb = rawThumb ? buildSeoImageProxyUrl(rawThumb) : ""
+  const contentUrl = seoWorkersUrl ? buildSeoVideoStreamProxyUrl(seoWorkersUrl) : ""
+  const storageVideoPath = String(v.video_url || norm.video_url || "").trim() || undefined
+  const creator = (v.user_username || "").trim()
+  const dataVideo =
+    json && typeof json === "object"
+      ? ((json as Record<string, unknown>).data as Record<string, unknown> | undefined)?.video
+      : undefined
+  const nestedRaw =
+    dataVideo && typeof dataVideo === "object" ? (dataVideo as Record<string, unknown>) : null
+
+  let creatorDisplayName = String(
+    raw.user_name ?? raw.userName ?? raw.creator_name ?? raw.artist_name ?? "",
+  ).trim()
+  if (!creatorDisplayName) {
+    creatorDisplayName = creator
+  }
+  const durRaw =
+    raw.video_duration ??
+    raw.video_duration_seconds ??
+    raw.duration_seconds ??
+    raw.duration ??
+    nestedRaw?.video_duration ??
+    nestedRaw?.video_duration_seconds ??
+    nestedRaw?.duration_seconds ??
+    nestedRaw?.duration ??
+    null
+  const durationSeconds =
+    typeof durRaw === "number" && durRaw > 0
+      ? durRaw
+      : typeof durRaw === "string" && parseFloat(durRaw) > 0
+      ? parseFloat(durRaw)
+      : undefined
+
+  return {
+    videoId: id,
+    title,
+    description,
+    thumbnailUrl: thumb,
+    contentUrl,
+    playbackUrl,
+    storageVideoPath,
+    originalProfile: originalProfile ?? null,
+    profiles,
+    creatorUsername: creator,
+    creatorDisplayName,
+    createdAt: v.created_at,
+    updatedAt: v.updated_at,
+    viewCount: typeof raw.video_views === "number" ? raw.video_views : undefined,
+    upvotes: typeof raw.video_upvotes === "number" ? raw.video_upvotes : undefined,
+    tags: Array.isArray(raw.video_tags) ? raw.video_tags : undefined,
+    durationSeconds,
+  }
+}
 
 /** Distinguishes missing users (404) from transient API errors. */
 export const checkUserPublic = cache(
@@ -320,11 +396,6 @@ export type HomeFeedVideo = {
   [key: string]: unknown
 }
 
-/**
- * Fetches the first page of public videos for the homepage.
- * Used by the server component to provide initial HTML for crawlers.
- * Not cached — matches live backend order and new uploads on every request.
- */
 /** Flatten /videos/list/{username} items to the shape used in profile grids. */
 function flattenUserVideoListItems(rawVideos: unknown[]): Record<string, unknown>[] {
   if (!Array.isArray(rawVideos)) return []
@@ -364,6 +435,16 @@ export const fetchUserProfileInitial = cache(
       if (user.image && !user.profile_picture) {
         user.profile_picture = user.image
       }
+      // Sibling of `user` on GET /users/{username}: data.in_inventory
+      const data =
+        json && typeof json === "object"
+          ? (json as Record<string, unknown>).data
+          : undefined
+      const inInventory =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>).in_inventory === true
+          : (json as Record<string, unknown>).in_inventory === true
+      user.in_inventory = inInventory
       return user
     } catch {
       return null
@@ -401,21 +482,30 @@ export const fetchUserVideosInitial = cache(
   },
 )
 
-export const fetchHomeFeedInitial = async (limit = 10, seed: string): Promise<HomeFeedVideo[]> => {
-  try {
-    const qs = new URLSearchParams({ limit: String(limit), offset: "0", seed })
-    const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    })
-    if (!res.ok) return []
-    const json = await res.json()
-    const { videos } = normalizeVideoListPayload(json)
-    return videos as HomeFeedVideo[]
-  } catch {
-    return []
-  }
-}
+/**
+ * Fetches the first page of public videos for the homepage.
+ * Used by the server snapshot and JSON-LD. React cache deduplicates those calls
+ * within one render; the no-store request still gets fresh data per page request.
+ */
+export const fetchHomeFeedInitial = cache(
+  async (limit = 10, seed?: string): Promise<HomeFeedVideo[]> => {
+    try {
+      const qs = new URLSearchParams({ limit: String(limit), offset: "0" })
+      if (seed) qs.set("seed", seed)
+      const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
+        headers: { "Content-Type": "application/json" },
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(2500),
+      })
+      if (!res.ok) return []
+      const json = await res.json()
+      const { videos } = normalizeVideoListPayload(json)
+      return videos as HomeFeedVideo[]
+    } catch {
+      return []
+    }
+  },
+)
 
 export type SitemapVideoEntry = {
   videoId: string
@@ -443,6 +533,7 @@ export async function fetchVideoEntriesForSitemap(maxVideos = 50_000): Promise<S
       const res = await fetch(`${getApiBaseUrl()}/videos/list?${qs.toString()}`, {
         headers: { "Content-Type": "application/json" },
         next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) break
 

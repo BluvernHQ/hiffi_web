@@ -7,7 +7,7 @@
  * 
  * How it works:
  * 1. Takes user object with profile_picture field
- * 2. Automatically fetches image from Workers with x-api-key header if needed
+ * 2. Loads the image URL directly (Workers no longer requires x-api-key).
  * 3. Creates blob URL and displays in Avatar component
  * 4. Shows fallback (colored circle with initial) if image fails
  * 5. Handles cleanup automatically

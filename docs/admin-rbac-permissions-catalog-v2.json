@@ -1,0 +1,537 @@
+{
+  "version": 2,
+  "convention": "module.subfeature:action",
+  "actions": [
+    "read",
+    "write"
+  ],
+  "permissions": [
+    "admins.accounts:read",
+    "admins.accounts:write",
+    "roles.management:read",
+    "roles.management:write",
+    "users.browse:read",
+    "users.moderation:write",
+    "analytics.counters:read",
+    "analytics.counters:write",
+    "analytics.journeys:write",
+    "analytics.journeys:read",
+    "analytics.utm:read",
+    "analytics.utm:write",
+    "analytics.searches:read",
+    "creators.dashboard:read",
+    "creators.moderation:write",
+    "curated.playlists:read",
+    "curated.playlists:write",
+    "flags.review:read",
+    "flags.review:write",
+    "migration.requests:read",
+    "migration.requests:write",
+    "collaboration.inquiries:read",
+    "feedback.inbox:read",
+    "inventory.artists:read",
+    "inventory.artists:write",
+    "inventory.claims:read",
+    "inventory.claims:write",
+    "inventory.ranking:read",
+    "inventory.ranking:write",
+    "youtube_keys.manage:read",
+    "youtube_keys.manage:write"
+  ],
+  "modules": [
+    {
+      "key": "admins",
+      "label": "Admins",
+      "nav_group": "Access",
+      "sub_features": [
+        {
+          "key": "accounts",
+          "label": "Admin accounts",
+          "ui_sections": [
+            "admins",
+            "discovery_source"
+          ],
+          "permissions": [
+            {
+              "key": "admins.accounts:read",
+              "label": "View admin accounts",
+              "action": "read",
+              "notes": "Also gates Discovery survey section today"
+            },
+            {
+              "key": "admins.accounts:write",
+              "label": "Create / update admin accounts",
+              "action": "write",
+              "notes": "Also gates Discovery survey write today"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "roles",
+      "label": "Roles",
+      "nav_group": "Access",
+      "sub_features": [
+        {
+          "key": "management",
+          "label": "Role management",
+          "ui_sections": [
+            "admin_roles"
+          ],
+          "permissions": [
+            {
+              "key": "roles.management:read",
+              "label": "View roles",
+              "action": "read"
+            },
+            {
+              "key": "roles.management:write",
+              "label": "Manage roles",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "users",
+      "label": "Users",
+      "nav_group": "Community / Moderation",
+      "sub_features": [
+        {
+          "key": "browse",
+          "label": "Browse users and content lists",
+          "ui_sections": [
+            "users",
+            "videos",
+            "comments",
+            "replies",
+            "followers",
+            "referrals"
+          ],
+          "permissions": [
+            {
+              "key": "users.browse:read",
+              "label": "Browse users and content lists",
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "key": "moderation",
+          "label": "Moderate users and content",
+          "ui_sections": [
+            "users",
+            "videos",
+            "comments",
+            "replies"
+          ],
+          "permissions": [
+            {
+              "key": "users.moderation:write",
+              "label": "Moderate users and content",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "analytics",
+      "label": "Analytics",
+      "nav_group": "Overview / Insights",
+      "sub_features": [
+        {
+          "key": "counters",
+          "label": "Platform counters",
+          "ui_sections": [
+            "overview"
+          ],
+          "permissions": [
+            {
+              "key": "analytics.counters:read",
+              "label": "View platform counters",
+              "action": "read"
+            },
+            {
+              "key": "analytics.counters:write",
+              "label": "Resync platform counters",
+              "action": "write"
+            }
+          ]
+        },
+        {
+          "key": "journeys",
+          "label": "Visitor journeys",
+          "ui_sections": [
+            "journeys",
+            "activity"
+          ],
+          "permissions": [
+            {
+              "key": "analytics.journeys:read",
+              "label": "View visitor journeys",
+              "action": "read"
+            },
+            {
+              "key": "analytics.journeys:write",
+              "label": "Manage journey funnels",
+              "action": "write"
+            }
+          ]
+        },
+        {
+          "key": "utm",
+          "label": "UTM polls and URLs",
+          "ui_sections": [
+            "utm_polls"
+          ],
+          "permissions": [
+            {
+              "key": "analytics.utm:read",
+              "label": "View UTM polls and URLs",
+              "action": "read"
+            },
+            {
+              "key": "analytics.utm:write",
+              "label": "Create UTM URLs",
+              "action": "write"
+            }
+          ]
+        },
+        {
+          "key": "searches",
+          "label": "Search logs",
+          "ui_sections": [
+            "searches"
+          ],
+          "permissions": [
+            {
+              "key": "analytics.searches:read",
+              "label": "View search logs",
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "creators",
+      "label": "Creators",
+      "nav_group": "Community",
+      "sub_features": [
+        {
+          "key": "dashboard",
+          "label": "Creator metrics",
+          "ui_sections": [
+            "creators"
+          ],
+          "permissions": [
+            {
+              "key": "creators.dashboard:read",
+              "label": "View creator metrics",
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "key": "moderation",
+          "label": "Creator moderation",
+          "ui_sections": [
+            "creators"
+          ],
+          "permissions": [
+            {
+              "key": "creators.moderation:write",
+              "label": "Suspend / unsuspend creators",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "curated",
+      "label": "Curated",
+      "nav_group": "Editorial",
+      "sub_features": [
+        {
+          "key": "playlists",
+          "label": "Curated playlists",
+          "ui_sections": [
+            "curated_playlists"
+          ],
+          "permissions": [
+            {
+              "key": "curated.playlists:read",
+              "label": "View curated playlists",
+              "action": "read"
+            },
+            {
+              "key": "curated.playlists:write",
+              "label": "Manage curated playlists",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "flags",
+      "label": "Flags",
+      "nav_group": "Moderation",
+      "sub_features": [
+        {
+          "key": "review",
+          "label": "Content reports",
+          "ui_sections": [
+            "flags"
+          ],
+          "permissions": [
+            {
+              "key": "flags.review:read",
+              "label": "View content reports",
+              "action": "read"
+            },
+            {
+              "key": "flags.review:write",
+              "label": "Update report status",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "migration",
+      "label": "Migration",
+      "nav_group": "Operations",
+      "sub_features": [
+        {
+          "key": "requests",
+          "label": "Migration requests",
+          "ui_sections": [
+            "migrations"
+          ],
+          "permissions": [
+            {
+              "key": "migration.requests:read",
+              "label": "View migration requests",
+              "action": "read"
+            },
+            {
+              "key": "migration.requests:write",
+              "label": "Update migration requests",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "collaboration",
+      "label": "Collaboration",
+      "nav_group": "Insights",
+      "sub_features": [
+        {
+          "key": "inquiries",
+          "label": "Collaboration inquiries",
+          "ui_sections": [
+            "collaboration"
+          ],
+          "permissions": [
+            {
+              "key": "collaboration.inquiries:read",
+              "label": "View collaboration inquiries",
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "feedback",
+      "label": "Feedback",
+      "nav_group": "Moderation",
+      "sub_features": [
+        {
+          "key": "inbox",
+          "label": "Feedback inbox",
+          "ui_sections": [
+            "feedback"
+          ],
+          "permissions": [
+            {
+              "key": "feedback.inbox:read",
+              "label": "View feedback inbox",
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "inventory",
+      "label": "Inventory",
+      "nav_group": "Artist Index / Hiffi 500",
+      "sub_features": [
+        {
+          "key": "artists",
+          "label": "Artist inventory",
+          "ui_sections": [
+            "artist_inventory"
+          ],
+          "permissions": [
+            {
+              "key": "inventory.artists:read",
+              "label": "View artist inventory",
+              "action": "read"
+            },
+            {
+              "key": "inventory.artists:write",
+              "label": "Manage artist inventory",
+              "action": "write"
+            }
+          ]
+        },
+        {
+          "key": "claims",
+          "label": "Inventory claims",
+          "ui_sections": [
+            "artist_inventory"
+          ],
+          "notes": "Claims is a tab inside Artist Inventory, not a separate sidebar item",
+          "permissions": [
+            {
+              "key": "inventory.claims:read",
+              "label": "View inventory claims",
+              "action": "read"
+            },
+            {
+              "key": "inventory.claims:write",
+              "label": "Approve inventory claims",
+              "action": "write"
+            }
+          ]
+        },
+        {
+          "key": "ranking",
+          "label": "Ranking anomalies",
+          "ui_sections": [
+            "ranking_anomalies"
+          ],
+          "permissions": [
+            {
+              "key": "inventory.ranking:read",
+              "label": "View ranking anomalies",
+              "action": "read"
+            },
+            {
+              "key": "inventory.ranking:write",
+              "label": "Scan / close ranking anomalies",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "youtube_keys",
+      "label": "YouTube",
+      "nav_group": "Access",
+      "sub_features": [
+        {
+          "key": "manage",
+          "label": "YouTube API keys",
+          "ui_sections": [
+            "tools"
+          ],
+          "permissions": [
+            {
+              "key": "youtube_keys.manage:read",
+              "label": "View YouTube API keys",
+              "action": "read"
+            },
+            {
+              "key": "youtube_keys.manage:write",
+              "label": "Manage YouTube API keys",
+              "action": "write"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "ui_section_permission_map": {
+    "overview": "analytics.counters:read",
+    "activity": "analytics.journeys:read",
+    "journeys": "analytics.journeys:read",
+    "searches": "analytics.searches:read",
+    "utm_polls": "analytics.utm:read",
+    "users": "users.browse:read",
+    "videos": "users.browse:read",
+    "comments": "users.browse:read",
+    "replies": "users.browse:read",
+    "followers": "users.browse:read",
+    "referrals": "users.browse:read",
+    "creators": "creators.dashboard:read",
+    "curated_playlists": "curated.playlists:read",
+    "flags": "flags.review:read",
+    "feedback": "feedback.inbox:read",
+    "collaboration": "collaboration.inquiries:read",
+    "discovery_source": "admins.accounts:read",
+    "migrations": "migration.requests:read",
+    "artist_inventory": "inventory.artists:read",
+    "ranking_anomalies": "inventory.ranking:read",
+    "admins": "admins.accounts:read",
+    "admin_roles": "roles.management:read",
+    "tools": "youtube_keys.manage:read"
+  },
+  "role_editor_groups": [
+    {
+      "id": "admins",
+      "label": "Admins"
+    },
+    {
+      "id": "users",
+      "label": "Users"
+    },
+    {
+      "id": "analytics",
+      "label": "Analytics"
+    },
+    {
+      "id": "creators",
+      "label": "Creators"
+    },
+    {
+      "id": "curated",
+      "label": "Curated"
+    },
+    {
+      "id": "flags",
+      "label": "Flags"
+    },
+    {
+      "id": "migration",
+      "label": "Migration"
+    },
+    {
+      "id": "collaboration",
+      "label": "Collaboration"
+    },
+    {
+      "id": "feedback",
+      "label": "Feedback"
+    },
+    {
+      "id": "inventory",
+      "label": "Inventory"
+    },
+    {
+      "id": "youtube",
+      "label": "YouTube"
+    }
+  ]
+}
