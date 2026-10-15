@@ -17,7 +17,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
-import { captureScreenshot, dataUrlToBlob, isScreenshotSupported } from "@/lib/feedback/capture-screenshot"
+import {
+  SCREENSHOT_IGNORE_CLASS,
+  captureScreenshot,
+  dataUrlToBlob,
+  isScreenshotSupported,
+} from "@/lib/feedback/capture-screenshot"
 import { HelpCircle, Loader2, Monitor, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api-client"
@@ -146,11 +151,12 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       <DialogContent
         className={cn(
           "z-[100] max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg transition-opacity",
+          SCREENSHOT_IGNORE_CLASS,
           // While capturing, hide the dialog so it doesn't appear in the
           // screenshot of the current tab — only the page underneath is grabbed.
           capturing && "pointer-events-none !opacity-0",
         )}
-        overlayClassName={cn("z-[100]", capturing && "!bg-transparent !backdrop-blur-none")}
+        overlayClassName={cn("z-[100]", SCREENSHOT_IGNORE_CLASS, capturing && "!bg-transparent !backdrop-blur-none")}
       >
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>

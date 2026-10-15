@@ -1,12 +1,20 @@
 /**
  * Screenshot capture for the feedback dialog.
  *
- * Uses the browser's native Screen Capture API (getDisplayMedia) so we avoid a
- * heavy DOM-rasterization dependency. The user is prompted to pick the tab /
- * window to share; we grab a single frame and tear the stream down immediately.
+ * Desktop browsers use the native Screen Capture API (getDisplayMedia): the
+ * user is prompted to share the tab, we grab a single frame and tear the stream
+ * down immediately. Mobile browsers (Android Chrome, iOS Safari) don't expose
+ * getDisplayMedia, so there we fall back to rasterizing the DOM of the visible
+ * viewport with modern-screenshot (loaded on demand).
  */
 
-export function isScreenshotSupported(): boolean {
+/**
+ * Class name for elements (e.g. the feedback dialog and its overlay) that
+ * should be left out of a DOM-rasterized screenshot.
+ */
+export const SCREENSHOT_IGNORE_CLASS = "screenshot-ignore"
+
+function isDisplayMediaSupported(): boolean {
   return (
     typeof navigator !== "undefined" &&
     typeof navigator.mediaDevices !== "undefined" &&
@@ -14,13 +22,17 @@ export function isScreenshotSupported(): boolean {
   )
 }
 
+export function isScreenshotSupported(): boolean {
+  return isDisplayMediaSupported() || typeof document !== "undefined"
+}
+
 /**
- * Prompts the user to share their screen/tab and returns a PNG data URL of a
- * single captured frame. Returns null if the user cancels the picker.
+ * Returns a JPEG data URL of the current page. Returns null if the user
+ * cancels the screen-share picker.
  */
 export async function captureScreenshot(): Promise<string | null> {
-  if (!isScreenshotSupported()) {
-    throw new Error("Screenshot capture isn't supported in this browser.")
+  if (!isDisplayMediaSupported()) {
+    return captureViewportFromDom()
   }
 
   let stream: MediaStream | null = null
@@ -76,6 +88,31 @@ async function grabFrame(stream: MediaStream): Promise<string> {
 
   // JPEG so the bytes match the content-type the presigned R2 upload expects.
   return canvas.toDataURL("image/jpeg", 0.92)
+}
+
+/**
+ * Rasterizes the currently visible viewport from the DOM. Used where
+ * getDisplayMedia is unavailable (mobile browsers).
+ */
+async function captureViewportFromDom(): Promise<string> {
+  const { domToJpeg } = await import("modern-screenshot")
+  const body = document.body
+  const width = window.innerWidth
+  const height = window.innerHeight
+
+  return domToJpeg(body, {
+    width,
+    height,
+    quality: 0.92,
+    // Mobile DPRs of 3+ produce needlessly large images; 2x is plenty for feedback.
+    scale: Math.min(window.devicePixelRatio || 1, 2),
+    backgroundColor: getComputedStyle(body).backgroundColor || "#ffffff",
+    timeout: 10000,
+    // Shift the page up by the window scroll so only the visible viewport is
+    // drawn. A margin (not a transform) keeps fixed headers pinned to the top.
+    style: { marginTop: `${-window.scrollY}px`, marginLeft: `${-window.scrollX}px` },
+    filter: (node) => !(node instanceof Element && node.classList.contains(SCREENSHOT_IGNORE_CLASS)),
+  })
 }
 
 /**
