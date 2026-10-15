@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { artistIndexHref } from "@/lib/artist-directory"
 import { topArtistTier } from "@/lib/hiffi500-tier"
 import type { PublicRanking, RankBand } from "@/lib/types/inventory"
 import { cn } from "@/lib/utils"
@@ -386,6 +387,7 @@ export function ArtistRankPlate({
       value={BAND_LABEL[band]}
       title={bandTitle(band)}
       secondary={secondary}
+      href={linked && artist.slug ? artistIndexHref(artist.slug) : undefined}
       className={className}
     />
   )
@@ -510,6 +512,7 @@ export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
           value={`#${highlight.rank}`}
           label={`of ${highlight.total.toLocaleString()}`}
           title={highlightSegment(highlight).title}
+          href={artist.slug ? artistIndexHref(artist.slug) : undefined}
         />
       ) : null}
       {ranking?.movement ? <MovementChip movement={ranking.movement} /> : null}

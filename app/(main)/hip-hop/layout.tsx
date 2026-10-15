@@ -5,7 +5,7 @@ export default function HipHopLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      <SiteFooter />
+      <SiteFooter className="mt-0" />
     </>
   )
 }

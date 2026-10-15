@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from "react"
 import { usePathname } from "next/navigation"
+import { FULL_NAVBAR_CONTENT_PATHS } from "@/lib/content-pages"
 
 interface SidebarContextType {
   isSidebarOpen: boolean
@@ -20,7 +21,14 @@ const SIDEBAR_STORAGE_KEY = 'hiffi_sidebar_desktop_open'
 function isSidebarForcedClosedPath(pathname: string | null): boolean {
   if (!pathname) return false
   if (pathname === "/app") return true
-  if (/^\/(artist-index|top-artists)(\/|$)/.test(pathname)) return true
+  if (/^\/(artist-index|top-artists|hip-hop)(\/|$)/.test(pathname)) return true
+  if (
+    FULL_NAVBAR_CONTENT_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    )
+  ) {
+    return true
+  }
   // /profile/{username}/edit
   return /^\/profile\/[^/]+\/edit\/?$/.test(pathname)
 }

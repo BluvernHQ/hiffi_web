@@ -46,10 +46,11 @@ export const SIDEBAR_FOOTER_LINKS: ContentPageLink[] = [
   { href: "/app", label: "App" },
 ]
 
-/** Marketing / informational pages with the same minimal chrome. */
-export const MARKETING_PAGE_PATHS = [
-  "/about",
-  "/app",
+/**
+ * Marketing pages that use the full app navbar (and sidebar), same as /hip-hop.
+ * Kept out of the minimal-chrome list below.
+ */
+export const FULL_NAVBAR_CONTENT_PATHS = [
   "/what-is-hiffi",
   "/how-it-works",
   "/advertising",
@@ -57,6 +58,13 @@ export const MARKETING_PAGE_PATHS = [
   "/creator-playbook",
   "/creators-for-change",
   "/press",
+  "/atlanta",
+] as const
+
+/** Marketing / informational pages with the same minimal chrome. */
+export const MARKETING_PAGE_PATHS = [
+  "/about",
+  "/app",
   "/founder",
   "/community-guidelines",
 ] as const
@@ -77,10 +85,16 @@ export const CONTENT_PAGE_PATHS = [
 
 export function isContentPage(pathname: string | null): boolean {
   if (!pathname) return false
+  if (
+    FULL_NAVBAR_CONTENT_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    )
+  ) {
+    return false
+  }
   if (CONTENT_PAGE_PATHS.includes(pathname)) return true
   if (pathname === "/artist-index" || pathname.startsWith("/artist-index/")) return true
   if (pathname === "/top-artists" || pathname.startsWith("/top-artists/")) return true
-  if (pathname === "/atlanta" || pathname.startsWith("/atlanta/")) return true
   return false
 }
 

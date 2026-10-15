@@ -1,6 +1,6 @@
 "use server"
 
-import { enrichTopArtistsWithImages, type TopArtist } from "@/lib/top-artists"
+import { enrichTopArtistsWithImages, searchTopArtistsServer, type TopArtist } from "@/lib/top-artists"
 import { isChartMode, loadChartPage, type ChartPage } from "@/lib/top-chart"
 
 type ChartPageInput = {
@@ -38,4 +38,26 @@ export async function loadTopChartPhotosAction(artists: TopArtist[]): Promise<Re
   return Object.fromEntries(
     enriched.filter((artist) => artist.image).map((artist) => [artist.username, artist.image as string]),
   )
+}
+
+type ChartSearchInput = {
+  query: string
+  limit?: number
+  offset?: number
+}
+
+/** Server-side chart search — `GET /search/top-artists/{query}?limit&offset`. */
+export async function searchTopArtistsAction(input: ChartSearchInput): Promise<ChartPage | null> {
+  const query = (input.query ?? "").trim()
+  if (query.length < 2) return null
+  const page = await searchTopArtistsServer(query, {
+    limit: Math.min(50, Math.max(1, Math.floor(Number(input.limit) || 20))),
+    offset: Math.max(0, Math.floor(Number(input.offset) || 0)),
+  })
+  if (!page) return null
+  return {
+    items: page.items,
+    hasMore: page.has_more,
+    total: page.count || page.total_ranked || null,
+  }
 }
