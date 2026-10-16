@@ -111,6 +111,14 @@ export const FALLBACK_PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    id: "auth",
+    label: "Sign-in",
+    permissions: [
+      { value: PERMS.authProvidersRead, label: "View login providers" },
+      { value: PERMS.authProvidersWrite, label: "Manage login providers" },
+    ],
+  },
+  {
     id: "youtube",
     label: "YouTube",
     permissions: [

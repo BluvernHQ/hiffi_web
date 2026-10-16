@@ -51,6 +51,7 @@
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
     "axios": "latest",
+    "better-auth": "^1.7.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -64,6 +65,7 @@
     "modern-screenshot": "4.7.0",
     "next": "^16.0.8",
     "next-themes": "latest",
+    "pg": "^8.23.1",
     "qrcode.react": "^4.2.0",
     "react": "19.2.0",
     "react-day-picker": "9.8.0",
@@ -83,6 +85,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.10.40",

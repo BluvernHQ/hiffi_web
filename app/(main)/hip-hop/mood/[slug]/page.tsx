@@ -181,7 +181,7 @@ export default async function MoodPage({ params }: Props) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-4xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
       <JsonLd data={pageJsonLd} />
 
       {/* Breadcrumb */}

@@ -8,7 +8,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Release versions
 
 ### Notes
 
-- Track next work here after **v3.0.0** ships
+- Track next work here after **v3.2.0** ships
+
+## [3.2.0] — 2026-10-15
+
+Release notes: [docs/releases/web-v3.2.0.md](docs/releases/web-v3.2.0.md)
+
+### Added
+
+- **Better Auth sign-in** — email/username and password go through Better Auth first, then the existing Hiffi login if Better Auth or the Go bridge is unavailable
+- **Google and Apple** buttons on `/login`, shown only when that provider is configured and switched on
+- Admin **login provider switches** on the dashboard — enable or disable Google and Apple without a deploy
+- Marketing **content pages** rebuilt: Advertising, Artists, Atlanta, Creator Playbook, Creators for Change, How it works, Press, What is Hiffi
+- Content-page **SEO**: page metadata, Open Graph, FAQ copy, and JSON-LD
+
+### Changed
+
+- Profile **Top 5% / Top 10% / Top 25%** rank plates open that artist’s Artist Index profile (`/artist-index/{username}`). The Hiffi 500 plate still opens the chart
+- A city or genre rank plate with no percent band uses the same Artist Index link
+- `/top-artists` search calls `GET /search/top-artists/{query}` instead of filtering rows already on screen. The city in the example URL is not sent
+- While a chart search is in flight, the board shows loading rows instead of “No one by that name”
+- **Artist Index** and **Hip-Hop 500** are no longer items in the main sidebar
+
+### Notes
+
+- Requires `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DATABASE_URL`, and `AUTH_BRIDGE_SECRET`. Google and Apple also need their client id and secret before the admin switch can turn them on.
+- `new-main` already shipped **v3.1.1** (October 10, 2026). This release is the next dev-line version after the v3.1.0 draft.
 
 ## [3.0.0] — 2026-09-02
 

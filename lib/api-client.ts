@@ -78,6 +78,7 @@ import type {
   UpdateMigrationRequestInput,
 } from "@/lib/types/youtube-migration"
 const TOKEN_KEY = "hiffi_auth_token"
+const ADMIN_DASHBOARD_TOKEN_KEY = "hiffi_admin_dashboard_token"
 
 /** Fired when an authenticated request comes back 401 (expired or revoked session). */
 export const SESSION_REJECTED_EVENT = "hiffi:session-rejected"

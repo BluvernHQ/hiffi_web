@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Loader2, Search } from "lucide-react"
 import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
-import { loadTopChartPageAction, loadTopChartPhotosAction } from "@/app/(main)/top-artists/actions"
+import { loadTopChartPageAction, loadTopChartPhotosAction, searchTopArtistsAction } from "@/app/(main)/top-artists/actions"
 import { CHART_MODES, type ChartMode, type ChartPage } from "@/lib/top-chart"
 import type { ChartShareScope } from "@/lib/top-chart-share"
 import type { RisersWindow, TopArtist } from "@/lib/top-artists"
@@ -89,13 +89,11 @@ function syncBoardParams(mode: ChartMode, city: ChartCity | null, windowDays: Ri
   window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`)
 }
 
-function matchesQuery(artist: TopArtist, needle: string): boolean {
-  return (
-    artist.artist_name.toLowerCase().includes(needle) ||
-    artist.username.toLowerCase().includes(needle) ||
-    (artist.location ?? "").toLowerCase().includes(needle)
-  )
-}
+/** Search input debounce before hitting the search endpoint. */
+const SEARCH_DEBOUNCE_MS = 300
+/** Minimum query length before we call `GET /search/top-artists/{query}`. */
+const SEARCH_MIN_LENGTH = 2
+const SEARCH_PAGE_SIZE = 20
 
 function mergeUnique(prev: TopArtist[], next: TopArtist[]): TopArtist[] {
   const seen = new Set(prev.map((artist) => artist.username))
@@ -119,12 +117,18 @@ export function TopChartBoard({
   const [total, setTotal] = useState<number | null>(initialPage?.total ?? null)
   const [switching, setSwitching] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [searchingAll, setSearchingAll] = useState(false)
   const [error, setError] = useState<string | null>(initialPage ? null : "The chart didn’t load. Try again in a moment.")
   const [query, setQuery] = useState("")
+  const [searchNeedle, setSearchNeedle] = useState("")
+  const [searchResults, setSearchResults] = useState<TopArtist[]>([])
+  const [searchHasMore, setSearchHasMore] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false)
   const [sort, setSort] = useState<SortKey>("rank")
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const requestRef = useRef(0)
+  const searchRequestRef = useRef(0)
+  const needleRef = useRef("")
 
   const modeMeta = CHART_MODES.find((entry) => entry.id === mode) ?? CHART_MODES[0]
   const featuredCities = cities.slice(0, FEATURED_CITIES)
@@ -191,42 +195,77 @@ export function TopChartBoard({
     }
   }, [city, fetchPage, hasMore, items.length, loadingMore, mode, windowDays])
 
-  const needle = query.trim().toLowerCase()
+  const loadMoreSearch = useCallback(async () => {
+    if (!searchNeedle || searchLoading || searchLoadingMore || !searchHasMore) return
+    const requestId = ++searchRequestRef.current
+    setSearchLoadingMore(true)
+    try {
+      const page = await searchTopArtistsAction({
+        query: searchNeedle,
+        limit: SEARCH_PAGE_SIZE,
+        offset: searchResults.length,
+      })
+      if (searchRequestRef.current !== requestId || !page) return
+      setSearchResults((prev) => mergeUnique(prev, page.items))
+      setSearchHasMore(page.hasMore)
+    } finally {
+      setSearchLoadingMore(false)
+    }
+  }, [searchHasMore, searchLoading, searchLoadingMore, searchNeedle, searchResults.length])
 
-  // Searching covers the whole board: pull the remaining rows (without photos) in the background.
+  const needle = query.trim().toLowerCase()
+  needleRef.current = needle
+
+  // Debounce the raw input into the needle that drives server-side search.
+  // Mark loading immediately so an empty board doesn't flash "No one by that name" while typing.
   useEffect(() => {
-    if (!needle || !hasMore || searchingAll || switching) return
-    const requestId = requestRef.current
-    let offset = items.length
+    if (needle.length < SEARCH_MIN_LENGTH) {
+      setSearchNeedle("")
+      setSearchResults([])
+      setSearchHasMore(false)
+      setSearchLoading(false)
+      return
+    }
+    if (needle === searchNeedle) return
+    setSearchLoading(true)
+    const timer = window.setTimeout(() => setSearchNeedle(needle), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [needle, searchNeedle])
+
+  // Server-side search: `GET /search/top-artists/{query}` via the server action.
+  // Re-runs on board changes so results stay scoped to the active mode/city.
+  useEffect(() => {
+    if (!searchNeedle) return
+    const requestId = ++searchRequestRef.current
     let cancelled = false
-    setSearchingAll(true)
+    setSearchLoading(true)
     ;(async () => {
       try {
-        let more = true
-        while (more && !cancelled && requestId === requestRef.current) {
-          const page = await fetchPage({ mode, city, window: windowDays }, offset, { limit: 100, enrich: false })
-          if (!page || cancelled || requestId !== requestRef.current) break
-          offset += page.items.length
-          more = page.hasMore && page.items.length > 0
-          setItems((prev) => mergeUnique(prev, page.items))
-          setHasMore(more)
-        }
+        const page = await searchTopArtistsAction({
+          query: searchNeedle,
+          limit: SEARCH_PAGE_SIZE,
+          offset: 0,
+        })
+        if (cancelled || searchRequestRef.current !== requestId) return
+        setSearchResults(page?.items ?? [])
+        setSearchHasMore(page?.hasMore ?? false)
       } finally {
-        if (!cancelled) setSearchingAll(false)
+        if (!cancelled && needleRef.current === searchNeedle) setSearchLoading(false)
       }
     })()
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needle, hasMore, switching])
+  }, [searchNeedle])
+
+  const searchPending = needle.length >= SEARCH_MIN_LENGTH && (searchLoading || needle !== searchNeedle)
 
   const visible = useMemo(() => {
-    const filtered = needle ? items.filter((artist) => matchesQuery(artist, needle)) : items
-    if (sort === "rank" || mode === "risers") return filtered
+    const rows = searchNeedle ? searchResults : items
+    if (sort === "rank" || mode === "risers") return rows
     const value = SORT_VALUE[sort]
-    return [...filtered].sort((a, b) => value(b) - value(a))
-  }, [items, mode, needle, sort])
+    return [...rows].sort((a, b) => value(b) - value(a))
+  }, [items, mode, searchNeedle, searchResults, sort])
 
   const missingPhotos = needle ? visible.filter((artist) => !artist.image) : []
   const missingKey = missingPhotos.length > 0 && missingPhotos.length <= 12 ? missingPhotos.map((a) => a.username).join(",") : ""
@@ -454,7 +493,7 @@ export function TopChartBoard({
           <span className="text-right">{showMovement ? (mode === "risers" ? "Climb" : "Move") : ""}</span>
         </div>
 
-        {switching ? (
+        {switching || (searchPending && visible.length === 0) ? (
           <ol aria-busy className="divide-y divide-white/[0.07]">
             {Array.from({ length: 8 }, (_, index) => (
               <li key={index} className={cn(ROW_GRID, ROW_GRID_STATS, "py-4")}>
@@ -508,9 +547,7 @@ export function TopChartBoard({
             <p className="mx-auto mt-2 max-w-sm text-sm text-white/50">
               {error ??
                 (needle
-                  ? searchingAll
-                    ? "Still searching the rest of the chart…"
-                    : "Try another spelling, or switch charts."
+                  ? "Try another spelling, or switch charts."
                   : "This chart fills in once the weekly snapshot lands.")}
             </p>
             {error ? (
@@ -529,18 +566,18 @@ export function TopChartBoard({
           <div className="mt-10 flex flex-col items-center gap-4 border-t border-white/10 pt-8 sm:flex-row sm:justify-between">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/45" role="status" aria-live="polite">
               {needle
-                ? `${visible.length.toLocaleString()} ${visible.length === 1 ? "match" : "matches"}${searchingAll ? " · searching" : ""}`
+                ? `${visible.length.toLocaleString()} ${visible.length === 1 ? "match" : "matches"}${searchLoading ? " · searching" : ""}`
                 : `Showing ${items.length.toLocaleString()}${total ? ` of ${total.toLocaleString()}` : ""}`}
             </p>
-            {hasMore && !needle ? (
+            {(needle ? searchHasMore : hasMore) ? (
               <button
                 type="button"
-                onClick={loadMore}
-                disabled={loadingMore}
+                onClick={needle ? loadMoreSearch : loadMore}
+                disabled={needle ? searchLoadingMore : loadingMore}
                 className="inline-flex min-w-44 items-center justify-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-[#F4F1EA] transition-colors hover:border-white/60 hover:bg-white/[0.04] disabled:opacity-60"
               >
-                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                {loadingMore ? "Loading" : "Load more"}
+                {(needle ? searchLoadingMore : loadingMore) ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                {(needle ? searchLoadingMore : loadingMore) ? "Loading" : "Load more"}
               </button>
             ) : null}
           </div>

@@ -575,6 +575,45 @@ export async function fetchTopArtistsServer(
   }
 }
 
+/** Server-side chart search — `GET /search/top-artists/{query}` (path-encoded, like /search/users). */
+export type TopArtistsSearchOptions = {
+  limit?: number
+  offset?: number
+  /** Scopes results to a city board (e.g. "Atlanta"). */
+  location?: string
+}
+
+export async function searchTopArtistsServer(
+  query: string,
+  { limit = 20, offset = 0, location }: TopArtistsSearchOptions = {},
+): Promise<TopArtistsPage | null> {
+  const q = query.trim()
+  if (!q) return null
+  try {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    const loc = location?.trim()
+    if (loc) params.set("location", loc)
+    // No revalidate cache — search must reflect the live board.
+    const url = `${getApiBaseUrl()}/search/top-artists/${encodeURIComponent(q)}?${params.toString()}`
+    console.log("[top-chart] search", url)
+    const res = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" })
+    if (!res.ok) {
+      console.error("[top-chart] search failed", res.status, url)
+      return null
+    }
+    const body = (await res.json()) as Envelope
+    // The search payload may name the row array differently than /inventory/top — normalize before parsing.
+    if (body?.success && body.data && !Array.isArray(body.data.items)) {
+      const haystack = body.data as Record<string, unknown>
+      const rows = haystack.top_artists ?? haystack.artists ?? []
+      if (Array.isArray(rows)) (body.data as { items?: unknown[] }).items = rows
+    }
+    return parseEnvelope(body)
+  } catch {
+    return null
+  }
+}
+
 /** Canonical cities with enough ranked artists for a chart (`GET /inventory/top/cities`). */
 export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> {
   try {
