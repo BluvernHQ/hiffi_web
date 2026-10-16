@@ -22,6 +22,8 @@ import {
   captureScreenshot,
   dataUrlToBlob,
   isScreenshotSupported,
+  preloadScreenshotCapture,
+  usesScreenShare,
 } from "@/lib/feedback/capture-screenshot"
 import { HelpCircle, Loader2, Monitor, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -59,7 +61,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   }, [])
 
   useEffect(() => {
-    if (!open) resetForm()
+    if (open) preloadScreenshotCapture()
+    else resetForm()
   }, [open, resetForm])
 
   const handleCaptureScreenshot = async () => {
@@ -141,6 +144,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     }
   }
 
+  const hideForCapture = capturing && usesScreenShare()
+
   const handleDialogOpenChange = (next: boolean) => {
     if (!next) resetForm()
     onOpenChange(next)
@@ -152,11 +157,13 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
         className={cn(
           "z-[100] max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg transition-opacity",
           SCREENSHOT_IGNORE_CLASS,
-          // While capturing, hide the dialog so it doesn't appear in the
-          // screenshot of the current tab — only the page underneath is grabbed.
-          capturing && "pointer-events-none !opacity-0",
+          // While screen-sharing, hide the dialog so it doesn't appear in the
+          // captured tab — only the page underneath is grabbed. The mobile DOM
+          // capture filters the dialog out instead, so it stays visible there
+          // and shows the "Capturing…" state.
+          hideForCapture && "pointer-events-none !opacity-0",
         )}
-        overlayClassName={cn("z-[100]", SCREENSHOT_IGNORE_CLASS, capturing && "!bg-transparent !backdrop-blur-none")}
+        overlayClassName={cn("z-[100]", SCREENSHOT_IGNORE_CLASS, hideForCapture && "!bg-transparent !backdrop-blur-none")}
       >
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>
