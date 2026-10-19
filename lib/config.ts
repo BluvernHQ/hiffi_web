@@ -49,6 +49,15 @@ export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || environmentDefaults[getEnvironment()].apiBaseUrl
 }
 
+/** Server-only. Prefer a loopback URL so auth calls skip Cloudflare. */
+export function getInternalApiBaseUrl(): string {
+  return (
+    process.env.HIFFI_API_INTERNAL_URL?.trim() ||
+    process.env.API_INTERNAL_URL?.trim() ||
+    getApiBaseUrl()
+  )
+}
+
 export function getWorkersBaseUrl(): string {
   return process.env.NEXT_PUBLIC_WORKERS_URL || environmentDefaults[getEnvironment()].workersBaseUrl
 }
