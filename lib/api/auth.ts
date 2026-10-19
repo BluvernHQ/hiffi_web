@@ -34,7 +34,7 @@ export async function login(
 
   if (response.success && response.data.token) {
     ctx.setAuthToken(response.data.token)
-    ctx.setCredentials(response.data.user.username, data.password)
+    ctx.clearCredentials()
   }
 
   return response
@@ -73,7 +73,7 @@ export async function register(
 
   if (response.success && response.data?.token) {
     ctx.setAuthToken(response.data.token)
-    ctx.setCredentials(data.username, data.password)
+    ctx.clearCredentials()
   }
 
   return response

@@ -246,13 +246,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // If we don't have username, we can't fetch user data
-      if (!username) {
-        // Try to get username from credentials cookie as fallback
-        const credentials = apiClient.getCredentials()
-        username = credentials.username
-      }
-
       if (!username) {
         debugWarn("[hiffi] No username available to fetch user data")
         // If we have a token but no username, we might be in a broken state.
@@ -337,13 +330,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // If refresh failed but we have a token, try to restore session via auto-login
           if (!fetchedUser) {
-            debugLog("[hiffi] Refresh failed with token present, attempting auto-login fallback")
-            // This might happen if localStorage was cleared but cookies remain
-            const credentials = apiClient.getCredentials()
-            if (credentials.username && credentials.password) {
-              await login(credentials.username, credentials.password)
-            } else if (!(await restoreFromBetterAuth())) {
-              // No way to restore, clear token
+            debugLog("[hiffi] Refresh failed with token present, attempting Better Auth restore")
+            if (!(await restoreFromBetterAuth())) {
               apiClient.clearAuthToken()
               setUser(null)
               setUserData(null)
@@ -538,7 +526,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const session = await authenticate(trimmedIdentifier, password, turnstileToken)
-      apiClient.setCredentials(session.user.username, password)
+      apiClient.clearCredentials()
       await applyGoSession(session, redirectPath)
     } catch (error: any) {
       console.error("[hiffi] Sign in failed:", error)
@@ -655,7 +643,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Profile fetch can 404 briefly after register; never drop the fresh session.
       if (!apiClient.getAuthToken() && sessionToken) {
         apiClient.setAuthToken(sessionToken)
-        apiClient.setCredentials(username, password)
+        apiClient.clearCredentials()
       }
       setUser(sessionUser)
       setUserData(normalizeUserProfilePictureFields(finalUserData))
@@ -770,18 +758,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       debugLog("[hiffi] Attempting logout")
 
-      // Clear auth token
-      apiClient.clearAuthToken()
-      // Clear stored credentials
-      apiClient.clearCredentials()
+      const revokeGo = () => apiClient.request("/auth/logout", { method: "POST" }, true)
+      await revokeGo().catch(() => revokeGo()).catch(() => {})
       await authClient.signOut().catch((err) => console.warn("[hiffi] Better Auth sign-out failed:", err))
+    } catch (error) {
+      console.warn("[hiffi] Remote sign-out failed, clearing local session:", error)
+    }
 
-      // Clear cached data
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(USER_DATA_KEY)
-        localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
-      }
+    apiClient.clearAuthToken()
+    apiClient.clearCredentials()
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(USER_DATA_KEY)
+      localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
+    }
+    identifyAnalyticsUser(null)
+    setUmamiUser(null)
 
+    try {
       debugLog("[hiffi] Logout successful")
 
       const currentPath =
@@ -889,7 +882,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("[hiffi] Sign out failed:", error)
-      throw error
+      setUser(null)
+      setUserData(null)
     }
   }
 

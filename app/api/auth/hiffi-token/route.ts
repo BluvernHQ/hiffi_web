@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     username: (session.user as { username?: string | null }).username,
     emailVerified: session.user.emailVerified,
     provider,
+    betterAuthId: session.user.id,
   })
   return NextResponse.json(json, { status })
 }

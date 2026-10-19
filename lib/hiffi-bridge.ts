@@ -51,6 +51,7 @@ export function exchangeForGoToken(identity: {
   username?: string | null
   emailVerified?: boolean
   provider: string
+  betterAuthId?: string
 }) {
   const secret = process.env.AUTH_BRIDGE_SECRET
   if (!secret) {
@@ -67,6 +68,7 @@ export function exchangeForGoToken(identity: {
       username: identity.username ?? "",
       email_verified: identity.emailVerified ?? false,
       provider: identity.provider,
+      better_auth_id: identity.betterAuthId ?? "",
     },
     { "X-Auth-Bridge-Secret": secret },
   )

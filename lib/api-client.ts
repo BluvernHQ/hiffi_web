@@ -192,26 +192,6 @@ function flattenVideoListItems(rawVideos: unknown[]): Video[] {
   })
 }
 
-// Cookie utilities
-function setCookie(name: string, value: string, days: number = 30): void {
-  if (typeof document === "undefined") return
-  const expires = new Date()
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
-  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Strict`
-}
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null
-  const nameEQ = name + "="
-  const ca = document.cookie.split(";")
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i]
-    while (c.charAt(0) === " ") c = c.substring(1, c.length)
-    if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length))
-  }
-  return null
-}
-
 function deleteCookie(name: string): void {
   if (typeof document === "undefined") return
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
@@ -319,29 +299,21 @@ class ApiClient {
     }
   }
 
-  // Store credentials in cookies
-  setCredentials(username: string, password: string): void {
-    setCookie(USERNAME_COOKIE, username)
-    setCookie(PASSWORD_COOKIE, password)
+  setCredentials(_username: string, _password: string): void {
+    this.clearCredentials()
   }
 
-  // Get credentials from cookies
   getCredentials(): { username: string | null; password: string | null } {
-    return {
-      username: getCookie(USERNAME_COOKIE),
-      password: getCookie(PASSWORD_COOKIE),
-    }
+    return { username: null, password: null }
   }
 
-  // Clear credentials from cookies
   clearCredentials(): void {
     deleteCookie(USERNAME_COOKIE)
     deleteCookie(PASSWORD_COOKIE)
   }
 
-  // Auto-login using stored credentials
+  /** Reissue a Go JWT from the Better Auth cookie. Never stores a password. */
   private async autoLogin(): Promise<string | null> {
-    // Prevent multiple simultaneous login attempts
     if (this.isRefreshing && this.refreshPromise) {
       return this.refreshPromise
     }
@@ -349,28 +321,21 @@ class ApiClient {
     this.isRefreshing = true
     this.refreshPromise = (async () => {
       try {
-        const credentials = this.getCredentials()
-        if (!credentials.username || !credentials.password) {
-          console.log("[API] No stored credentials for auto-login")
-          return null
-        }
-
-        console.log("[API] Attempting auto-login with stored credentials")
-        const response = await this.login({
-          username: credentials.username,
-          password: credentials.password,
+        const res = await fetch("/api/auth/hiffi-token", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
         })
-
-        if (response.success && response.data.token) {
-          console.log("[API] Auto-login successful")
-          return response.data.token
-        }
-
-        return null
+        const json = (await res.json().catch(() => null)) as {
+          success?: boolean
+          data?: { token?: string }
+        } | null
+        const token = json?.success && json.data?.token ? json.data.token : null
+        if (!token) return null
+        this.setAuthToken(token)
+        return token
       } catch (error) {
-        console.error("[API] Auto-login failed:", error)
-        // Clear invalid credentials
-        this.clearCredentials()
+        console.error("[API] Better Auth token refresh failed:", error)
         return null
       } finally {
         this.isRefreshing = false
@@ -417,7 +382,11 @@ class ApiClient {
     const startTime = Date.now()
 
     try {
-      const response = await fetchWithNetworkRetry(url, { ...options, headers }, method)
+      const response = await fetchWithNetworkRetry(
+        url,
+        { credentials: options.credentials ?? "include", ...options, headers },
+        method,
+      )
 
       const duration = Date.now() - startTime
 
@@ -426,17 +395,23 @@ class ApiClient {
         let retried = false
         
         // Handle 401 Unauthorized - try auto-login if we have stored credentials
-        if (response.status === 401 && requiresAuth && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
-          console.log("[API] Got 401, attempting auto-login with stored credentials")
+        if (
+          response.status === 401 &&
+          requiresAuth &&
+          !endpoint.includes("/auth/login") &&
+          !endpoint.includes("/auth/register") &&
+          !endpoint.includes("/auth/logout")
+        ) {
+          console.log("[API] Got 401, attempting Better Auth session refresh")
           const newToken = await this.autoLogin()
           
           if (newToken) {
-            // Retry the original request with the new token
             console.log("[API] Retrying request with new token")
             headers["Authorization"] = `Bearer ${newToken}`
             
             const retryResponse = await fetch(url, {
               ...options,
+              credentials: options.credentials ?? "include",
               headers,
             })
             
