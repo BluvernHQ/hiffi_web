@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useAuth, type SocialProvider } from "@/lib/auth-context"
+import { useAuth } from "@/lib/auth-context"
 import { validateRedirect, buildSignupUrl, resolvePostAuthDestination, resolveSkipDestination } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
+import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons"
 import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
@@ -31,14 +32,9 @@ function LoginForm() {
   const [error, setError] = useState("")
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const turnstileRef = useRef<TurnstileWidgetHandle>(null)
-  const { login, loginWithProvider, logout, user, userData, loading: authLoading } = useAuth()
+  const { login, logout, user, userData, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [socialProviders, setSocialProviders] = useState<{ google: boolean; apple: boolean }>({
-    google: false,
-    apple: false,
-  })
-  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null)
-  
+
   // Get redirect parameter from URL (preserved from where user came from)
   const redirectParam = searchParams.get('redirect')
   const redirectPath = validateRedirect(redirectParam)
@@ -56,13 +52,6 @@ function LoginForm() {
   if (redirectPath) forgotPasswordParams.set("redirect", redirectPath)
   const forgotPasswordQuery = forgotPasswordParams.toString()
   const forgotPasswordHref = forgotPasswordQuery ? `/forgot-password?${forgotPasswordQuery}` : "/forgot-password"
-
-  useEffect(() => {
-    fetch("/api/auth/providers")
-      .then((res) => res.json())
-      .then((data) => setSocialProviders({ google: data.google === true, apple: data.apple === true }))
-      .catch(() => {})
-  }, [])
 
   useEffect(() => {
     if (searchParams.get("error") === "social") {
@@ -177,17 +166,6 @@ function LoginForm() {
     }
   }
 
-  const handleSocialLogin = async (provider: SocialProvider) => {
-    setSocialLoading(provider)
-    setError("")
-    try {
-      await loginWithProvider(provider, redirectPath)
-    } catch (err: any) {
-      setError(err.message || "This sign-in method is currently unavailable")
-      setSocialLoading(null)
-    }
-  }
-
   const handleSkip = () => {
     router.replace(resolveSkipDestination(redirectPath))
   }
@@ -283,7 +261,7 @@ function LoginForm() {
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button
               type="submit"
-              className="w-full"
+              className="h-11 w-full rounded-lg"
               disabled={isLoading || (isTurnstileEnabled() && !turnstileToken)}
               data-analytics-name="login-submit-button"
             >
@@ -297,42 +275,7 @@ function LoginForm() {
               )}
             </Button>
           </form>
-          {(socialProviders.google || socialProviders.apple) && (
-            <div className="mt-6 space-y-3">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
-              {socialProviders.google && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={socialLoading !== null}
-                  onClick={() => handleSocialLogin("google")}
-                >
-                  {socialLoading === "google" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Continue with Google
-                </Button>
-              )}
-              {socialProviders.apple && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={socialLoading !== null}
-                  onClick={() => handleSocialLogin("apple")}
-                >
-                  {socialLoading === "apple" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Continue with Apple
-                </Button>
-              )}
-            </div>
-          )}
+          <SocialSignInButtons redirectPath={redirectPath} />
         </CardContent>
         <CardFooter className="flex justify-center">
           <div className="text-center text-sm">

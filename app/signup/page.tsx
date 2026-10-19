@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Check, X, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
+import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons"
 import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
@@ -467,6 +468,7 @@ function SignupForm() {
               )}
             </Button>
           </form>
+          <SocialSignInButtons redirectPath={redirectPath} />
         </CardContent>
         <CardFooter className="flex justify-center">
           <div className="text-center text-sm">
