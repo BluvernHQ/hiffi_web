@@ -384,7 +384,7 @@ class ApiClient {
     try {
       const response = await fetchWithNetworkRetry(
         url,
-        { credentials: options.credentials ?? "include", ...options, headers },
+        { credentials: "omit", ...options, headers },
         method,
       )
 
@@ -411,7 +411,7 @@ class ApiClient {
             
             const retryResponse = await fetch(url, {
               ...options,
-              credentials: options.credentials ?? "include",
+              credentials: "omit",
               headers,
             })
             
