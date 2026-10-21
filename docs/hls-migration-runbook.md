@@ -13,7 +13,9 @@ MP4 stays the primary format. HLS is added alongside it and served only when the
 | Web player | `web/` | current branch |
 | Embedding service | `hiffi-embedding` | no change (keeps reading `original.mp4`) |
 
-The MP4 encoder (`video_upload` queue, `enc_new_format` binary) is not modified.
+The MP4 encoder (`video_upload` queue, `enc_new_format` binary) is not modified. The HLS queue is
+a RabbitMQ priority queue (`x-max-priority: 10`), declared identically by the backend and the
+worker: new uploads 9, stale-job sweep 5, backfill 0.
 
 ## HLS v1 format
 
@@ -41,7 +43,7 @@ The MP4 encoder (`video_upload` queue, `enc_new_format` binary) is not modified.
 | `RABBITMQ_HLS_DLQ_QUEUE` | unset | e.g. `video_hls_dlq` |
 | `HLS_PLAYBACK_ENABLED` | `false` | Global kill switch. `false` = no response contains `hls_url` |
 | `HLS_PLAYBACK_PERCENT` | `100` | Share of videos (stable hash of `video_id`) that get `hls_url` when enabled |
-| `HLS_ENQUEUE_NEW_UPLOADS` | `false` | Queue an HLS job after each new video is registered |
+| `HLS_ENQUEUE_NEW_UPLOADS` | `false` | New uploads: queue an HLS job (priority 9) and stop producing `240p.mp4`; only `original.mp4` is kept as MP4 |
 | `MEDIA_SIGNING_SECRET` | unset | Must equal the Worker secret. Unset = `hls_url` never emitted |
 | `HLS_TOKEN_TTL_SECONDS` | `21600` | Token lifetime (rounded up to the hour) |
 
@@ -134,14 +136,32 @@ get HLS. QA on production.
 - `playback_hls_fallback` events (should stay well below 1 % of HLS plays);
 - `stream_quality_issue` reports.
 
-### 7. New uploads
+### 7. New uploads: HLS only (no more 240p.mp4)
 
-Set `HLS_ENQUEUE_NEW_UPLOADS=true`. New videos go live on MP4 immediately and gain HLS a few
-minutes later.
+Set `HLS_ENQUEUE_NEW_UPLOADS=true` (with the HLS queue configured). From then on, for every new
+upload:
+
+1. The MP4 encoder is asked for no renditions, so it only normalises the uploaded
+   `original.mp4` (faststart; re-encoded to H.264/AAC only when needed). `240p.mp4` is no longer
+   produced. `profiles` for these videos is `["original"]`.
+2. The video goes live as soon as that finishes, exactly as today.
+3. An HLS job is queued at priority 9, ahead of backfill jobs (priority 0), and `hls_url` appears a
+   few minutes later.
+
+`original.mp4` is the only MP4 kept. It remains the source for the embedding service, Google
+`contentUrl`/`og:video`/video sitemap, feed and hero previews, and the fallback when HLS fails or
+`HLS_PLAYBACK_ENABLED` is switched off. Previews of new videos use `original.mp4` (no 240p), so
+they load more bytes than before.
+
+Turning `HLS_ENQUEUE_NEW_UPLOADS` off (or removing the HLS queue) restores `240p.mp4` for new
+uploads automatically. Run the worker with enough capacity that new uploads are not delayed:
+one process handles one job at a time, about 1 minute of CPU per 2 minutes of 1080p video with
+`HLS_X264_PRESET=fast`.
 
 ### 8. Later (separate decision)
 
-Making HLS the default, setting `REQUIRE_HLS_TOKEN=true`, and retiring `240p.mp4`.
+Making HLS the default, setting `REQUIRE_HLS_TOKEN=true`, and deleting the existing `240p.mp4`
+files of videos that have HLS.
 
 ## Rollback
 

@@ -17,6 +17,9 @@ The backend now adds two optional fields to every video object it returns (`GET 
 - `hls_url` is present only when the video has HLS and the server-side rollout includes it. When it
   is missing, play MP4 exactly as today. Old app versions ignore both fields.
 - `video_url`, `profiles` and `original_profile` keep their current meaning (MP4 files).
+- Once HLS is enabled for new uploads, new videos have no `240p.mp4`: `profiles` is
+  `["original"]` and the only MP4 is `original.mp4`. Use `hls_url` for playback and keep
+  `original.mp4` as the fallback; do not build `240p.mp4` URLs for these videos.
 - The URL is signed and expires (6 h, rounded up to the hour). Do not cache it across app sessions;
   use the one from the latest API response. No `x-api-key` or other header is needed for HLS.
 - Format: HLS v7, fMP4 segments, H.264 High + AAC-LC, 240p-1080p ladder.
