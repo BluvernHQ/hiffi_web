@@ -9,7 +9,7 @@ import {
 import { unwrapVideoStreamProxyUrl } from "./seo/video-public-urls"
 import { getVideoUrl } from "./storage"
 
-export type VideoSourceType = "mp4"
+export type VideoSourceType = "mp4" | "hls"
 
 export interface VideoSource {
   type: VideoSourceType

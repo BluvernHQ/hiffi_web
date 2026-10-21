@@ -119,6 +119,9 @@ export interface Video {
   streaming_url?: string // Streaming URL (same as video_url, for compatibility)
   userUsername?: string // Alias for user_username (for compatibility)
   user_profile_picture?: string // Creator profile picture from video metadata
+  /** Signed HLS master playlist; present only when the backend enables HLS for this video. */
+  hls_url?: string
+  hls_status?: string
 }
 
 /** Public curated playlist row from GET /playlists/curated (no owner) */

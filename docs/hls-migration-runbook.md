@@ -1,0 +1,160 @@
+# HLS migration runbook
+
+MP4 stays the primary format. HLS is added alongside it and served only when the backend returns
+`hls_url` for a video. Every step below can be undone without touching MP4 playback.
+
+## Components and where the code lives
+
+| Piece | Repo / path | Branch |
+|---|---|---|
+| Media Worker (serves R2) | `hiffi-media-worker/` (new local repo) | `master` |
+| HLS packager + worker | `hiffi-encoding/hiffi_encoding/hls`, `cmd/hls-worker` | `feat/hls-worker` (from `enc_new_format`) |
+| API: schema, endpoints, flags, backfill | `hiffi-backend` | `feat/hls` |
+| Web player | `web/` | current branch |
+| Embedding service | `hiffi-embedding` | no change (keeps reading `original.mp4`) |
+
+The MP4 encoder (`video_upload` queue, `enc_new_format` binary) is not modified.
+
+## HLS v1 format
+
+- Layout: `videos/{id}/hls/v1/master.m3u8`, `{rung}/index.m3u8`, `{rung}/init.mp4`,
+  `{rung}/seg_00000.m4s`, plus `hls.json` (metadata). Never written anywhere else.
+- CMAF/fMP4, 6 s segments, keyframe forced at every segment boundary (all rungs GOP-aligned).
+- H.264 High, yuv420p (10-bit sources are converted), CRF 21 capped by `-maxrate`; AAC-LC 128k
+  stereo 48 kHz muxed. Silent sources get no audio track.
+- Ladder by short side, never upscaled, max 1080: 240p/400k, 360p/800k, 480p/1400k,
+  720p/2800k, 1080p/5000k. Portrait and rotated phone videos keep their orientation; no stretching.
+- Master lists BANDWIDTH (measured peak), AVERAGE-BANDWIDTH, RESOLUTION, FRAME-RATE and CODECS read
+  from the encoded output. The 480p (or nearest lower) rung is listed first as the start variant.
+- Every rendition is verified before upload: VOD playlist complete, all segments present,
+  duration within 0.5 s + 0.5 % of the source, codec/pixel format/size as planned.
+- Files upload first, `master.m3u8` last; the backend only marks a video ready after it sees the
+  master playlist in R2.
+
+## Environment variables
+
+### hiffi-backend
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `RABBITMQ_HLS_QUEUE` | unset | e.g. `video_hls`. Unset = HLS jobs disabled, backend behaves as before |
+| `RABBITMQ_HLS_DLQ_QUEUE` | unset | e.g. `video_hls_dlq` |
+| `HLS_PLAYBACK_ENABLED` | `false` | Global kill switch. `false` = no response contains `hls_url` |
+| `HLS_PLAYBACK_PERCENT` | `100` | Share of videos (stable hash of `video_id`) that get `hls_url` when enabled |
+| `HLS_ENQUEUE_NEW_UPLOADS` | `false` | Queue an HLS job after each new video is registered |
+| `MEDIA_SIGNING_SECRET` | unset | Must equal the Worker secret. Unset = `hls_url` never emitted |
+| `HLS_TOKEN_TTL_SECONDS` | `21600` | Token lifetime (rounded up to the hour) |
+
+`?hls_qa=1` on any video endpoint returns `hls_url` for that request even when
+`HLS_PLAYBACK_PERCENT` excludes the video (still requires `HLS_PLAYBACK_ENABLED=true`). The web app
+sends it when the page URL has `?playback=hls`.
+
+### hls-worker
+
+See `hiffi-encoding/hiffi_encoding/cmd/hls-worker/env.example`. Queue names must match the backend.
+
+### Media Worker
+
+`MEDIA_SIGNING_SECRET` (secret), `REQUIRE_HLS_TOKEN` (`"false"`).
+
+### Web
+
+`NEXT_PUBLIC_HLS_PLAYBACK=off` removes HLS from a build. `?playback=mp4` forces MP4 for one page
+view and `?playback=hls` requests the QA override.
+
+## Rollout
+
+Each gate must pass before the next step.
+
+### 0. Before anything (needs server access)
+
+- [ ] Confirm the binary PM2/systemd runs for the MP4 encoder and the production queue names
+      (`RABBITMQ_UPLOAD_QUEUE` etc. in the API server's `.env`).
+- [ ] Take a DigitalOcean managed Postgres backup.
+- [ ] Rotate the credentials that were committed to hiffi-backend's git history before `0407599f`
+      (Postgres, R2, RabbitMQ).
+- [ ] Note the R2 inventory baseline (2026-10-21, `prod-hiffi`): 9,913 video folders,
+      7,550 with `original.mp4` (273.6 GB), 2,363 folders holding only a leftover `240p.mp4` from
+      deleted videos, 0 HLS objects.
+
+### 1. Backend, dark
+
+1. Deploy `feat/hls` with `RUN_MIGRATIONS=true` once (migration `080_add_hls_to_videos.sql` is
+   idempotent and only adds columns with defaults).
+2. Leave `HLS_PLAYBACK_ENABLED`, `HLS_ENQUEUE_NEW_UPLOADS` unset.
+3. Gate: `GET /videos/{id}` and `/videos/list` responses are unchanged (no `hls_*` keys);
+   `go run ./scripts/hls_backfill status` shows every video as `none`.
+
+### 2. Media Worker
+
+1. `npx wrangler secret put MEDIA_SIGNING_SECRET` (dev), `npm test`, `npm run deploy:dev`.
+2. Gate on dev: an existing MP4 and thumbnail still load; `curl -I` of an `.mp4` with
+   `Range: bytes=0-1` returns 206.
+3. Repeat for prod with `--env production`; keep `npm run rollback:prod` ready.
+
+### 3. HLS worker on dev
+
+1. Set `RABBITMQ_HLS_QUEUE`/`RABBITMQ_HLS_DLQ_QUEUE` and `MEDIA_SIGNING_SECRET` on the dev API.
+2. Run the worker (`docker build -f cmd/hls-worker/Dockerfile -t hiffi-hls-worker .` from
+   `hiffi_encoding/`, then `docker run --env-file .env hiffi-hls-worker`, or the Linux binary under
+   PM2 as `hiffi-hls-worker`). Prefer a separate VM from the MP4 encoder.
+3. `go run ./scripts/hls_backfill enqueue --limit 20 --execute` on dev, including portrait,
+   4:3, silent, HEVC/10-bit iPhone, long (60 min+) and very short uploads.
+4. Gate: `status` shows them `ready`; `verify` reports `missing=0`; with
+   `HLS_PLAYBACK_ENABLED=true`, `?playback=hls` plays on Chrome, Firefox, Safari macOS, iPhone
+   Safari and Android Chrome; seeking, quality menu (Auto + rungs) and the HLS->MP4 fallback work
+   (block `*.m4s` in devtools to trigger it).
+
+### 4. Production backfill canary
+
+```bash
+go run ./scripts/hls_backfill enqueue --limit 10            # dry run, review the list
+go run ./scripts/hls_backfill enqueue --limit 10 --execute
+go run ./scripts/hls_backfill status
+go run ./scripts/hls_backfill verify --limit 10
+```
+
+Then `--limit 100 --execute`, then the rest in batches (`--limit 500 --rate 2`). Watch the
+`video_hls_dlq` queue, `status` failures, worker disk and CPU, and R2 storage. Expect roughly
++60-80 % of the originals' size in HLS output. `sweep --stale-hours 6 --execute` re-queues
+anything a crashed worker left behind (dry run first).
+
+### 5. Web player
+
+Ship the web changes. With `HLS_PLAYBACK_ENABLED` still `false` nothing changes for users.
+Then set `HLS_PLAYBACK_ENABLED=true` and `HLS_PLAYBACK_PERCENT=0`: only `?playback=hls` requests
+get HLS. QA on production.
+
+### 6. Gradual playback rollout
+
+`HLS_PLAYBACK_PERCENT` 5 -> 25 -> 50 -> 100, at least a day each. Compare:
+
+- watch-hours rows with `player = 'web-videojs-hls'` vs `'web-videojs'`;
+- `conversion_play_started` by `source_type`;
+- `playback_hls_fallback` events (should stay well below 1 % of HLS plays);
+- `stream_quality_issue` reports.
+
+### 7. New uploads
+
+Set `HLS_ENQUEUE_NEW_UPLOADS=true`. New videos go live on MP4 immediately and gain HLS a few
+minutes later.
+
+### 8. Later (separate decision)
+
+Making HLS the default, setting `REQUIRE_HLS_TOKEN=true`, and retiring `240p.mp4`.
+
+## Rollback
+
+| Problem | Action | Effect |
+|---|---|---|
+| Any playback issue | `HLS_PLAYBACK_ENABLED=false` (restart API) | All clients back on MP4 at next API call |
+| Bad HLS output | stop the worker; `UPDATE videos SET hls_status='none' WHERE ...`; delete `videos/{id}/hls/` | Those videos play MP4 |
+| Worker change broke MP4 | `npm run rollback:prod` in hiffi-media-worker | Previous Worker version |
+| Web regression | `NEXT_PUBLIC_HLS_PLAYBACK=off` build, or revert | Web on MP4 |
+| Migration | none needed; columns are additive and ignored when flags are off | |
+
+## Deletion
+
+User delete, admin delete and account deletion now remove the whole `videos/{id}/` prefix
+(original, 240p and HLS) plus the thumbnail. The 2,363 orphaned `240p.mp4` folders that already
+exist are not cleaned up automatically.

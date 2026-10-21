@@ -1,4 +1,5 @@
 import type { ApiClientContext } from "./context"
+import { hlsQaQuery } from "@/lib/hls-playback"
 
 export type VideoApiShape = {
   video_id?: string
@@ -44,7 +45,7 @@ export async function getVideo(
     following?: boolean
     profile_picture?: string
     put_view_error?: string
-  }>(`/videos/${videoId}`, {}, true)
+  }>(`/videos/${videoId}${hlsQaQuery()}`, {}, true)
 
   const isSuccess = response.status === "success" || response.success
   if (!isSuccess) return { success: false, video_url: "" }

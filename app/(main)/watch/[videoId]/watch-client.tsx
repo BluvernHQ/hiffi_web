@@ -1868,6 +1868,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                   currentPlayerVideo?.original_profile || currentPlayerVideo?.originalProfile
                 }
                 storageVideoPath={currentPlayerVideo?.storage_video_url}
+                hlsUrl={currentPlayerVideo?.hls_url}
                 onNext={handlePlayerNext}
                 onPrevious={handlePlayerPrevious}
                 previousVideoDisabled={!canNavigateToPreviousVideo}

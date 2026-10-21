@@ -16,6 +16,7 @@ export type ConversionEventName =
   | "conversion_auth_prompt_dismissed"
   | "conversion_passive_nudge_shown"
   | "conversion_passive_nudge_dismissed"
+  | "playback_hls_fallback"
 
 export type ConversionSource =
   | "home"
@@ -57,6 +58,7 @@ export function capturePlaybackStarted(
     playbackStartTrigger: PlaybackStartTrigger
     fallbackSource?: ConversionSource
     playlistId?: string
+    sourceType?: "mp4" | "hls"
   },
 ) {
   const id = String(videoId || "").trim()
@@ -80,6 +82,7 @@ export function capturePlaybackStarted(
     is_click: !options.isAutoplay,
     playlist_id: pending.playlistId ?? options.playlistId,
     playlist_track_index: pending.playlistTrackIndex,
+    source_type: options.sourceType,
   })
 }
 

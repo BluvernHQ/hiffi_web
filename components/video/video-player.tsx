@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, Minimize, Settings, Check, SkipBack, SkipForward } from "lucide-react"
-import Script from "next/script"
+import "video.js/dist/video-js.css"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -27,7 +27,9 @@ import {
   isLogicalOriginalStoragePath,
   profileKeyFromPlaybackUrl,
   profileToPlaybackUrl,
+  resolveVideoBaseUrl,
 } from "@/lib/video-profiles"
+import { isHlsUrl, mimeTypeForUrl, pickHlsUrl, renditionLabel } from "@/lib/hls-playback"
 import { captureConversionEvent, capturePlaybackStarted } from "@/lib/conversion-tracking"
 import {
   PAUSED_VIDEO,
@@ -45,7 +47,7 @@ import { usePlayerAudioSettings } from "@/components/video/hooks/use-player-audi
 import { generateSessionId, getResolutionProfile } from "@/components/video/video-player-utils"
 import { getPlayerVolume, setPlayerMuted, setPlayerVolume } from "@/lib/ux-prefs"
 
-// Add declaration for videojs since we're loading it from CDN
+// video.js is loaded with a dynamic import and also exposed on window
 declare global {
   interface Window {
     videojs: any & {
@@ -71,6 +73,8 @@ interface VideoPlayerProps {
   originalProfile?: string
   /** Storage path from API (e.g. videos/{id}/original.mp4) when videoUrl is the gateway base. */
   storageVideoPath?: string
+  /** Signed HLS master playlist from the API (`hls_url`). When absent, the player uses MP4. */
+  hlsUrl?: string
   isMini?: boolean // Optional flag for mini-player mode (used by GlobalPersistentPlayer)
   /** Called with the next videoId when the player's Next button is pressed. When provided, no route navigation occurs so the player stays mounted (preserves fullscreen). */
   onNext?: (nextId: string) => void
@@ -93,6 +97,7 @@ const STORAGE_KEYS = {
 } as const
 const WATCH_REPORT_INTERVAL_SECONDS = 10
 const EMPTY_PROFILES: string[] = []
+const HLS_AUTO_PROFILE = "auto"
 
 type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
 
@@ -156,6 +161,7 @@ export function VideoPlayer({
   availableProfiles,
   originalProfile,
   storageVideoPath,
+  hlsUrl,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isMini, // Currently unused but reserved for mini-player specific UI tweaks
   onNext,
@@ -188,6 +194,10 @@ export function VideoPlayer({
   const signedUrlVideoIdRef = useRef<string>("")
   const [videoSourceType, setVideoSourceType] = useState<VideoSourceType | null>(null)
   const videoSourceTypeRef = useRef<VideoSourceType | null>(null)
+  // Videos whose HLS stream failed in this session stay on MP4 until reload.
+  const hlsFailedVideoIdsRef = useRef<Set<string>>(new Set())
+  const mp4ResolveArgsRef = useRef<{ targetPath: string; storagePath: string }>({ targetPath: "", storagePath: "" })
+  const resumeAtSecondsRef = useRef(0)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [profiles, setProfiles] = useState<Record<string, { label: string; path: string }>>({})
   const primaryProfileKey = getPrimaryProfileKey(originalProfile)
@@ -434,7 +444,7 @@ export function VideoPlayer({
         client_timestamp: Math.floor(Date.now() / 1000),
         device_id: getWatchDeviceId() || undefined,
         session_id: watchSessionIdRef.current,
-        player: "web-videojs",
+        player: videoSourceTypeRef.current === "hls" ? "web-videojs-hls" : "web-videojs",
       })
       if (typeof window !== "undefined") {
         window.dispatchEvent(
@@ -681,10 +691,27 @@ export function VideoPlayer({
     }, DOUBLE_TAP_DELAY);
   };
 
-  // Sync isReady with window.videojs presence
+  // Load the pinned video.js package (includes VHS for HLS) once, then expose it on window for
+  // helpers like withVideoJsLogsSuppressed.
   useEffect(() => {
-    if (typeof window !== "undefined" && window.videojs) {
+    if (typeof window === "undefined") return
+    if (window.videojs) {
       setIsReady(true)
+      return
+    }
+    let cancelled = false
+    import("video.js")
+      .then((mod) => {
+        if (cancelled) return
+        if (!window.videojs) window.videojs = mod.default
+        setIsReady(true)
+      })
+      .catch((err) => {
+        console.error("[hiffi] Failed to load video.js:", err)
+        if (!cancelled) setUrlError("Failed to load video player")
+      })
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -828,6 +855,7 @@ export function VideoPlayer({
         let profileForResolve = originalProfile
         let profilesForFallback = resolvedProfiles
         let storagePathForResolve = storageVideoPath?.trim() || ""
+        let hlsCandidate: unknown = hlsUrl
 
         const lookupId =
           (videoId || "").trim() || (/^[a-f0-9]{64}$/i.test(videoUrl) ? videoUrl : "")
@@ -864,11 +892,30 @@ export function VideoPlayer({
             if (metaStoragePath) {
               storagePathForResolve = metaStoragePath
             }
+            if (!hlsCandidate) {
+              hlsCandidate = videoMeta.hls_url
+            }
           }
         }
 
         originalProfileRef.current = profileForResolve
         availableProfilesRef.current = profilesForFallback
+        mp4ResolveArgsRef.current = { targetPath, storagePath: storagePathForResolve }
+
+        const hlsSource = pickHlsUrl(hlsCandidate)
+        if (hlsSource && !hlsFailedVideoIdsRef.current.has(videoId || "")) {
+          console.log(`[hiffi] Resolved source: hls - ${hlsSource}`)
+          setVideoSourceType("hls")
+          videoSourceTypeRef.current = "hls"
+          setSignedVideoUrl(hlsSource)
+          signedVideoUrlRef.current = hlsSource
+          signedUrlVideoIdRef.current = videoId || ""
+          baseUrlRef.current = resolveVideoBaseUrl(storagePathForResolve || targetPath)
+          setCurrentProfile(HLS_AUTO_PROFILE)
+          setUrlError("")
+          setHasResolvedOnce(true)
+          return
+        }
 
         const source = await resolveVideoSource(targetPath, {
           originalProfile: profileForResolve,
@@ -911,12 +958,16 @@ export function VideoPlayer({
     }
 
     fetchUrl()
-  }, [videoUrl, videoId, skipVideoLookup, originalProfile, storageVideoPath, availableProfilesKey])
+  }, [videoUrl, videoId, skipVideoLookup, originalProfile, storageVideoPath, availableProfilesKey, hlsUrl])
 
   // Build profiles map from availableProfiles prop when signedVideoUrl is available
   useEffect(() => {
     if (!signedVideoUrl) {
       setProfiles((prev) => (Object.keys(prev).length === 0 ? prev : {}))
+      return
+    }
+    if (videoSourceType === "hls") {
+      rebuildHlsQualityMenu()
       return
     }
 
@@ -934,11 +985,47 @@ export function VideoPlayer({
         )
       return isSame ? prev : profilesMap
     })
-  }, [signedVideoUrl, availableProfilesKey, originalProfile])
+  }, [signedVideoUrl, availableProfilesKey, originalProfile, videoSourceType])
+
+  /** HLS menu: "Auto" plus one entry per rendition the player reports (empty on native Safari HLS). */
+  function rebuildHlsQualityMenu() {
+    const levels = playerRef.current?.qualityLevels?.()
+    const labels = new Set<string>()
+    for (let i = 0; i < (levels?.length ?? 0); i++) {
+      const label = renditionLabel(levels[i].width, levels[i].height)
+      if (label) labels.add(label)
+    }
+    const menu: Record<string, { label: string; path: string }> = {
+      [HLS_AUTO_PROFILE]: { label: "Auto", path: "" },
+    }
+    for (const label of [...labels].sort((a, b) => parseInt(b) - parseInt(a))) {
+      menu[label] = { label, path: "" }
+    }
+    setProfiles((prev) => {
+      const same =
+        Object.keys(prev).length === Object.keys(menu).length &&
+        Object.keys(menu).every((key) => prev[key]?.label === menu[key].label)
+      return same ? prev : menu
+    })
+  }
 
   const switchQuality = (profile: string) => {
     const player = playerRef.current
-    if (!player || !baseUrlRef.current) return
+    if (!player) return
+
+    if (videoSourceTypeRef.current === "hls") {
+      const levels = player.qualityLevels?.()
+      if (!levels) return
+      console.log(`[hiffi] Switching HLS quality to: ${profile}`)
+      for (let i = 0; i < levels.length; i++) {
+        levels[i].enabled =
+          profile === HLS_AUTO_PROFILE || renditionLabel(levels[i].width, levels[i].height) === profile
+      }
+      setCurrentProfile(profile)
+      return
+    }
+
+    if (!baseUrlRef.current) return
     
     console.log(`[hiffi] Switching MP4 quality to: ${profile}`)
     isSwitchingQualityRef.current = true
@@ -1016,6 +1103,10 @@ export function VideoPlayer({
 
     isInitializingRef.current = true
 
+    // Safari/iOS play HLS natively; everywhere else Video.js VHS (MSE) handles it. MP4 sources
+    // never go through VHS, so this does not change MP4 playback.
+    const useNativeHls = Boolean(vjs.browser?.IS_ANY_SAFARI || vjs.browser?.IS_IOS)
+
     // Initialize player
     // Note: We set autoplay to false in VideoJS config to have full control
     // We handle autoplay manually with safePlay() to preserve user's mute preference
@@ -1030,11 +1121,12 @@ export function VideoPlayer({
       preload: 'auto',
       html5: {
         vhs: {
-          enabled: false // Disable HLS tech
+          overrideNative: !useNativeHls,
+          limitRenditionByPlayerDimensions: true,
+          useDevicePixelRatio: true,
         },
-        vjshls: false, // Additional flag to disable HLS tech
         nativeAudioTracks: false,
-        nativeVideoTracks: false
+        nativeVideoTracks: false,
       },
         userActions: {
           doubleClick: false,
@@ -1043,6 +1135,15 @@ export function VideoPlayer({
       })
 
     playerRef.current = player
+
+    const qualityLevels = player.qualityLevels?.()
+    if (qualityLevels) {
+      const onLevelsChanged = () => {
+        if (videoSourceTypeRef.current === "hls") rebuildHlsQualityMenu()
+      }
+      qualityLevels.on("addqualitylevel", onLevelsChanged)
+      qualityLevels.on("removequalitylevel", onLevelsChanged)
+    }
 
     // Track forced mute from built-in autoplay
     player.on('autoplay-muted', () => {
@@ -1086,6 +1187,7 @@ export function VideoPlayer({
             : "autoplay_page_load",
           fallbackSource: playlistId ? "playlist" : "recommended",
           playlistId: playlistId ?? undefined,
+          sourceType: videoSourceTypeRef.current === "hls" ? "hls" : "mp4",
         })
         recordGuestVideoPlay(currentTrackedVideoId)
       }
@@ -1157,7 +1259,7 @@ export function VideoPlayer({
 
       // Enrich source label with detected height for pre-embed originals.
       const primaryKey = getPrimaryProfileKey(originalProfileRef.current)
-      if (currentProfile === primaryKey && primaryKey === "original") {
+      if (videoSourceTypeRef.current !== "hls" && currentProfile === primaryKey && primaryKey === "original") {
         const height = player.videoHeight()
         if (height > 0) {
           const label = getResolutionProfile(height)
@@ -1243,6 +1345,12 @@ export function VideoPlayer({
         const dur = player.duration?.() ?? 0
         const target = dur > 0 ? Math.min(initialSeekSeconds, dur - 1) : initialSeekSeconds
         try { player.currentTime(target) } catch {}
+      }
+      // Continue where HLS stopped after falling back to MP4.
+      if (resumeAtSecondsRef.current > 0) {
+        const resumeAt = resumeAtSecondsRef.current
+        resumeAtSecondsRef.current = 0
+        try { player.currentTime(resumeAt) } catch {}
       }
       lastWatchPositionRef.current = player.currentTime()
       // Keep lifecycle cleanup only; avoid forcing an audio-only overlay here.
@@ -1424,6 +1532,62 @@ export function VideoPlayer({
         return true
       }
 
+      // Any HLS failure switches this video to MP4 (resolved exactly like the non-HLS path),
+      // continuing from the current position. HLS is not retried for this video in the session.
+      const fallbackFromHls = (errorCode: number): boolean => {
+        if (videoSourceTypeRef.current !== "hls" || !activeVideoId) return false
+        if (hlsFailedVideoIdsRef.current.has(activeVideoId)) return false
+        hlsFailedVideoIdsRef.current.add(activeVideoId)
+        resumeAtSecondsRef.current = readPlayerNumber(player, "currentTime", 0)
+        console.warn(`[hiffi] HLS error (Code ${errorCode}), falling back to MP4:`, message)
+        captureConversionEvent("playback_hls_fallback", {
+          video_id: activeVideoId,
+          error_code: errorCode,
+          error_message: message,
+          position_seconds: resumeAtSecondsRef.current,
+        })
+        dismissError()
+        const { targetPath, storagePath } = mp4ResolveArgsRef.current
+        void resolveVideoSource(targetPath, {
+          originalProfile: originalProfileRef.current,
+          availableProfiles: availableProfilesRef.current,
+          storagePath: storagePath || undefined,
+        })
+          .then((source) => {
+            if (videoIdRef.current !== activeVideoId) return
+            setVideoSourceType("mp4")
+            videoSourceTypeRef.current = "mp4"
+            baseUrlRef.current = source.baseUrl || ""
+            setCurrentProfile(source.profileKey || getPrimaryProfileKey(originalProfileRef.current))
+            setSignedVideoUrl(source.url)
+            signedVideoUrlRef.current = source.url
+            setUrlError("")
+          })
+          .catch((err) => {
+            console.error("[hiffi] MP4 fallback after HLS error failed:", err)
+            setUrlError("Failed to load video")
+          })
+        return true
+      }
+
+      // HLS errors are handled before the source-switch guard below: a bad master playlist fails
+      // while the switch is still in flight, and dismissing it there would leave the player stuck.
+      if (
+        videoSourceTypeRef.current === "hls" &&
+        activeVideoId &&
+        signedUrlVideoIdRef.current === activeVideoId &&
+        isHlsUrl(trackedSrc)
+      ) {
+        if (code === 2 && typeof navigator !== "undefined" && navigator.onLine === false) {
+          setIsBuffering(false)
+          showPlaybackNetworkBanner(NO_INTERNET_USER_MESSAGE)
+          return
+        }
+        if (fallbackFromHls(code)) {
+          return
+        }
+      }
+
       // Ignore errors from intentional teardown or in-flight source switches.
       if (isSourceSwitchingRef.current || !playerSrc) {
         dismissError()
@@ -1515,9 +1679,7 @@ export function VideoPlayer({
     stopOtherMediaElements()
     // Keep element muted only until play() — preference restored in safePlay.
     player.muted(true)
-    const mimeType = signedVideoUrl.endsWith(".m3u8")
-      ? "application/x-mpegURL"
-      : "video/mp4"
+    const mimeType = mimeTypeForUrl(signedVideoUrl)
     player.src({
       src: signedVideoUrl,
       type: mimeType,
@@ -2027,18 +2189,6 @@ export function VideoPlayer({
       <div 
         className="absolute inset-0 z-10 cursor-pointer"
         onClick={handleVideoInteraction}
-      />
-
-      {/* Load video.js script */}
-      <Script 
-        src="https://vjs.zencdn.net/8.10.0/video.min.js"
-        onLoad={() => setIsReady(true)}
-      />
-      
-      {/* Load video.js CSS */}
-      <link 
-        href="https://vjs.zencdn.net/8.10.0/video-js.css" 
-        rel="stylesheet" 
       />
 
       <div data-vjs-player className="w-full h-full flex items-center justify-center">
