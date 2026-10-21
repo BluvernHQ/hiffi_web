@@ -72,6 +72,13 @@ Each gate must pass before the next step.
 
 - [ ] Confirm the binary PM2/systemd runs for the MP4 encoder and the production queue names
       (`RABBITMQ_UPLOAD_QUEUE` etc. in the API server's `.env`).
+- [ ] **Cloudflare blocks server-to-server callbacks.** From the encoding server (144.76.226.190),
+      `api.hiffi.com` and `api.dev.hiffi.com` answer every POST with a 403 bot challenge. The MP4
+      encoder's `/videos/encoding/ack` has failed this way since 2026-10-06 (6 production uploads
+      encoded but never published, last on 2026-10-15). Add a Cloudflare WAF skip rule for that IP
+      on `/videos/encoding/ack/*`, `/videos/hls/*` and `/videos/embedding/*`, then re-send the
+      stuck acks. Dev works around it with an `/etc/hosts` entry on the encoding server that sends
+      `api.dev.hiffi.com` straight to the dev origin (178.104.200.35).
 - [ ] Take a DigitalOcean managed Postgres backup.
 - [ ] Rotate the credentials that were committed to hiffi-backend's git history before `0407599f`
       (Postgres, R2, RabbitMQ).
