@@ -1648,6 +1648,21 @@ export function VideoPlayer({
         }
       }
 
+      // A missing MP4 file (404 / unsupported) fails while the source switch is still in flight.
+      // The resolver picks a rendition without probing, so this is how the right file is found:
+      // move on to the next candidate instead of dismissing the error.
+      if (
+        videoSourceTypeRef.current !== "hls" &&
+        (code === 2 || code === 4) &&
+        activeVideoId &&
+        signedUrlVideoIdRef.current === activeVideoId &&
+        trackedSrc &&
+        playbackPathKey(playerSrc || trackedSrc) === playbackPathKey(trackedSrc) &&
+        (typeof navigator === "undefined" || navigator.onLine !== false)
+      ) {
+        if (tryMp4Fallback(code)) return
+      }
+
       // Ignore errors from intentional teardown or in-flight source switches.
       if (isSourceSwitchingRef.current || !playerSrc) {
         dismissError()
