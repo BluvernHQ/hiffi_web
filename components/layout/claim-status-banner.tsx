@@ -126,7 +126,6 @@ export function ClaimStatusBanner({ className }: { className?: string }) {
           <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
             <Clock className="h-3.5 w-3.5 shrink-0 text-[#0B0B0C]/50" aria-hidden />
             <span className="font-semibold">Your profile is under review.</span>
-            <span className="text-[#0B0B0C]/60">Owner tools unlock once the Hiffi team approves your claim.</span>
           </p>
         ) : null}
       </div>
