@@ -90,7 +90,6 @@ export function ArtistIndexListing({
         introDescription={introDescription}
         sectionTitle={sectionTitle}
         sectionSubtitle={sectionSubtitle}
-        paginationHref={paginationHref}
         childrenBeforeGrid={childrenBeforeGrid}
         childrenAfterGrid={childrenAfterGrid}
       />
