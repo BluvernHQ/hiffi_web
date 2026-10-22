@@ -98,6 +98,8 @@ const STORAGE_KEYS = {
 const WATCH_REPORT_INTERVAL_SECONDS = 10
 const EMPTY_PROFILES: string[] = []
 const HLS_AUTO_PROFILE = "auto"
+const HLS_STARTUP_TIMEOUT_MS = 15000
+const HLS_STALL_TIMEOUT_MS = 15000
 
 type PlayerNumberMethod = "currentTime" | "duration" | "playbackRate"
 
@@ -198,6 +200,7 @@ export function VideoPlayer({
   const hlsFailedVideoIdsRef = useRef<Set<string>>(new Set())
   const mp4ResolveArgsRef = useRef<{ targetPath: string; storagePath: string }>({ targetPath: "", storagePath: "" })
   const resumeAtSecondsRef = useRef(0)
+  const hlsWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [signedPosterUrl, setSignedPosterUrl] = useState<string>("")
   const [profiles, setProfiles] = useState<Record<string, { label: string; path: string }>>({})
   const primaryProfileKey = getPrimaryProfileKey(originalProfile)
@@ -783,6 +786,7 @@ export function VideoPlayer({
         }
       }
       mp4FallbackAttemptsRef.current.clear()
+      clearHlsWatchdog()
       baseUrlRef.current = ""
       lastProcessedUrlRef.current = ""
       signedVideoUrlRef.current = ""
@@ -840,6 +844,13 @@ export function VideoPlayer({
         setUrlError("No video URL provided")
         }
         setIsLoadingUrl(false)
+        return
+      }
+
+      // The watch page is first seeded from SEO data whose URL is the crawler proxy
+      // (/proxy/video/stream?url=...). Wait for the API record instead of playing it.
+      if (videoUrl.includes("/proxy/video/stream")) {
+        setIsLoadingUrl(true)
         return
       }
 
@@ -987,6 +998,87 @@ export function VideoPlayer({
     })
   }, [signedVideoUrl, availableProfilesKey, originalProfile, videoSourceType])
 
+  function clearHlsWatchdog() {
+    if (hlsWatchdogRef.current) {
+      clearTimeout(hlsWatchdogRef.current)
+      hlsWatchdogRef.current = null
+    }
+  }
+
+  /**
+   * Switches the current video from HLS to MP4 (resolved exactly like the non-HLS path) and
+   * continues from the current position. HLS is not retried for this video in the session.
+   */
+  function fallbackHlsToMp4(player: any, reason: string, errorCode: number): boolean {
+    const activeVideoId = videoIdRef.current
+    if (videoSourceTypeRef.current !== "hls" || !activeVideoId) return false
+    if (signedUrlVideoIdRef.current !== activeVideoId) return false
+    if (hlsFailedVideoIdsRef.current.has(activeVideoId)) return false
+    hlsFailedVideoIdsRef.current.add(activeVideoId)
+    clearHlsWatchdog()
+    resumeAtSecondsRef.current = readPlayerNumber(player, "currentTime", 0)
+    console.warn(`[hiffi] HLS failed (${reason}), falling back to MP4`)
+    captureConversionEvent("playback_hls_fallback", {
+      video_id: activeVideoId,
+      error_code: errorCode,
+      error_message: reason,
+      position_seconds: resumeAtSecondsRef.current,
+    })
+    try {
+      player.error(null)
+    } catch {
+      // Player may be mid-dispose during route changes.
+    }
+    const { targetPath, storagePath } = mp4ResolveArgsRef.current
+    void resolveVideoSource(targetPath, {
+      originalProfile: originalProfileRef.current,
+      availableProfiles: availableProfilesRef.current,
+      storagePath: storagePath || undefined,
+    })
+      .then((source) => {
+        if (videoIdRef.current !== activeVideoId) return
+        setVideoSourceType("mp4")
+        videoSourceTypeRef.current = "mp4"
+        baseUrlRef.current = source.baseUrl || ""
+        setCurrentProfile(source.profileKey || getPrimaryProfileKey(originalProfileRef.current))
+        setSignedVideoUrl(source.url)
+        signedVideoUrlRef.current = source.url
+        setUrlError("")
+      })
+      .catch((err) => {
+        console.error("[hiffi] MP4 fallback after HLS failure failed:", err)
+        setUrlError("Failed to load video")
+      })
+    return true
+  }
+
+  /**
+   * VHS never raises a fatal error when every rendition keeps failing (it clears its exclusion
+   * list and retries forever), so HLS also falls back when it cannot start or stays stalled.
+   */
+  function armHlsWatchdog(player: any, kind: "startup" | "stall") {
+    clearHlsWatchdog()
+    if (videoSourceTypeRef.current !== "hls") return
+    const armedVideoId = videoIdRef.current
+    const armedAt = readPlayerNumber(player, "currentTime", 0)
+    hlsWatchdogRef.current = setTimeout(() => {
+      hlsWatchdogRef.current = null
+      if (videoSourceTypeRef.current !== "hls" || videoIdRef.current !== armedVideoId) return
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return
+      let stuck = false
+      try {
+        if (kind === "startup") {
+          stuck = player.readyState() < 3
+        } else {
+          stuck = !player.paused() && readPlayerNumber(player, "currentTime", 0) - armedAt < 0.5
+        }
+      } catch {
+        return
+      }
+      if (stuck) fallbackHlsToMp4(player, kind === "startup" ? "did not start" : "stalled", -1)
+    }, kind === "startup" ? HLS_STARTUP_TIMEOUT_MS : HLS_STALL_TIMEOUT_MS)
+  }
+
   /** HLS menu: "Auto" plus one entry per rendition the player reports (empty on native Safari HLS). */
   function rebuildHlsQualityMenu() {
     const levels = playerRef.current?.qualityLevels?.()
@@ -1077,6 +1169,7 @@ export function VideoPlayer({
       void reportWatchProgress(true)
       stopOtherMediaElements()
       clearConnectivityStallTimer()
+      clearHlsWatchdog()
       if (autoplayAttemptTimeoutRef.current) {
         clearTimeout(autoplayAttemptTimeoutRef.current)
         autoplayAttemptTimeoutRef.current = null
@@ -1294,6 +1387,7 @@ export function VideoPlayer({
     }
     const handleWaiting = () => {
       setIsBuffering(true)
+      if (videoSourceTypeRef.current === "hls") armHlsWatchdog(player, "stall")
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         setConnectionNotice("Connection lost. Trying to reconnect...")
         clearOfflineEscalationTimer()
@@ -1367,6 +1461,7 @@ export function VideoPlayer({
       notifyMediaReady()
     }
     const handlePlaying = () => {
+      clearHlsWatchdog()
       clearOfflineEscalationTimer()
       clearConnectivityStallTimer()
       setPlaybackNetworkBanner("")
@@ -1532,43 +1627,8 @@ export function VideoPlayer({
         return true
       }
 
-      // Any HLS failure switches this video to MP4 (resolved exactly like the non-HLS path),
-      // continuing from the current position. HLS is not retried for this video in the session.
-      const fallbackFromHls = (errorCode: number): boolean => {
-        if (videoSourceTypeRef.current !== "hls" || !activeVideoId) return false
-        if (hlsFailedVideoIdsRef.current.has(activeVideoId)) return false
-        hlsFailedVideoIdsRef.current.add(activeVideoId)
-        resumeAtSecondsRef.current = readPlayerNumber(player, "currentTime", 0)
-        console.warn(`[hiffi] HLS error (Code ${errorCode}), falling back to MP4:`, message)
-        captureConversionEvent("playback_hls_fallback", {
-          video_id: activeVideoId,
-          error_code: errorCode,
-          error_message: message,
-          position_seconds: resumeAtSecondsRef.current,
-        })
-        dismissError()
-        const { targetPath, storagePath } = mp4ResolveArgsRef.current
-        void resolveVideoSource(targetPath, {
-          originalProfile: originalProfileRef.current,
-          availableProfiles: availableProfilesRef.current,
-          storagePath: storagePath || undefined,
-        })
-          .then((source) => {
-            if (videoIdRef.current !== activeVideoId) return
-            setVideoSourceType("mp4")
-            videoSourceTypeRef.current = "mp4"
-            baseUrlRef.current = source.baseUrl || ""
-            setCurrentProfile(source.profileKey || getPrimaryProfileKey(originalProfileRef.current))
-            setSignedVideoUrl(source.url)
-            signedVideoUrlRef.current = source.url
-            setUrlError("")
-          })
-          .catch((err) => {
-            console.error("[hiffi] MP4 fallback after HLS error failed:", err)
-            setUrlError("Failed to load video")
-          })
-        return true
-      }
+      const fallbackFromHls = (errorCode: number): boolean =>
+        fallbackHlsToMp4(player, `error ${errorCode}: ${message || ""}`, errorCode)
 
       // HLS errors are handled before the source-switch guard below: a bad master playlist fails
       // while the switch is still in flight, and dismissing it there would leave the player stuck.
@@ -1684,6 +1744,11 @@ export function VideoPlayer({
       src: signedVideoUrl,
       type: mimeType,
     })
+    if (isHlsUrl(signedVideoUrl)) {
+      armHlsWatchdog(player, "startup")
+    } else {
+      clearHlsWatchdog()
+    }
     lastReadyNotifiedSourceRef.current = ""
 
     if (autoPlay) {
