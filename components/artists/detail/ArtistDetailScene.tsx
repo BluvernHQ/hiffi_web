@@ -1,15 +1,15 @@
 import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 import type { Artist } from "@/lib/artists"
+import { artistIndexCityHref, getArtistCitySlug } from "@/lib/artist-directory"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
 import { artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
-
-const BAND_LABEL = { top_5: "Top 5%", top_10: "Top 10%", top_25: "Top 25%" } as const
+import { publicRankHint } from "@/lib/chart-size"
 
 function tileBadge(artist: Artist): string | null {
-  if (artist.rank > 0) return `#${artist.rank} Hiffi 500`
   const band = artist.ranking?.status === "ranked" ? artist.ranking.band : null
-  return band && band in BAND_LABEL ? BAND_LABEL[band as keyof typeof BAND_LABEL] : null
+  return publicRankHint(artist.rank, band)
 }
 
 type ArtistDetailSceneProps = {
@@ -21,13 +21,27 @@ export function ArtistDetailScene({ artist, otherArtists }: ArtistDetailScenePro
   if (otherArtists.length === 0) return null
 
   const place = artistPlaceLabel(artist)
+  const citySlug = getArtistCitySlug(artist.city)
   const sameCity = place ? otherArtists.filter((other) => artistPlaceLabel(other) === place).length : 0
   const heading = place && sameCity >= otherArtists.length / 2 ? `More from ${place}` : "Artists to know"
 
   return (
     <section aria-labelledby="artist-scene">
-      <ArtistDetailEyebrow>In the scene</ArtistDetailEyebrow>
-      <ArtistDetailHeading id="artist-scene">{heading}</ArtistDetailHeading>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <ArtistDetailEyebrow>In the scene</ArtistDetailEyebrow>
+          <ArtistDetailHeading id="artist-scene">{heading}</ArtistDetailHeading>
+        </div>
+        {citySlug && place ? (
+          <Link
+            href={artistIndexCityHref(citySlug)}
+            className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#E8192C] transition-colors hover:text-[#d01528]"
+          >
+            Explore all {place} artists
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        ) : null}
+      </div>
 
       <ul className="scrollbar-none -mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-y-8 sm:overflow-visible sm:px-0 lg:grid-cols-6">
         {otherArtists.map((other) => {

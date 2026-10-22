@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import type { Artist } from "@/lib/artists"
 import { buildArtistDirectoryHref, parseArtistDirectorySearchParams } from "@/lib/artist-directory"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
@@ -15,14 +16,19 @@ import { ArtistIndexControls } from "@/components/artists/ArtistIndexControls"
 import { ArtistDirectoryGrid } from "@/components/artists/ArtistDirectoryGrid"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
 import { ArtistIndexClaimBand } from "@/components/artists/index/ArtistIndexClaimBand"
+import { ArtistIndexFaq } from "@/components/artists/ArtistIndexFaq"
 import { ArtistIndexMasthead } from "@/components/artists/index/ArtistIndexMasthead"
+import { ArtistIndexRosterNav } from "@/components/artists/index/ArtistIndexRosterNav"
 import { ArtistIndexScenes } from "@/components/artists/index/ArtistIndexScenes"
+import { chartListArtists, type ChartList } from "@/lib/artist-index/chart-list"
 import { Button } from "@/components/ui/button"
 import type { ArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
+import { INDEX_CHART_SIZES, type ChartSize } from "@/lib/chart-size"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 import { artistPageContainer } from "@/components/artists/artist-layout"
+import { useRestoreRosterScroll } from "@/components/artists/index/roster-scroll"
 
 type DirectorySnapshot = {
   query: string
@@ -43,15 +49,23 @@ type ArtistIndexHubClientProps = {
   introDescription?: string
   sectionTitle?: string
   sectionSubtitle?: string
-  paginationHref?: (page: number) => string
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
   /** Premium hub: dark masthead with the weekly chart, scenes, roster grid. */
   feature?: ArtistIndexHubFeature
+  /** `null` is All: the existing roster. A size filters that grid to the chart slice. */
+  chartSize?: ChartSize | null
+  chartList?: ChartList | null
   /** Whole-catalog size for the masthead; `artistCount` narrows while searching. */
   catalogCount?: number
   /** Genres with at least one artist, for the masthead browse links. */
   genreSlugs?: string[]
+}
+
+function chartRosterHref(size: ChartSize, cpage: number) {
+  const href = buildArtistDirectoryHref({ top: size })
+  if (cpage <= 1) return href
+  return href.includes("?") ? `${href}&cpage=${cpage}` : `${href}?cpage=${cpage}`
 }
 
 function filterKey(ids: string[]): string {
@@ -80,13 +94,16 @@ export function ArtistIndexHubClient({
   introDescription,
   sectionTitle: sectionTitleProp,
   sectionSubtitle: sectionSubtitleProp,
-  paginationHref,
   childrenBeforeGrid,
   childrenAfterGrid,
   feature,
+  chartSize = null,
+  chartList = null,
   catalogCount,
   genreSlugs,
 }: ArtistIndexHubClientProps) {
+  const router = useRouter()
+  useRestoreRosterScroll(chartSize)
   const [directory, setDirectory] = useState(initialDirectory)
   const [isPending, setIsPending] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -101,12 +118,18 @@ export function ArtistIndexHubClient({
   })
   directoryRef.current = directory
 
+  // Sync state when server components update or searchParams change via router navigation
+  useEffect(() => {
+    setDirectory(initialDirectory)
+  }, [initialDirectory])
+
   useEffect(() => {
     saveArtistDirectoryNavContext({
       returnUrl: buildArtistDirectoryHref({
         query: directory.query,
         activeFilterIds: directory.activeFilterIds,
         page: directory.currentPage,
+        top: chartSize ?? undefined,
       }),
       query: directory.query,
       activeFilterIds: directory.activeFilterIds,
@@ -120,6 +143,7 @@ export function ArtistIndexHubClient({
     directory.currentPage,
     directory.pageArtists,
     directory.totalMatches,
+    chartSize,
   ])
 
   useEffect(() => {
@@ -145,11 +169,13 @@ export function ArtistIndexHubClient({
         query: nextQuery,
         activeFilterIds: nextFilterIds,
         page,
+        top: chartSize ?? undefined,
       })
       const previousHref = buildArtistDirectoryHref({
         query: previous.query,
         activeFilterIds: previous.activeFilterIds,
         page: previous.currentPage,
+        top: chartSize ?? undefined,
       })
 
       lastRequestRef.current = { query: nextQuery, activeFilterIds: nextFilterIds, page }
@@ -157,9 +183,19 @@ export function ArtistIndexHubClient({
       const cached = getCachedDirectorySnapshot(nextQuery, nextFilterIds, page)
 
       if (historyMode === "push") {
-        window.history.pushState(null, "", href)
+        try {
+          window.history.pushState(window.history.state, "", href)
+        } catch {
+          window.history.pushState(null, "", href)
+        }
+        router.push(href, { scroll: false })
       } else if (historyMode === "replace") {
-        window.history.replaceState(null, "", href)
+        try {
+          window.history.replaceState(window.history.state, "", href)
+        } catch {
+          window.history.replaceState(null, "", href)
+        }
+        router.replace(href, { scroll: false })
       }
       setLoadError(null)
 
@@ -196,7 +232,12 @@ export function ArtistIndexHubClient({
         })
         .catch(() => {
           if (generation !== fetchGenerationRef.current) return
-          window.history.replaceState(null, "", previousHref)
+          try {
+            window.history.replaceState(window.history.state, "", previousHref)
+          } catch {
+            window.history.replaceState(null, "", previousHref)
+          }
+          router.replace(previousHref, { scroll: false })
           setDirectory(previous)
           setLoadError("Couldn't load artists. Check your connection and try again.")
         })
@@ -207,7 +248,7 @@ export function ArtistIndexHubClient({
           }
         })
     },
-    [],
+    [router, chartSize],
   )
 
   const handleRetry = useCallback(() => {
@@ -257,6 +298,14 @@ export function ArtistIndexHubClient({
         "Verified and emerging hip-hop and rap artists across cities — search profiles and explore official links."
       : `${directory.totalMatches.toLocaleString()} profiles match your filters`
 
+  const resolvedPaginationHref = (page: number) =>
+    buildArtistDirectoryHref({
+      query: directory.query,
+      activeFilterIds: directory.activeFilterIds,
+      page,
+      top: chartSize ?? undefined,
+    })
+
   if (feature) {
     const trimmedQuery = directory.query.trim()
     const roster = trimmedQuery
@@ -293,7 +342,9 @@ export function ArtistIndexHubClient({
         />
 
         <div className={cn(artistPageContainer, "space-y-14 pb-16 pt-10 sm:space-y-24 sm:pb-20 sm:pt-20")}>
-          {directory.isCleanHub ? <ArtistIndexScenes cities={feature.cities} /> : null}
+          {directory.isCleanHub ? (
+            <ArtistIndexScenes cities={feature.cities} chartSize={feature.chartSize} showChartSize={false} />
+          ) : null}
 
           <section ref={gridSectionRef} aria-labelledby="artist-index-roster" className="scroll-mt-24">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -302,8 +353,18 @@ export function ArtistIndexHubClient({
                 <ArtistDetailHeading id="artist-index-roster" className="break-words">
                   {roster.title}
                 </ArtistDetailHeading>
+                {!directory.isCleanHub || chartSize == null ? (
+                  <p className="mt-2 text-sm text-[#77726A]">{roster.meta}</p>
+                ) : null}
               </div>
-              <p className="text-sm text-[#77726A]">{roster.meta}</p>
+              <ArtistIndexRosterNav
+                selected={chartSize}
+                allHref={buildArtistDirectoryHref({})}
+                sizeHrefs={INDEX_CHART_SIZES.map((size) => ({
+                  size,
+                  href: buildArtistDirectoryHref({ top: size }),
+                }))}
+              />
             </div>
 
             {loadError ? (
@@ -319,25 +380,42 @@ export function ArtistIndexHubClient({
             ) : null}
 
             <div className="mt-10">
-              <ArtistDirectoryGrid
-                artists={directory.pageArtists}
-                currentPage={directory.currentPage}
-                totalPages={directory.totalPages}
-                hasMore={directory.hasMore}
-                totalMatches={directory.totalMatches}
-                artistCount={directory.artistCount}
-                query={directory.query}
-                activeFilterIds={directory.activeFilterIds}
-                paginationHref={paginationHref}
-                onPageChange={handlePageChange}
-                isPending={isPending}
-                compactHeader
-                cardVariant="roster"
-              />
+              {directory.isCleanHub && chartList && chartSize ? (
+                <ArtistDirectoryGrid
+                  artists={chartListArtists(chartList)}
+                  currentPage={chartList.page}
+                  totalPages={Math.max(1, Math.ceil(chartList.total / chartList.pageSize))}
+                  hasMore={false}
+                  totalMatches={chartList.total}
+                  artistCount={chartList.total}
+                  query=""
+                  activeFilterIds={[]}
+                  paginationHref={(cpage) => chartRosterHref(chartSize, cpage)}
+                  compactHeader
+                  cardVariant="roster"
+                />
+              ) : (
+                <ArtistDirectoryGrid
+                  artists={directory.pageArtists}
+                  currentPage={directory.currentPage}
+                  totalPages={directory.totalPages}
+                  hasMore={directory.hasMore}
+                  totalMatches={directory.totalMatches}
+                  artistCount={directory.artistCount}
+                  query={directory.query}
+                  activeFilterIds={directory.activeFilterIds}
+                  paginationHref={resolvedPaginationHref}
+                  onPageChange={handlePageChange}
+                  isPending={isPending}
+                  compactHeader
+                  cardVariant="roster"
+                />
+              )}
             </div>
           </section>
 
           <ArtistIndexClaimBand />
+          {directory.isCleanHub ? <ArtistIndexFaq variant="roster" /> : null}
         </div>
       </div>
     )
@@ -388,7 +466,7 @@ export function ArtistIndexHubClient({
           activeFilterIds={directory.activeFilterIds}
           sectionTitle={sectionTitle}
           sectionSubtitle={sectionSubtitle}
-          paginationHref={paginationHref}
+          paginationHref={resolvedPaginationHref}
           onPageChange={handlePageChange}
           isPending={isPending}
           compactHeader={false}

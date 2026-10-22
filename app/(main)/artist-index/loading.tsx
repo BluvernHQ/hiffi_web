@@ -1,4 +1,5 @@
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
+import { RestoreRosterScroll } from "@/components/artists/index/roster-scroll"
 import { artistPageContainer } from "@/components/artists/artist-layout"
 import { ArtistRosterSkeleton } from "@/components/artists/index/ArtistRosterSkeleton"
 import { cn } from "@/lib/utils"
@@ -6,6 +7,7 @@ import { cn } from "@/lib/utils"
 export default function ArtistIndexLoading() {
   return (
     <ArtistDirectoryShell claimHref={null} bleed>
+      <RestoreRosterScroll />
       <div aria-busy aria-live="polite">
         <section className="relative isolate overflow-hidden bg-[#0B0B0C]">
           <div

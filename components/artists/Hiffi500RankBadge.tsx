@@ -10,7 +10,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { artistIndexHref } from "@/lib/artist-directory"
+import { buildArtistDirectoryHref } from "@/lib/artist-directory"
+import { chartSizeForRank, publicRankBucket, publicRankHint } from "@/lib/chart-size"
 import { topArtistTier } from "@/lib/hiffi500-tier"
 import type { PublicRanking, RankBand } from "@/lib/types/inventory"
 import { cn } from "@/lib/utils"
@@ -169,7 +170,9 @@ function RankChip({ style, value, label, title, tone = "overlay", className }: C
       >
         <style.Icon className={cn("h-3 w-3 shrink-0", style.subtleIcon)} aria-hidden />
         <span className="text-xs font-bold tabular-nums">{value}</span>
-        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] opacity-60">{label}</span>
+        {label ? (
+          <span className="text-[9px] font-semibold uppercase tracking-[0.18em] opacity-60">{label}</span>
+        ) : null}
       </span>
     )
   }
@@ -185,8 +188,12 @@ function RankChip({ style, value, label, title, tone = "overlay", className }: C
         <span className={cn("bg-clip-text text-xs font-extrabold tabular-nums text-transparent", style.metal)}>
           {value}
         </span>
-        <span className="h-2.5 w-px bg-white/20" aria-hidden />
-        <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/70">{label}</span>
+        {label ? (
+          <>
+            <span className="h-2.5 w-px bg-white/20" aria-hidden />
+            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/70">{label}</span>
+          </>
+        ) : null}
       </span>
     </span>
   )
@@ -295,8 +302,11 @@ function isRanked(rank: number) {
   return Number.isFinite(rank) && rank > 0
 }
 
-function hiffi500Title(rank: number, tier: string) {
-  return `Ranked #${rank} on the Hiffi 500 · ${tier}`
+function chartHref(rank: number, username?: string) {
+  if (rank <= 500) {
+    return username ? `/top-artists?artist=${encodeURIComponent(username)}` : "/top-artists"
+  }
+  return buildArtistDirectoryHref({ top: chartSizeForRank(rank) })
 }
 
 function bandTitle(band: PercentBand) {
@@ -313,13 +323,13 @@ type Hiffi500RankBadgeProps = {
 /** Compact Hiffi 500 chip (never a link — cards are already one). */
 export function Hiffi500RankBadge({ rank, tone = "overlay", className }: Hiffi500RankBadgeProps) {
   if (!isRanked(rank)) return null
-  const style = hiffi500Style(rank)
+  const bucket = publicRankBucket(rank)
   return (
     <RankChip
-      style={style}
-      value={`#${rank}`}
-      label="Hiffi 500"
-      title={hiffi500Title(rank, style.label)}
+      style={hiffi500Style(rank)}
+      value={bucket}
+      label=""
+      title={`${bucket} of the Artist Index`}
       tone={tone}
       className={className}
     />
@@ -339,17 +349,15 @@ type Hiffi500RankPlateProps = {
 /** Medal-style Hiffi 500 plate for heroes. */
 export function Hiffi500RankPlate({ rank, linked = true, username, secondary, className }: Hiffi500RankPlateProps) {
   if (!isRanked(rank)) return null
-  const style = hiffi500Style(rank)
-  const href = username ? `/top-artists?artist=${encodeURIComponent(username)}` : "/top-artists"
+  const bucket = publicRankBucket(rank)
   return (
     <RankPlate
-      style={style}
-      eyebrow="Hiffi 500"
-      value={`#${rank}`}
-      label={style.label}
-      title={hiffi500Title(rank, style.label)}
+      style={hiffi500Style(rank)}
+      eyebrow="Artist Index"
+      value={bucket}
+      title={`${bucket} of the Artist Index`}
       secondary={secondary}
-      href={linked ? href : undefined}
+      href={linked ? chartHref(rank, username) : undefined}
       className={className}
     />
   )
@@ -367,27 +375,26 @@ export function ArtistRankPlate({
   secondary,
   className,
 }: ArtistRankProps & { linked?: boolean; secondary?: PlateSegment }) {
-  if (isRanked(artist.rank)) {
+  const band = artist.ranking?.status === "ranked" ? artist.ranking.band : undefined
+  if (isPercentBand(band)) {
     return (
-      <Hiffi500RankPlate
-        rank={artist.rank}
-        linked={linked}
-        username={artist.slug}
+      <RankPlate
+        style={bandStyle(band)}
+        eyebrow="Artist Index"
+        value={BAND_LABEL[band]}
+        title={bandTitle(band)}
         secondary={secondary}
         className={className}
       />
     )
   }
-  const band = artist.ranking?.status === "ranked" ? artist.ranking.band : undefined
-  if (!isPercentBand(band)) return null
+  if (!isRanked(artist.rank)) return null
   return (
-    <RankPlate
-      style={bandStyle(band)}
-      eyebrow="Artist Index"
-      value={BAND_LABEL[band]}
-      title={bandTitle(band)}
+    <Hiffi500RankPlate
+      rank={artist.rank}
+      linked={linked}
+      username={artist.slug}
       secondary={secondary}
-      href={linked && artist.slug ? artistIndexHref(artist.slug) : undefined}
       className={className}
     />
   )
@@ -445,11 +452,9 @@ function MovementChip({
 
 /** One-sentence public rank line, e.g. "Nova is in the top 10% of the Artist Index." */
 export function publicRankSummary(artist: Pick<Artist, "name" | "rank" | "ranking">): string | null {
-  if (isRanked(artist.rank)) return `${artist.name} is #${artist.rank} on the Hiffi 500.`
+  const hint = publicRankHint(artist.rank, artist.ranking?.status === "ranked" ? artist.ranking.band : null)
+  if (hint) return `${artist.name} is in the ${hint} of the Artist Index.`
   const ranking = artist.ranking?.status === "ranked" ? artist.ranking : null
-  if (ranking && isPercentBand(ranking.band)) {
-    return `${artist.name} is in the ${BAND_LABEL[ranking.band].toLowerCase()} of the Artist Index.`
-  }
   if (ranking?.highlight) {
     return `${artist.name} is #${ranking.highlight.rank} in ${ranking.highlight.label}.`
   }
@@ -462,24 +467,23 @@ export function ArtistRankChip({
   tone = "overlay",
   className,
 }: ArtistRankProps & { tone?: "overlay" | "subtle" }) {
-  if (isRanked(artist.rank)) {
-    return <Hiffi500RankBadge rank={artist.rank} tone={tone} className={className} />
-  }
-  const ranking = artist.ranking
-  if (!ranking || ranking.status !== "ranked") return null
-  if (isPercentBand(ranking.band)) {
+  const ranking = artist.ranking?.status === "ranked" ? artist.ranking : null
+  if (ranking && isPercentBand(ranking.band)) {
     return (
       <RankChip
         style={bandStyle(ranking.band)}
         value={BAND_LABEL[ranking.band]}
-        label="Artist Index"
+        label=""
         title={bandTitle(ranking.band)}
         tone={tone}
         className={className}
       />
     )
   }
-  if (ranking.highlight) {
+  if (isRanked(artist.rank)) {
+    return <Hiffi500RankBadge rank={artist.rank} tone={tone} className={className} />
+  }
+  if (ranking?.highlight) {
     return <HighlightChip highlight={ranking.highlight} tone={tone} className={className} />
   }
   return null
@@ -504,7 +508,7 @@ export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {hasPlate ? (
-        <ArtistRankPlate artist={artist} secondary={highlight ? highlightSegment(highlight) : undefined} />
+        <ArtistRankPlate artist={artist} />
       ) : highlight ? (
         <RankPlate
           style={highlightStyle(highlight.kind)}
@@ -512,7 +516,6 @@ export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
           value={`#${highlight.rank}`}
           label={`of ${highlight.total.toLocaleString()}`}
           title={highlightSegment(highlight).title}
-          href={artist.slug ? artistIndexHref(artist.slug) : undefined}
         />
       ) : null}
       {ranking?.movement ? <MovementChip movement={ranking.movement} /> : null}

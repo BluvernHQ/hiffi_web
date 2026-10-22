@@ -3,20 +3,23 @@ import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
 import { ArtistCollectionView } from "@/components/artists/index/ArtistCollectionView"
-import { artistIndexCityHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+import { ARTIST_DIRECTORY_PAGE_SIZE, artistIndexCityHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import {
   buildArtistCityPageMetadata,
   getArtistCityPage,
   getArtistCityPages,
 } from "@/lib/artist-directory-seo"
 import { getAvailableArtistDirectoryFilters, resolveArtistDirectoryPage } from "@/lib/artists"
-import { getArtistIndexHubFeature, getCityChart } from "@/lib/artist-index/hub-data"
+import { fetchChartList } from "@/lib/artist-index/chart-list"
+import { getArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
+import { DEFAULT_CHART_SIZE, parseIndexChartSize } from "@/lib/chart-size"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
+import { getCityFaqForSlug } from "@/lib/artist-index/city-seo-content"
 import { absoluteUrl } from "@/lib/seo/site"
 
 type ArtistCityPageProps = {
   params: Promise<{ citySlug: string }>
-  searchParams: Promise<{ page?: string | string[] }>
+  searchParams: Promise<{ page?: string | string[]; top?: string | string[]; cpage?: string | string[] }>
 }
 
 export async function generateStaticParams() {
@@ -54,15 +57,20 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
   const pageParam = await searchParams
   const parsedPage = parseInt(typeof pageParam.page === "string" ? pageParam.page : "1", 10)
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
-  const [directory, filterOptions, hub, cityChart] = await Promise.all([
+  const chartSize = parseIndexChartSize(pageParam.top)
+  const chartPage = Math.max(1, parseInt(typeof pageParam.cpage === "string" ? pageParam.cpage : "1", 10) || 1)
+  const [directory, filterOptions, hub, chartList] = await Promise.all([
     resolveArtistDirectoryPage({ activeFilterIds: [city.filterId], page }),
     getAvailableArtistDirectoryFilters(),
-    getArtistIndexHubFeature(),
-    getCityChart(city.slug),
+    getArtistIndexHubFeature(chartSize ?? DEFAULT_CHART_SIZE),
+    chartSize
+      ? fetchChartList(chartSize, chartPage, { location: city.label, pageSize: ARTIST_DIRECTORY_PAGE_SIZE })
+      : Promise.resolve(null),
   ])
+  const cityFaq = getCityFaqForSlug(city.slug)
 
   const pageUrl = absoluteUrl(
-    artistIndexCityHref(city.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
+    artistIndexCityHref(city.slug, directory.currentPage > 1 ? directory.currentPage : undefined, chartSize ?? undefined),
   )
 
   return (
@@ -81,7 +89,8 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
           pageDescription: city.description,
           totalItemCount: directory.totalMatches,
           pageType: "CollectionPage",
-          includeFaq: false,
+          includeFaq: Boolean(cityFaq?.length),
+          faqItems: cityFaq ?? undefined,
           breadcrumbs: [
             { name: "Artist Index", url: absoluteUrl(ARTIST_INDEX_PATH) },
             { name: city.label, url: pageUrl },
@@ -97,9 +106,11 @@ export default async function ArtistCityPage({ params, searchParams }: ArtistCit
         filterId={city.filterId}
         filterOptions={filterOptions}
         directory={directory}
-        paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined)}
-        cityChart={cityChart}
+        paginationHref={(p) => artistIndexCityHref(city.slug, p > 1 ? p : undefined, chartSize ?? undefined)}
+        chartList={chartList}
+        chartSize={chartSize}
         scenes={hub.cities}
+        faqItems={cityFaq ?? undefined}
       />
     </ArtistDirectoryShell>
   )

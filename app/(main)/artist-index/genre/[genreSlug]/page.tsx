@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { JsonLd } from "@/components/seo/json-ld"
 import { ArtistDirectoryShell } from "@/components/artists/ArtistDirectoryShell"
 import { ArtistCollectionView } from "@/components/artists/index/ArtistCollectionView"
-import { artistIndexGenreHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
+import { ARTIST_DIRECTORY_PAGE_SIZE, artistIndexGenreHref, ARTIST_INDEX_PATH } from "@/lib/artist-directory"
 import {
   buildArtistGenrePageMetadata,
   getArtistGenrePage,
@@ -14,13 +14,15 @@ import {
   getPopulatedGenreSlugs,
   resolveArtistDirectoryPage,
 } from "@/lib/artists"
+import { fetchChartList } from "@/lib/artist-index/chart-list"
 import { getArtistIndexHubFeature } from "@/lib/artist-index/hub-data"
+import { DEFAULT_CHART_SIZE, parseIndexChartSize } from "@/lib/chart-size"
 import { buildArtistIndexHubJsonLd } from "@/lib/seo/artist-index-schema"
 import { absoluteUrl } from "@/lib/seo/site"
 
 type ArtistGenrePageProps = {
   params: Promise<{ genreSlug: string }>
-  searchParams: Promise<{ page?: string | string[] }>
+  searchParams: Promise<{ page?: string | string[]; top?: string | string[]; cpage?: string | string[] }>
 }
 
 export async function generateStaticParams() {
@@ -61,15 +63,20 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
   const pageParam = await searchParams
   const parsedPage = parseInt(typeof pageParam.page === "string" ? pageParam.page : "1", 10)
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
-  const [directory, filterOptions, hub, genreSlugs] = await Promise.all([
+  const chartSize = parseIndexChartSize(pageParam.top)
+  const chartPage = Math.max(1, parseInt(typeof pageParam.cpage === "string" ? pageParam.cpage : "1", 10) || 1)
+  const [directory, filterOptions, hub, genreSlugs, chartList] = await Promise.all([
     resolveArtistDirectoryPage({ activeFilterIds: [genre.filterId], page }),
     getAvailableArtistDirectoryFilters(),
-    getArtistIndexHubFeature(),
+    getArtistIndexHubFeature(chartSize ?? DEFAULT_CHART_SIZE),
     getPopulatedGenreSlugs(),
+    chartSize
+      ? fetchChartList(chartSize, chartPage, { pageSize: ARTIST_DIRECTORY_PAGE_SIZE })
+      : Promise.resolve(null),
   ])
 
   const pageUrl = absoluteUrl(
-    artistIndexGenreHref(genre.slug, directory.currentPage > 1 ? directory.currentPage : undefined),
+    artistIndexGenreHref(genre.slug, directory.currentPage > 1 ? directory.currentPage : undefined, chartSize ?? undefined),
   )
 
   return (
@@ -104,7 +111,9 @@ export default async function ArtistGenrePage({ params, searchParams }: ArtistGe
         filterId={genre.filterId}
         filterOptions={filterOptions}
         directory={directory}
-        paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined)}
+        paginationHref={(p) => artistIndexGenreHref(genre.slug, p > 1 ? p : undefined, chartSize ?? undefined)}
+        chartList={chartList}
+        chartSize={chartSize}
         scenes={hub.cities}
         genreSlugs={genreSlugs}
       />

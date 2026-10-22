@@ -4,9 +4,8 @@ import { artistIndexHref } from "@/lib/artists"
 import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { artistClaimState, artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
+import { publicRankHint } from "@/lib/chart-size"
 import { cn } from "@/lib/utils"
-
-const BAND_LABEL = { top_5: "Top 5%", top_10: "Top 10%", top_25: "Top 25%" } as const
 
 const CLAIM_CHIP = {
   unclaimed: { text: "Claim open", className: "bg-[#F4F1EA] text-[#0B0B0C]" },
@@ -14,23 +13,23 @@ const CLAIM_CHIP = {
   verified: { text: "Claimed", className: "bg-[#0B0B0C]/80 text-[#F4F1EA] backdrop-blur-md" },
 } as const
 
-function rosterBadge(artist: Artist): { text: string; gold: boolean } | null {
-  if (artist.rank > 0) return { text: `Ranked #${artist.rank}`, gold: artist.rank <= 10 }
-  const band = artist.ranking?.status === "ranked" ? artist.ranking.band : null
-  return band && band in BAND_LABEL ? { text: BAND_LABEL[band as keyof typeof BAND_LABEL], gold: false } : null
-}
-
-/** Portrait-first roster tile for the index hub. */
+/** Portrait-first roster tile for the index hub. Rank stays on the profile. */
 export function ArtistRosterCard({ artist }: { artist: Artist }) {
-  const badge = rosterBadge(artist)
   const place = artistPlaceLabel(artist)
   const claimState = artistClaimState(artist)
   const claimChip = CLAIM_CHIP[claimState]
+  const band = artist.ranking?.status === "ranked" ? artist.ranking.band : null
+  const badge = publicRankHint(artist.rank, band)
   const meta = [place, artist.genre[0]].filter(Boolean).join(" · ")
 
   return (
     <article>
-      <ArtistProfileLink href={artistIndexHref(artist.slug)} prefetch className="group block focus:outline-none">
+      <ArtistProfileLink
+        href={artistIndexHref(artist.slug)}
+        prefetch
+        className="group block focus:outline-none"
+        aria-label={`View ${artist.name} profile${claimState === "unclaimed" ? " — claim open" : ""}`}
+      >
         <div className="relative overflow-hidden rounded-[20px] bg-[#0B0B0C] ring-offset-4 ring-offset-[#F4F1EA] group-focus-visible:ring-2 group-focus-visible:ring-[#E8192C]">
           <ArtistPortrait
             artist={artist}
@@ -42,19 +41,14 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
             aria-hidden
           />
           {badge ? (
-            <span
-              className={
-                badge.gold
-                  ? "absolute left-3 top-3 rounded-full bg-[#0B0B0C]/80 px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-[#F2C662] backdrop-blur-md"
-                  : "absolute left-3 top-3 rounded-full bg-[#0B0B0C]/75 px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-[#F4F1EA] backdrop-blur-md"
-              }
-            >
-              {badge.text}
+            <span className="absolute left-3 top-3 whitespace-nowrap rounded-full bg-[#0B0B0C]/75 px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-[#F4F1EA] backdrop-blur-md">
+              {badge}
             </span>
           ) : null}
           <span
             className={cn(
-              "absolute bottom-3 left-3 translate-y-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100",
+              "absolute bottom-3 left-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em] transition duration-300",
+              "opacity-100 sm:opacity-0 sm:translate-y-2 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 group-focus-visible:opacity-100 group-focus-visible:translate-y-0",
               claimChip.className,
             )}
           >

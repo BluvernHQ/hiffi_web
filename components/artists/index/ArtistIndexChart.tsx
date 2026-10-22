@@ -57,7 +57,8 @@ export function ArtistIndexChart({
             >
               <span
                 className={cn(
-                  "font-signal w-8 shrink-0 text-[2rem] font-bold leading-none tabular-nums",
+                  "font-signal shrink-0 text-right font-bold leading-none tabular-nums",
+                  artist.rank >= 1000 ? "w-14 text-lg" : artist.rank >= 100 ? "w-11 text-xl" : "w-8 text-[2rem]",
                   artist.rank === 1
                     ? "bg-gradient-to-b from-[#FFF4CF] via-[#F2C662] to-[#C28A2A] bg-clip-text text-transparent"
                     : "text-white/30",

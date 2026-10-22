@@ -14,6 +14,7 @@
  */
 
 import { getArtistImageUrl } from "@/lib/artist-directory"
+import { isChartSize, type ChartSize } from "@/lib/chart-size"
 import { getApiBaseUrl } from "@/lib/config"
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
 import type { PublicRanking } from "@/lib/types/inventory"
@@ -556,10 +557,11 @@ const TOP_CHART_FETCH_CACHE = { revalidate: 300, tags: ["top-chart"] }
 export async function fetchTopArtistsServer(
   limit = TOP_ARTISTS_PAGE_SIZE,
   offset = 0,
-  options?: { enrichImages?: boolean; location?: string },
+  options?: { enrichImages?: boolean; location?: string; top?: ChartSize },
 ): Promise<TopArtistsPage | null> {
   try {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    if (options?.top && isChartSize(options.top)) params.set("top", String(options.top))
     const location = options?.location?.trim()
     if (location) params.set("location", location)
     const res = await fetch(`${getApiBaseUrl()}/inventory/top?${params}`, {
@@ -581,16 +583,18 @@ export type TopArtistsSearchOptions = {
   offset?: number
   /** Scopes results to a city board (e.g. "Atlanta"). */
   location?: string
+  top?: ChartSize
 }
 
 export async function searchTopArtistsServer(
   query: string,
-  { limit = 20, offset = 0, location }: TopArtistsSearchOptions = {},
+  { limit = 20, offset = 0, location, top }: TopArtistsSearchOptions = {},
 ): Promise<TopArtistsPage | null> {
   const q = query.trim()
   if (!q) return null
   try {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    if (top && isChartSize(top)) params.set("top", String(top))
     const loc = location?.trim()
     if (loc) params.set("location", loc)
     // No revalidate cache — search must reflect the live board.
@@ -614,10 +618,46 @@ export async function searchTopArtistsServer(
   }
 }
 
-/** Canonical cities with enough ranked artists for a chart (`GET /inventory/top/cities`). */
-export async function fetchTopCitiesServer(): Promise<TopCitiesResponse | null> {
+const chartRankCache = new Map<string, number>()
+
+/** Global rank inside the Top 10,000. The profile object only carries a rank for the Top 500. */
+export async function lookupChartRank(username: string): Promise<number | null> {
+  const q = username.trim().toLowerCase()
+  if (!q) return null
+  const cached = chartRankCache.get(q)
+  if (cached) return cached
+  const page = await searchTopArtistsServer(q, { top: 10000, limit: 5 })
+  const match = page?.items.find((item) => item.username.trim().toLowerCase() === q)
+  const rank = match && match.rank > 0 ? match.rank : null
+  if (rank) chartRankCache.set(q, rank)
+  return rank
+}
+
+/** Fills `rank` from the Top 10,000 for artists the profile record left unnumbered. */
+export async function withChartRanks<T extends { slug: string; rank: number }>(artists: T[]): Promise<T[]> {
+  return Promise.all(
+    artists.map(async (artist) => {
+      if (artist.rank > 0) return artist
+      const rank = await lookupChartRank(artist.slug)
+      return rank ? { ...artist, rank } : artist
+    }),
+  )
+}
+
+/**
+ * Cities inside a chart (`GET /inventory/top/cities`).
+ * `minRanked` is the smallest number of chart artists a city must have. The server default is 20.
+ */
+export async function fetchTopCitiesServer(options?: {
+  top?: ChartSize
+  minRanked?: number
+}): Promise<TopCitiesResponse | null> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/inventory/top/cities`, {
+    const params = new URLSearchParams()
+    if (options?.top && isChartSize(options.top)) params.set("top", String(options.top))
+    if (options?.minRanked != null && options.minRanked >= 0) params.set("min_ranked", String(options.minRanked))
+    const query = params.toString()
+    const res = await fetch(`${getApiBaseUrl()}/inventory/top/cities${query ? `?${query}` : ""}`, {
       headers: { Accept: "application/json" },
       next: TOP_CHART_FETCH_CACHE,
     })

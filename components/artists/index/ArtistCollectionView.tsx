@@ -1,18 +1,22 @@
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronDown } from "lucide-react"
 import type { Artist } from "@/lib/artists"
 import type { ArtistDirectoryFilterOption } from "@/lib/artist-directory"
-import { ARTIST_INDEX_PATH, artistIndexGenreHref } from "@/lib/artist-directory"
-import type { CityChart, HubCity } from "@/lib/artist-index/hub-data"
+import { artistIndexCityHref, artistIndexGenreHref, buildArtistDirectoryHref } from "@/lib/artist-directory"
+import { chartListArtists } from "@/lib/artist-index/chart-list"
+import type { HubCity } from "@/lib/artist-index/hub-data"
+import { DEFAULT_CHART_SIZE, INDEX_CHART_SIZES, type ChartSize } from "@/lib/chart-size"
 import { signalNarrow } from "@/lib/fonts/signal"
 import { cn } from "@/lib/utils"
 import { ArtistDirectoryGrid } from "@/components/artists/ArtistDirectoryGrid"
 import { ArtistIndexControls } from "@/components/artists/ArtistIndexControls"
 import { artistPageContainer } from "@/components/artists/artist-layout"
 import { ArtistDetailEyebrow, ArtistDetailHeading } from "@/components/artists/detail/ArtistDetailSection"
-import { ArtistIndexChart } from "@/components/artists/index/ArtistIndexChart"
 import { ArtistIndexClaimBand } from "@/components/artists/index/ArtistIndexClaimBand"
+import { ArtistIndexRosterNav } from "@/components/artists/index/ArtistIndexRosterNav"
 import { ArtistIndexScenes } from "@/components/artists/index/ArtistIndexScenes"
+import type { ChartList } from "@/lib/artist-index/chart-list"
+import { ArtistCitySceneTeaser } from "@/components/artists/ArtistCitySceneTeaser"
 
 const SOUNDS = [
   { slug: "hip-hop", label: "Hip-Hop" },
@@ -39,10 +43,13 @@ type ArtistCollectionViewProps = {
     hasMore: boolean
   }
   paginationHref: (page: number) => string
-  cityChart?: CityChart | null
+  chartList?: ChartList | null
+  /** `null` is All. A size filters this page's roster to that chart slice. */
+  chartSize?: ChartSize | null
   scenes: HubCity[]
   /** Genres with at least one artist; empty sounds are left out of the genre nav. */
   genreSlugs?: string[]
+  faqItems?: readonly { question: string; answer: string }[]
 }
 
 /** City / genre landing: dark masthead, roster grid, more scenes, claim band. */
@@ -56,9 +63,11 @@ export function ArtistCollectionView({
   filterOptions,
   directory,
   paginationHref,
-  cityChart,
+  chartList = null,
+  chartSize = null,
   scenes,
   genreSlugs,
+  faqItems,
 }: ArtistCollectionViewProps) {
   const sounds = genreSlugs ? SOUNDS.filter((sound) => genreSlugs.includes(sound.slug)) : SOUNDS
   const rest = headline.toLowerCase().startsWith(label.toLowerCase())
@@ -66,6 +75,9 @@ export function ArtistCollectionView({
     : headline
   const isFirstPage = directory.currentPage === 1
   const otherScenes = scenes.filter((city) => city.slug !== slug)
+  const pageHref = (size?: ChartSize) =>
+    kind === "city" ? artistIndexCityHref(slug, undefined, size) : artistIndexGenreHref(slug, undefined, size)
+  const showingChart = Boolean(chartList && chartSize)
 
   return (
     <div className={cn(signalNarrow.variable, "text-[#0B0B0C]")}>
@@ -80,7 +92,7 @@ export function ArtistCollectionView({
           <div className="grid gap-10 pb-14 pt-8 sm:pb-16 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end lg:gap-16 lg:pb-20 lg:pt-12 2xl:grid-cols-[minmax(0,1fr)_460px] 2xl:gap-24">
             <div className="artist-rise min-w-0">
               <Link
-                href={ARTIST_INDEX_PATH}
+                href={buildArtistDirectoryHref({})}
                 className="group -ml-1 mb-7 inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-xs font-semibold text-white/55 transition-colors hover:text-white"
               >
                 <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden />
@@ -134,14 +146,7 @@ export function ArtistCollectionView({
               ) : null}
             </div>
 
-            {cityChart ? (
-              <ArtistIndexChart
-                chart={cityChart.chart}
-                title={`This week · ${cityChart.city.label}`}
-                href={null}
-                className="artist-rise [animation-delay:120ms]"
-              />
-            ) : directory.totalMatches > 0 ? (
+            {directory.totalMatches > 0 ? (
               <div className="artist-rise rounded-[26px] border border-white/10 bg-white/[0.035] p-6 backdrop-blur-md [animation-delay:120ms] sm:p-8">
                 <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/50 sm:text-[11px]">
                   On the index
@@ -167,38 +172,103 @@ export function ArtistCollectionView({
                 Every {kind === "genre" ? label.toLowerCase() : label} artist
               </ArtistDetailHeading>
             </div>
-            <p className="text-sm text-[#77726A]">
-              {directory.totalMatches.toLocaleString()} {directory.totalMatches === 1 ? "artist" : "artists"}
-              {directory.totalPages > 1
-                ? ` · Page ${directory.currentPage.toLocaleString()} of ${directory.totalPages.toLocaleString()}`
-                : ""}
-            </p>
+            <ArtistIndexRosterNav
+              selected={chartSize}
+              allHref={pageHref()}
+              sizeHrefs={INDEX_CHART_SIZES.map((size) => ({ size, href: pageHref(size) }))}
+            />
           </div>
 
           <div className="mt-10">
-            <ArtistDirectoryGrid
-              artists={directory.pageArtists}
-              currentPage={directory.currentPage}
-              totalPages={directory.totalPages}
-              hasMore={directory.hasMore}
-              totalMatches={directory.totalMatches}
-              artistCount={directory.artistCount}
-              query=""
-              activeFilterIds={[filterId]}
-              paginationHref={paginationHref}
-              compactHeader
-              cardVariant="roster"
-            />
+            {showingChart && chartList && chartSize ? (
+              <ArtistDirectoryGrid
+                artists={chartListArtists(chartList)}
+                currentPage={chartList.page}
+                totalPages={Math.max(1, Math.ceil(chartList.total / chartList.pageSize))}
+                hasMore={false}
+                totalMatches={chartList.total}
+                artistCount={chartList.total}
+                query=""
+                activeFilterIds={[filterId]}
+                paginationHref={(cpage) => {
+                  const base = pageHref(chartSize)
+                  if (cpage <= 1) return base
+                  return base.includes("?") ? `${base}&cpage=${cpage}` : `${base}?cpage=${cpage}`
+                }}
+                compactHeader
+                cardVariant="roster"
+              />
+            ) : (
+              <ArtistDirectoryGrid
+                artists={directory.pageArtists}
+                currentPage={directory.currentPage}
+                totalPages={directory.totalPages}
+                hasMore={directory.hasMore}
+                totalMatches={directory.totalMatches}
+                artistCount={directory.artistCount}
+                query=""
+                activeFilterIds={[filterId]}
+                paginationHref={paginationHref}
+                compactHeader
+                cardVariant="roster"
+              />
+            )}
           </div>
         </section>
+
+        {kind === "city" && slug === "atlanta" ? (
+          <ArtistCitySceneTeaser
+            citySlug={slug}
+            cityLabel={label}
+            profileCount={directory.totalMatches}
+          />
+        ) : null}
 
         {isFirstPage ? (
           <ArtistIndexScenes
             cities={otherScenes}
+            chartSize={chartSize ?? DEFAULT_CHART_SIZE}
+            chartPage={{ kind, slug, page: directory.currentPage }}
+            showChartSize={false}
             eyebrow={kind === "city" ? "More scenes" : "Scenes"}
             title={kind === "city" ? "Beyond " + label : `Where ${label.toLowerCase()} lives`}
-            description="Cities with the most ranked artists this week."
           />
+        ) : null}
+
+        {faqItems && faqItems.length > 0 ? (
+          <section
+            aria-labelledby="collection-faq-heading"
+            className="rounded-3xl border border-[#0B0B0C]/10 bg-white p-6 shadow-sm sm:p-10"
+          >
+            <div className="max-w-2xl">
+              <ArtistDetailEyebrow>FAQ</ArtistDetailEyebrow>
+              <ArtistDetailHeading id="collection-faq-heading">
+                Frequently asked questions
+              </ArtistDetailHeading>
+              <p className="mt-2 text-sm text-[#77726A] sm:text-base">
+                Answers about browsing, searching, and claiming {label} artist listings.
+              </p>
+            </div>
+
+            <div className="mt-8 divide-y divide-[#0B0B0C]/10 border-t border-[#0B0B0C]/10">
+              {faqItems.map((item) => (
+                <details key={item.question} className="group py-5">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4 text-left marker:content-none [&::-webkit-details-marker]:hidden">
+                    <span className="text-base font-semibold text-[#0B0B0C] transition-colors group-open:text-[#E8192C]">
+                      {item.question}
+                    </span>
+                    <ChevronDown
+                      className="mt-1 h-4 w-4 shrink-0 text-[#77726A] transition-transform duration-200 group-open:rotate-180"
+                      aria-hidden
+                    />
+                  </summary>
+                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#3B3833] sm:text-[15px]">
+                    {item.answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </section>
         ) : null}
 
         <ArtistIndexClaimBand />

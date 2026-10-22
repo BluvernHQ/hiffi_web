@@ -30,6 +30,7 @@ import { ARTIST_INVENTORY_CACHE_TAG } from "@/lib/artist-index/inventory-cache-t
 import { mapInventoryProfileToArtist } from "@/lib/artist-index/map-inventory-to-artist"
 import { mapInventoryProfilesToArtists } from "@/lib/artist-index/enrich-artist-images"
 import { withHiffi500Rank, withHiffi500Ranks } from "@/lib/artist-index/hiffi500-ranks"
+import { lookupChartRank } from "@/lib/top-artists"
 import { fetchUserProfileInitial } from "@/lib/seo/fetch-public"
 import type { Artist, ArtistDirectoryFilter } from "@/lib/artists"
 import { ARTIST_DIRECTORY_PAGE_SIZE } from "@/lib/artist-directory"
@@ -108,7 +109,10 @@ export async function getArtistBySlugAsync(slug: string): Promise<Artist | undef
     linkedProfile = null
   }
 
-  return withHiffi500Rank(mapInventoryProfileToArtist(profile, linkedProfile))
+  const artist = mapInventoryProfileToArtist(profile, linkedProfile)
+  const chartRank = await lookupChartRank(normalized)
+  if (chartRank) return { ...artist, rank: chartRank }
+  return withHiffi500Rank(artist)
 }
 
 export async function sanitizeActiveFilterIdsAsync(activeFilterIds: string[]): Promise<string[]> {
@@ -237,7 +241,7 @@ async function resolveArtistDirectoryPageImpl(options: {
         ? await getCachedCatalogTotal().catch(() => 0)
         : 0
 
-  const pageArtists = await withHiffi500Ranks(await mapInventoryProfilesToArtists(inventoryItems))
+  const pageArtists = await mapInventoryProfilesToArtists(inventoryItems)
   const totalPages = Math.max(1, Math.ceil(totalMatches / ARTIST_DIRECTORY_PAGE_SIZE))
   const currentPage = Math.min(requestedPage, totalPages)
 

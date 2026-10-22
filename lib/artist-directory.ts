@@ -50,15 +50,22 @@ export function artistIndexHref(slug?: string): string {
   return slug ? `${ARTIST_INDEX_PATH}/${slug}` : ARTIST_INDEX_PATH
 }
 
+function appendChartSize(params: URLSearchParams, top?: number) {
+  if (top === 1000 || top === 5000 || top === 10000) params.set("top", String(top))
+}
+
 export function buildArtistDirectoryHref(options: {
   query?: string
   activeFilterIds?: string[]
   page?: number
+  /** Chart size. Omitted for All. Top 500 is not a filter. */
+  top?: number
 }): string {
   const params = new URLSearchParams()
   if (options.query?.trim()) params.set("q", options.query.trim())
   if (options.activeFilterIds?.length) params.set("f", options.activeFilterIds.join(","))
   if (options.page && options.page > 1) params.set("page", String(options.page))
+  appendChartSize(params, options.top)
   const qs = params.toString()
   return qs ? `${ARTIST_INDEX_PATH}?${qs}` : ARTIST_INDEX_PATH
 }
@@ -76,10 +83,13 @@ export function parseArtistDirectorySearchParams(searchParams: {
   return { query, activeFilterIds, page }
 }
 
-export function artistIndexCityHref(citySlug: string, page?: number): string {
+export function artistIndexCityHref(citySlug: string, page?: number, top?: number): string {
+  const params = new URLSearchParams()
+  if (page && page > 1) params.set("page", String(page))
+  appendChartSize(params, top)
+  const qs = params.toString()
   const base = `${ARTIST_INDEX_PATH}/city/${citySlug}`
-  if (!page || page <= 1) return base
-  return `${base}?page=${page}`
+  return qs ? `${base}?${qs}` : base
 }
 
 /** Editorial scene guide (Atlanta first; expand as new markets launch). */
@@ -87,10 +97,13 @@ export function artistIndexCitySceneHref(citySlug: string): string {
   return `${ARTIST_INDEX_PATH}/city/${citySlug}/scene`
 }
 
-export function artistIndexGenreHref(genreSlug: string, page?: number): string {
+export function artistIndexGenreHref(genreSlug: string, page?: number, top?: number): string {
+  const params = new URLSearchParams()
+  if (page && page > 1) params.set("page", String(page))
+  appendChartSize(params, top)
+  const qs = params.toString()
   const base = `${ARTIST_INDEX_PATH}/genre/${genreSlug}`
-  if (!page || page <= 1) return base
-  return `${base}?page=${page}`
+  return qs ? `${base}?${qs}` : base
 }
 
 /** Curated hub pills shown inline beside search on `/artist-index`. */

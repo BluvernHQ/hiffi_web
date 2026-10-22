@@ -1,10 +1,6 @@
 import { slugifyArtistDirectorySegment } from "@/lib/artist-directory"
-import {
-  fetchTopArtistsByCityServer,
-  fetchTopArtistsServer,
-  fetchTopCitiesServer,
-  type TopArtist,
-} from "@/lib/top-artists"
+import { DEFAULT_CHART_SIZE, type ChartSize } from "@/lib/chart-size"
+import { fetchTopArtistsServer, fetchTopCitiesServer, type TopArtist } from "@/lib/top-artists"
 import { artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
 import { createStaleWhileRevalidate } from "@/lib/stale-while-revalidate"
 
@@ -35,6 +31,7 @@ export type HubCity = {
 export type ArtistIndexHubFeature = {
   faces: HubFace[]
   cities: HubCity[]
+  chartSize: ChartSize
 }
 
 const CHART_SIZE = 5
@@ -42,7 +39,7 @@ const FACES_SIZE = 6
 const FACES_POOL = 16
 const REVALIDATE_SECONDS = 900
 
-const EMPTY: ArtistIndexHubFeature = { faces: [], cities: [] }
+const EMPTY: ArtistIndexHubFeature = { faces: [], cities: [], chartSize: DEFAULT_CHART_SIZE }
 
 function chartPlace(artist: TopArtist): string | null {
   const highlight = artist.ranking?.highlight
@@ -51,8 +48,11 @@ function chartPlace(artist: TopArtist): string | null {
   return artistPlaceLabel({ city, state })
 }
 
-async function loadHubFeature(): Promise<ArtistIndexHubFeature> {
-  const [top, cities] = await Promise.all([fetchTopArtistsServer(FACES_POOL, 0), fetchTopCitiesServer()])
+async function loadHubFeature(topSize: ChartSize): Promise<ArtistIndexHubFeature> {
+  const [top, cities] = await Promise.all([
+    fetchTopArtistsServer(FACES_POOL, 0, { top: topSize }),
+    fetchTopCitiesServer({ top: topSize, minRanked: 1 }),
+  ])
 
   const faces = (top?.items ?? [])
     .filter((artist): artist is TopArtist & { image: string } => Boolean(artist.image))
@@ -77,16 +77,16 @@ async function loadHubFeature(): Promise<ArtistIndexHubFeature> {
     }))
 
   if (faces.length === 0 && hubCities.length === 0) throw new Error("hub feature empty")
-  return { faces, cities: hubCities }
+  return { faces, cities: hubCities, chartSize: topSize }
 }
 
 const readHubFeature = createStaleWhileRevalidate<ArtistIndexHubFeature>(REVALIDATE_SECONDS * 1000, (error) =>
   console.error("[artist-index] hub feature unavailable:", error),
 )
 
-/** Featured faces and the ranked cities. Decoration: failures resolve empty. */
-export function getArtistIndexHubFeature(): Promise<ArtistIndexHubFeature> {
-  return readHubFeature("", loadHubFeature).catch(() => EMPTY)
+/** Featured faces and every city with at least one artist in the chart. Failures resolve empty. */
+export function getArtistIndexHubFeature(top: ChartSize = DEFAULT_CHART_SIZE): Promise<ArtistIndexHubFeature> {
+  return readHubFeature(String(top), () => loadHubFeature(top)).catch(() => ({ ...EMPTY, chartSize: top }))
 }
 
 export type CityChart = {
@@ -98,26 +98,40 @@ const readCityChart = createStaleWhileRevalidate<CityChart | null>(REVALIDATE_SE
   console.error(`[artist-index] city chart unavailable (${slug}):`, error),
 )
 
-async function loadCityChart(slug: string): Promise<CityChart | null> {
-  const { cities } = await getArtistIndexHubFeature()
-  const city = cities.find((entry) => entry.slug === slug) ?? cities.find((entry) => entry.id?.startsWith(`${slug}-`))
-  if (!city?.id) return null
+async function loadCityChart(location: string, top: ChartSize): Promise<CityChart | null> {
+  const label = location.trim()
+  if (!label) return null
 
-  const page = await fetchTopArtistsByCityServer({ cityId: city.id }, CHART_SIZE, 0)
+  const page = await fetchTopArtistsServer(CHART_SIZE, 0, { location: label, top })
   const chart = (page?.items ?? []).slice(0, CHART_SIZE).map((artist) => ({
     username: artist.username,
     name: artist.artist_name,
-    rank: artist.city_rank ?? artist.rank,
+    rank: artist.rank,
     image: artist.image ?? null,
     note: null,
   }))
   if (chart.length === 0) return null
 
-  return { city, chart }
+  const slug = slugifyArtistDirectorySegment(label)
+  const { cities } = await getArtistIndexHubFeature(top)
+  const known = cities.find((entry) => entry.slug === slug)
+  return {
+    city: known ?? {
+      id: null,
+      label,
+      region: null,
+      slug,
+      rankedCount: page?.total_ranked ?? chart.length,
+    },
+    chart,
+  }
 }
 
-/** A city's weekly top five (city ranks), cached like the hub feature. */
-export function getCityChart(slug: string): Promise<CityChart | null> {
-  const key = slug.trim().toLowerCase()
-  return readCityChart(key, () => loadCityChart(key)).catch(() => null)
+/**
+ * A city's top artists inside the global chart. Ranks are global (`items[].rank`),
+ * not the legacy city top 50.
+ */
+export function getCityChart(location: string, top: ChartSize = DEFAULT_CHART_SIZE): Promise<CityChart | null> {
+  const key = `${top}:${location.trim().toLowerCase()}`
+  return readCityChart(key, () => loadCityChart(location, top)).catch(() => null)
 }

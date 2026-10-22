@@ -10,7 +10,6 @@ const BROWSE_LINKS = [
   { label: "Rap", href: artistIndexGenreHref("rap"), genre: "rap" },
   { label: "Trap", href: artistIndexGenreHref("trap"), genre: "trap" },
   { label: "Drill", href: artistIndexGenreHref("drill"), genre: "drill" },
-  { label: "Atlanta", href: artistIndexCityHref("atlanta") },
 ]
 
 type ArtistIndexMastheadProps = {
@@ -23,9 +22,10 @@ type ArtistIndexMastheadProps = {
 
 export function ArtistIndexMasthead({ artistCount, feature, search, genreSlugs }: ArtistIndexMastheadProps) {
   const cityCount = feature.cities.length
-  const browseLinks = BROWSE_LINKS.filter(
-    (link) => !link.genre || !genreSlugs || genreSlugs.includes(link.genre),
-  )
+  const browseLinks = [
+    ...BROWSE_LINKS.filter((link) => !link.genre || !genreSlugs || genreSlugs.includes(link.genre)),
+    { label: "Atlanta", href: artistIndexCityHref("atlanta", undefined, feature.chartSize) },
+  ]
 
   return (
     <section className="relative isolate overflow-hidden bg-[#0B0B0C] text-[#F4F1EA]">
@@ -47,7 +47,8 @@ export function ArtistIndexMasthead({ artistCount, feature, search, genreSlugs }
             </h1>
             <p className="mt-6 max-w-xl text-[15px] leading-7 text-white/60 sm:text-base">
               {artistCount > 0 ? `${artistCount.toLocaleString()}+ artists` : "Thousands of artists"}
-              {cityCount > 0 ? ` from ${cityCount} cities` : ""}, each with their story, their links and their scene.
+              {cityCount > 0 ? ` from ${cityCount.toLocaleString()} ${cityCount === 1 ? "city" : "cities"}` : ""}
+              , each with their story, their links and their scene.
               Find an artist, or find yourself and claim your page.
             </p>
 
@@ -64,6 +65,12 @@ export function ArtistIndexMasthead({ artistCount, feature, search, genreSlugs }
                   {link.label}
                 </Link>
               ))}
+              <Link
+                href="/artist-index/claim"
+                className="inline-flex items-center gap-1 rounded-full bg-[#E8192C] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#d01528]"
+              >
+                Claim your profile &rarr;
+              </Link>
             </nav>
           </div>
 
