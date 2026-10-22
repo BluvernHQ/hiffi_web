@@ -1,3 +1,4 @@
+import { incomingAuthHeader } from "@/lib/http/incoming-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { getApiBaseUrl } from "@/lib/config"
 import { incomingAuthHeader } from "@/lib/http/incoming-auth"

@@ -112,6 +112,7 @@ export function OwnerRankCard({ className }: { className?: string }) {
     }
     let cancelled = false
     fetch("/proxy/inventory/me/ranking", {
+      // Avoid Authorization: Bearer — it conflicts with nginx Basic Auth on staging.
       headers: { Accept: "application/json", "X-Hiffi-Authorization": `Bearer ${token}` },
       cache: "no-store",
     })
