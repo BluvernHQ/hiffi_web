@@ -72,13 +72,16 @@ Each gate must pass before the next step.
 
 - [ ] Confirm the binary PM2/systemd runs for the MP4 encoder and the production queue names
       (`RABBITMQ_UPLOAD_QUEUE` etc. in the API server's `.env`).
-- [ ] **Cloudflare blocks server-to-server callbacks.** From the encoding server (144.76.226.190),
-      `api.hiffi.com` and `api.dev.hiffi.com` answer every POST with a 403 bot challenge. The MP4
-      encoder's `/videos/encoding/ack` has failed this way since 2026-10-06 (6 production uploads
-      encoded but never published, last on 2026-10-15). Add a Cloudflare WAF skip rule for that IP
-      on `/videos/encoding/ack/*`, `/videos/hls/*` and `/videos/embedding/*`, then re-send the
-      stuck acks. Dev works around it with an `/etc/hosts` entry on the encoding server that sends
-      `api.dev.hiffi.com` straight to the dev origin (178.104.200.35).
+- [x] **Cloudflare Bot Fight Mode challenges server-to-server callbacks** from the encoding
+      server (144.76.226.190, Hetzner). Bot Fight Mode must stay on and cannot be skipped by WAF
+      rules on the Free plan, so since 2026-10-22 the encoding server bypasses Cloudflare for API
+      calls via `/etc/hosts`:
+      `138.197.44.215 api.hiffi.com` (prod origin, Let's Encrypt cert, verified) and
+      `178.104.200.35 api.dev.hiffi.com` (dev origin). **If either API server moves, update
+      `/etc/hosts` on the encoding server** (the IPs are the A records in Cloudflare DNS).
+      The 6 production uploads stuck between 2026-10-06 and 2026-10-15 were re-published.
+- [x] `hiffi-ack-retry.timer` on the encoding server re-sends any failed encoder publish callback
+      every 5 minutes (log: `/var/log/hiffi-ack-retry.log`; source: `hiffi-encoding/ops/`).
 - [ ] Take a DigitalOcean managed Postgres backup.
 - [ ] Rotate the credentials that were committed to hiffi-backend's git history before `0407599f`
       (Postgres, R2, RabbitMQ).
