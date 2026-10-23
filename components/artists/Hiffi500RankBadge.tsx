@@ -329,7 +329,7 @@ export function Hiffi500RankBadge({ rank, tone = "overlay", className }: Hiffi50
       style={hiffi500Style(rank)}
       value={bucket}
       label=""
-      title={`${bucket} of the Artist Index`}
+      title={rank <= 500 ? `#${rank} on the Hiffi 500` : `${bucket} of the Artist Index`}
       tone={tone}
       className={className}
     />
@@ -340,6 +340,7 @@ type Hiffi500RankPlateProps = {
   rank: number
   /** Link to the Hiffi 500 chart. */
   linked?: boolean
+  href?: string
   /** Opens the chart on this artist's row, then their chart detail. */
   username?: string
   secondary?: PlateSegment
@@ -347,17 +348,17 @@ type Hiffi500RankPlateProps = {
 }
 
 /** Medal-style Hiffi 500 plate for heroes. */
-export function Hiffi500RankPlate({ rank, linked = true, username, secondary, className }: Hiffi500RankPlateProps) {
+export function Hiffi500RankPlate({ rank, linked = true, href: hrefProp, username, secondary, className }: Hiffi500RankPlateProps) {
   if (!isRanked(rank)) return null
   const bucket = publicRankBucket(rank)
   return (
     <RankPlate
       style={hiffi500Style(rank)}
-      eyebrow="Artist Index"
+      eyebrow={rank <= 500 ? "Artist Index Rank" : "Artist Index"}
       value={bucket}
-      title={`${bucket} of the Artist Index`}
+      title={rank <= 500 ? `#${rank} on the Hiffi 500` : `${bucket} of the Artist Index`}
       secondary={secondary}
-      href={linked ? chartHref(rank, username) : undefined}
+      href={hrefProp ?? (linked ? chartHref(rank, username) : undefined)}
       className={className}
     />
   )
@@ -365,11 +366,13 @@ export function Hiffi500RankPlate({ rank, linked = true, username, secondary, cl
 
 type ArtistRankProps = {
   artist: Pick<Artist, "rank" | "ranking"> & { slug?: string }
+  href?: string
   className?: string
 }
 
 /** Hero plate: Hiffi 500 rank, else the Top 5/10/25% band. Nothing for everyone else. */
 export function ArtistRankPlate({
+  href: hrefProp,
   artist,
   linked = true,
   secondary,
@@ -384,6 +387,7 @@ export function ArtistRankPlate({
         value={BAND_LABEL[band]}
         title={bandTitle(band)}
         secondary={secondary}
+        href={hrefProp}
         className={className}
       />
     )
@@ -394,6 +398,7 @@ export function ArtistRankPlate({
       rank={artist.rank}
       linked={linked}
       username={artist.slug}
+      href={hrefProp}
       secondary={secondary}
       className={className}
     />
@@ -452,6 +457,9 @@ function MovementChip({
 
 /** One-sentence public rank line, e.g. "Nova is in the top 10% of the Artist Index." */
 export function publicRankSummary(artist: Pick<Artist, "name" | "rank" | "ranking">): string | null {
+  if (isRanked(artist.rank) && artist.rank <= 500) {
+    return `${artist.name} is #${artist.rank} on the Hiffi 500.`
+  }
   const hint = publicRankHint(artist.rank, artist.ranking?.status === "ranked" ? artist.ranking.band : null)
   if (hint) return `${artist.name} is in the ${hint} of the Artist Index.`
   const ranking = artist.ranking?.status === "ranked" ? artist.ranking : null
@@ -499,7 +507,7 @@ function highlightSegment(highlight: NonNullable<PublicRanking["highlight"]>): P
 }
 
 /** Hero rank cluster: one plate (Hiffi 500 or band, with the city/genre rank alongside), then movement. */
-export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
+export function ArtistRankSignals({ artist, href, className }: ArtistRankProps) {
   const ranking = artist.ranking?.status === "ranked" ? artist.ranking : null
   const hasPlate = isRanked(artist.rank) || isPercentBand(ranking?.band)
   const highlight = ranking?.highlight ?? null
@@ -508,7 +516,7 @@ export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {hasPlate ? (
-        <ArtistRankPlate artist={artist} />
+        <ArtistRankPlate artist={artist} href={href} />
       ) : highlight ? (
         <RankPlate
           style={highlightStyle(highlight.kind)}
@@ -516,6 +524,7 @@ export function ArtistRankSignals({ artist, className }: ArtistRankProps) {
           value={`#${highlight.rank}`}
           label={`of ${highlight.total.toLocaleString()}`}
           title={highlightSegment(highlight).title}
+          href={href}
         />
       ) : null}
       {ranking?.movement ? <MovementChip movement={ranking.movement} /> : null}

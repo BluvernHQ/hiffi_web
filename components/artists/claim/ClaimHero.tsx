@@ -83,7 +83,7 @@ export function ClaimHero({
               {title}
             </h1>
             <p className="mt-4 max-w-2xl text-[15px] leading-7 text-white/60">{description}</p>
-            <ArtistRankSignals artist={artist} className="mt-5" />
+            <ArtistRankSignals artist={artist} href={`/artist-index/${artist.slug}`} className="mt-5" />
           </div>
         </div>
 

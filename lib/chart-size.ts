@@ -38,10 +38,10 @@ export function chartNameForRank(rank: number): string {
   return size === 500 ? "Hiffi 500" : `Top ${size.toLocaleString()}`
 }
 
-/** Public teaser. Exact place stays on the claimed artist's private ranking. */
+/** Exact rank for top 500 artists; tiered buckets for 501+. */
 export function publicRankBucket(rank: number): string {
-  if (rank <= 100) return "Top 100"
-  if (rank <= 500) return "Top 500"
+  if (rank <= 500) return `#${rank}`
+
   if (rank <= 1000) return "Top 1,000"
   if (rank <= 5000) return "Top 5,000"
   return "Top 10,000"

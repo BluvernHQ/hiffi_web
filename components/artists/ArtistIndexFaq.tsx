@@ -12,6 +12,7 @@ type ArtistIndexFaqProps = {
   items?: readonly FaqItem[]
   title?: string
   description?: string
+  variant?: string
 }
 
 export function ArtistIndexFaq({
