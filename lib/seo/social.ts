@@ -2,9 +2,10 @@ import { HIFFI_STORE_SAME_AS } from "@/lib/app-download"
 
 /** Official Hiffi social profiles — used in Organization JSON-LD sameAs and site footer. */
 export const HIFFI_SOCIAL_PROFILES = {
-  instagram: "https://www.instagram.com/officialhiffi/",
-  x: "https://x.com/officialhiffi",
-  youtube: "https://www.youtube.com/@officialhiffi",
+  instagram: "https://www.instagram.com/official_hiffi",
+  x: "https://x.com/OHiphopmusic",
+  youtube: "https://www.youtube.com/@official_hiffi",
+  tiktok: "https://www.tiktok.com/@official_hiffi",
 } as const
 
 /**

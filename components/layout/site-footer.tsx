@@ -23,6 +23,11 @@ const socialLinks = [
     href: HIFFI_SOCIAL_PROFILES.youtube,
     iconSrc: "/artist-claim/icons/youtube.svg",
   },
+  {
+    label: "TikTok",
+    href: HIFFI_SOCIAL_PROFILES.tiktok,
+    iconSrc: "/artist-claim/icons/tiktok.svg",
+  },
 ] as const
 
 type FooterColumn = {
