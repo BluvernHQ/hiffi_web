@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { buildArtistDirectoryHref } from "@/lib/artist-directory"
+import { ARTIST_INDEX_PATH, buildArtistDirectoryHref } from "@/lib/artist-directory"
 import { chartSizeForRank, publicRankBucket, publicRankHint } from "@/lib/chart-size"
 import { topArtistTier } from "@/lib/hiffi500-tier"
 import type { PublicRanking, RankBand } from "@/lib/types/inventory"
@@ -387,7 +387,7 @@ export function ArtistRankPlate({
         value={BAND_LABEL[band]}
         title={bandTitle(band)}
         secondary={secondary}
-        href={hrefProp}
+        href={hrefProp ?? ARTIST_INDEX_PATH}
         className={className}
       />
     )

@@ -4,7 +4,7 @@ import { Play } from "lucide-react"
 import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import type { Artist } from "@/lib/artists"
 import { formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
-import { getArtistImageUrl } from "@/lib/artist-directory"
+import { ARTIST_INDEX_PATH, getArtistImageUrl } from "@/lib/artist-directory"
 import { ArtistRankSignals } from "@/components/artists/Hiffi500RankBadge"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import {
@@ -88,7 +88,7 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
               ) : null}
             </h1>
 
-            <ArtistRankSignals artist={artist} className="mt-6" />
+            <ArtistRankSignals artist={artist} href={ARTIST_INDEX_PATH} className="mt-6" />
 
             <div className="mt-7 flex flex-wrap items-center gap-2.5">
               <Link

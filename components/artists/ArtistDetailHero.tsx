@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { BadgeCheck } from "lucide-react"
 import type { Artist } from "@/lib/artists"
-import { artistIndexHref, getArtistImageUrl } from "@/lib/artist-directory"
+import { ARTIST_INDEX_PATH, getArtistImageUrl } from "@/lib/artist-directory"
 import { artistProfilePhotoAlt, formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ArtistShareButton } from "@/components/artists/ArtistShareButton"
 import { ClaimReceiptBanner } from "@/components/artists/claim/ClaimReceiptNotices"
@@ -118,7 +118,7 @@ export function ArtistDetailHero({
 
           <div className="relative flex items-start justify-between gap-3 p-4 sm:p-6">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] sm:text-xs">
-              <ArtistRankSignals artist={artist} href={artistIndexHref(artist.slug || username)} />
+              <ArtistRankSignals artist={artist} href={ARTIST_INDEX_PATH} />
               {!hideStatusBadge && artist.verified ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F7AE1] px-2.5 py-1 text-white sm:px-3 sm:py-1.5">
                   <BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
