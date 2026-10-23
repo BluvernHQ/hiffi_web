@@ -40,7 +40,7 @@ export interface InventoryCityRef {
   country: string
 }
 
-/** Weekly-snapshot ranking. Exact rank is only public inside the Hiffi 500. */
+/** Weekly-snapshot ranking. `global_rank` is set for every ranked artist, including past 500, and null when unranked. */
 export interface PublicRanking {
   status: "ranked" | "not_ranked"
   band: RankBand
@@ -546,7 +546,22 @@ export function normalizePublicInventoryProfile(raw: Record<string, unknown>): P
   const updatedAt = raw.updated_at != null && String(raw.updated_at).trim() ? String(raw.updated_at) : undefined
 
   const city = normalizeInventoryCityRef(raw.city)
-  const ranking = normalizePublicRanking(raw.ranking)
+  let ranking = normalizePublicRanking(raw.ranking)
+  const listedRank = positiveIntOrNull(raw.global_rank)
+  if (listedRank != null) {
+    if (!ranking) {
+      ranking = {
+        status: "ranked",
+        band: "none",
+        global_rank: listedRank,
+        highlight: null,
+        movement: null,
+        updated_at: null,
+      }
+    } else if (ranking.status === "ranked" && ranking.global_rank == null) {
+      ranking = { ...ranking, global_rank: listedRank }
+    }
+  }
 
   return {
     username: String(raw.username ?? "").trim().toLowerCase(),
@@ -621,7 +636,7 @@ export function normalizePublicRanking(value: unknown): PublicRanking | undefine
   return {
     status,
     band,
-    global_rank: band === "hiffi_500" ? positiveIntOrNull(raw.global_rank) : null,
+    global_rank: status === "ranked" ? positiveIntOrNull(raw.global_rank) : null,
     highlight,
     movement: spots30d || streakWeeks ? { spots_30d: spots30d, streak_weeks: streakWeeks } : null,
     updated_at: raw.updated_at ? String(raw.updated_at) : null,

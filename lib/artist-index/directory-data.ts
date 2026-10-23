@@ -110,6 +110,8 @@ export async function getArtistBySlugAsync(slug: string): Promise<Artist | undef
   }
 
   const artist = mapInventoryProfileToArtist(profile, linkedProfile)
+  // Inventory `global_rank` is the place for every ranked artist. Chart search only fills gaps.
+  if (artist.rank > 0) return artist
   const chartRank = await lookupChartRank(normalized)
   if (chartRank) return { ...artist, rank: chartRank }
   return withHiffi500Rank(artist)
