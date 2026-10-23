@@ -55,9 +55,16 @@ export function percentBandLabel(band: string | null | undefined): string | null
   return null
 }
 
+/** Ranks past 5,000 have no API percent band. Show their place in the Top 10,000. */
+function top10000Percent(rank: number): string | null {
+  if (rank <= 5000) return null
+  const pct = Math.min(100, Math.ceil((rank / 10000) * 100))
+  return `Top ${pct}%`
+}
+
 /** One public label. A percent band wins over the numbered bucket so a card never stacks both. */
 export function publicRankHint(rank: number, band?: string | null): string | null {
-  return percentBandLabel(band) ?? (rank > 0 ? publicRankBucket(rank) : null)
+  return percentBandLabel(band) ?? top10000Percent(rank) ?? (rank > 0 ? publicRankBucket(rank) : null)
 }
 
 /** Missing or unknown values stay on the Top 500. */

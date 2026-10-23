@@ -26,6 +26,10 @@ const pkg = JSON.parse(
 
 const nextConfig = {
   output: "standalone",
+  // Better Auth depends on Zod 4 (`z.email`). The app pins Zod 3, and Turbopack
+  // would bundle Better Auth against that copy. Leave it external so Node loads
+  // the Zod 4 install under better-auth/node_modules.
+  serverExternalPackages: ["better-auth"],
   images: {
     unoptimized: true,
   },

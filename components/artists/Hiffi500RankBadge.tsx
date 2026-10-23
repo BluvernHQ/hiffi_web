@@ -323,7 +323,7 @@ type Hiffi500RankBadgeProps = {
 /** Compact Hiffi 500 chip (never a link — cards are already one). */
 export function Hiffi500RankBadge({ rank, tone = "overlay", className }: Hiffi500RankBadgeProps) {
   if (!isRanked(rank)) return null
-  const bucket = publicRankBucket(rank)
+  const bucket = publicRankHint(rank) ?? publicRankBucket(rank)
   return (
     <RankChip
       style={hiffi500Style(rank)}
@@ -350,7 +350,7 @@ type Hiffi500RankPlateProps = {
 /** Medal-style Hiffi 500 plate for heroes. */
 export function Hiffi500RankPlate({ rank, linked = true, href: hrefProp, username, secondary, className }: Hiffi500RankPlateProps) {
   if (!isRanked(rank)) return null
-  const bucket = publicRankBucket(rank)
+  const bucket = publicRankHint(rank) ?? publicRankBucket(rank)
   return (
     <RankPlate
       style={hiffi500Style(rank)}
