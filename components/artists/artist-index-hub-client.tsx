@@ -49,9 +49,10 @@ type ArtistIndexHubClientProps = {
   introDescription?: string
   sectionTitle?: string
   sectionSubtitle?: string
+  /** City and genre pages pass their own page links. The main index builds them from the directory. */
+  paginationHref?: (page: number) => string
   childrenBeforeGrid?: ReactNode
   childrenAfterGrid?: ReactNode
-  paginationHref?: (page: number) => string
   /** Premium hub: dark masthead with the weekly chart, scenes, roster grid. */
   feature?: ArtistIndexHubFeature
   /** `null` is All: the existing roster. A size filters that grid to the chart slice. */
@@ -95,9 +96,9 @@ export function ArtistIndexHubClient({
   introDescription,
   sectionTitle: sectionTitleProp,
   sectionSubtitle: sectionSubtitleProp,
+  paginationHref,
   childrenBeforeGrid,
   childrenAfterGrid,
-  paginationHref: paginationHrefProp,
   feature,
   chartSize = null,
   chartList = null,
@@ -300,13 +301,15 @@ export function ArtistIndexHubClient({
         "Verified and emerging hip-hop and rap artists across cities — search profiles and explore official links."
       : `${directory.totalMatches.toLocaleString()} profiles match your filters`
 
-  const resolvedPaginationHref = paginationHrefProp ?? ((page: number) =>
-    buildArtistDirectoryHref({
-      query: directory.query,
-      activeFilterIds: directory.activeFilterIds,
-      page,
-      top: chartSize ?? undefined,
-    }))
+  const resolvedPaginationHref =
+    paginationHref ??
+    ((page: number) =>
+      buildArtistDirectoryHref({
+        query: directory.query,
+        activeFilterIds: directory.activeFilterIds,
+        page,
+        top: chartSize ?? undefined,
+      }))
 
   if (feature) {
     const trimmedQuery = directory.query.trim()
