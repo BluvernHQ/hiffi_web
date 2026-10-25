@@ -440,8 +440,8 @@ function AdminDashboardContent() {
                   <div className="shrink-0">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Visitor Journeys</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                      See where visitors enter and exit a chain, measure drop-off between stages, then open a
-                      session timeline for detail
+                      Every path people take through the app, who took it, how widely each feature is used,
+                      funnel drop-off, and individual session timelines
                     </p>
                   </div>
                   <div className="flex-1 min-h-0">

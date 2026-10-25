@@ -100,7 +100,10 @@ export function AnalyticsFeaturesPanel({ onOpenSession }: { onOpenSession: (sess
   }, [usage, query, showUnregistered, filters.includeGuests])
 
   const unregisteredCount = useMemo(() => usage.filter((u) => !(u.id in TRACKING_IDS)).length, [usage])
-  const usedCount = rows.filter((r) => r.info && r.people > 0).length
+  const usedCount = useMemo(
+    () => usage.filter((u) => u.id in TRACKING_IDS && u.users + (filters.includeGuests ? u.guests : 0) > 0).length,
+    [usage, filters.includeGuests],
+  )
 
   return (
     <div className="space-y-4">
