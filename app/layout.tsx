@@ -11,6 +11,8 @@ import { VideoProvider } from '@/lib/video-context'
 import { MainContentScrollCoordinator } from '@/components/layout/main-content-scroll-restore'
 import { Toaster } from '@/components/ui/toaster'
 import { ApiAnalyticsShell } from '@/components/analytics/api-analytics-shell'
+import { ThirdPartyAnalyticsShell } from '@/components/analytics/third-party-analytics-shell'
+import { AnalyticsRouteGuard } from '@/components/analytics/analytics-route-guard'
 import { getSiteOrigin, absoluteUrl } from '@/lib/seo/site'
 import { ORGANIZATION_SAME_AS } from '@/lib/seo/social'
 import {
@@ -24,7 +26,7 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { UtmPoll } from '@/components/marketing/utm-poll'
 import { DeployStaleGuard } from '@/components/deploy/deploy-stale-guard'
 import { CookieConsentBanner } from '@/components/cookies/cookie-consent-banner'
-import { isApiAnalyticsEnabled } from '@/lib/analytics/is-api-analytics-enabled'
+import { analyticsUmamiDomains, isApiAnalyticsEnabled } from '@/lib/analytics/is-api-analytics-enabled'
 import { getAnalyticsBuildId } from '@/lib/app-version'
 import './globals.css'
 
@@ -189,6 +191,25 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const joyjamRem = (await headers()).get("x-joyjam-rem") === "1"
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID
+  const gaId = process.env.NEXT_PUBLIC_GA_ID
+  const appEnv = process.env.NEXT_PUBLIC_ENV || "beta"
+  const isProd = appEnv === "prod"
+  const isBeta = appEnv === "beta"
+  // Beta-only Umami website id (performance only; no replay)
+  const umamiWebsiteId = isBeta
+    ? "c4c06e01-881a-4dcc-9357-969c56942952"
+    : process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+  const umamiPerformanceEnabled =
+    process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "false" &&
+    process.env.NEXT_PUBLIC_UMAMI_PERFORMANCE !== "0"
+  const umamiReplayEnabled =
+    process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "false" &&
+    process.env.NEXT_PUBLIC_UMAMI_REPLAY_ENABLED !== "0"
+  const umamiDomains = analyticsUmamiDomains(
+    process.env.NEXT_PUBLIC_UMAMI_DOMAINS ||
+      (isBeta ? "dev.hiffi.com" : "hiffi.com,www.hiffi.com"),
+  )
   const apiAnalyticsEnabled = isApiAnalyticsEnabled()
   // Serve tracker via same-origin proxy so batch/identify stay on this host.
   const apiAnalyticsSrc = apiAnalyticsEnabled ? "/proxy/tracker.js" : null
@@ -207,13 +228,31 @@ export default async function RootLayout({
           {`(function(){var p=location.pathname;if(/^\\/(about|for-fans|for-creators)(\\/|$)/.test(p)){var e=document.documentElement;e.classList.add("joyjam-rem-scale");e.style.fontSize="1svw"}})()`}
         </Script>
         <JsonLd data={siteJsonLd} />
-        {/* First-party analytics only (no third-party trackers); skipped on /admin routes */}
+        {/* First-party + third-party analytics load client-side; skipped on /admin routes */}
+        <Suspense fallback={null}>
+          <AnalyticsRouteGuard gaId={gaId} />
+        </Suspense>
         {apiAnalyticsSrc && (
           <Suspense fallback={null}>
             <ApiAnalyticsShell
               src={apiAnalyticsSrc}
               ingestKey={analyticsIngestKey}
               buildId={analyticsBuildId}
+            />
+          </Suspense>
+        )}
+        {/* Clarity, GA and Umami run on production only; dev and beta keep first-party analytics */}
+        {isProd && (
+          <Suspense fallback={null}>
+            <ThirdPartyAnalyticsShell
+              clarityId={clarityId}
+              gaId={gaId}
+              umamiWebsiteId={umamiWebsiteId}
+              umamiDomains={umamiDomains}
+              umamiPerformanceEnabled={umamiPerformanceEnabled}
+              umamiReplayEnabled={umamiReplayEnabled}
+              isProd={isProd}
+              isBeta={isBeta}
             />
           </Suspense>
         )}

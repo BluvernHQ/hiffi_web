@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Upload, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { trackUmami } from "@/lib/umami"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 
 export type UploadJobStatus =
@@ -385,12 +386,14 @@ export function VideoUploadQueueProvider({ children }: { children: ReactNode }) 
             }),
           )
 
-          captureConversionEvent("conversion_video_uploaded", {
+          const uploadedProps = {
             video_id: videoId || null,
             video_title: title,
             has_custom_thumbnail: Boolean(thumbnail),
             tag_count: tagsArray.length,
-          })
+          }
+          trackUmami("Video Uploaded", uploadedProps)
+          captureConversionEvent("conversion_video_uploaded", uploadedProps)
 
           toast({
             title: "Upload complete",

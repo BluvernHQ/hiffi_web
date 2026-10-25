@@ -13,6 +13,7 @@ import { CLAIM_UNDER_REVIEW_MESSAGE, isClaimUnderReviewError } from "@/lib/api/i
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { BecomeCreatorTermsNote } from "@/components/creator/become-creator-terms"
+import { trackUmami } from "@/lib/umami"
 import { captureConversionEvent } from "@/lib/conversion-tracking"
 import { buildLoginUrl, buildSignupUrl } from "@/lib/auth-utils"
 
@@ -80,6 +81,9 @@ export function BecomeCreatorCta() {
       throw new Error("Creator upgrade did not complete. Please try again.")
     }
 
+    trackUmami("Creator Account Created", {
+      username: userData?.username ?? null,
+    })
     captureConversionEvent("conversion_creator_account_created", {
       username: userData?.username ?? null,
     })
