@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId, type TrackingId } from "@/lib/analytics/tracking-ids"
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -159,6 +160,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     icon: typeof Home
     label: string
     href: string
+    analyticsId: TrackingId
     requireAuth?: boolean
   }
 
@@ -170,14 +172,14 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
   const mainNavItems: SidebarNavItem[] = []
 
   const filterItems: SidebarFilterItem[] = [
-    { icon: Home, label: "Home", value: "all" as const, href: "/" },
+    { icon: Home, label: "Home", value: "all" as const, href: "/", analyticsId: "sidebar_home_button" },
   ]
 
   const secondaryNavItems: SidebarNavItem[] = [
-    { icon: History, label: "History", href: "/history" },
-    { icon: ThumbsUp, label: "Liked Videos", href: "/liked" },
-    { icon: ListMusic, label: "Playlists", href: "/playlists", requireAuth: true },
-    { icon: UserCheck, label: "Following", href: "/following", requireAuth: true },
+    { icon: History, label: "History", href: "/history", analyticsId: "sidebar_history_link" },
+    { icon: ThumbsUp, label: "Liked Videos", href: "/liked", analyticsId: "sidebar_liked_videos_link" },
+    { icon: ListMusic, label: "Playlists", href: "/playlists", analyticsId: "sidebar_playlists_link", requireAuth: true },
+    { icon: UserCheck, label: "Following", href: "/following", analyticsId: "sidebar_following_link", requireAuth: true },
   ]
 
   /**
@@ -200,7 +202,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     return (
       <Link
         href={item.href}
-        data-analytics-name={`sidebar_${item.label.toLowerCase().replace(/\s+/g, "_")}_link`}
+        {...trackId(item.analyticsId)}
         className={cn(
           // Standardized spacing and sizing - matches FilterItem exactly
           "flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
@@ -250,7 +252,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
     return (
       <button
         onClick={handleClick}
-        data-analytics-name={`sidebar_${item.label.toLowerCase().replace(/\s+/g, "_")}_button`}
+        {...trackId(item.analyticsId)}
         className={cn(
           // Standardized spacing and sizing - never changes
           "w-full flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-colors text-left",
@@ -595,7 +597,7 @@ export function Sidebar({ className, isMobileOpen = false, onMobileClose, isDesk
                   closeSidebar()
                   setFeedbackDialogOpen(true)
                 }}
-                data-analytics-name="sidebar-send-feedback"
+                {...trackId("sidebar-send-feedback")}
                 className={cn(
                   "mb-3 flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-colors",
                   isAppDownloadPage ? "text-black/85" : "text-foreground",

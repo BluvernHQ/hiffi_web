@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -244,6 +245,7 @@ export function CommentSection({
               />
               {(newComment.trim() || isSubmitting) && (
                 <Button
+                  {...trackId("comment-post")}
                   type="submit"
                   size="icon"
                   variant="ghost"
@@ -306,14 +308,14 @@ export function CommentSection({
                     >
                       <Link
                         href={buildSignupUrl(pathname, searchParamsString)}
-                        data-analytics-name="guest-comment-signup-link"
+                        {...trackId("guest-comment-signup-link")}
                       >
                         Sign up
                       </Link>
                     </Button>
                     <Link
                       href={buildLoginUrl(pathname, searchParamsString)}
-                      data-analytics-name="guest-comment-login-link"
+                      {...trackId("guest-comment-login-link")}
                       className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
                       Already have an account?
@@ -582,7 +584,7 @@ function CommentItem({
           {canReportComment && (
             <button
               type="button"
-              data-analytics-name="report-comment"
+              {...trackId("report-comment")}
               className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
               onClick={() => setReportDialogOpen(true)}
             >
@@ -629,7 +631,7 @@ function CommentItem({
               >
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={!replyText.trim() || isSubmittingReply}>
+              <Button {...trackId("comment-reply-post")} type="submit" size="sm" disabled={!replyText.trim() || isSubmittingReply}>
                 {isSubmittingReply ? (
                   <>
                     <Loader2 className="mr-2 h-3 w-3 animate-spin" />

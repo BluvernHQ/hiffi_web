@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
@@ -81,7 +82,7 @@ export function GuestWatchNudge({ videoId, className }: GuestWatchNudgeProps) {
         Sign up to save this track and get personalised picks
       </p>
       <Button asChild size="sm" variant="default" className="shrink-0 rounded-full">
-        <Link href={signupUrl} data-analytics-name="guest-watch-60s-signup">
+        <Link href={signupUrl} {...trackId("guest-watch-60s-signup")}>
           Sign up free
         </Link>
       </Button>

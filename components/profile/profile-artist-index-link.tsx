@@ -1,3 +1,4 @@
+import { trackId } from "@/lib/analytics/tracking-ids"
 import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import { artistIndexHref } from "@/lib/artist-directory"
@@ -24,7 +25,7 @@ export function ProfileArtistIndexLink({ username, className }: ProfileArtistInd
         target="_blank"
         rel="noopener noreferrer"
         className="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs sm:text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
-        data-analytics-name="profile-artist-index-link"
+        {...trackId("profile-artist-index-link")}
       >
         <span className="truncate" title={displayPath}>
           {displayPath}

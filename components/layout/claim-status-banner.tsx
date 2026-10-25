@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useEffect, useState } from "react"
 import { Clock, Loader2, Mail } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
@@ -110,7 +111,7 @@ export function ClaimStatusBanner({ className }: { className?: string }) {
                 type="button"
                 onClick={() => void handleResend()}
                 disabled={resend.status === "sending"}
-                data-analytics-name="claim-banner-resend-confirmation"
+                {...trackId("claim-banner-resend-confirmation")}
                 className="inline-flex items-center gap-1 font-semibold text-[#E8192C] underline-offset-4 hover:underline disabled:opacity-60"
               >
                 {resend.status === "sending" ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}

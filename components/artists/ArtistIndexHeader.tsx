@@ -1,3 +1,4 @@
+import { trackId } from "@/lib/analytics/tracking-ids"
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
@@ -46,7 +47,7 @@ export function ArtistIndexHeader({
                 {crumb.href ? (
                   <Link
                     href={crumb.href}
-                    data-analytics-name="artist-nav-breadcrumb-link"
+                    {...trackId("artist-nav-breadcrumb-link")}
                     className={cn(
                       "font-medium transition-colors hover:text-[#d01528]",
                       index === breadcrumbs!.length - 1 ? "text-[#E8192C]" : "text-[#E8192C]/80",
@@ -68,7 +69,7 @@ export function ArtistIndexHeader({
           {claimHref ? (
             <Link
               href={claimHref}
-              data-analytics-name="artist-nav-claim-button"
+              {...trackId("artist-nav-claim-button")}
               className="inline-flex h-8 items-center justify-center rounded-full bg-[#E8192C] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#d01528]"
             >
               {claimLabel}

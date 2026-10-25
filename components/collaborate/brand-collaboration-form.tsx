@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -348,7 +349,7 @@ export function BrandCollaborationForm() {
           type="button"
           size="lg"
           className="h-12 w-full rounded-lg text-[15px] font-semibold shadow-none"
-          data-analytics-name="brand-collaboration-submit-button"
+          {...trackId("brand-collaboration-submit-button")}
           disabled={isSubmitting || submitBlocked}
           onClick={() => void handleSubmit()}
         >

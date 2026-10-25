@@ -1,5 +1,6 @@
 'use client';
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -444,7 +445,7 @@ export default function StudioUploadPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          data-analytics-name="upload-custom-thumbnail-button"
+                          {...trackId("upload-custom-thumbnail-button")}
                           className="h-9 rounded-xl"
                           onClick={() => thumbnailInputRef.current?.click()}
                         >
@@ -456,7 +457,7 @@ export default function StudioUploadPage() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            data-analytics-name="upload-remove-thumbnail-button"
+                            {...trackId("upload-remove-thumbnail-button")}
                             className="h-9 rounded-xl"
                             onClick={handleRemoveThumbnail}
                           >
@@ -482,7 +483,7 @@ export default function StudioUploadPage() {
             <Button
               variant="outline"
               type="button"
-              data-analytics-name="upload-cancel-draft-button"
+              {...trackId("upload-cancel-draft-button")}
               onClick={() => {
                 if (file) setCancelSelectDialogOpen(true);
                 else router.push(STUDIO_HOME);
@@ -494,7 +495,7 @@ export default function StudioUploadPage() {
               type="button"
               onClick={handleUpload}
               disabled={!title || !thumbnail}
-              data-analytics-name="upload-submit-video-button"
+              {...trackId("upload-submit-video-button")}
             >
               Upload Video
             </Button>

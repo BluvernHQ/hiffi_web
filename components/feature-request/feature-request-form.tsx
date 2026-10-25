@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -202,7 +203,7 @@ export function FeatureRequestForm() {
       <Button
         type="submit"
         disabled={submitting || !idea.trim()}
-        data-analytics-name="feature-request-submitted"
+        {...trackId("feature-request-submitted")}
       >
         {submitting ? (
           <>

@@ -1,11 +1,11 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { Play } from "lucide-react"
 import type { MoodDef } from "@/lib/mood-tabs"
 import {
   MOOD_MIX_FULL_FEED,
-  moodMixRunAnalyticsName,
-  moodMixSelectAnalyticsName,
+  moodAnalyticsSlug,
 } from "@/lib/analytics/mood-mix-analytics"
 import { cn } from "@/lib/utils"
 
@@ -44,7 +44,7 @@ export function MoodMixChips({
             type="button"
             onClick={onPlay}
             disabled={loading}
-            data-analytics-name={moodMixRunAnalyticsName(activeQuery!)}
+            {...trackId("mood-mix-run", moodAnalyticsSlug(activeQuery!))}
             className="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary px-3 font-[family-name:var(--font-bebas)] text-xs tracking-widest text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
           >
             <Play className="size-3 fill-current" aria-hidden />
@@ -64,7 +64,7 @@ export function MoodMixChips({
           role="option"
           aria-selected={!hasMood}
           disabled={loading}
-          data-analytics-name={MOOD_MIX_FULL_FEED}
+          {...trackId(MOOD_MIX_FULL_FEED)}
           onClick={onSelectAll}
           className={cn(
             "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold tracking-wide transition",
@@ -86,7 +86,7 @@ export function MoodMixChips({
               role="option"
               aria-selected={selected}
               disabled={loading}
-              data-analytics-name={moodMixSelectAnalyticsName(mood.query)}
+              {...trackId("mood-mix-select", moodAnalyticsSlug(mood.query))}
               onClick={() => onSelectMood(mood.query)}
               title={mood.tagline}
               className={cn(

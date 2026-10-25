@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useMemo } from "react"
 import { ListMusic, Loader2, Plus, Search } from "lucide-react"
 import type { PlaylistSummary } from "@/lib/api-client"
@@ -205,6 +206,7 @@ export function PickView({
           type="button"
           variant="outline"
           className={atpOutlineFooterButtonClass(sheet)}
+          {...trackId("playlist-picker-new")}
           onClick={onCreateClick}
         >
           <Plus className={cn("shrink-0", sheet ? "h-5 w-5" : "h-4 w-4")} aria-hidden />
@@ -214,6 +216,7 @@ export function PickView({
           type="button"
           className={cn(atpPrimaryButtonClass(sheet), sheet ? "flex-[1.4]" : "flex-[1.35]")}
           disabled={listBusy || pendingChangeCount === 0}
+          {...trackId("playlist-picker-save")}
           onClick={onConfirm}
         >
           {listBusy ? (

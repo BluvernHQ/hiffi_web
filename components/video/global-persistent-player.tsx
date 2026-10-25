@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useGlobalVideo } from "@/lib/video-context"
 import { VideoPlayer } from "@/components/video/video-player"
 import { cn } from "@/lib/utils"
@@ -72,7 +73,7 @@ export function GlobalPersistentPlayer() {
           <Button 
             size="icon" 
             variant="secondary" 
-            data-analytics-name="global-player-expand-button"
+            {...trackId("global-player-expand-button")}
             className="h-8 w-8 rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background" 
             onClick={handleExpand}
           >

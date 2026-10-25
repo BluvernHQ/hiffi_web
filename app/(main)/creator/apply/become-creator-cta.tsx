@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useEffect, type FormEvent } from "react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -301,7 +302,7 @@ export function BecomeCreatorCta() {
             asChild
             className="h-9 min-h-9 flex-1 rounded-full px-3 text-[13px] font-semibold sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm lg:h-11"
           >
-            <Link href={LOGIN_REDIRECT} data-analytics-name="creator-apply-sign-in">
+            <Link href={LOGIN_REDIRECT} {...trackId("creator-apply-sign-in")}>
               Sign in
             </Link>
           </Button>
@@ -310,7 +311,7 @@ export function BecomeCreatorCta() {
             variant="outline"
             className="h-9 min-h-9 flex-1 rounded-full px-3 text-[13px] font-semibold sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm lg:h-11"
           >
-            <Link href={SIGNUP_REDIRECT} data-analytics-name="creator-apply-sign-up">
+            <Link href={SIGNUP_REDIRECT} {...trackId("creator-apply-sign-up")}>
               Create account
             </Link>
           </Button>
@@ -352,7 +353,7 @@ export function BecomeCreatorCta() {
             <Button
               type="submit"
               className="sm:flex-1"
-              data-analytics-name="creator-verify-upgrade-otp-button"
+              {...trackId("creator-verify-upgrade-otp-button")}
               disabled={isVerifying || otp.length !== 6}
             >
               {isVerifying ? (
@@ -396,7 +397,7 @@ export function BecomeCreatorCta() {
           ) : null}
           <Button
             type="button"
-            data-analytics-name="creator-become-creator-button"
+            {...trackId("creator-become-creator-button")}
             className="h-9 w-full rounded-full text-[13px] font-semibold shadow-none motion-safe:active:scale-[0.99] sm:h-10 sm:rounded-xl sm:text-sm lg:h-11"
             onClick={() => void handleRequestUpgrade()}
             disabled={isBusy || !accountEmail.trim()}

@@ -79,6 +79,9 @@ function toTitleCase(value: string): string {
 /** Map report analytics names to admin activity log titles. */
 function reportActivityLabel(uiName: string): string | null {
   const raw = uiName.trim().toLowerCase()
+  if (raw === "report-submitted") return "Report submitted"
+  if (raw === "report-submitted") return "Report submitted"
+  if (raw === "report-submitted") return "Report submitted"
   if (raw === "report-video" || raw === "report-video-submitted") return "Report video"
   if (raw === "report-comment" || raw === "report-comment-submitted") return "Report comment"
   if (

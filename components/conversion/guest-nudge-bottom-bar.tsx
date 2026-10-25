@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
@@ -62,7 +63,7 @@ export function GuestNudgeBottomBar({ className }: GuestNudgeBottomBarProps) {
           You&apos;ve played {playCount} tracks — sign up for picks tailored to you
         </p>
         <Button asChild size="sm" className="shrink-0 rounded-full px-4 font-semibold">
-          <Link href={signupUrl} data-analytics-name="guest-third-track-signup">
+          <Link href={signupUrl} {...trackId("guest-third-track-signup")}>
             Sign up free
           </Link>
         </Button>

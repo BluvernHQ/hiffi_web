@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId, type TrackingId } from "@/lib/analytics/tracking-ids"
 import {
   useCallback,
   useEffect,
@@ -57,7 +58,7 @@ export type HeroCarouselProps = {
   cards: HeroCarouselCard[]
   className?: string
   onCardChange?: (index: number, card: HeroCarouselCard) => void
-  openVideoUiName?: string
+  openVideoUiName?: TrackingId
   /**
    * When false (e.g. mood tab active), pause and keep currentTime.
    * When true again, resume from the same position if still in view.
@@ -663,7 +664,7 @@ export function HeroCarousel({
           "md:hidden",
         )}
         aria-label="Previous featured video"
-        data-analytics-name="home-hero-filmstrip-prev"
+        {...trackId("home-hero-filmstrip-prev")}
       >
         <ChevronLeft className="size-3.5" aria-hidden />
       </button>
@@ -751,7 +752,7 @@ export function HeroCarousel({
           "md:hidden",
         )}
         aria-label="Next featured video"
-        data-analytics-name="home-hero-filmstrip-next"
+        {...trackId("home-hero-filmstrip-next")}
       >
         <ChevronRight className="size-3.5" aria-hidden />
       </button>
@@ -871,7 +872,7 @@ export function HeroCarousel({
           onClick={toggleMute}
           className={cn(glassBtn, "size-8 md:size-10")}
           aria-label={isMuted ? "Unmute video" : "Mute video"}
-          data-analytics-name={isMuted ? "home-hero-unmute" : "home-hero-mute"}
+          {...trackId(isMuted ? "home-hero-unmute" : "home-hero-mute")}
         >
           {isMuted ? (
             <VolumeX className="size-3.5 md:size-4" aria-hidden />
@@ -887,7 +888,7 @@ export function HeroCarousel({
           }}
           className={cn(glassBtn, "size-8 md:size-10")}
           aria-label="Share video"
-          data-analytics-name="home-hero-share"
+          {...trackId("home-hero-share")}
         >
           <Share2 className="size-3.5 md:size-4" aria-hidden />
         </button>
@@ -908,7 +909,7 @@ export function HeroCarousel({
 
           <Link
             href={standaloneWatchHref(activeCard.href)}
-            data-analytics-name={openVideoUiName}
+            {...trackId(openVideoUiName)}
             className="group block focus-visible:outline-none md:mt-2"
             onClick={openWatchFromHero}
           >
@@ -969,7 +970,7 @@ export function HeroCarousel({
           <div className="mt-2 flex items-center gap-2 md:mt-4">
             <Link
               href={standaloneWatchHref(activeCard.href)}
-              data-analytics-name={openVideoUiName}
+              {...trackId(openVideoUiName)}
               onClick={openWatchFromHero}
               className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-semibold leading-none text-primary-foreground shadow-sm transition hover:bg-primary/90 md:h-10 md:rounded-lg md:px-5 md:text-sm"
             >

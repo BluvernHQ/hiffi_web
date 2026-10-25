@@ -1,10 +1,11 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useRef, useEffect } from "react"
 import { gsap, useGSAP } from "@/lib/gsap/register"
 import type { MoodDef } from "@/lib/mood-tabs"
 import {
-  moodMixSelectAnalyticsName,
+  moodAnalyticsSlug,
 } from "@/lib/analytics/mood-mix-analytics"
 import { MoodOrb } from "@/components/home/mood-orb"
 import {
@@ -119,7 +120,7 @@ export function MoodPickerCard({
                 aria-selected={isSelected}
                 data-mood-item
                 data-mood-query={mood.query}
-                data-analytics-name={moodMixSelectAnalyticsName(mood.query)}
+                {...trackId("mood-mix-select", moodAnalyticsSlug(mood.query))}
                 onClick={() => handleMoodClick(mood.query)}
                 className="group flex w-[5.25rem] shrink-0 flex-col items-center gap-2 p-1.5 focus-visible:outline-none sm:w-[5.75rem]"
               >

@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useEffect, useState, type CSSProperties } from "react"
 import { ArrowRight, Check, Clock, Mail } from "lucide-react"
 import type { Artist } from "@/lib/artists"
@@ -152,7 +153,7 @@ export function ClaimWelcome({ artist, email, phase, destinationLabel, onContinu
               <button
                 type="button"
                 onClick={onContinue}
-                data-analytics-name="claim-welcome-continue"
+                {...trackId("claim-welcome-continue")}
                 className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#F4F1EA] transition-colors hover:text-[#F2C662]"
               >
                 Go now

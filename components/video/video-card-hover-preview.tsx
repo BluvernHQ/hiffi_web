@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react"
 import { Volume2, VolumeX } from "lucide-react"
 import { getFeedPreviewSources, reportPreviewUrlFailed } from "@/lib/feed-preview/resolve-preview-url"
@@ -373,7 +374,7 @@ export function VideoCardHoverPreview({
             type="button"
             onClick={toggleAudio}
             disabled={audioForcedMute}
-            data-analytics-name={isMuted ? "feed-preview-unmute" : "feed-preview-mute"}
+            {...trackId(isMuted ? "feed-preview-unmute" : "feed-preview-mute")}
             aria-label={isMuted ? "Unmute preview" : "Mute preview"}
             aria-pressed={!isMuted}
             className={[

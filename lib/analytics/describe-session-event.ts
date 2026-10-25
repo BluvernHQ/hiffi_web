@@ -1,4 +1,5 @@
 import { moodMixActivityLabel } from "@/lib/analytics/mood-mix-analytics"
+import { trackingIdInfo } from "@/lib/analytics/tracking-ids"
 import type { AnalyticsEvent } from "@/lib/types/analytics-sessions"
 
 function toTitleCase(value: string): string {
@@ -62,8 +63,14 @@ function controlFromDom(domPath?: string): string | null {
   return null
 }
 
-function reportActivityLabel(uiName: string): string | null {
+function reportActivityLabel(uiName: string, detail = ""): string | null {
   const raw = uiName.trim().toLowerCase()
+  if (raw === "report-submitted") {
+    const type = detail.trim().toLowerCase()
+    if (type === "video") return "Reported a video"
+    if (type === "comment") return "Reported a comment"
+    return type ? "Reported a user" : "Submitted a report"
+  }
   if (raw === "report-video" || raw === "report-video-submitted") return "Reported a video"
   if (raw === "report-comment" || raw === "report-comment-submitted") return "Reported a comment"
   if (
@@ -78,15 +85,20 @@ function reportActivityLabel(uiName: string): string | null {
   return null
 }
 
-function describeNamedAction(uiName: string, elementText: string): string | null {
+function describeNamedAction(uiName: string, elementText: string, detail = ""): string | null {
   const raw = uiName.trim().toLowerCase()
   const text = elementText.trim().toLowerCase()
 
-  const reportLabel = reportActivityLabel(raw)
+  const reportLabel = reportActivityLabel(raw, detail)
   if (reportLabel) return reportLabel
 
-  const moodMixLabel = moodMixActivityLabel(raw)
+  const moodMixLabel = moodMixActivityLabel(raw, detail)
   if (moodMixLabel) return moodMixLabel
+
+  if (raw === "video-card-open-profile") return detail ? `Opened @${detail}'s profile` : "Opened an artist profile"
+
+  const registered = trackingIdInfo(uiName.trim()) ?? trackingIdInfo(raw) ?? trackingIdInfo(raw.replace(/-/g, "_"))
+  if (registered) return registered.label
 
   if (raw === "liked" || raw === "like" || text === "like" || raw === "watch-like-video") return "Liked a video"
   if (raw === "disliked" || raw === "dislike" || text === "dislike") return "Disliked a video"
@@ -131,6 +143,7 @@ export function describeSessionEvent(event: AnalyticsEvent): SessionStepDescript
   const tag = event.tag || propString(event, "event") || "$click"
   const uiName = propString(event, "element_ui_name", "ui_name", "analytics_name")
   const elementText = propString(event, "element_text", "text")
+  const detail = propString(event, "detail")
   const domPath = event.dom_path || propString(event, "dom_path", "element_chain")
 
   if (tag === "$pageview") {
@@ -142,11 +155,11 @@ export function describeSessionEvent(event: AnalyticsEvent): SessionStepDescript
   }
 
   if (tag !== "$click" && !tag.startsWith("$")) {
-    const named = describeNamedAction(tag.replace(/_/g, "-"), elementText)
+    const named = describeNamedAction(tag.replace(/_/g, "-"), elementText, detail)
     return {
       title: named ?? toTitleCase(tag),
       place,
-      signature: `event|${tag}|${path}|${uiName}`,
+      signature: `event|${tag}|${path}|${uiName}|${detail}`,
     }
   }
 
@@ -181,4 +194,9 @@ export function describeSessionEvent(event: AnalyticsEvent): SessionStepDescript
     place,
     signature: `click|${region ?? ""}|${control ?? ""}|${path}`,
   }
+}
+
+/** Plain-language label for a tracked tag (journey steps, feature rows). */
+export function describeTag(tag: string, detail = ""): string {
+  return describeNamedAction(tag.replace(/_/g, "-"), "", detail) ?? tag
 }

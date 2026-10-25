@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useEffect } from "react"
 import {
   Dialog,
@@ -204,6 +205,7 @@ export function ShareVideoDialog({
               {/* Native share (opens system sheet on mobile) */}
               {canNativeShare && (
                 <button
+                  {...trackId("share-dialog-native-share")}
                   type="button"
                   onClick={handleNativeShare}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors text-muted-foreground hover:text-foreground"
@@ -230,6 +232,7 @@ export function ShareVideoDialog({
                 variant="secondary"
                 size="sm"
                 className="shrink-0"
+                {...trackId("share-dialog-copy-link")}
                 onClick={handleCopy}
               >
                 {copied ? <Check className="h-4 w-4" /> : "Copy"}

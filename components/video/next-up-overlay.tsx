@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Play, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -200,7 +201,7 @@ export function NextUpOverlay({
   const playButton = (
     <button
       onClick={handlePlayClick}
-      data-analytics-name={UP_NEXT_OVERLAY_PLAY}
+      {...trackId(UP_NEXT_OVERLAY_PLAY)}
       className={cn(
         "relative flex-shrink-0 rounded-full",
         "h-9 w-9 max-md:h-8 max-md:w-8",
@@ -296,7 +297,7 @@ export function NextUpOverlay({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                data-analytics-name={UP_NEXT_OVERLAY_CANCEL}
+                {...trackId(UP_NEXT_OVERLAY_CANCEL)}
                 onClick={handleCancel}
                 aria-label="Cancel autoplay"
               >
@@ -338,7 +339,7 @@ export function NextUpOverlay({
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0"
-              data-analytics-name={UP_NEXT_OVERLAY_CANCEL}
+              {...trackId(UP_NEXT_OVERLAY_CANCEL)}
               onClick={handleCancel}
               aria-label="Cancel autoplay"
             >

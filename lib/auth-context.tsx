@@ -27,6 +27,10 @@ interface User {
   username: string
 }
 
+function analyticsIdentity(user: Pick<User, "uid" | "username"> | null): { uid: string; username: string } | null {
+  return user?.uid ? { uid: user.uid, username: user.username } : null
+}
+
 export type SocialProvider = "google" | "apple"
 
 /** Go (Hiffi API) session returned by /auth/login and the Better Auth bridge routes. */
@@ -152,13 +156,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("profilePictureUpdated", onProfilePictureUpdated)
   }, [clearProfilePhoto])
 
-  const identifyAnalyticsUser = (username: string | null) => {
+  const identifyAnalyticsUser = (identity: { uid: string; username: string } | null) => {
     if (typeof window === "undefined") return
 
     const tryIdentify = () => {
-      const analytics = (window as any).HifiAnalytics
+      const analytics = window.HifiAnalytics
       if (!analytics || typeof analytics.identify !== "function") return false
-      analytics.identify(username)
+      if (identity) analytics.identify(identity.uid, { username: identity.username })
+      else analytics.identify(null)
       return true
     }
 
@@ -175,9 +180,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 250)
   }
 
+  // Wait for auth to resolve: identify(null) forgets the stored user for every later event.
   useEffect(() => {
-    identifyAnalyticsUser(user?.username ?? null)
-  }, [user?.username])
+    if (loading) return
+    identifyAnalyticsUser(analyticsIdentity(user))
+  }, [loading, user?.uid, user?.username])
 
   // Mirror user identity into Umami so every event carries user_id / user_name /
   // user_email / user_username in its Properties (matches BeautyBarn dashboard).
@@ -446,7 +453,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sessionUser = { ...session.user }
     setUser(session.user)
     setUserData(normalizeUserProfilePictureFields(sessionUser))
-    identifyAnalyticsUser(session.user.username || null)
+    identifyAnalyticsUser(analyticsIdentity(session.user))
 
     if (typeof window !== "undefined") {
       localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(sessionUser)))
@@ -614,7 +621,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(sessionUser)
       setUserData(normalizeUserProfilePictureFields(sessionUser))
-      identifyAnalyticsUser(sessionUser.username || null)
+      identifyAnalyticsUser(analyticsIdentity(sessionUser))
 
       if (typeof window !== "undefined") {
         localStorage.setItem(
@@ -709,7 +716,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       apiClient.setAuthToken(token)
       setUser(sessionUser)
       setUserData(normalizeUserProfilePictureFields(sessionUser))
-      identifyAnalyticsUser(sessionUser.username || null)
+      identifyAnalyticsUser(analyticsIdentity(sessionUser))
 
       if (typeof window !== "undefined") {
         localStorage.setItem(USER_DATA_KEY, JSON.stringify(normalizeUserProfilePictureFields(sessionUser)))

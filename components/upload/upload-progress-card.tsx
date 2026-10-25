@@ -1,3 +1,4 @@
+import { trackId } from "@/lib/analytics/tracking-ids"
 import Link from "next/link"
 import { Upload } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,7 +25,7 @@ export function UploadProgressCard({ uploadingWatchVideoId }: { uploadingWatchVi
               type="button"
               asChild
               className="sm:min-w-[160px]"
-              data-analytics-name="upload-progress-watch-video-button"
+              {...trackId("upload-progress-watch-video-button")}
             >
               <Link href={`/watch/${encodeURIComponent(uploadingWatchVideoId)}`}>Watch Video</Link>
             </Button>

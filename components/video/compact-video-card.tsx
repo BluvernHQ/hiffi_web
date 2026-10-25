@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId, type TrackingId } from "@/lib/analytics/tracking-ids"
 import type React from "react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
@@ -33,7 +34,7 @@ interface CompactVideoCardProps {
     created_at?: string
     status?: string
   }
-  openVideoUiName?: string
+  openVideoUiName?: TrackingId
   /** When true, omit relative upload time under the title. */
   hideTimestamp?: boolean
 }
@@ -50,7 +51,6 @@ export function CompactVideoCard({
   const title = video.videoTitle || video.video_title || ""
   const views = video.videoViews || video.video_views || 0
   const username = video.userUsername || video.user_username || ""
-  const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
   const watchPath = `/watch/${videoId}`
   const createdAt = video.createdAt || video.created_at || new Date().toISOString()
   const isEncoding = isVideoProcessing(video)
@@ -93,7 +93,7 @@ export function CompactVideoCard({
       <Link
         href={watchPath}
         prefetch={!isEncoding}
-        data-analytics-name={openVideoUiName}
+        {...trackId(openVideoUiName)}
         className="relative flex-shrink-0 w-[168px] h-[94px] overflow-hidden rounded bg-muted"
         onPointerEnter={() => {
           if (!isEncoding && videoId) prefetchRelatedVideos(videoId)
@@ -157,7 +157,7 @@ export function CompactVideoCard({
         <div className="flex items-center min-w-0 mb-0.5">
           <Link
             href={`/profile/${username}`}
-            data-analytics-name={profileOpenUiName}
+            {...trackId("video-card-open-profile", username.trim() || "unknown")}
             className="text-xs text-muted-foreground hover:text-foreground truncate font-medium min-w-0 flex-shrink"
           >
             @{username || "unknown"}

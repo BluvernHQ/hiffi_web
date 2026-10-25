@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import Link from "next/link"
 import { History } from "lucide-react"
 import { usePathname, useSearchParams } from "next/navigation"
@@ -76,7 +77,7 @@ export function GuestHistoryView() {
           Your session clears when you close the tab.
         </p>
         <Button asChild className="mt-4 rounded-full px-6" size="lg">
-          <Link href={signupUrl} data-analytics-name="guest-history-signup">
+          <Link href={signupUrl} {...trackId("guest-history-signup")}>
             Create free account
           </Link>
         </Button>

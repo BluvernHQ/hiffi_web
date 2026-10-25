@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
@@ -61,7 +62,7 @@ export function GuestUpNextNudge({ pickCount, className }: GuestUpNextNudgeProps
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild size="sm" className="h-9 rounded-full px-4">
-              <Link href={signupUrl} data-analytics-name="guest-rec-ready-signup">
+              <Link href={signupUrl} {...trackId("guest-rec-ready-signup")}>
                 Sign up free
               </Link>
             </Button>

@@ -16,21 +16,21 @@ export const MOOD_MIX_SWITCH_VIBE = "mood-mix-switch-vibe"
 export const MOOD_MIX_FULL_FEED = "mood-mix-full-feed"
 export const OPENED_VIDEO_FROM_MOOD = "opened-video-from-mood"
 
-export function moodMixSelectAnalyticsName(query: string): string {
-  return `mood-mix-select-${moodAnalyticsSlug(query)}`
-}
-
-export function moodMixRunAnalyticsName(query: string): string {
-  return `mood-mix-run-${moodAnalyticsSlug(query)}`
-}
-
 function moodLabelForAnalyticsSlug(slug: string): string | undefined {
   return MOODS.find((m) => moodAnalyticsSlug(m.query) === slug)?.label
 }
 
-/** Human-readable activity title for admin logs. */
-export function moodMixActivityLabel(uiName: string): string | null {
+/**
+ * Human-readable activity title for admin logs. Takes the tracking id and its detail (mood slug);
+ * older events put the slug in the name itself (`mood-mix-select-<slug>`).
+ */
+export function moodMixActivityLabel(uiName: string, detail?: string): string | null {
   const raw = uiName.trim().toLowerCase()
+  if (raw === "mood-mix-select" || raw === "mood-mix-run") {
+    const label = detail ? moodLabelForAnalyticsSlug(detail.trim().toLowerCase()) : undefined
+    const verb = raw === "mood-mix-select" ? "Selected mood" : "Started mood mix"
+    return label ? `${verb}: ${label}` : raw === "mood-mix-select" ? "Selected a mood" : "Started a mood mix"
+  }
   if (raw === MOOD_MIX_OPEN_PICKER) return "Opened mood mix picker"
   if (raw === MOOD_MIX_DISMISS_PICKER) return "Dismissed mood mix picker"
   if (raw === MOOD_MIX_SWITCH_VIBE) return "Switched mood mix vibe"

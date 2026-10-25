@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -144,7 +145,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                 heroBtnBase,
                 "w-full border border-white/25 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 sm:w-auto",
               )}
-              data-analytics-name="profile-artist-index-link"
+              {...trackId("profile-artist-index-link")}
             >
               <span className="sm:hidden">Index</span>
               <span className="hidden sm:inline">View on Artist Index</span>
@@ -191,7 +192,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                   heroBtnBase,
                   "min-w-0 flex-1 border border-white/25 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 sm:flex-none",
                 )}
-                data-analytics-name="profile-artist-index-link"
+                {...trackId("profile-artist-index-link")}
               >
                 <span className="truncate sm:hidden">Index</span>
                 <span className="hidden sm:inline">View on Artist Index</span>
@@ -207,7 +208,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
                   "shrink-0 border border-white/25 bg-white/10 px-3 text-white backdrop-blur-sm hover:bg-white/20 sm:px-2.5",
                 )}
                 aria-label="Report profile"
-                data-analytics-name="report-profile"
+                {...trackId("report-profile")}
               >
                 <Flag className="h-4 w-4" aria-hidden />
               </button>
@@ -225,7 +226,7 @@ export function ProfileInventoryView(props: ProfileInventoryViewProps) {
             "hidden border border-white/25 bg-white/10 px-2.5 text-white backdrop-blur-sm hover:bg-white/20 sm:inline-flex",
           )}
           aria-label="Report profile"
-          data-analytics-name="report-profile"
+          {...trackId("report-profile")}
         >
           <Flag className="h-4 w-4" aria-hidden />
         </button>

@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { Users, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -39,12 +40,12 @@ export function FollowingEmptyState({ hasFollowedUsers, onDiscoverClick }: Follo
           </p>
           <div className="flex flex-col items-center gap-2 sm:flex-row">
             <Button asChild size="lg" className="rounded-full px-6">
-              <Link href={signupUrl} data-analytics-name="guest-following-signup">
+              <Link href={signupUrl} {...trackId("guest-following-signup")}>
                 Create free account
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="rounded-full px-6">
-              <Link href={loginUrl} data-analytics-name="guest-following-login">
+              <Link href={loginUrl} {...trackId("guest-following-login")}>
                 Log in
               </Link>
             </Button>

@@ -1,5 +1,6 @@
 'use client';
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Search, X, TrendingUp, Loader2, User, Video, AtSign, ArrowRight } from 'lucide-react';
@@ -425,7 +426,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                           key={`recent-${search}`}
                           type="button"
                           onClick={() => handleSearch(search, 'recent')}
-                          data-analytics-name="search-overlay-recent-search-button"
+                          {...trackId("search-overlay-recent-search-button")}
                           className={cn(
                             'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
                             isAppPage ? 'text-black/90 hover:bg-black/8' : 'hover:bg-muted',
@@ -461,7 +462,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                           key={search}
                           type="button"
                           onClick={() => handleSearch(search, 'trending')}
-                          data-analytics-name="search-overlay-trending-search-button"
+                          {...trackId("search-overlay-trending-search-button")}
                           className={cn(
                             'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
                             isAppPage ? 'text-black/90 hover:bg-black/8' : 'hover:bg-muted',
@@ -535,7 +536,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                     <Link
                                       key={result.id}
                                       href={`/profile/${result.username}`}
-                                      data-analytics-name="search-overlay-user-result-link"
+                                      {...trackId("search-overlay-user-result-link")}
                                       onClick={() => handleResultSelect(result, itemIndex, query)}
                                       className="block"
                                       ref={(el) => {
@@ -691,7 +692,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                       <button
                                         key={result.id}
                                         type="button"
-                                        data-analytics-name="search-overlay-processing-video-result-button"
+                                        {...trackId("search-overlay-processing-video-result-button")}
                                         className="block w-full text-left"
                                         onClick={() => toast(PROCESSING_VIDEO_TOAST)}
                                         ref={(el) => {
@@ -706,7 +707,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                     <Link
                                       key={result.id}
                                       href={`/watch/${result.id}`}
-                                      data-analytics-name="search-overlay-video-result-link"
+                                      {...trackId("search-overlay-video-result-link")}
                                       onClick={() => handleResultSelect(result, itemIndex, query)}
                                       className="block"
                                       ref={(el) => {
@@ -739,7 +740,7 @@ export function SearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
                           isAppPage && 'text-black/90 hover:bg-black/8 hover:text-black',
                           selectedIndex === suggestions.length && (isAppPage ? 'bg-black/10' : 'bg-muted'),
                         )}
-                        data-analytics-name="search-overlay-view-all-results-button"
+                        {...trackId("search-overlay-view-all-results-button")}
                         onClick={() => handleSearch(query, 'view_all')}
                         ref={(el) => {
                           if (el) resultItemRefs.current[suggestions.length] = el;

@@ -84,7 +84,7 @@ export function mapOpenUiNameToSource(uiName?: string | null): PlaybackOpenSourc
   if (raw === OPENED_VIDEO_FROM_PLAYLIST) return "playlist"
   if (raw === OPENED_VIDEO_FROM_RECOMMENDED || raw === UP_NEXT_SIDEBAR_CLICK) return "recommended"
   if (raw === OPENED_VIDEO_FROM_LIKED) return "liked"
-  if (raw === OPENED_VIDEO_FROM_PROFILE || raw.startsWith("viewed-profile-of-")) return "profile"
+  if (raw === OPENED_VIDEO_FROM_PROFILE || raw === "video-card-open-profile" || raw.startsWith("viewed-profile-of-")) return "profile"
   if (raw === OPENED_VIDEO_FROM_HISTORY) return "history"
   if (raw === OPENED_VIDEO_FROM_FEED_PREVIEW || raw === "feed-hover-preview") return "feed_preview"
   if (raw.includes("search")) return "search"

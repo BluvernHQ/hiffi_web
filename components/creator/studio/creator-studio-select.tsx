@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -203,7 +204,7 @@ export function CreatorStudioSelect() {
                 <Button
                   type="button"
                   size="lg"
-                  data-analytics-name="creator-studio-upload-new-video-button"
+                  {...trackId("creator-studio-upload-new-video-button")}
                   className={cn(
                     "h-11 w-full rounded-xl text-sm font-semibold shadow-none motion-safe:active:scale-[0.99]",
                     isDragOver && "ring-2 ring-primary-foreground/25",
@@ -258,7 +259,7 @@ export function CreatorStudioSelect() {
                 <Button
                   type="button"
                   size="lg"
-                  data-analytics-name="creator-studio-start-migration-button"
+                  {...trackId("creator-studio-start-migration-button")}
                   className="h-11 w-full rounded-xl text-sm font-semibold shadow-none sm:w-auto sm:min-w-[160px]"
                   asChild
                 >

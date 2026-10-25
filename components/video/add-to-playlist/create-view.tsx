@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useMemo, useState } from "react"
 import { ArrowLeft, Loader2, Smile } from "lucide-react"
 import { AuthenticatedImage } from "@/components/video/authenticated-image"
@@ -215,6 +216,7 @@ export function CreateView({
             type="button"
             className={cn(atpPrimaryButtonClass(sheet), "w-full rounded-xl")}
             disabled={!createValid || createSubmitting}
+            {...trackId("playlist-create-submit")}
             onClick={onSubmit}
           >
             {createSubmitting ? (

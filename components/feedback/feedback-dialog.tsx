@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -229,7 +230,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 onClick={handleCaptureScreenshot}
                 disabled={submitting || capturing || !isScreenshotSupported()}
                 className="w-full gap-2 text-primary hover:text-primary"
-                data-analytics-name="feedback-capture-screenshot-button"
+                {...trackId("feedback-capture-screenshot-button")}
               >
                 {capturing ? (
                   <>
@@ -280,7 +281,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
             type="button"
             onClick={handleSubmit}
             disabled={submitting || !description.trim()}
-            data-analytics-name="feedback-submitted"
+            {...trackId("feedback-submitted")}
           >
             {submitting ? (
               <>

@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId, type TrackingId } from "@/lib/analytics/tracking-ids"
 import type React from "react"
 
 import Link from "next/link"
@@ -109,7 +110,7 @@ interface VideoCardProps {
   /** Owner-only delete UI; only enabled from the profile page (not watch / discover / history). */
   showDeleteOption?: boolean
   /** Analytics label for opening a video from this card context. */
-  openVideoUiName?: string
+  openVideoUiName?: TrackingId
   /** When set, opens watch in playlist mode (queue, next/prev, autoplay). */
   playlistNavigation?: PlaylistNavigation
   /** Use DM Sans for title / artist / metadata lines. */
@@ -147,7 +148,6 @@ export function VideoCard({
   const thumbnail = (video.videoThumbnail || video.video_thumbnail || "").trim()
   const title = video.videoTitle || video.video_title || ""
   const username = video.userUsername || video.user_username || ""
-  const profileOpenUiName = `viewed-profile-of-${username.trim() || "unknown"}`
   const watchPath =
     playlistNavigation && videoId
       ? buildPlaylistWatchPath(playlistNavigation, videoId)
@@ -315,7 +315,7 @@ export function VideoCard({
         type="button"
         variant="ghost"
         size="icon"
-        data-analytics-name="video-card-add-to-playlist-button"
+        {...trackId("video-card-add-to-playlist-button")}
         className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
         onClick={(e) => {
           e.stopPropagation()
@@ -343,7 +343,7 @@ export function VideoCard({
             ref={thumbnailLinkRef}
             href={watchPath}
             prefetch={!isEncoding}
-            data-analytics-name={openVideoUiName}
+            {...trackId(openVideoUiName)}
             className={[
               "relative aspect-video w-full overflow-hidden bg-muted block",
               "transition-[border-radius,box-shadow,transform] duration-200 ease-out",
@@ -454,7 +454,7 @@ export function VideoCard({
                   <div className="flex items-center justify-between gap-2 min-w-0 py-0.5">
                     <Link
                       href={`/profile/${username}`}
-                      data-analytics-name={profileOpenUiName}
+                      {...trackId("video-card-open-profile", username.trim() || "unknown")}
                       className="hover:text-foreground truncate font-medium min-w-0"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -470,7 +470,7 @@ export function VideoCard({
                   <>
                     <Link
                       href={`/profile/${username}`}
-                      data-analytics-name={profileOpenUiName}
+                      {...trackId("video-card-open-profile", username.trim() || "unknown")}
                       className="hover:text-foreground truncate font-medium max-w-full block py-0.5"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -507,7 +507,7 @@ export function VideoCard({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  data-analytics-name="video-card-share"
+                  {...trackId("video-card-share")}
                   className="h-7 w-7 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation()

@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import Link from "next/link"
 import { Heart } from "lucide-react"
 import { usePathname, useSearchParams } from "next/navigation"
@@ -25,7 +26,7 @@ export function GuestLikedView() {
         Sign up to save tracks you love and come back to them anytime.
       </p>
       <Button asChild className="mt-6 rounded-full px-6" size="lg">
-        <Link href={signupUrl} data-analytics-name="guest-liked-signup">
+        <Link href={signupUrl} {...trackId("guest-liked-signup")}>
           Create free account
         </Link>
       </Button>

@@ -1,5 +1,6 @@
 "use client"
 
+import type { TrackingId } from "@/lib/analytics/tracking-ids"
 import { VideoCard } from "./video-card"
 import { VideoCardSkeleton } from "./video-card-skeleton"
 import { EmptyVideoState } from "./empty-video-state"
@@ -55,7 +56,7 @@ interface VideoGridProps {
   /** When true, owners see delete on each card (profile page only). */
   showDeleteOption?: boolean
   /** Analytics label for video-open clicks from this grid context. */
-  openVideoUiName?: string
+  openVideoUiName?: TrackingId
   /** Hide relative upload / watched time under the title (e.g. discover feed). */
   hideTimestamp?: boolean
   /** When true, do not show the default “no videos” empty state (parent shows error UI). */

@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Dialog,
@@ -313,7 +314,7 @@ export function ContentReportDialog({
                 </Button>
                 <Button
                   type="button"
-                  data-analytics-name={`report-${reportType}-submitted`}
+                  {...trackId("report-submitted", reportType)}
                   onClick={handleSubmit}
                   disabled={submitting || configLoading}
                 >

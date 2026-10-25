@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, startTransition } from "react"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
@@ -1894,7 +1895,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        data-analytics-name={isLiked ? WATCH_UNLIKE_VIDEO : WATCH_LIKE_VIDEO}
+                        {...trackId(isLiked ? WATCH_UNLIKE_VIDEO : WATCH_LIKE_VIDEO)}
                         className={cn(
                           "h-9 w-9 rounded-full text-muted-foreground hover:text-foreground",
                           isLiked && "text-primary hover:text-primary",
@@ -1924,7 +1925,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          data-analytics-name={WATCH_SAVE_TO_PLAYLIST}
+                          {...trackId(WATCH_SAVE_TO_PLAYLIST)}
                           className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                           onClick={openAddToPlaylist}
                           onPointerEnter={prefetchMyPlaylists}
@@ -1938,7 +1939,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        data-analytics-name="shared-video"
+                        {...trackId("shared-video")}
                         className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                         onClick={() => setShareDialogOpen(true)}
                         aria-label="Share video"
@@ -1953,7 +1954,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              data-analytics-name={WATCH_MORE_ACTIONS}
+                              {...trackId(WATCH_MORE_ACTIONS)}
                               className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
                               aria-label="More actions"
                               title="More"
@@ -1963,7 +1964,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
-                              data-analytics-name="report-video"
+                              {...trackId("report-video")}
                               onClick={() => setReportDialogOpen(true)}
                             >
                               <Flag className="h-4 w-4" />
@@ -2021,7 +2022,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                           <Button
                             variant={isFollowing ? "secondary" : "default"}
                             size="sm"
-                            data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
+                            {...trackId(isFollowing ? "unfollowed_creator" : "followed_creator")}
                             className="rounded-full flex-shrink-0 px-4"
                             onClick={handleFollow}
                             disabled={isCheckingFollow || isFollowingAction}
@@ -2077,7 +2078,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         <Button
                           variant={isFollowing ? "secondary" : "default"}
                           size="sm"
-                          data-analytics-name={isFollowing ? "unfollowed_creator" : "followed_creator"}
+                          {...trackId(isFollowing ? "unfollowed_creator" : "followed_creator")}
                           className="ml-0 sm:ml-4 rounded-full flex-shrink-0"
                           onClick={handleFollow}
                           disabled={isCheckingFollow || isFollowingAction}
@@ -2214,7 +2215,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                     <div className="md:hidden rounded-2xl border border-border bg-card p-4 shadow-sm">
                       <button
                         type="button"
-                        data-analytics-name="opened-comments"
+                        {...trackId("opened-comments")}
                         onClick={() => openCommentsSheet(false)}
                         className="w-full text-left"
                       >
@@ -2273,7 +2274,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       {user ? (
                         <button
                           type="button"
-                          data-analytics-name="opened-comments"
+                          {...trackId("opened-comments")}
                           onClick={() => openCommentsSheet(true)}
                           className="mt-3 flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background p-3 text-left"
                         >
@@ -2316,14 +2317,14 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                                   >
                                     <Link
                                       href={buildSignupUrl(pathname, searchParamsString)}
-                                      data-analytics-name="guest-comment-signup-link"
+                                      {...trackId("guest-comment-signup-link")}
                                     >
                                       Sign up
                                     </Link>
                                   </Button>
                                   <Link
                                     href={buildLoginUrl(pathname, searchParamsString)}
-                                    data-analytics-name="guest-comment-login-link"
+                                    {...trackId("guest-comment-login-link")}
                                     className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
                                   >
                                     Already have an account?
@@ -2382,7 +2383,7 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                            <button
                              key={id}
                              type="button"
-                             data-analytics-name={PLAYLIST_QUEUE_CLICK}
+                             {...trackId(PLAYLIST_QUEUE_CLICK)}
                              className={cn(
                                "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors md:px-2 md:py-1.5",
                                isActive

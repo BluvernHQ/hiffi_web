@@ -1,3 +1,4 @@
+import { trackId } from "@/lib/analytics/tracking-ids"
 import Link from "next/link"
 import { CheckCircle2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -29,7 +30,7 @@ export function UploadSuccessCard({
               type="button"
               asChild
               className="sm:min-w-[140px]"
-              data-analytics-name="upload-success-watch-video-button"
+              {...trackId("upload-success-watch-video-button")}
             >
               <Link href={`/watch/${encodeURIComponent(successVideoId)}`}>Watch Video</Link>
             </Button>
@@ -38,7 +39,7 @@ export function UploadSuccessCard({
             type="button"
             variant="secondary"
             className="sm:min-w-[140px]"
-            data-analytics-name="upload-another-video-button"
+            {...trackId("upload-another-video-button")}
             onClick={onUploadAnother}
           >
             Upload Another

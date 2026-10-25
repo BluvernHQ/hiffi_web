@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { Loader2, Lightbulb } from "lucide-react"
@@ -41,12 +42,12 @@ export function FeatureRequestGate({ children }: FeatureRequestGateProps) {
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
           <Button asChild className="min-w-[140px]">
-            <Link href={loginUrl} data-analytics-name="feature-request-login">
+            <Link href={loginUrl} {...trackId("feature-request-login")}>
               Sign in
             </Link>
           </Button>
           <Button asChild variant="outline" className="min-w-[140px]">
-            <Link href={signupUrl} data-analytics-name="feature-request-signup">
+            <Link href={signupUrl} {...trackId("feature-request-signup")}>
               Create account
             </Link>
           </Button>

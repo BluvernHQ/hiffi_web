@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -70,7 +71,7 @@ function MinimalNavbarHeader() {
         <Link
           href="/"
           className="flex items-center gap-3"
-          data-analytics-name="appbar-logo"
+          {...trackId("appbar-logo")}
           onClick={(event) => handleLogoClick(event, pathname, router)}
         >
           <Image
@@ -86,7 +87,7 @@ function MinimalNavbarHeader() {
         {sectionLink ? (
           <Link
             href={sectionLink.href}
-            data-analytics-name={sectionLink.analytics}
+            {...trackId(sectionLink.analytics)}
             className="group ml-3 flex items-center gap-3 sm:ml-4 sm:gap-4"
           >
             <span className="h-5 w-px bg-border" aria-hidden />
@@ -219,7 +220,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             <Link
               href="/"
               className="flex items-center gap-3"
-              data-analytics-name="appbar-logo"
+              {...trackId("appbar-logo")}
               onClick={(event) => handleLogoClick(event, pathname, router)}
             >
               <Image
@@ -235,7 +236,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             {sectionLink ? (
               <Link
                 href={sectionLink.href}
-                data-analytics-name={sectionLink.analytics}
+                {...trackId(sectionLink.analytics)}
                 className="group hidden items-center gap-3 sm:flex sm:gap-4"
               >
                 <span className="h-5 w-px bg-border" aria-hidden />
@@ -251,7 +252,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             <div className="relative w-full max-w-[240px] md:max-w-md transition-all duration-300">
               <div
                 onClick={() => setIsSearchOpen(true)}
-                data-analytics-name="navbar-open-search-button"
+                {...trackId("navbar-open-search-button")}
                 className={
                   isAppDownloadPage
                     ? "group relative flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-full border border-black/15 bg-white/90 shadow-sm transition-all hover:border-black/25 hover:bg-white"
@@ -285,7 +286,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              data-analytics-name="navbar-open-search-button-mobile"
+              {...trackId("navbar-open-search-button-mobile")}
               aria-label="Open search"
               className={
                 isAppDownloadPage
@@ -300,14 +301,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                 {showUploadButton && userData && (
                   <>
                     {isCreator(userData) ? (
-                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-hiffi-studio-button">
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" {...trackId("navbar-open-hiffi-studio-button")}>
                         <Link href="/studio">
                           <Upload className="h-5 w-5" />
                           <span className="sr-only">Hiffi Studio</span>
                         </Link>
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" data-analytics-name="navbar-open-become-creator-button">
+                      <Button variant="ghost" size="icon" asChild className="hidden md:flex" {...trackId("navbar-open-become-creator-button")}>
                         <Link href="/creator/apply">
                           <Sparkles className="h-5 w-5" />
                           <span className="sr-only">Become Creator</span>
@@ -335,7 +336,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/profile/${(userData ?? user).username}`} data-analytics-name="navbar-profile-link">
+                      <Link href={`/profile/${(userData ?? user).username}`} {...trackId("navbar-profile-link")}>
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
@@ -343,7 +344,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                     {isCreator(userData) ? (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link href="/studio" data-analytics-name="navbar-user-menu-hiffi-studio-link">
+                          <Link href="/studio" {...trackId("navbar-user-menu-hiffi-studio-link")}>
                             <Video className="mr-2 h-4 w-4" />
                             <span>Hiffi Studio</span>
                           </Link>
@@ -351,14 +352,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                       </>
                     ) : (
                       <DropdownMenuItem asChild>
-                        <Link href="/creator/apply" data-analytics-name="navbar-user-menu-become-creator-link">
+                        <Link href="/creator/apply" {...trackId("navbar-user-menu-become-creator-link")}>
                           <Sparkles className="mr-2 h-4 w-4" />
                           <span>Become a Creator</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
-                      <Link href="/support/reports" data-analytics-name="navbar-my-reports-link">
+                      <Link href="/support/reports" {...trackId("navbar-my-reports-link")}>
                         <Flag className="mr-2 h-4 w-4" />
                         <span>My reports</span>
                       </Link>
@@ -370,7 +371,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                         // Open after dropdown unmounts — same-tick open often prevents dialog from showing (Radix stacking / focus).
                         queueMicrotask(() => setFeedbackDialogOpen(true))
                       }}
-                      data-analytics-name="navbar-send-feedback"
+                      {...trackId("navbar-send-feedback")}
                     >
                       <MessageSquareText className="mr-2 h-4 w-4" />
                       <span>Send Feedback</span>
@@ -397,14 +398,14 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
                   asChild
                   variant="ghost"
                   className="rounded-full px-3 sm:px-5 text-foreground hover:bg-accent max-[360px]:hidden"
-                  data-analytics-name="navbar-login-button"
+                  {...trackId("navbar-login-button")}
                 >
                   <Link href={buildLoginUrl(pathname, searchParamsString)}>Log in</Link>
                 </Button>
                 <Button
                   asChild
                   className="rounded-full px-4 sm:px-6"
-                  data-analytics-name="navbar-signup-button"
+                  {...trackId("navbar-signup-button")}
                 >
                   <Link href={buildSignupUrl(pathname, searchParamsString)}>Sign up</Link>
                 </Button>
@@ -438,7 +439,7 @@ function NavbarContent({ onMenuClick, currentFilter }: NavbarProps) {
               variant="destructive"
               onClick={handleLogoutConfirm}
               disabled={isLoggingOut}
-              data-analytics-name="navbar-logout-confirm-button"
+              {...trackId("navbar-logout-confirm-button")}
             >
               {isLoggingOut ? (
                 <>

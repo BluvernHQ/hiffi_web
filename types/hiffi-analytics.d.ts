@@ -12,7 +12,8 @@ declare global {
         maxBatch?: number
       }): void
       capture(tag: string, properties?: Record<string, unknown>): void
-      identify(uid: string | null): void
+      /** Binds the session to a user; null on logout (the visitor id is kept). */
+      identify(uid: string | null, opts?: { username?: string }): void
       flush(): void
       flushBeacon(): void
     }

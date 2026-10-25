@@ -1,3 +1,4 @@
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { format } from "date-fns"
 import { Calendar, Flag, Share2, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -128,7 +129,7 @@ export function ProfileMemberView(props: {
                   <Button
                     variant="outline"
                     size="icon"
-                    data-analytics-name="report-profile"
+                    {...trackId("report-profile")}
                     onClick={onReport}
                     aria-label="Report profile"
                     title="Report"

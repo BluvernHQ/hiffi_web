@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -278,7 +279,7 @@ export function MigrateContentForm() {
                 type="button"
                 size="lg"
                 className="h-11 rounded-xl text-sm font-semibold sm:min-w-[220px]"
-                data-analytics-name="creator-studio-start-migration-submit-button"
+                {...trackId("creator-studio-start-migration-submit-button")}
                 onClick={handleSubmit}
                 disabled={isSubmitting}
               >

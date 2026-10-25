@@ -1,5 +1,6 @@
 "use client"
 
+import { trackId } from "@/lib/analytics/tracking-ids"
 import type React from "react"
 
 import { useState, useEffect, useRef, Suspense } from "react"
@@ -111,7 +112,7 @@ function LoginForm() {
               className="w-full"
               onClick={() => void handleSwitchAccount()}
               disabled={signingOut}
-              data-analytics-name="login-switch-account-button"
+              {...trackId("login-switch-account-button")}
             >
               {signingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Sign out and continue
@@ -179,7 +180,7 @@ function LoginForm() {
               type="button"
               variant="ghost"
               size="sm"
-              data-analytics-name="login-skip-button"
+              {...trackId("login-skip-button")}
               onClick={handleSkip}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -231,7 +232,7 @@ function LoginForm() {
                 />
                 <button
                   type="button"
-                  data-analytics-name="login-toggle-password-visibility-button"
+                  {...trackId("login-toggle-password-visibility-button")}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -263,7 +264,7 @@ function LoginForm() {
               type="submit"
               className="h-11 w-full rounded-lg"
               disabled={isLoading || (isTurnstileEnabled() && !turnstileToken)}
-              data-analytics-name="login-submit-button"
+              {...trackId("login-submit-button")}
             >
               {isLoading ? (
                 <>
