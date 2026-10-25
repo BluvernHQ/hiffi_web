@@ -11,17 +11,3 @@ export function isApiAnalyticsEnabled(): boolean {
   if (flag === "false" || flag === "0") return false
   return process.env.NODE_ENV === "development"
 }
-
-/** Append localhost hosts so Umami accepts events from `next dev`. */
-export function analyticsUmamiDomains(baseDomains: string): string {
-  if (process.env.NODE_ENV !== "development") return baseDomains
-  const hosts = new Set(
-    baseDomains
-      .split(",")
-      .map((d) => d.trim())
-      .filter(Boolean),
-  )
-  hosts.add("localhost")
-  hosts.add("127.0.0.1")
-  return Array.from(hosts).join(",")
-}

@@ -7,7 +7,6 @@ import { SESSION_REJECTED_EVENT, apiClient, isApiUser } from "./api-client"
 import { authClient } from "./auth-client"
 import { toast } from "@/hooks/use-toast"
 import { captureConversionEvent, normalizeConversionSource } from "@/lib/conversion-tracking"
-import { trackUmami, setUmamiUser } from "@/lib/umami"
 import { replayPendingGuestIntents } from "@/lib/guest-conversion/replay-intents"
 import { resetGuestConversionSession } from "@/lib/guest-conversion/session"
 import { clearGuestHistory } from "@/lib/guest-conversion/guest-history"
@@ -186,20 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     identifyAnalyticsUser(analyticsIdentity(user))
   }, [loading, user?.uid, user?.username])
 
-  // Mirror user identity into Umami so every event carries user_id / user_name /
-  // user_email / user_username in its Properties (matches BeautyBarn dashboard).
-  useEffect(() => {
-    if (!userData) {
-      setUmamiUser(null)
-      return
-    }
-    setUmamiUser({
-      user_id: userData.uid ?? userData.id ?? null,
-      user_username: userData.username ?? null,
-      user_name: userData.name ?? null,
-      user_email: userData.email ?? null,
-    })
-  }, [userData])
 
   const refreshUserData = useCallback(async (
     forceRefresh = false,
@@ -673,14 +658,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: sessionUser.username,
         source: signupSource,
         has_referral_code: Boolean(referralCode),
-        redirected_to: safeDestination,
-      })
-      trackUmami("Sign Up Completed", {
-        source: signupSource,
-        has_referral_code: Boolean(referralCode),
         referral_code: referralCode || null,
         redirected_to: safeDestination,
-        username: sessionUser.username,
       })
       void replayPendingGuestIntents()
       resetGuestConversionSession()
@@ -779,7 +758,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(USER_DATA_TIMESTAMP_KEY)
     }
     identifyAnalyticsUser(null)
-    setUmamiUser(null)
 
     try {
       debugLog("[hiffi] Logout successful")

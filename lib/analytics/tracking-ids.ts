@@ -171,6 +171,12 @@ export const TRACKING_IDS = {
   "feature-request-signup": { feature: "feedback", label: "Feature request: sign up" },
   "feature-request-submitted": { feature: "feedback", label: "Feature request: submitted" },
   "brand-collaboration-submit-button": { feature: "collaborate", label: "Brand collaboration: submit" },
+
+  // Outcomes sent from code (captureConversionEvent), not from clicks
+  conversion_signup_completed: { feature: "auth", label: "Signed up" },
+  conversion_creator_account_created: { feature: "creator", label: "Became a creator", since: "2026-10-25" },
+  conversion_video_uploaded: { feature: "upload", label: "Uploaded a video", since: "2026-10-25" },
+  conversion_playlist_song_added: { feature: "playlists", label: "Added a song to a playlist", since: "2026-10-25" },
 } as const satisfies Record<string, TrackingIdInfo>
 
 export type TrackingId = keyof typeof TRACKING_IDS
