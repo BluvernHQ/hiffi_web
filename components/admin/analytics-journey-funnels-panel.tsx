@@ -42,6 +42,9 @@ import { useAdminNetworkError } from "@/hooks/use-admin-network-error"
 import { AdminOfflineState } from "@/components/admin/admin-offline-state"
 import { useAdminPermissions } from "@/hooks/use-admin-permissions"
 import { cn } from "@/lib/utils"
+import { AdminPager, pageSlice, usePageFor } from "@/components/admin/admin-pager"
+
+const MATCHES_PER_PAGE = 25
 
 function formatPercent(rate: number | null | undefined): string {
   if (rate == null || !Number.isFinite(rate)) return "—"
@@ -209,6 +212,8 @@ export function AnalyticsJourneyFunnelsPanel({
     () => chains.find((c) => c.name === selectedName) ?? null,
     [chains, selectedName],
   )
+
+  const [matchPage, setMatchPage] = usePageFor(`${selectedName}|${journeys.length}`)
 
   const summary = useMemo(() => {
     if (!selectedChain) return null
@@ -557,7 +562,7 @@ export function AnalyticsJourneyFunnelsPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {journeys.map((j) => {
+                      {pageSlice(journeys, matchPage, MATCHES_PER_PAGE).map((j) => {
                         const steps = j.steps
                         const total = selectedChain.tags.length
                         const reached = steps.length
@@ -649,6 +654,12 @@ export function AnalyticsJourneyFunnelsPanel({
                 </div>
               </div>
             )}
+            <AdminPager
+              page={matchPage}
+              pageSize={MATCHES_PER_PAGE}
+              total={journeys.length}
+              onPage={setMatchPage}
+            />
           </div>
         </>
       )}

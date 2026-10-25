@@ -25,10 +25,12 @@ function toSearchParams(params: Record<string, string | number | boolean | undef
 }
 
 function normalizeSession(raw: Record<string, unknown>): AnalyticsSession {
-  const uid = raw.uid != null && String(raw.uid).trim() ? String(raw.uid).trim() : undefined
+  const text = (v: unknown) => (v != null && String(v).trim() ? String(v).trim() : undefined)
   return {
     session_id: String(raw.session_id ?? ""),
-    uid,
+    uid: text(raw.uid),
+    username: text(raw.username),
+    visitor_id: text(raw.visitor_id),
     client_ip: String(raw.client_ip ?? ""),
     geo_lat: Number(raw.geo_lat ?? 0),
     geo_lng: Number(raw.geo_lng ?? 0),
@@ -99,7 +101,6 @@ async function analyticsProxyGet<T>(
 export type ListSessionsParams = {
   limit?: number
   offset?: number
-  uid?: string
   platform?: Platform | string
   build_id?: string
   status?: SessionStatus

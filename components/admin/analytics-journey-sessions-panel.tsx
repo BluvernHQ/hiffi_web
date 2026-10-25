@@ -6,20 +6,23 @@ import { format, formatDistanceToNow, formatDuration, intervalToDuration, isVali
 import {
   ArrowRight,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
+  ExternalLink,
   Loader2,
   MapPin,
+  PlayCircle,
   RefreshCw,
   Route,
   X,
 } from "lucide-react"
 import { describeSessionEvent } from "@/lib/analytics/describe-session-event"
+import { eventVideoId, sessionVideos, watchHref, type SessionVideo } from "@/lib/analytics/session-videos"
+import { AdminPager } from "@/components/admin/admin-pager"
 import { getSessionEvents, listSessions } from "@/lib/api/analytics-sessions"
 import {
   AnalyticsApiError,
   formatGeoLabel,
+  formatSessionVisitor,
   type AnalyticsEvent,
   type AnalyticsSession,
   type Platform,
@@ -39,7 +42,6 @@ const EVENT_PAGE_SIZE = 100
 const PLATFORM_OPTIONS: Platform[] = ["web", "ios", "android", "tv"]
 
 type JourneyFilters = {
-  uid: string
   platform: string
   status: "" | SessionStatus
   timestamp_after: string
@@ -47,7 +49,6 @@ type JourneyFilters = {
 }
 
 const EMPTY_FILTERS: JourneyFilters = {
-  uid: "",
   platform: "",
   status: "",
   timestamp_after: "",
@@ -266,13 +267,16 @@ function FlowStepRow({
   isEnter,
   isExit,
   isLastLoaded,
+  videoTitles,
 }: {
   step: FlowStep
   stepNumber: number
   isEnter: boolean
   isExit: boolean
   isLastLoaded: boolean
+  videoTitles: Map<string, string | null>
 }) {
+  const videoId = eventVideoId(step.first)
   return (
     <div className="relative pb-3 pl-8">
       <span
@@ -323,6 +327,7 @@ function FlowStepRow({
             {step.count > 1 ? ` → ${formatClockTime(step.last.timestamp)}` : ""}
           </time>
         </div>
+        {videoId ? <VideoLink id={videoId} title={videoTitles.get(videoId) ?? null} className="mt-1.5" /> : null}
       </div>
     </div>
   )
@@ -397,6 +402,8 @@ function SessionEventsPanel({
   }, [loadEvents])
 
   const flowSteps = useMemo(() => buildUserFlow(events), [events])
+  const videos = useMemo(() => sessionVideos(events), [events])
+  const videoTitles = useMemo(() => new Map(videos.map((v) => [v.id, v.title])), [videos])
   const lastEventIndex = events.length - 1
   const duration =
     events.length > 0
@@ -477,6 +484,8 @@ function SessionEventsPanel({
             hasMore={hasMore}
           />
 
+          <SessionVideosList videos={videos} partial={hasMore} />
+
           <div className="relative before:absolute before:left-[11px] before:top-3 before:bottom-3 before:w-px before:bg-border">
             {flowSteps.map((step, index) => (
               <FlowStepRow
@@ -486,6 +495,7 @@ function SessionEventsPanel({
                 isEnter={step.startIndex === 0}
                 isExit={step.endIndex === lastEventIndex && !hasMore}
                 isLastLoaded={step.endIndex === lastEventIndex && hasMore}
+                videoTitles={videoTitles}
               />
             ))}
           </div>
@@ -523,7 +533,6 @@ export function AnalyticsJourneySessionsPanel() {
 
   const sessionIdParam = searchParams.get("sessionId") || ""
   // Primitive deps so expanding a session (URL sessionId only) does not refetch the list.
-  const uidFilter = searchParams.get("uid") || ""
   const platformFilter = searchParams.get("platform") || ""
   const statusFilterRaw = searchParams.get("status") || ""
   const timestampAfterFilter = searchParams.get("timestamp_after") || ""
@@ -534,13 +543,12 @@ export function AnalyticsJourneySessionsPanel() {
     const status: JourneyFilters["status"] =
       statusFilterRaw === "active" || statusFilterRaw === "inactive" ? statusFilterRaw : ""
     return {
-      uid: uidFilter,
       platform: platformFilter,
       status,
       timestamp_after: timestampAfterFilter,
       timestamp_before: timestampBeforeFilter,
     }
-  }, [uidFilter, platformFilter, statusFilterRaw, timestampAfterFilter, timestampBeforeFilter])
+  }, [platformFilter, statusFilterRaw, timestampAfterFilter, timestampBeforeFilter])
 
   const offset = useMemo(() => {
     const raw = Number(offsetParam)
@@ -587,7 +595,7 @@ export function AnalyticsJourneySessionsPanel() {
 
   const applyFilters = () => {
     updateQuery({
-      uid: draftFilters.uid.trim() || null,
+      uid: null,
       platform: draftFilters.platform || null,
       status: draftFilters.status || null,
       timestamp_after: localDateTimeToIso(draftFilters.timestamp_after) || null,
@@ -630,7 +638,6 @@ export function AnalyticsJourneySessionsPanel() {
         const data = await listSessions({
           limit: PAGE_SIZE,
           offset,
-          uid: filters.uid.trim() || undefined,
           platform: filters.platform || undefined,
           status: filters.status || undefined,
           timestamp_after: filters.timestamp_after || undefined,
@@ -762,22 +769,7 @@ export function AnalyticsJourneySessionsPanel() {
         </div>
 
         {filtersOpen ? (
-          <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="journeys-uid" className="text-xs">
-                User ID
-              </Label>
-              <Input
-                id="journeys-uid"
-                value={draftFilters.uid}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, uid: e.target.value }))}
-                placeholder="Exact uid"
-                className="h-9"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") applyFilters()
-                }}
-              />
-            </div>
+          <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="journeys-platform" className="text-xs">
                 Platform
@@ -846,10 +838,7 @@ export function AnalyticsJourneySessionsPanel() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Page {page}
-          {hasMore ? " · more available" : ""}
-          {sessionIdParam && focusedInList ? " · viewing one session flow" : ""}
-          {!sessionIdParam ? " · expand a row to see the visitor’s flow" : ""}
+          {sessionIdParam && focusedInList ? "Viewing one session flow" : "Expand a row to see the visitor’s flow"}
         </p>
         <Button
           type="button"
@@ -925,28 +914,13 @@ export function AnalyticsJourneySessionsPanel() {
       )}
 
       {!networkError && !errorKind ? (
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={offset <= 0 || loading}
-            onClick={() => updateQuery({ offset: String(Math.max(0, offset - PAGE_SIZE)), sessionId: null })}
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Previous
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!hasMore || loading}
-            onClick={() => updateQuery({ offset: String(offset + PAGE_SIZE), sessionId: null })}
-          >
-            Next
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
+        <AdminPager
+          page={page}
+          pageSize={PAGE_SIZE}
+          hasNext={hasMore}
+          loading={loading}
+          onPage={(next) => updateQuery({ offset: next > 1 ? String((next - 1) * PAGE_SIZE) : null, sessionId: null })}
+        />
       ) : null}
     </div>
   )
@@ -976,8 +950,8 @@ function SessionRow({
         </td>
         <td className="px-3 py-2.5">
           <div className="max-w-[220px]">
-            <p className="truncate font-medium" title={session.uid || session.session_id}>
-              {session.uid || "Anonymous"}
+            <p className="truncate font-medium" title={session.uid || session.visitor_id || session.session_id}>
+              {formatSessionVisitor(session)}
             </p>
             <p className="truncate font-mono text-[11px] text-muted-foreground" title={session.session_id}>
               {shortSessionId(session.session_id)}
@@ -1021,5 +995,57 @@ function SessionRow({
         </tr>
       ) : null}
     </>
+  )
+}
+
+function VideoLink({ id, title, className }: { id: string; title: string | null; className?: string }) {
+  return (
+    <a
+      href={watchHref(id)}
+      target="_blank"
+      rel="noreferrer"
+      className={cn("inline-flex max-w-full items-center gap-1.5 text-xs text-primary hover:underline", className)}
+      title={id}
+    >
+      <PlayCircle className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{title || `Video ${id.slice(0, 10)}…`}</span>
+      <ExternalLink className="h-3 w-3 shrink-0" />
+    </a>
+  )
+}
+
+function SessionVideosList({ videos, partial }: { videos: SessionVideo[]; partial: boolean }) {
+  if (videos.length === 0) return null
+  return (
+    <div className="rounded-lg border bg-background px-3 py-3 sm:px-4">
+      <p className="text-sm font-medium">
+        Videos in this session · {videos.length}
+        {partial ? "+" : ""}
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {videos.map((v) => (
+          <li key={v.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <VideoLink id={v.id} title={v.title} className="text-sm" />
+            {v.opened ? (
+              <Badge variant="outline" className="text-[10px]">
+                opened
+              </Badge>
+            ) : null}
+            {v.played ? (
+              <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-700 dark:text-emerald-300">
+                played
+              </Badge>
+            ) : v.viewed ? (
+              <Badge variant="outline" className="text-[10px]">
+                viewed page
+              </Badge>
+            ) : null}
+            <span className="text-xs text-muted-foreground" title={formatAbsoluteTime(v.firstAt)}>
+              {formatClockTime(v.firstAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

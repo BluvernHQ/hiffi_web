@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { AdminPager, usePageFor } from "@/components/admin/admin-pager"
 
 export type JourneyRange = "24h" | "7d" | "30d" | "90d" | "custom"
 
@@ -296,18 +297,20 @@ export function PeopleList({
   loading,
   error,
   hasMore,
-  onLoadMore,
+  page,
+  onPage,
   onOpenSession,
 }: {
   people: JourneyPerson[]
   loading: boolean
   error: string | null
   hasMore: boolean
-  onLoadMore: () => void
+  page: number
+  onPage: (page: number) => void
   onOpenSession: (sessionId: string) => void
 }) {
   if (error) return <p className="text-sm text-destructive">{error}</p>
-  if (!loading && people.length === 0) {
+  if (!loading && people.length === 0 && page === 1) {
     return <p className="text-sm text-muted-foreground">Nobody in this period.</p>
   }
   return (
@@ -353,52 +356,52 @@ export function PeopleList({
         </table>
       </div>
       {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" /> : null}
-      {hasMore && !loading ? (
-        <Button variant="outline" size="sm" className="w-full" onClick={onLoadMore}>
-          Load more
-        </Button>
-      ) : null}
+      <AdminPager page={page} pageSize={PEOPLE_PAGE} hasNext={hasMore} loading={loading} onPage={onPage} />
     </div>
   )
 }
 
-const PEOPLE_PAGE = 50
+export const PEOPLE_PAGE = 25
 
-/** Paged people list for one journey or feature; `fetchPage` must be memoized by the caller. */
-export function usePeople(fetchPage: ((offset: number, limit: number) => Promise<JourneyPeopleResponse>) | null) {
+/**
+ * One page of people for a journey or feature. `fetchPage` must be memoized by the caller;
+ * `resetKey` (selection + filters) sends the list back to page 1 when it changes.
+ */
+export function usePeople(
+  fetchPage: ((offset: number, limit: number) => Promise<JourneyPeopleResponse>) | null,
+  resetKey: string,
+) {
+  const [page, setPage] = usePageFor(resetKey)
   const [people, setPeople] = useState<JourneyPerson[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const requestRef = useRef(0)
 
-  const load = useCallback(
-    async (offset: number) => {
-      if (!fetchPage) return
-      const request = ++requestRef.current
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchPage(offset, PEOPLE_PAGE)
-        if (request !== requestRef.current) return
-        setPeople((prev) => (offset === 0 ? data.users : [...prev, ...data.users]))
-        setHasMore(Boolean(data.has_more))
-      } catch (err) {
-        if (request === requestRef.current) setError(apiErrorMessage(err, "Failed to load people"))
-      } finally {
-        if (request === requestRef.current) setLoading(false)
-      }
-    },
-    [fetchPage],
-  )
-
   useEffect(() => {
-    setPeople([])
-    setHasMore(false)
-    void load(0)
-  }, [load])
+    const request = ++requestRef.current
+    if (!fetchPage) {
+      setPeople([])
+      setHasMore(false)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    fetchPage((page - 1) * PEOPLE_PAGE, PEOPLE_PAGE)
+      .then((data) => {
+        if (request !== requestRef.current) return
+        setPeople(data.users)
+        setHasMore(Boolean(data.has_more))
+      })
+      .catch((err) => {
+        if (request === requestRef.current) setError(apiErrorMessage(err, "Failed to load people"))
+      })
+      .finally(() => {
+        if (request === requestRef.current) setLoading(false)
+      })
+  }, [fetchPage, page])
 
-  return { people, loading, error, hasMore, loadMore: () => void load(people.length) }
+  return { people, loading, error, hasMore, page, setPage }
 }
 
 export function apiErrorMessage(error: unknown, fallback: string): string {

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { AdminPager, pageSlice, usePageFor } from "@/components/admin/admin-pager"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
   JourneyFiltersBar,
@@ -35,6 +36,7 @@ type FeatureRow = {
 }
 
 const MAX_PAGES = 20
+const ROWS_PER_PAGE = 25
 
 /** How many people use each tracked control, with adoption against everyone active in the period. */
 export function AnalyticsFeaturesPanel({ onOpenSession }: { onOpenSession: (sessionId: string) => void }) {
@@ -99,6 +101,9 @@ export function AnalyticsFeaturesPanel({ onOpenSession }: { onOpenSession: (sess
       .sort((a, b) => b.people - a.people || (b.usage?.sessions ?? 0) - (a.usage?.sessions ?? 0))
   }, [usage, query, showUnregistered, filters.includeGuests])
 
+  const [page, setPage] = usePageFor(`${filtersKey}|${query}|${showUnregistered}`)
+  const pageRows = pageSlice(rows, page, ROWS_PER_PAGE)
+
   const unregisteredCount = useMemo(() => usage.filter((u) => !(u.id in TRACKING_IDS)).length, [usage])
   const usedCount = useMemo(
     () => usage.filter((u) => u.id in TRACKING_IDS && u.users + (filters.includeGuests ? u.guests : 0) > 0).length,
@@ -158,7 +163,7 @@ export function AnalyticsFeaturesPanel({ onOpenSession }: { onOpenSession: (sess
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {pageRows.map((r) => (
                 <tr
                   key={r.id}
                   className={cn("cursor-pointer border-b last:border-0 hover:bg-muted/40", r.people === 0 && "text-muted-foreground")}
@@ -196,6 +201,7 @@ export function AnalyticsFeaturesPanel({ onOpenSession }: { onOpenSession: (sess
         </div>
       </div>
       {loading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /> : null}
+      <AdminPager page={page} pageSize={ROWS_PER_PAGE} total={rows.length} onPage={setPage} />
 
       <FeatureSheet
         row={selected}
@@ -253,7 +259,7 @@ function FeatureSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [id, filtersKey],
   )
-  const people = usePeople(id ? fetchPeople : null)
+  const people = usePeople(id ? fetchPeople : null, `${id ?? ""}|${filtersKey}`)
 
   const chartData = days.map((d) => {
     const using = d.users + (filters.includeGuests ? d.guests : 0)
@@ -309,7 +315,8 @@ function FeatureSheet({
                   loading={people.loading}
                   error={people.error}
                   hasMore={people.hasMore}
-                  onLoadMore={people.loadMore}
+                  page={people.page}
+                  onPage={people.setPage}
                   onOpenSession={onOpenSession}
                 />
               </div>

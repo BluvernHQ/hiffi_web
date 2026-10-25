@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react"
 import { adminApiClient } from "@/lib/admin-api-client"
 import type { JourneyPath, JourneyPathsResponse } from "@/lib/types/analytics-journey-paths"
 import { Button } from "@/components/ui/button"
+import { AdminPager, usePageFor } from "@/components/admin/admin-pager"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
   JourneyFiltersBar,
@@ -33,17 +34,22 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<JourneyPath | null>(null)
   const requestRef = useRef(0)
+  const [page, setPage] = usePageFor(filtersKey)
 
   const load = useCallback(
-    async (offset: number) => {
+    async (pageNumber: number) => {
       const request = ++requestRef.current
       setLoading(true)
       setError(null)
       try {
-        const res = await adminApiClient.adminGetJourneyPaths({ ...toApiFilters(filters), limit: PAGE, offset })
+        const res = await adminApiClient.adminGetJourneyPaths({
+          ...toApiFilters(filters),
+          limit: PAGE,
+          offset: (pageNumber - 1) * PAGE,
+        })
         if (request !== requestRef.current) return
         setData(res)
-        setJourneys((prev) => (offset === 0 ? res.journeys : [...prev, ...res.journeys]))
+        setJourneys(res.journeys)
       } catch (err) {
         if (request === requestRef.current) setError(apiErrorMessage(err, "Failed to load journeys"))
       } finally {
@@ -56,8 +62,11 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
 
   useEffect(() => {
     setSelected(null)
-    void load(0)
-  }, [load])
+  }, [filtersKey])
+
+  useEffect(() => {
+    void load(page)
+  }, [load, page])
 
   const fetchPeople = useCallback(
     (offset: number, limit: number) =>
@@ -65,7 +74,7 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected?.journey_id, filtersKey],
   )
-  const people = usePeople(selected ? fetchPeople : null)
+  const people = usePeople(selected ? fetchPeople : null, `${selected?.journey_id ?? ""}|${filtersKey}`)
 
   return (
     <div className="space-y-4">
@@ -77,7 +86,7 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
         </p>
       </div>
 
-      <JourneyFiltersBar filters={filters} update={update} showJourneyOptions onRefresh={() => void load(0)} loading={loading} />
+      <JourneyFiltersBar filters={filters} update={update} showJourneyOptions onRefresh={() => void load(page)} loading={loading} />
 
       {data ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -86,7 +95,7 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
           <Stat label="Distinct journeys" value={formatNumber(data.journey_count)} />
           <Stat
             label="Top journey share"
-            value={journeys[0] ? formatPercent(journeys[0].share) : "—"}
+            value={page === 1 && journeys[0] ? formatPercent(journeys[0].share) : "—"}
           />
         </div>
       ) : null}
@@ -123,7 +132,7 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
                     className="cursor-pointer border-b align-top last:border-0 hover:bg-muted/40"
                     onClick={() => setSelected(j)}
                   >
-                    <td className="px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground tabular-nums">{(page - 1) * PAGE + i + 1}</td>
                     <td className="px-3 py-2.5">
                       <StepChips steps={j.steps} highlight={filters.contains || undefined} />
                     </td>
@@ -143,10 +152,8 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
       ) : null}
 
       {loading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" /> : null}
-      {data?.has_more && !loading ? (
-        <Button variant="outline" className="w-full" onClick={() => void load(journeys.length)}>
-          Load more journeys
-        </Button>
+      {data ? (
+        <AdminPager page={page} pageSize={PAGE} total={data.journey_count} loading={loading} onPage={setPage} />
       ) : null}
 
       <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
@@ -167,7 +174,8 @@ export function AnalyticsJourneyPathsPanel({ onOpenSession }: { onOpenSession: (
                   loading={people.loading}
                   error={people.error}
                   hasMore={people.hasMore}
-                  onLoadMore={people.loadMore}
+                  page={people.page}
+                  onPage={people.setPage}
                   onOpenSession={onOpenSession}
                 />
               </div>

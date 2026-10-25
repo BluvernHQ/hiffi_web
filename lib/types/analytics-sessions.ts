@@ -4,6 +4,9 @@ export type Platform = "web" | "ios" | "android" | "tv"
 export interface AnalyticsSession {
   session_id: string
   uid?: string
+  username?: string
+  /** Lasting browser id; the same guest across sessions. */
+  visitor_id?: string
   client_ip: string
   geo_lat: number
   geo_lng: number
@@ -61,9 +64,10 @@ export function isGeoUnknown(lat: number, lng: number): boolean {
 }
 
 export function formatSessionVisitor(session: AnalyticsSession): string {
+  if (session.username) return `@${session.username}`
   if (session.uid) return session.uid
-  const short = session.session_id.slice(0, 8)
-  return `Anonymous · ${short}`
+  if (session.visitor_id) return `Guest #${session.visitor_id.slice(0, 6)}`
+  return "Anonymous"
 }
 
 export function formatGeoLabel(lat: number, lng: number): string {
