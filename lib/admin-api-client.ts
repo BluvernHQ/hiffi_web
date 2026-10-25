@@ -149,6 +149,14 @@ import {
   type TrafficRange,
   type TrafficSeriesData,
 } from "./api/admin-traffic"
+import {
+  getFeatures as journeyPathsAdminGetFeatures,
+  getFeatureTrend as journeyPathsAdminGetFeatureTrend,
+  getFeatureUsers as journeyPathsAdminGetFeatureUsers,
+  getJourneyPaths as journeyPathsAdminGet,
+  getJourneyPathUsers as journeyPathsAdminGetUsers,
+} from "./api/admin-journey-paths"
+import type { JourneyFilters } from "./types/analytics-journey-paths"
 import { getFlagsConfig as flagsGetFlagsConfig } from "./api/flags"
 import type {
   AdminListCollaborationInquiriesParams,
@@ -832,6 +840,26 @@ class AdminApiClient implements AdminApiClientContext {
     limit = 20,
   ): Promise<TrafficBreakdownData> {
     return trafficAdminGetBreakdown(this, dimension, range, limit)
+  }
+
+  async adminGetJourneyPaths(filters?: JourneyFilters) {
+    return journeyPathsAdminGet(this, filters)
+  }
+
+  async adminGetJourneyPathUsers(journeyId: string, filters?: JourneyFilters) {
+    return journeyPathsAdminGetUsers(this, journeyId, filters)
+  }
+
+  async adminGetFeatures(filters?: JourneyFilters) {
+    return journeyPathsAdminGetFeatures(this, filters)
+  }
+
+  async adminGetFeatureTrend(featureId: string, filters?: JourneyFilters) {
+    return journeyPathsAdminGetFeatureTrend(this, featureId, filters)
+  }
+
+  async adminGetFeatureUsers(featureId: string, filters?: JourneyFilters) {
+    return journeyPathsAdminGetFeatureUsers(this, featureId, filters)
   }
 
   async adminListMigrationRequests(params?: AdminListMigrationRequestsParams) {

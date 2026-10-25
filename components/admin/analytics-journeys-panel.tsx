@@ -2,22 +2,28 @@
 
 import { useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { AnalyticsFeaturesPanel } from "@/components/admin/analytics-features-panel"
 import { AnalyticsJourneyFunnelsPanel } from "@/components/admin/analytics-journey-funnels-panel"
+import { AnalyticsJourneyPathsPanel } from "@/components/admin/analytics-journey-paths-panel"
 import { AnalyticsJourneySessionsPanel } from "@/components/admin/analytics-journey-sessions-panel"
 import { cn } from "@/lib/utils"
 
-type JourneysTab = "funnels" | "sessions"
+type JourneysTab = "paths" | "features" | "funnels" | "sessions"
 
 const TAB_QUERY = "journeys_tab"
 
 const TABS: Array<{ id: JourneysTab; label: string }> = [
+  { id: "paths", label: "All journeys" },
+  { id: "features", label: "Features" },
   { id: "funnels", label: "Funnels" },
   { id: "sessions", label: "Sessions" },
 ]
 
 /**
  * Journeys admin shell:
- * - Funnels (primary): chain enter → exit drop-off + matched groups
+ * - All journeys (default): every distinct path through the app and who took it
+ * - Features: adoption of each tracked control
+ * - Funnels: chain enter → exit drop-off + matched groups
  * - Sessions: raw visitor timeline drill-down
  */
 export function AnalyticsJourneysPanel() {
@@ -26,21 +32,18 @@ export function AnalyticsJourneysPanel() {
 
   const activeTab = useMemo((): JourneysTab => {
     const raw = searchParams.get(TAB_QUERY)
-    if (raw === "sessions") return "sessions"
+    if (raw === "sessions" || raw === "funnels" || raw === "features") return raw
     // Deep-link with sessionId should land on the timeline inspector.
     if (searchParams.get("sessionId")) return "sessions"
-    return "funnels"
+    return "paths"
   }, [searchParams])
 
   const setTab = (tab: JourneysTab) => {
     const next = new URLSearchParams(searchParams.toString())
     next.set("section", "journeys")
-    if (tab === "funnels") {
-      next.delete(TAB_QUERY)
-      next.delete("sessionId")
-    } else {
-      next.set(TAB_QUERY, "sessions")
-    }
+    next.delete("sessionId")
+    if (tab === "paths") next.delete(TAB_QUERY)
+    else next.set(TAB_QUERY, tab)
     router.replace(`/admin/dashboard?${next.toString()}`, { scroll: false })
   }
 
@@ -72,11 +75,10 @@ export function AnalyticsJourneysPanel() {
         ))}
       </div>
 
-      {activeTab === "funnels" ? (
-        <AnalyticsJourneyFunnelsPanel onOpenSession={openSession} />
-      ) : (
-        <AnalyticsJourneySessionsPanel />
-      )}
+      {activeTab === "paths" ? <AnalyticsJourneyPathsPanel onOpenSession={openSession} /> : null}
+      {activeTab === "features" ? <AnalyticsFeaturesPanel onOpenSession={openSession} /> : null}
+      {activeTab === "funnels" ? <AnalyticsJourneyFunnelsPanel onOpenSession={openSession} /> : null}
+      {activeTab === "sessions" ? <AnalyticsJourneySessionsPanel /> : null}
     </div>
   )
 }
