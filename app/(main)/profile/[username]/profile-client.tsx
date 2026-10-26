@@ -110,7 +110,10 @@ export default function ProfilePage({
     scrollMainContentToTop("auto")
   }, [username])
 
-  const isOwnProfile = currentUserData?.username === username;
+  const isOwnProfile = Boolean(
+    currentUserData?.username &&
+      currentUserData.username.trim().toLowerCase() === username.trim().toLowerCase(),
+  );
   const reportViewer = user
     ? { uid: user.uid, username: currentUserData?.username ?? user.username }
     : null;
