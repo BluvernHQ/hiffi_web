@@ -23,8 +23,8 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
   const meta = [place, artist.genre[0]].filter(Boolean).join(" · ")
   const youtube = youtubeStats(artist)
   const youtubeLine = [
-    youtube.subscribers ? `${youtube.subscribers} subscriber${artist.yt_followers === 1 ? "" : "s"}` : null,
-    youtube.videos ? `${youtube.videos} video${artist.yt_video_count === 1 ? "" : "s"}` : null,
+    youtube.subscribers ? `${youtube.subscribers} subscribers` : null,
+    youtube.videos ? `${youtube.videos} videos` : null,
   ]
     .filter(Boolean)
     .join(" · ")
