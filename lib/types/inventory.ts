@@ -239,6 +239,9 @@ export interface InventoryClaim {
   email_conflict: boolean
   /** `null` until the claimer confirms their email; absent on API builds without instant login. */
   email_confirmed_at?: string | null
+  /** The claimed artist's YouTube channel (ranking job); absent until fetched. */
+  youtube_subscriber_count?: number
+  youtube_video_count?: number
   created_at: string
   updated_at: string
 }
@@ -461,6 +464,8 @@ export function normalizeInventoryClaim(raw: Record<string, unknown>): Inventory
     ...("email_confirmed_at" in raw
       ? { email_confirmed_at: optionalTimestamp(raw.email_confirmed_at) ?? null }
       : {}),
+    youtube_subscriber_count: countOrUndefined(raw.youtube_subscriber_count),
+    youtube_video_count: countOrUndefined(raw.youtube_video_count),
   }
 }
 

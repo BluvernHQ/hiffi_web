@@ -647,7 +647,7 @@ export function InventoryClaimsTable() {
   const showUsernameSpinner = isFilterPending || (fetching && usernameQuery.length > 0)
   const showEmailSpinner = isFilterPending || (fetching && emailQuery.length > 0)
   const showOnboardingColumns = statusFilter === "approved" || statusFilter === ""
-  const baseCols = showOnboardingColumns ? 10 : 8
+  const baseCols = showOnboardingColumns ? 12 : 10
   const colSpan = canInventoryClaimsWrite ? baseCols + 1 : baseCols
   const actionInFlight = approvingId != null || deletingId != null || resendingId != null
 
@@ -829,6 +829,12 @@ export function InventoryClaimsTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Profile
                 </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  YT subscribers
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  YT videos
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Claimant
                 </th>
@@ -886,6 +892,12 @@ export function InventoryClaimsTable() {
                         >
                           @{row.username}
                         </Link>
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm tabular-nums">
+                        {row.youtube_subscriber_count?.toLocaleString("en-US") ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm tabular-nums">
+                        {row.youtube_video_count?.toLocaleString("en-US") ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-sm">{row.name}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground max-w-[220px]">
