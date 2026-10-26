@@ -17,8 +17,9 @@ export type CreatorsDirectoryQuery = {
   city?: string
   genre?: string
   claim_status?: string
-  stale_days?: string
   page?: string
+  /** Shared rolling range preset (`7d`, `30d`, ...); see lib/admin/creators-range.ts. */
+  range?: string
   /** Shared analytics end date (`YYYY-MM-DD` UTC). Alias for to_date in URL. */
   as_of?: string
   from_date?: string
@@ -36,7 +37,6 @@ const DIRECTORY_KEYS = [
   "city",
   "genre",
   "claim_status",
-  "stale_days",
   "page",
 ] as const
 
@@ -116,7 +116,6 @@ export function kpiDirectoryParams(
 
 export function attentionDirectoryParams(
   key: string,
-  staleDays?: number,
   population: CreatorPopulation = "organic",
 ): Partial<CreatorsDirectoryQuery> {
   const map: Record<string, CreatorSegment | undefined> = {
@@ -134,7 +133,6 @@ export function attentionDirectoryParams(
     creators_pop: population === "claimed" ? "claimed" : undefined,
   }
   if (segment) next.segment = segment
-  if (segment === "stale" && staleDays) next.stale_days = String(staleDays)
   return next
 }
 
@@ -151,6 +149,7 @@ export function creatorsDashboardHref(params: Partial<CreatorsDirectoryQuery> = 
   const view = params.view ?? "dashboard"
   if (view === "directory") sp.set("creators_view", "directory")
 
+  if (params.range) sp.set("range", params.range)
   const toDate = params.to_date || params.as_of
   if (toDate) sp.set("as_of", toDate)
   if (params.from_date) sp.set("from_date", params.from_date)

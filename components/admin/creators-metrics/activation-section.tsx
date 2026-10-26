@@ -140,7 +140,7 @@ export function ActivationSection({
         <Button asChild variant="outline" size="sm">
           <Link
             href={creatorsDashboardHref(
-              attentionDirectoryParams("new_creators_without_upload", undefined, population),
+              attentionDirectoryParams("new_creators_without_upload", population),
             )}
           >
             New without upload

@@ -144,10 +144,19 @@ function QueueCard({
 export function GrowthMetricsSection({
   population,
   range,
+  staleDays,
+  compare,
+  rangeDays,
   onRefreshChrome,
 }: {
   population: CreatorPopulation
   range: CreatorDateRange
+  /** Derived from the shared range: no upload within it = stale. */
+  staleDays: number
+  /** Funnel delta period, derived from the shared range. */
+  compare: FunnelComparePeriod
+  /** Length of the shared range in days; null for all time. */
+  rangeDays: number | null
   onRefreshChrome?: () => void
 }) {
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
@@ -157,33 +166,24 @@ export function GrowthMetricsSection({
   const [funnel, setFunnel] = useState<CreatorFunnel | null>(null)
   const [attention, setAttention] = useState<CreatorAttention | null>(null)
   const [trends, setTrends] = useState<CreatorTrends | null>(null)
-  const [compare, setCompare] = useState<FunnelComparePeriod>("7d")
-  const [staleDays, setStaleDays] = useState(14)
   const [trendTab, setTrendTab] = useState<"new" | "first" | "uploads">("new")
   const [dailyKey, setDailyKey] = useState<(typeof DAILY_SERIES)[number]["key"]>("active_30d")
 
-  const rangeKey = `${range.from_date ?? ""}|${range.to_date ?? range.as_of ?? ""}`
+  const rangeKey = `${range.from_date ?? ""}|${range.to_date ?? range.as_of ?? ""}|${staleDays}|${compare}`
 
-  const load = async (opts?: {
-    stale?: number
-    compare?: FunnelComparePeriod
-    range?: CreatorDateRange
-  }) => {
+  const load = async () => {
     if (guardOfflineBeforeFetch()) {
       setLoading(false)
       return
     }
-    const nextStale = opts?.stale ?? staleDays
-    const nextCompare = opts?.compare ?? compare
-    const nextRange = opts?.range ?? range
     try {
       setLoading(true)
       clearNetworkError()
       const results = await Promise.allSettled([
-        adminApiClient.adminGetCreatorOverview(nextRange, population),
-        adminApiClient.adminGetCreatorFunnel(nextCompare, nextRange, population),
-        adminApiClient.adminGetCreatorAttention(nextStale, nextRange, population),
-        adminApiClient.adminGetCreatorTrends(nextRange, population),
+        adminApiClient.adminGetCreatorOverview(range, population),
+        adminApiClient.adminGetCreatorFunnel(compare, range, population),
+        adminApiClient.adminGetCreatorAttention(staleDays, range, population),
+        adminApiClient.adminGetCreatorTrends(range, population),
       ])
 
       const [ov, fn, at, tr] = results
@@ -221,21 +221,9 @@ export function GrowthMetricsSection({
     }
   }
 
-  const applyStaleDays = async (raw: number | string) => {
-    const next = Math.min(365, Math.max(1, Math.floor(Number(raw)) || 14))
-    setStaleDays(next)
-    if (guardOfflineBeforeFetch()) return
-    try {
-      const at = await adminApiClient.adminGetCreatorAttention(next, range, population)
-      setAttention(at)
-    } catch (error) {
-      handleFetchError(error)
-    }
-  }
-
   useEffect(() => {
-    void load({ range })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when calendar / population changes
+    void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when the shared range / population changes
   }, [rangeKey, population])
 
   const weekly = {
@@ -547,26 +535,9 @@ export function GrowthMetricsSection({
                   the first user-stage conversion.
                 </CardDescription>
               </div>
-              <div className="inline-flex rounded-lg border bg-muted p-0.5">
-                {(["7d", "30d"] as const).map((period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    className={cn(
-                      "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                      compare === period
-                        ? "bg-background shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => {
-                      setCompare(period)
-                      void load({ compare: period })
-                    }}
-                  >
-                    vs {period}
-                  </button>
-                ))}
-              </div>
+              <span className="rounded-lg border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                Changes vs {compare === "7d" ? "7" : "30"} days earlier
+              </span>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -684,37 +655,10 @@ export function GrowthMetricsSection({
                   Needs attention
                 </CardTitle>
                 <CardDescription>
-                  Counts and percentages as of this date. At-risk 90 ⊂ 60 ⊂ 30.
+                  Counts and percentages at the end of the range. Stale = no upload in the last{" "}
+                  {staleDays} days. At-risk 90 ⊂ 60 ⊂ 30.
                 </CardDescription>
               </div>
-              <label className="text-xs text-muted-foreground flex items-center gap-2 rounded-lg border px-2 py-1.5 bg-background">
-                Stale after
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={staleDays}
-                  onChange={(e) => setStaleDays(Number(e.target.value) || 1)}
-                  onBlur={(e) => void applyStaleDays(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      void applyStaleDays((e.target as HTMLInputElement).value)
-                    }
-                  }}
-                  className="h-7 w-14 rounded border bg-background px-1.5 text-sm"
-                />
-                days
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => void applyStaleDays(staleDays)}
-                >
-                  Apply
-                </Button>
-              </label>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -724,7 +668,7 @@ export function GrowthMetricsSection({
                 <Link
                   key={item.key}
                   href={creatorsDashboardHref(
-                    attentionDirectoryParams(item.key, attention.stale_days, population),
+                    attentionDirectoryParams(item.key, population),
                   )}
                   className="group flex items-center gap-3 rounded-xl border px-3 py-2.5 hover:border-primary/40 hover:bg-muted/30 transition-colors"
                 >
@@ -770,7 +714,8 @@ export function GrowthMetricsSection({
             <div>
               <CardTitle>Weekly volume</CardTitle>
               <CardDescription>
-                12 weeks ending at this date. Missing weeks are omitted, not filled.
+                {rangeDays ? "Weeks in the selected range." : "12 weeks up to the range end."} Missing weeks
+                are omitted, not filled.
               </CardDescription>
             </div>
             <div className="inline-flex rounded-lg border bg-muted p-0.5">
@@ -831,7 +776,8 @@ export function GrowthMetricsSection({
             <div>
               <CardTitle>Daily snapshots</CardTitle>
               <CardDescription>
-                Snapshot rows for the 90 days ending at this date. Empty until the UTC job writes rows.
+                Snapshot rows {rangeDays ? "in the selected range" : "for the 90 days up to the range end"}. Empty
+                until the UTC job writes rows.
               </CardDescription>
             </div>
             <select

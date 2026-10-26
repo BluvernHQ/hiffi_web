@@ -348,6 +348,7 @@ export type CreatorListParams = {
   genre?: string
   claim_status?: CreatorClaimStatus
   stale_days?: number
+  range?: CreatorDateRange
 }
 
 export type CreatorVideoRow = {

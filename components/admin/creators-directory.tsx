@@ -13,6 +13,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { creatorsDashboardHref, parseCreatorsPopulation } from "@/lib/admin/creator-nav"
 import {
+  rangeLinkParams,
+  staleDaysFor,
+  type ResolvedCreatorsRange,
+} from "@/lib/admin/creators-range"
+import {
   CREATOR_SEGMENT_LABELS,
   CREATOR_SEGMENTS,
   isCreatorSegment,
@@ -91,7 +96,7 @@ function StatusPills({ row }: { row: CreatorDirectoryRow }) {
   return <div className="flex flex-wrap gap-1 mt-1">{pills}</div>
 }
 
-export function CreatorsDirectory() {
+export function CreatorsDirectory({ range }: { range: ResolvedCreatorsRange }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
@@ -104,7 +109,9 @@ export function CreatorsDirectory() {
   const city = searchParams.get("city") || ""
   const genre = searchParams.get("genre") || ""
   const claimStatus = (searchParams.get("claim_status") || "") as CreatorClaimStatus | ""
-  const staleDays = Number(searchParams.get("stale_days") || 14) || 14
+  const staleDays = staleDaysFor(range)
+  const fromDate = range.from_date
+  const toDate = range.to_date
   const population = parseCreatorsPopulation(searchParams.get("creators_pop"))
 
   const [cityInput, setCityInput] = useState(city)
@@ -158,6 +165,7 @@ export function CreatorsDirectory() {
           genre: genre || undefined,
           claim_status: claimStatus || undefined,
           stale_days: segment === "stale" ? staleDays : undefined,
+          range: { to_date: toDate, ...(fromDate ? { from_date: fromDate } : {}) },
         },
         population,
       )
@@ -174,6 +182,8 @@ export function CreatorsDirectory() {
     claimStatus,
     city,
     clearNetworkError,
+    fromDate,
+    toDate,
     genre,
     guardOfflineBeforeFetch,
     handleFetchError,
@@ -268,19 +278,6 @@ export function CreatorsDirectory() {
               <option value="none">No claim</option>
             </select>
           </label>
-          {segment === "stale" && (
-            <label className="text-xs space-y-1">
-              <span className="text-muted-foreground font-medium">Quiet for (days)</span>
-              <Input
-                type="number"
-                min={1}
-                max={365}
-                className="h-9"
-                defaultValue={staleDays}
-                onBlur={(e) => replaceQuery({ stale_days: e.target.value || "14" })}
-              />
-            </label>
-          )}
           <form
             className="sm:col-span-2 xl:col-span-5 flex flex-wrap items-end gap-2"
             onSubmit={(e) => {
@@ -314,6 +311,7 @@ export function CreatorsDirectory() {
             {count.toLocaleString()} result{count === 1 ? "" : "s"}
             {population === "claimed" ? " · claimed population" : ""}
             {segment === "never_uploaded" ? " · no videos yet" : ""}
+            {segment === "stale" ? ` · no upload in the last ${staleDays} days` : ""}
           </p>
         </div>
         <Button
@@ -324,6 +322,7 @@ export function CreatorsDirectory() {
               creatorsDashboardHref({
                 view: "directory",
                 creators_pop: population === "claimed" ? "claimed" : undefined,
+                ...rangeLinkParams(searchParams),
               }),
             )
           }

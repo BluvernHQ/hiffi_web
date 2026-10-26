@@ -24,18 +24,20 @@ import { cn } from "@/lib/utils"
 export function EngagementSection({
   population,
   range,
+  staleDays,
 }: {
   population: CreatorPopulation
   range: CreatorDateRange
+  /** Derived from the shared range: no upload within it = stale. */
+  staleDays: number
 }) {
   const { networkError, clearNetworkError, guardOfflineBeforeFetch, handleFetchError } =
     useAdminNetworkError()
   const [loading, setLoading] = useState(true)
-  const [staleDays, setStaleDays] = useState(14)
   const [data, setData] = useState<CreatorEngagement | null>(null)
-  const rangeKey = `${range.from_date ?? ""}|${range.to_date ?? range.as_of ?? ""}`
+  const rangeKey = `${range.from_date ?? ""}|${range.to_date ?? range.as_of ?? ""}|${staleDays}`
 
-  const load = async (nextStale = staleDays) => {
+  const load = async () => {
     if (guardOfflineBeforeFetch()) {
       setLoading(false)
       return
@@ -43,7 +45,7 @@ export function EngagementSection({
     try {
       setLoading(true)
       clearNetworkError()
-      setData(await adminApiClient.adminGetCreatorEngagement(nextStale, range, population))
+      setData(await adminApiClient.adminGetCreatorEngagement(staleDays, range, population))
     } catch (error) {
       setData(null)
       handleFetchError(error)
@@ -84,27 +86,7 @@ export function EngagementSection({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="text-xs text-muted-foreground flex items-center gap-2 rounded-lg border px-2 py-1.5 bg-background">
-          Stale after
-          <input
-            type="number"
-            min={1}
-            max={365}
-            value={staleDays}
-            onChange={(e) => setStaleDays(Number(e.target.value) || 1)}
-            className="h-7 w-14 rounded border bg-background px-1.5 text-sm"
-          />
-          days
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 px-2 text-xs"
-            onClick={() => void load(staleDays)}
-          >
-            Apply
-          </Button>
-        </label>
+        <p className="text-xs text-muted-foreground">Stale = no upload in the last {staleDays} days.</p>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
           <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
           Refresh
@@ -145,7 +127,7 @@ export function EngagementSection({
         <Button asChild variant="outline" size="sm">
           <Link
             href={creatorsDashboardHref(
-              attentionDirectoryParams("stale_uploaders", data.stale_days, population),
+              attentionDirectoryParams("stale_uploaders", population),
             )}
           >
             Stale list
@@ -154,7 +136,7 @@ export function EngagementSection({
         <Button asChild variant="outline" size="sm">
           <Link
             href={creatorsDashboardHref(
-              attentionDirectoryParams("at_risk_30", undefined, population),
+              attentionDirectoryParams("at_risk_30", population),
             )}
           >
             At risk 30d

@@ -245,6 +245,7 @@ export async function adminListCreators(
       genre: params.genre,
       claim_status: params.claim_status,
       stale_days: params.stale_days,
+      ...dateQuery(params.range),
     })}`,
     { method: "GET" },
     true,
