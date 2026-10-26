@@ -538,11 +538,6 @@ export function normalizeInventoryEntry(raw: Record<string, unknown>): Inventory
   }
 }
 
-function countOrUndefined(value: unknown): number | undefined {
-  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined
-}
-
 export function normalizePublicInventoryProfile(raw: Record<string, unknown>): PublicInventoryProfile {
   const genre =
     raw.genre != null && String(raw.genre).trim() ? String(raw.genre).trim().toLowerCase() : undefined
@@ -582,12 +577,6 @@ export function normalizePublicInventoryProfile(raw: Record<string, unknown>): P
     banner_image: bannerImage,
     claim_status: normalizePublicClaimStatus(raw.claim_status),
     ...(ranking ? { ranking } : {}),
-    ...(countOrUndefined(raw.youtube_subscriber_count) != null
-      ? { youtube_subscriber_count: countOrUndefined(raw.youtube_subscriber_count) }
-      : {}),
-    ...(countOrUndefined(raw.youtube_video_count) != null
-      ? { youtube_video_count: countOrUndefined(raw.youtube_video_count) }
-      : {}),
     ...(createdAt ? { created_at: createdAt } : {}),
     ...(updatedAt ? { updated_at: updatedAt } : {}),
   }
