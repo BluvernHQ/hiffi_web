@@ -20,8 +20,10 @@ export type RecKpisResponse = {
   today: RecKpis
   /** day -> metric -> value (stored daily snapshots). */
   trend: Record<string, Record<string, number>>
-  catalog: { videos?: number; analyzed?: number; vector?: string }
+  catalog: { videos?: number; analyzed?: number; vector?: string; clusters?: number }
   enabled: boolean
+  /** Collaborative filtering (WRMF) model state. */
+  cf?: { trained: boolean; users?: number; positives?: number; blend_weight?: number; min_users?: number; min_positives?: number }
 }
 
 export type RecPoolVideo = {

@@ -99,7 +99,11 @@ export function AnalyticsRecsPanel() {
             <Badge variant={kpis.enabled ? "default" : "secondary"}>{kpis.enabled ? "Engine v2 on" : "Engine v2 off"}</Badge>
             <span className="text-muted-foreground">
               {formatNumber(kpis.catalog.analyzed ?? 0)} of {formatNumber(kpis.catalog.videos ?? 0)} videos analyzed ·
-              similarity on {kpis.catalog.vector || "none"} vectors
+              similarity on {kpis.catalog.vector || "none"} vectors · {formatNumber(kpis.catalog.clusters ?? 0)} sound
+              clusters ·{" "}
+              {kpis.cf?.trained
+                ? `collaborative filtering on (${formatNumber(kpis.cf.users ?? 0)} people, weight ${(kpis.cf.blend_weight ?? 0).toFixed(2)})`
+                : `collaborative filtering waiting for data (needs ${kpis.cf?.min_users ?? 20} people, ${kpis.cf?.min_positives ?? 100} positive reactions)`}
             </span>
           </div>
 
