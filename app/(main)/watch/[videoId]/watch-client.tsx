@@ -1727,6 +1727,8 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
 
   const currentVideo = video || persistedWatchUiState?.video // Alias for readability
   const descriptionText = getVideoDescriptionFromRecord(currentVideo)
+  const rawTags = currentVideo?.video_tags ?? currentVideo?.tags
+  const videoTags: string[] = Array.isArray(rawTags) ? rawTags.filter((t: unknown) => typeof t === "string" && t) : []
   const hasVideoDescription = hasDisplayableVideoDescription(currentVideo)
   const videoViewCount = getVideoViewCount(currentVideo)
   const showVideoViewCount = shouldShowVideoViewCount(videoViewCount)
@@ -2132,9 +2134,9 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                         <p className="text-muted-foreground">No description available</p>
                       )}
 
-                      {currentVideo?.tags && currentVideo?.tags.length > 0 && (
+                      {videoTags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">
-                          {currentVideo.tags.map((tag: string) => (
+                          {videoTags.map((tag: string) => (
                             <Link
                               key={tag}
                               href={`/search?q=${encodeURIComponent(tag)}`}
