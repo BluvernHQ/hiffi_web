@@ -29,6 +29,8 @@ export function describePage(path?: string): string {
     return handle ? `Profile @${decodeURIComponent(handle)}` : "Profile"
   }
   if (path.startsWith("/search")) return "Search"
+  // A playlist opens in place on /playlists (?playlist=<id>); journeys call it /playlists/:id.
+  if (path.startsWith("/playlists/") || /^\/playlists\?(.*&)?playlist=/.test(path)) return "Opened a playlist"
   if (path.startsWith("/playlists")) return "Playlists"
   if (path.startsWith("/top-artists")) return "Hip-Hop 500"
   if (path.startsWith("/artist-index")) return "Artist Index"

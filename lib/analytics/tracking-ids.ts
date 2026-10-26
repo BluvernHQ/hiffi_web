@@ -95,6 +95,7 @@ export const TRACKING_IDS = {
   "playlist-picker-new": { feature: "playlists", label: "Add to playlist: new playlist", since: "2026-10-21" },
   "playlist-picker-save": { feature: "playlists", label: "Add to playlist: save", since: "2026-10-21" },
   "playlist-create-submit": { feature: "playlists", label: "Created a playlist", since: "2026-10-21" },
+  "playlist-open": { feature: "playlists", label: "Opened a playlist", since: "2026-10-26" },
 
   // Home and mood mix
   "home-hero-filmstrip-prev": { feature: "home", label: "Hero: previous" },

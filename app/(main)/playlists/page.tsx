@@ -824,6 +824,7 @@ function PlaylistsPageContent() {
                   <li key={p.playlist_id}>
                     <button
                       type="button"
+                      {...trackId("playlist-open", p.playlist_id)}
                       onClick={() => handleSelectPlaylist(p.playlist_id)}
                       className="group relative flex min-h-[170px] w-full overflow-hidden rounded-2xl border border-border/60 bg-background/90 p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:shadow-md"
                     >
