@@ -103,6 +103,9 @@ export interface PublicInventoryProfile {
   claim_status: PublicInventoryClaimStatus
   /** Absent when the API predates the rank ladder. */
   ranking?: PublicRanking
+  /** Absent until the channel has been fetched. */
+  youtube_subscriber_count?: number
+  youtube_video_count?: number
   created_at?: string
   updated_at?: string
 }

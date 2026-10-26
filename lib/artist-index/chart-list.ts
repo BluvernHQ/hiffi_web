@@ -13,6 +13,8 @@ export type ChartListRow = {
   place: string | null
   claimStatus: "unclaimed" | "pending" | "claimed"
   ranking?: PublicRanking
+  ytSubscribers: number | null
+  ytVideos: number | null
 }
 
 export type ChartList = {
@@ -34,6 +36,8 @@ function rowFrom(artist: TopArtist): ChartListRow {
     place,
     claimStatus: artist.claim_status,
     ...(artist.ranking ? { ranking: artist.ranking } : {}),
+    ytSubscribers: artist.youtube_subscriber_count ?? null,
+    ytVideos: artist.youtube_video_count ?? null,
   }
 }
 
@@ -51,7 +55,8 @@ export function chartListArtists(list: ChartList): Artist[] {
     ig_url: null,
     ig_followers: null,
     yt_url: null,
-    yt_followers: null,
+    yt_followers: row.ytSubscribers,
+    yt_video_count: row.ytVideos,
     tt_url: null,
     tt_followers: null,
     total_reach: 0,
