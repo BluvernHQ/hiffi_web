@@ -1,6 +1,8 @@
 import { apiClient, flattenVideoListItems, type Video } from "@/lib/api-client"
-import { setRecAttribution } from "@/lib/recs/attribution"
+import { installRecClickAttribution, setRecAttribution } from "@/lib/recs/attribution"
 import { recentOutcomesParam } from "@/lib/recs/session"
+
+if (typeof window !== "undefined") installRecClickAttribution()
 
 /**
  * Client for the v2 recommendation API (/recommend/*). Identity is the login token plus the
