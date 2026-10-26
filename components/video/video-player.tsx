@@ -55,6 +55,7 @@ declare global {
     videojs: any & {
       log?: {
         level: (level?: string) => string
+        error?: (...args: unknown[]) => void
       }
     }
   }
@@ -115,6 +116,30 @@ function getNextSuggestedVideo(
     const id = String(video.videoId || video.video_id || "").trim()
     return id && id !== excludeId
   })
+}
+
+/** Codes the player already recovers from by trying the next file. */
+const RECOVERABLE_MEDIA_ERROR = /CODE:[234]\b|MEDIA_ERR_(NETWORK|DECODE|SRC_NOT_SUPPORTED)/
+
+/**
+ * Video.js reports a rejected source with console.error. Next’s dev overlay treats that as an
+ * app crash, even though the player then tries another rendition. Keep the log, just not as an error.
+ */
+function quietRecoverableVideoJsErrors(videojs: Window["videojs"]): void {
+  const log = videojs?.log as
+    | { error?: (...args: unknown[]) => void; __hiffiQuiet?: boolean }
+    | undefined
+  if (!log?.error || log.__hiffiQuiet) return
+  const original = log.error.bind(log)
+  log.error = (...args: unknown[]) => {
+    const text = args.map((arg) => (typeof arg === "string" ? arg : "")).join(" ")
+    if (RECOVERABLE_MEDIA_ERROR.test(text)) {
+      console.warn(...(args as Parameters<typeof console.warn>))
+      return
+    }
+    original(...args)
+  }
+  log.__hiffiQuiet = true
 }
 
 /** Run player teardown without Video.js logging MEDIA_ERR for intentional clears. */
@@ -703,6 +728,7 @@ export function VideoPlayer({
   useEffect(() => {
     if (typeof window === "undefined") return
     if (window.videojs) {
+      quietRecoverableVideoJsErrors(window.videojs)
       setIsReady(true)
       return
     }
@@ -711,6 +737,7 @@ export function VideoPlayer({
       .then((mod) => {
         if (cancelled) return
         if (!window.videojs) window.videojs = mod.default
+        quietRecoverableVideoJsErrors(window.videojs)
         setIsReady(true)
       })
       .catch((err) => {

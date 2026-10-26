@@ -185,6 +185,7 @@ function mapSeoVideoToClient(seo: SeoVideo) {
     original_profile: seo.originalProfile ?? undefined,
     originalProfile: seo.originalProfile ?? undefined,
     profiles: seo.profiles ?? undefined,
+    hls_url: seo.hlsUrl,
     user_username: seo.creatorUsername,
     userUsername: seo.creatorUsername,
     user_name: artist,
