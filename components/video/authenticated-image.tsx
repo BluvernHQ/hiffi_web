@@ -25,14 +25,10 @@ export function VideoThumbnailPlaceholder({
       style={style}
       aria-hidden
     >
-      <Image
+      <img
         src="/appbarlogo.png"
         alt=""
-        width={240}
-        height={160}
         className="h-[38%] w-auto max-h-20 max-w-[min(78%,9rem)] object-contain opacity-25"
-        style={{ width: "auto" }}
-        sizes="(max-width: 768px) 30vw, 160px"
       />
     </div>
   )
@@ -91,13 +87,26 @@ export function AuthenticatedImage({
   authenticated = true,
   onError,
 }: AuthenticatedImageProps) {
-  const [imageLoadError, setImageLoadError] = useState(false)
   const displayUrl = displayUrlFor(src, authenticated)
   const directThumbnail = Boolean(displayUrl && isPublicThumbnailUrl(displayUrl))
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const imageLoadError = Boolean(displayUrl) && failedUrl === displayUrl
+
+  const markImageFailed = (img?: HTMLImageElement | null) => {
+    if (img && !(img.complete && img.naturalWidth === 0)) return
+    if (!displayUrl || failedUrl === displayUrl) return
+    setFailedUrl(displayUrl)
+    onError?.()
+  }
 
   const handleImageError = () => {
-    setImageLoadError(true)
-    onError?.()
+    markImageFailed()
+  }
+
+  // A cached 404 can fail before React attaches onError, which leaves the browser's
+  // broken-image icon in the corner instead of the watermark.
+  const failedImageRef = (img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth === 0) markImageFailed(img)
   }
 
   if (!displayUrl || imageLoadError) {
@@ -127,6 +136,7 @@ export function AuthenticatedImage({
         loading={imageLoading}
         decoding="async"
         fetchPriority={priority ? "high" : "low"}
+        ref={failedImageRef}
         onError={handleImageError}
       />
     )
@@ -142,6 +152,7 @@ export function AuthenticatedImage({
         priority={priority}
         loading={imageLoading}
         sizes={sizes}
+        ref={failedImageRef}
         onError={handleImageError}
         unoptimized={true}
       />
@@ -158,6 +169,7 @@ export function AuthenticatedImage({
       priority={priority}
       loading={imageLoading}
       sizes={sizes}
+      ref={failedImageRef}
       onError={handleImageError}
       unoptimized={true}
     />
