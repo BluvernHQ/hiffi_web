@@ -170,7 +170,7 @@ export interface VideoListItem {
   following: boolean
 }
 
-function flattenVideoListItems(rawVideos: unknown[]): Video[] {
+export function flattenVideoListItems(rawVideos: unknown[]): Video[] {
   return (rawVideos || []).map((item: any) => {
     if (item?.video) {
       const videoData: Video & Record<string, unknown> = {

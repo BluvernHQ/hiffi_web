@@ -17,12 +17,15 @@ import { HeroCarousel } from "@/components/home/hero-carousel"
 import { HeroCarouselSkeleton } from "@/components/home/hero-carousel-skeleton"
 import { MoodMixChips } from "@/components/home/mood-mix-chips"
 import { MoodFeedAnimated } from "@/components/home/mood-feed-animated"
+import { RecsRows, RECS_PICKS_SAVED_EVENT } from "@/components/home/recs-rows"
+import { RecOnboarding } from "@/components/home/rec-onboarding"
 import { mapVideosToHeroCards, type HeroCarouselCard } from "@/lib/home/hero-carousel-data"
 import { fetchCuratedHeroCards } from "@/lib/home/fetch-curated-hero"
 import { CURATED_PLAYLISTS_UPDATED_EVENT } from "@/lib/curated-playlists-events"
 import { OPENED_VIDEO_FROM_HOME_HERO } from "@/lib/analytics/video-analytics-names"
 import { useAuth } from "@/lib/auth-context"
 import { apiClient } from "@/lib/api-client"
+import { getRecHome, getRecMix, RecsUnavailableError, type RecPage } from "@/lib/recs/client"
 import {
   isConnectivityError,
   isNetworkUserMessage,
@@ -173,6 +176,29 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
   const pendingRestoreScrollRef = useRef<number | null>(null)
   /** When false, block page-0 recommend refetch if a cached feed exists (watch → back). */
   const forceRecommendFetchRef = useRef(false)
+  /** v2 recommendations: off for the page's lifetime once the API reports them disabled. */
+  const recsV2Ref = useRef(true)
+  /** Next-page cursor per feed ("" = home, otherwise the mood query). */
+  const recCursorsRef = useRef(new Map<string, string>())
+
+  /** One page from the v2 engine, or null to use the classic endpoint instead. */
+  const loadRecPage = useCallback(async (offset: number, moodQuery?: string): Promise<RecPage | null> => {
+    if (!recsV2Ref.current) return null
+    const key = moodQuery ?? ""
+    const cursor = offset > 0 ? recCursorsRef.current.get(key) : undefined
+    if (offset > 0 && !cursor) return null
+    try {
+      const page = moodQuery
+        ? await getRecMix(moodQuery, { cursor, limit: VIDEOS_PER_PAGE })
+        : await getRecHome({ cursor, limit: VIDEOS_PER_PAGE })
+      recCursorsRef.current.set(key, page.nextCursor ?? "")
+      return page
+    } catch (err) {
+      if (err instanceof RecsUnavailableError) recsV2Ref.current = false
+      else console.warn("[hiffi] Recommendations v2 failed, using the classic feed:", err)
+      return null
+    }
+  }, [])
 
   const activeMoodDef = activeMood ? moodByQuery(activeMood) : undefined
   const isMoodFeed = activeMood !== null
@@ -408,23 +434,32 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         if (isInitialLoad) setLoading(true)
         else setLoadingMore(true)
 
-        const response = await apiClient.getVideoList({
-          offset: currentOffset,
-          limit: VIDEOS_PER_PAGE,
-          seed: feedSeedRef.current,
-        })
+        const recPage = await loadRecPage(currentOffset)
         if (generation !== fetchGeneration.current) return
-
-        const videosArray = response.videos || []
+        let videosArray: any[]
+        let pageHasMore: boolean
+        let responseOk = true
+        if (recPage) {
+          videosArray = recPage.videos
+          pageHasMore = Boolean(recPage.nextCursor)
+        } else {
+          const response = await apiClient.getVideoList({
+            offset: currentOffset,
+            limit: VIDEOS_PER_PAGE,
+            seed: feedSeedRef.current,
+          })
+          if (generation !== fetchGeneration.current) return
+          videosArray = response.videos || []
+          pageHasMore = (response.count ?? videosArray.length) === VIDEOS_PER_PAGE
+          responseOk = response.success
+        }
         const enhanced = enhanceVideos(videosArray, userData)
-        const returnedCount = response.count ?? enhanced.length
-        const pageHasMore = returnedCount === VIDEOS_PER_PAGE
 
         const merged = currentOffset === 0 ? enhanced : mergeVideos(videosRef.current, enhanced)
 
         setVideos(merged)
         setHasMore(pageHasMore)
-        setRecommendEmpty(currentOffset === 0 && merged.length === 0 && response.success)
+        setRecommendEmpty(currentOffset === 0 && merged.length === 0 && responseOk)
 
         const scrollTop = currentOffset === 0 ? readMainScrollTop() : allFeedCache.current.scrollTop
         writeCache(null, {
@@ -466,7 +501,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         }
       }
     },
-    [userData, writeCache, restoreScrollPosition],
+    [userData, writeCache, restoreScrollPosition, loadRecPage],
   )
 
   /** Refetch recommend when auth changes (login: co-watch → history; logout: reverse). */
@@ -475,6 +510,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     restoredFromSessionRef.current = false
     sessionSavedAuthenticatedRef.current = Boolean(userRef.current)
     clearHomeFeedPersistedState()
+    recCursorsRef.current.clear()
     allFeedCache.current = { videos: [], offset: 0, hasMore: true, scrollTop: 0 }
     setRecommendEmpty(false)
     setFeedError(null)
@@ -483,6 +519,13 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     setLoading(true)
     void fetchDefaultFeed(0, true)
   }, [fetchDefaultFeed])
+
+  // New onboarding picks: rebuild the feed from them.
+  useEffect(() => {
+    const onPicks = () => refreshRecommendFeedForAuthChange()
+    window.addEventListener(RECS_PICKS_SAVED_EVENT, onPicks)
+    return () => window.removeEventListener(RECS_PICKS_SAVED_EVENT, onPicks)
+  }, [refreshRecommendFeedForAuthChange])
 
   const fetchMoodFeed = useCallback(
     async (moodQuery: string, currentOffset: number, isInitialLoad = false) => {
@@ -496,6 +539,27 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         setIsFetching(true)
         if (isInitialLoad) setLoading(true)
         else setLoadingMore(true)
+
+        // Personal mood mix from the v2 engine; the mood search playlist is the fallback.
+        const recPage = await loadRecPage(currentOffset, moodQuery)
+        if (generation !== fetchGeneration.current) return
+        if (recPage && (recPage.videos.length > 0 || currentOffset > 0)) {
+          tabRevertRef.current = null
+          const enhancedRec = enhanceVideos(recPage.videos, userData)
+          const prevRecCache = moodFeedCaches.current.get(moodQuery)
+          const mergedRec = currentOffset === 0 ? enhancedRec : mergeVideos(videosRef.current, enhancedRec)
+          const recHasMore = Boolean(recPage.nextCursor)
+          setVideos(mergedRec)
+          setHasMore(recHasMore)
+          setMoodEmpty(mergedRec.length === 0)
+          writeCache(moodQuery, {
+            videos: mergedRec,
+            offset: mergedRec.length,
+            hasMore: recHasMore,
+            scrollTop: currentOffset === 0 ? readMainScrollTop() : (prevRecCache?.scrollTop ?? readMainScrollTop()),
+          })
+          return
+        }
 
         const response = await apiClient.getMoodPlaylist(moodSearchQuery(moodQuery), {
           limit: VIDEOS_PER_PAGE,
@@ -562,7 +626,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
         }
       }
     },
-    [userData, applyCacheToUi, readMainScrollTop, writeCache, restoreScrollPosition],
+    [userData, applyCacheToUi, readMainScrollTop, writeCache, restoreScrollPosition, loadRecPage],
   )
 
   const retryFeed = useCallback(() => {
@@ -1005,6 +1069,9 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
             />
           </div>
         ) : null}
+
+        {!isMoodFeed ? <RecsRows /> : null}
+        <RecOnboarding />
 
         {!isMoodFeed && (heroSource === "pending" || heroCards.length > 0) ? (
           <h2 className="mb-1.5 text-base font-semibold tracking-tight text-foreground sm:text-lg">

@@ -157,6 +157,7 @@ import {
   getJourneyPathUsers as journeyPathsAdminGetUsers,
 } from "./api/admin-journey-paths"
 import type { JourneyFilters } from "./types/analytics-journey-paths"
+import { getRecKpis as recsAdminGetKpis, getRecPools as recsAdminGetPools } from "./api/admin-recs"
 import { getFlagsConfig as flagsGetFlagsConfig } from "./api/flags"
 import type {
   AdminListCollaborationInquiriesParams,
@@ -860,6 +861,14 @@ class AdminApiClient implements AdminApiClientContext {
 
   async adminGetFeatureUsers(featureId: string, filters?: JourneyFilters) {
     return journeyPathsAdminGetFeatureUsers(this, featureId, filters)
+  }
+
+  async adminGetRecKpis(days?: number) {
+    return recsAdminGetKpis(this, days)
+  }
+
+  async adminGetRecPools(tier?: string, limit?: number) {
+    return recsAdminGetPools(this, tier, limit)
   }
 
   async adminListMigrationRequests(params?: AdminListMigrationRequestsParams) {

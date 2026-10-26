@@ -6,15 +6,17 @@ import { AnalyticsFeaturesPanel } from "@/components/admin/analytics-features-pa
 import { AnalyticsJourneyFunnelsPanel } from "@/components/admin/analytics-journey-funnels-panel"
 import { AnalyticsJourneyPathsPanel } from "@/components/admin/analytics-journey-paths-panel"
 import { AnalyticsJourneySessionsPanel } from "@/components/admin/analytics-journey-sessions-panel"
+import { AnalyticsRecsPanel } from "@/components/admin/analytics-recs-panel"
 import { cn } from "@/lib/utils"
 
-type JourneysTab = "paths" | "features" | "funnels" | "sessions"
+type JourneysTab = "paths" | "features" | "recs" | "funnels" | "sessions"
 
 const TAB_QUERY = "journeys_tab"
 
 const TABS: Array<{ id: JourneysTab; label: string }> = [
   { id: "paths", label: "All journeys" },
   { id: "features", label: "Features" },
+  { id: "recs", label: "Recommendations" },
   { id: "funnels", label: "Funnels" },
   { id: "sessions", label: "Sessions" },
 ]
@@ -32,7 +34,7 @@ export function AnalyticsJourneysPanel() {
 
   const activeTab = useMemo((): JourneysTab => {
     const raw = searchParams.get(TAB_QUERY)
-    if (raw === "sessions" || raw === "funnels" || raw === "features") return raw
+    if (raw === "sessions" || raw === "funnels" || raw === "features" || raw === "recs") return raw
     // Deep-link with sessionId should land on the timeline inspector.
     if (searchParams.get("sessionId")) return "sessions"
     return "paths"
@@ -77,6 +79,7 @@ export function AnalyticsJourneysPanel() {
 
       {activeTab === "paths" ? <AnalyticsJourneyPathsPanel onOpenSession={openSession} /> : null}
       {activeTab === "features" ? <AnalyticsFeaturesPanel onOpenSession={openSession} /> : null}
+      {activeTab === "recs" ? <AnalyticsRecsPanel /> : null}
       {activeTab === "funnels" ? <AnalyticsJourneyFunnelsPanel onOpenSession={openSession} /> : null}
       {activeTab === "sessions" ? <AnalyticsJourneySessionsPanel /> : null}
     </div>

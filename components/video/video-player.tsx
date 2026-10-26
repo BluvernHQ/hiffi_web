@@ -32,6 +32,7 @@ import {
 } from "@/lib/video-profiles"
 import { isHlsUrl, mimeTypeForUrl, pickHlsUrl, renditionLabel } from "@/lib/hls-playback"
 import { captureConversionEvent, capturePlaybackStarted } from "@/lib/conversion-tracking"
+import { createPlaybackSignals } from "@/lib/analytics/playback-signals"
 import {
   PAUSED_VIDEO,
   PLAYED_VIDEO_CLICK,
@@ -333,6 +334,8 @@ export function VideoPlayer({
   /** True while swapping video sources; blocks volumechange → React mute corruption. */
   const isSourceSwitchingRef = useRef(false)
   const replayAfterEndRef = useRef(false)
+  const playbackSignalsRef = useRef<ReturnType<typeof createPlaybackSignals> | null>(null)
+  if (!playbackSignalsRef.current) playbackSignalsRef.current = createPlaybackSignals()
   const accumulatedWatchSecondsRef = useRef(0)
   const hasSentInitialWatchReportRef = useRef(false)
   const isReportingWatchRef = useRef(false)
@@ -813,6 +816,17 @@ export function VideoPlayer({
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    const signals = playbackSignalsRef.current
+    const onPageHide = () => signals?.leaveOnPageHide()
+    window.addEventListener("pagehide", onPageHide)
+    return () => {
+      window.removeEventListener("pagehide", onPageHide)
+      signals?.leave("navigate")
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
 
     const flushOnBackground = () => {
       if (document.visibilityState === "hidden") {
@@ -1262,6 +1276,10 @@ export function VideoPlayer({
       setAutoplayInProgress(false)
       lastWatchPositionRef.current = player.currentTime()
       const currentTrackedVideoId = String(signedUrlVideoIdRef.current || videoId || "").trim()
+      if (currentTrackedVideoId) {
+        if (replayAfterEndRef.current) playbackSignalsRef.current?.replay(currentTrackedVideoId)
+        else playbackSignalsRef.current?.start(currentTrackedVideoId)
+      }
       if (currentTrackedVideoId && !trackedPlayVideoIdsRef.current.has(currentTrackedVideoId)) {
         trackedPlayVideoIdsRef.current.add(currentTrackedVideoId)
         const playlistId =
@@ -1307,6 +1325,7 @@ export function VideoPlayer({
       if (!isSwitchingQualityRef.current) {
         const currentTime = player.currentTime()
         setCurrentTime(currentTime)
+        playbackSignalsRef.current?.tick(currentTime, durationRef.current, !player.paused() && !player.seeking())
 
         if (!apiClient.getAuthToken()) {
           lastWatchPositionRef.current = currentTime
@@ -1375,6 +1394,7 @@ export function VideoPlayer({
       setIsPlaying(false)
       setHasEnded(true)
       setIsBuffering(false)
+      playbackSignalsRef.current?.ended()
       void reportWatchProgress(true)
       
       // Show next up overlay if not already showing and autoplay wasn't canceled

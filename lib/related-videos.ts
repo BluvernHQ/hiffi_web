@@ -10,6 +10,7 @@
  */
 
 import { apiClient } from "@/lib/api-client"
+import { getRecNext, RecsUnavailableError } from "@/lib/recs/client"
 import { loadHomeFeedPersistedState } from "@/lib/home-feed-session"
 import { getSeed } from "@/lib/seed-manager"
 
@@ -23,6 +24,8 @@ const inFlightRelatedVideos = new Map<string, Promise<any[]>>()
 /** Shared candidate pool — one network round-trip for many hover prefetches. */
 let relatedPool: any[] | null = null
 let relatedPoolInFlight: Promise<any[]> | null = null
+/** Turned off for the page's lifetime once the API reports v2 is not enabled. */
+let recsV2Available = true
 
 function videoKey(v: any): string {
   return String(v?.video_id || v?.videoId || "")
@@ -136,6 +139,19 @@ export async function getRelatedVideosOnce(videoId: string): Promise<any[]> {
   if (inFlight) return inFlight
 
   const request = (async () => {
+    // v2: Up Next ranked for this video and this viewer; the shared pool is the fallback.
+    if (recsV2Available) {
+      try {
+        const page = await getRecNext(videoId, { limit: RELATED_LIMIT })
+        const ranked = excludeAndTake(page.videos, videoId, RELATED_DISPLAY)
+        if (ranked.length > 0) {
+          relatedVideosCache.set(videoId, ranked)
+          return ranked
+        }
+      } catch (err) {
+        if (err instanceof RecsUnavailableError) recsV2Available = false
+      }
+    }
     const pool = await fetchRelatedPool()
     const filtered = excludeAndTake(shuffleInPlace([...pool]), videoId, RELATED_DISPLAY)
 
@@ -156,7 +172,9 @@ export function prefetchRelatedVideos(videoId: string | null | undefined): void 
   const id = String(videoId || "").trim()
   if (!id || typeof window === "undefined") return
   if (getCachedRelatedVideos(id)?.length) return
-  void getRelatedVideosOnce(id).catch(() => {
+  // Warm only the shared fallback pool: a per-video v2 ranking is logged as served, so it is
+  // requested when the watch page actually shows Up Next, not on every card hover.
+  void fetchRelatedPool().catch(() => {
     /* ignore prefetch errors */
   })
 }

@@ -172,6 +172,21 @@ export const TRACKING_IDS = {
   "feature-request-submitted": { feature: "feedback", label: "Feature request: submitted" },
   "brand-collaboration-submit-button": { feature: "collaborate", label: "Brand collaboration: submit" },
 
+  // Recommendations v2 surfaces
+  "opened-video-from-daily-mix": { feature: "recommendations", label: "Opened video from Your daily mix", since: "2026-10-26" },
+  "opened-video-from-because": { feature: "recommendations", label: "Opened video from Because you watched", since: "2026-10-26" },
+  "rec-artist-card": { feature: "recommendations", label: "Artists for you: opened profile", since: "2026-10-26" },
+  "rec-onboarding-artist": { feature: "recommendations", label: "Onboarding: picked an artist", since: "2026-10-26" },
+  "rec-onboarding-mood": { feature: "recommendations", label: "Onboarding: picked a mood", since: "2026-10-26" },
+  "rec-onboarding-save": { feature: "recommendations", label: "Onboarding: saved picks", since: "2026-10-26" },
+  "rec-onboarding-skip": { feature: "recommendations", label: "Onboarding: skipped", since: "2026-10-26" },
+
+  // Playback signals sent from code (lib/analytics/playback-signals.ts) for recommendations
+  video_progress: { feature: "playback", label: "Watched past 25/50/75/90%", since: "2026-10-26" },
+  video_complete: { feature: "playback", label: "Watched to the end", since: "2026-10-26" },
+  video_replay: { feature: "playback", label: "Replayed a video", since: "2026-10-26" },
+  video_skip: { feature: "playback", label: "Left a video before the end", since: "2026-10-26" },
+
   // Outcomes sent from code (captureConversionEvent), not from clicks
   conversion_signup_completed: { feature: "auth", label: "Signed up" },
   conversion_creator_account_created: { feature: "creator", label: "Became a creator", since: "2026-10-25" },
