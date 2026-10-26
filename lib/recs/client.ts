@@ -54,6 +54,7 @@ function identityParams(extra: Record<string, string | number | undefined> = {})
   const picks = localPicks()
   if (picks.artists.length) sp.set("artists", picks.artists.join(","))
   if (picks.moods.length) sp.set("moods", picks.moods.join(","))
+  sp.set("hour", String(new Date().getHours()))
   for (const [k, v] of Object.entries(extra)) {
     if (v !== undefined && v !== "") sp.set(k, String(v))
   }
@@ -104,8 +105,77 @@ export async function getRecNext(videoId: string, opts: { cursor?: string; limit
   )
 }
 
-export async function getRecMix(mood?: string, opts: { cursor?: string; limit?: number } = {}): Promise<RecPage> {
-  return toPage(await get<RawPage>("mix", { mood, cursor: opts.cursor, limit: opts.limit ?? 30 }), "mix")
+export async function getRecMix(
+  mood?: string,
+  opts: { cursor?: string; limit?: number; cluster?: number } = {},
+): Promise<RecPage> {
+  return toPage(
+    await get<RawPage>("mix", { mood, cluster: opts.cluster, cursor: opts.cursor, limit: opts.limit ?? 30 }),
+    "mix",
+  )
+}
+
+/** This week's "Uncharted" feed: proven videos few people have found, in sounds you have not explored. */
+export async function getRecUncharted(opts: { cursor?: string; limit?: number } = {}): Promise<RecPage> {
+  return toPage(await get<RawPage>("uncharted", { cursor: opts.cursor, limit: opts.limit ?? 12 }), "uncharted")
+}
+
+export type SoundCluster = { id: number; label: string; size: number; videos: Video[] }
+
+/** The catalogue's sound clusters (PCA + k-means on audio features), largest first. */
+export async function getSoundClusters(): Promise<SoundCluster[]> {
+  const raw = await get<{
+    clusters?: { id: number; label: string; size: number; video_ids?: string[] }[]
+    videos?: unknown[]
+  }>("clusters")
+  const byId = new Map(flattenVideoListItems(raw.videos ?? []).map((v) => [v.video_id, v]))
+  return (raw.clusters ?? []).map((c) => ({
+    id: c.id,
+    label: c.label,
+    size: c.size,
+    videos: (c.video_ids ?? []).map((id) => byId.get(id)).filter((v): v is Video => Boolean(v)),
+  }))
+}
+
+export type TasteReport = {
+  signals: number
+  clusters: { id: number; label: string; share: number }[]
+  weeks: { week: string; clusters: Record<string, number>; total: number }[]
+  artists: { username: string; score: number; followed: boolean }[]
+  mood: {
+    valence: number
+    energy: number
+    danceability: number
+    bpm: number
+    catalog_valence: number
+    catalog_energy: number
+    catalog_danceability: number
+    catalog_bpm: number
+  }
+  discoveries: number
+  labels: Record<string, string>
+}
+
+export async function getTasteReport(): Promise<TasteReport> {
+  const raw = await get<Partial<TasteReport>>("taste")
+  return {
+    signals: raw.signals ?? 0,
+    clusters: raw.clusters ?? [],
+    weeks: raw.weeks ?? [],
+    artists: raw.artists ?? [],
+    mood: raw.mood ?? {
+      valence: 0,
+      energy: 0,
+      danceability: 0,
+      bpm: 0,
+      catalog_valence: 0,
+      catalog_energy: 0,
+      catalog_danceability: 0,
+      catalog_bpm: 0,
+    },
+    discoveries: raw.discoveries ?? 0,
+    labels: raw.labels ?? {},
+  }
 }
 
 export type BecauseRow = { seed: Video; feedId: string; videos: Video[] }

@@ -6,7 +6,7 @@ import { recordSessionOutcome } from "@/lib/recs/session"
  * Implicit feedback for recommendations (sent for guests and users alike):
  * - video_progress at 25/50/75/90% of the duration
  * - video_complete when playback reaches the end
- * - video_replay when a finished video is played again
+ * - video_replay when a finished video is played again, or restarted after real listening
  * - video_skip when the viewer leaves an unfinished video (next, navigation, closing the tab)
  * Watched seconds count real playback only (seeks are excluded).
  */
@@ -77,6 +77,22 @@ export function createPlaybackSignals() {
       const a = active
       if (!a) return
       if (duration > 0) a.duration = duration
+      // Jumping back to the start after real listening is a replay, like replaying after the end.
+      if (
+        !a.completed &&
+        a.lastTime !== null &&
+        currentTime < 2 &&
+        a.lastTime > 5 &&
+        a.watched >= Math.max(30, a.duration * 0.25)
+      ) {
+        recordSessionOutcome(a.videoId, "replay")
+        capture("video_replay", a.videoId, { restart: true, seconds_watched: round(a.watched) })
+        a.watched = 0
+        a.position = 0
+        a.milestones.clear()
+        a.lastTime = currentTime
+        return
+      }
       if (playing && a.lastTime !== null) {
         const delta = currentTime - a.lastTime
         if (delta > 0 && delta <= MAX_TICK_DELTA) a.watched += delta

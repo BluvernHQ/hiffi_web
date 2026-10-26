@@ -2135,7 +2135,12 @@ export default function WatchPage({ initialSeoVideo = null }: WatchPageProps) {
                       {currentVideo?.tags && currentVideo?.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">
                           {currentVideo.tags.map((tag: string) => (
-                            <Link key={tag} href={`/search?q=${tag}`} className="text-blue-500 hover:underline">
+                            <Link
+                              key={tag}
+                              href={`/search?q=${encodeURIComponent(tag)}`}
+                              {...trackId("video-tag", tag)}
+                              className="text-blue-500 hover:underline"
+                            >
                               #{tag}
                             </Link>
                           ))}

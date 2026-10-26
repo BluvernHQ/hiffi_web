@@ -25,6 +25,8 @@ const SURFACE_BY_UI: Record<string, string> = {
   "opened-video-from-daily-mix": "mix",
   "opened-video-from-mood": "mix",
   "opened-video-from-because": "because",
+  "opened-video-from-sound-mix": "mix",
+  "opened-video-from-uncharted": "uncharted",
   "up-next-sidebar-click": "next",
   "up-next-overlay-play": "next",
 }
