@@ -164,7 +164,7 @@ export function AnalyticsRecsPanel() {
             <p className="text-sm font-medium">Traffic pools</p>
             <p className="text-xs text-muted-foreground">
               Test pool until {pools.config.test_pool} finished plays, secondary until {pools.config.secondary_pool};
-              graduation needs {formatPercent(pools.config.graduate_rate)} of plays watched past 60%.{" "}
+              graduation needs an average completion of {formatPercent(pools.config.graduate_rate)}.{" "}
               {pools.config.explore_slots} of every 10 feed slots explore, {pools.config.fresh_slots} go to fresh or
               followed artists.
             </p>

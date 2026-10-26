@@ -52,5 +52,6 @@ export async function getRecPools(ctx: AdminApiClientContext, tier = "", limit =
   const sp = new URLSearchParams({ limit: String(limit) })
   if (tier) sp.set("tier", tier)
   const raw = await ctx.proxyRequest("/proxy/admin-recs/pools", sp)
-  return unwrapSuccessData<RecPoolsResponse>(raw)
+  const data = unwrapSuccessData<RecPoolsResponse>(raw)
+  return { ...data, counts: data.counts ?? {}, videos: data.videos ?? [] }
 }
