@@ -56,8 +56,6 @@ function artistToPublicInventoryProfile(artist: Artist): PublicInventoryProfile 
     claim_status: artist.claim_status,
     ...(Object.keys(other_socials).length > 0 ? { other_socials } : {}),
     ...(artist.ranking ? { ranking: artist.ranking } : {}),
-    ...(artist.yt_followers != null ? { youtube_subscriber_count: artist.yt_followers } : {}),
-    ...(artist.yt_video_count != null ? { youtube_video_count: artist.yt_video_count } : {}),
   }
 }
 

@@ -45,10 +45,7 @@ export type Artist = {
   ig_url: string | null
   ig_followers: number | null
   yt_url: string | null
-  /** YouTube subscribers, from the ranking refresh. */
   yt_followers: number | null
-  /** Public videos on the YouTube channel, from the ranking refresh. */
-  yt_video_count?: number | null
   tt_url: string | null
   tt_followers: number | null
   fb_url?: string | null
@@ -142,19 +139,6 @@ export function getArtistProfileSubtitle(artist: Artist): string {
     return `${genres} • Under review`
   }
   return `${genres} • Unclaimed profile`
-}
-
-/** Display strings for the artist's YouTube channel. Zero is hidden: YouTube reports 0 for hidden counts. */
-export function youtubeStats(artist: Pick<Artist, "yt_followers" | "yt_video_count">): {
-  subscribers: string | null
-  videos: string | null
-} {
-  const subs = artist.yt_followers
-  const videos = artist.yt_video_count
-  return {
-    subscribers: subs != null && subs > 0 ? formatFollowerCount(subs) : null,
-    videos: videos != null && videos > 0 ? videos.toLocaleString("en-US") : null,
-  }
 }
 
 export function formatFollowerCount(count: number | null | undefined): string {

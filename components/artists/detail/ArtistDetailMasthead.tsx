@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Play } from "lucide-react"
 import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import type { Artist } from "@/lib/artists"
-import { formatTotalReach, getPrimaryFollowerCount, youtubeStats } from "@/lib/artists"
+import { formatTotalReach, getPrimaryFollowerCount } from "@/lib/artists"
 import { ARTIST_INDEX_PATH, getArtistImageUrl } from "@/lib/artist-directory"
 import { ArtistRankSignals } from "@/components/artists/Hiffi500RankBadge"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
@@ -33,14 +33,11 @@ export function ArtistDetailMasthead({ artist, topBar }: ArtistDetailMastheadPro
   const reach = getPrimaryFollowerCount(artist)
   const chartWeek = artist.ranking ? formatChartWeek(artist.ranking.updated_at) : null
   const claimHref = `/artist-index/${artist.slug}/claim`
-  const youtube = youtubeStats(artist)
 
   const ledger = [
     place ? { label: "Based in", value: place } : null,
     artist.genre.length > 0 ? { label: "Sound", value: artist.genre.join(" · ") } : null,
     reach != null && reach > 0 ? { label: "Reach", value: formatTotalReach(reach) } : null,
-    youtube.subscribers ? { label: "YouTube subscribers", value: youtube.subscribers } : null,
-    youtube.videos ? { label: "YouTube videos", value: youtube.videos } : null,
     { label: "Profile", value: CLAIM_STATE_LABEL[claimState] },
     chartWeek ? { label: "Chart week", value: chartWeek } : null,
   ].filter((item): item is { label: string; value: string } => item !== null)

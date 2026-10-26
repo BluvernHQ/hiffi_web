@@ -1,6 +1,6 @@
 import { VerifiedBadge } from "@/components/artists/VerifiedBadge"
 import type { Artist } from "@/lib/artists"
-import { artistIndexHref, youtubeStats } from "@/lib/artists"
+import { artistIndexHref } from "@/lib/artists"
 import { ArtistProfileLink } from "@/components/artists/ArtistProfileLink"
 import { ArtistPortrait } from "@/components/artists/detail/ArtistPortrait"
 import { artistClaimState, artistPlaceLabel } from "@/components/artists/detail/artist-detail-data"
@@ -21,13 +21,6 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
   const band = artist.ranking?.status === "ranked" ? artist.ranking.band : null
   const badge = publicRankHint(artist.rank, band)
   const meta = [place, artist.genre[0]].filter(Boolean).join(" · ")
-  const youtube = youtubeStats(artist)
-  const youtubeLine = [
-    youtube.subscribers ? `${youtube.subscribers} subscribers` : null,
-    youtube.videos ? `${youtube.videos} videos` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ")
 
   return (
     <article>
@@ -73,11 +66,6 @@ export function ArtistRosterCard({ artist }: { artist: Artist }) {
         </div>
         {meta ? (
           <p className="mt-1.5 truncate font-mono text-[10px] uppercase tracking-[0.22em] text-[#77726A]">{meta}</p>
-        ) : null}
-        {youtubeLine ? (
-          <p className="mt-1 truncate text-xs font-medium text-[#0B0B0C]/70" title="YouTube">
-            {youtubeLine}
-          </p>
         ) : null}
       </ArtistProfileLink>
     </article>
