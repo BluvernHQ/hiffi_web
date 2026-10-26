@@ -3,6 +3,36 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: local('Plus Jakarta Sans'), local('PlusJakartaSans'), url('https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: local('Plus Jakarta Sans Bold'), local('Plus Jakarta Sans ExtraBold'), local('Plus Jakarta Sans'), local('PlusJakartaSans'), url('https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Liberation Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Liberation Sans'), url('https://fonts.cdnfonts.com/s/277/LiberationSans-Regular.woff') format('woff');
+}
+@font-face {
+  font-family: 'Liberation Sans';
+  font-style: normal;
+  font-weight: 700 800;
+  font-display: swap;
+  src: local('Liberation Sans Bold'), local('Liberation Sans'), url('https://fonts.cdnfonts.com/s/277/LiberationSans-Bold.woff') format('woff');
+}
+
 :root {
   /* Hiffi Color Palette */
   /* Primary: #ED1C2F (Red) */
