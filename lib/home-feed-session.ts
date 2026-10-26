@@ -3,6 +3,7 @@
  * similar to YouTube keeping the home grid + scroll when returning.
  */
 
+import { getApiBaseUrl } from "@/lib/config"
 import { resetSeed } from "@/lib/seed-manager"
 import { setPersistedActiveMood } from "@/lib/mood-session"
 import {
@@ -28,6 +29,8 @@ export type HomeFeedPersistedState = {
   scrollTop: number
   /** Whether the feed was saved while the user was logged in. */
   authenticated?: boolean
+  /** API host these videos came from. A beta/prod switch must not reuse the other feed. */
+  api: string
   timestamp: number
 }
 
@@ -40,6 +43,7 @@ let lastKnownHomeScrollTop = 0
 function isFresh(state: HomeFeedPersistedState | null): state is HomeFeedPersistedState {
   if (!state) return false
   if (!Array.isArray(state.videos) || state.videos.length === 0 || !state.seed) return false
+  if (state.api !== getApiBaseUrl()) return false
   return Date.now() - (state.timestamp || 0) <= MAX_AGE_MS
 }
 
@@ -104,7 +108,7 @@ export function getLastKnownHomeScrollTop(): number {
 }
 
 export function saveHomeFeedPersistedState(
-  state: Omit<HomeFeedPersistedState, "timestamp" | "scrollTop"> & { scrollTop?: number },
+  state: Omit<HomeFeedPersistedState, "timestamp" | "scrollTop" | "api"> & { scrollTop?: number },
 ): void {
   if (typeof window === "undefined") return
   if (!Array.isArray(state.videos) || state.videos.length === 0) return
@@ -136,6 +140,7 @@ export function saveHomeFeedPersistedState(
     seed: state.seed,
     activeMood: state.activeMood,
     authenticated: state.authenticated,
+    api: getApiBaseUrl(),
     scrollTop,
     timestamp: Date.now(),
   }
