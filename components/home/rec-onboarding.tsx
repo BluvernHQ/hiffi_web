@@ -46,8 +46,8 @@ export function RecOnboarding() {
     const timer = window.setTimeout(() => {
       getOnboardingOptions()
         .then((opts) => {
-          if (cancelled || opts.artists.length < MIN_ARTISTS) return
-          if (opts.picked.artists.length > 0) {
+          if (cancelled || (opts.artists?.length ?? 0) < MIN_ARTISTS) return
+          if ((opts.picked?.artists?.length ?? 0) > 0) {
             localStorage.setItem(DONE_KEY, "server")
             return
           }
