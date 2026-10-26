@@ -300,6 +300,9 @@ export interface InventoryEntry {
   user_uid?: string | null
   /** Present when backend includes it on admin list (public inventory always has this). */
   claim_status?: PublicInventoryClaimStatus
+  /** From the ranking job's YouTube refresh; absent until the channel has been fetched. */
+  youtube_subscriber_count?: number
+  youtube_video_count?: number
   created_at: string
   updated_at: string
 }
@@ -530,9 +533,16 @@ export function normalizeInventoryEntry(raw: Record<string, unknown>): Inventory
     location: raw.location != null && String(raw.location).trim() ? String(raw.location).trim() : undefined,
     user_uid: raw.user_uid != null && String(raw.user_uid).trim() ? String(raw.user_uid).trim() : undefined,
     claim_status: hasClaimStatus ? normalizePublicClaimStatus(raw.claim_status) : undefined,
+    youtube_subscriber_count: countOrUndefined(raw.youtube_subscriber_count),
+    youtube_video_count: countOrUndefined(raw.youtube_video_count),
     created_at: String(raw.created_at ?? ""),
     updated_at: String(raw.updated_at ?? ""),
   }
+}
+
+function countOrUndefined(value: unknown): number | undefined {
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined
 }
 
 export function normalizePublicInventoryProfile(raw: Record<string, unknown>): PublicInventoryProfile {

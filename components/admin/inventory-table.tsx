@@ -44,6 +44,10 @@ function SocialLink({ href, label }: { href?: string; label: string }) {
   )
 }
 
+function formatCount(value?: number): string {
+  return value == null ? "—" : value.toLocaleString("en-US")
+}
+
 function DetailField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="space-y-1">
@@ -378,6 +382,12 @@ export function InventoryTable() {
                   {platform.label}
                 </th>
               ))}
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                YT subscribers
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                YT videos
+              </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Linked user
               </th>
@@ -389,7 +399,7 @@ export function InventoryTable() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6 + INVENTORY_SOCIAL_PLATFORMS.length + 2} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6 + INVENTORY_SOCIAL_PLATFORMS.length + 4} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No inventory profiles found.
                 </td>
               </tr>
@@ -425,6 +435,12 @@ export function InventoryTable() {
                       />
                     </td>
                   ))}
+                  <td className="px-4 py-3 text-right text-sm tabular-nums">
+                    {formatCount(row.youtube_subscriber_count)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm tabular-nums">
+                    {formatCount(row.youtube_video_count)}
+                  </td>
                   <td className="px-4 py-3 text-sm">
                     {row.user_uid ? (
                       <Link
@@ -509,6 +525,8 @@ export function InventoryTable() {
                   />
                   <DetailField label="Location" value={selectedRow.location} />
                   <DetailField label="Email" value={selectedRow.email} />
+                  <DetailField label="YouTube subscribers" value={formatCount(selectedRow.youtube_subscriber_count)} />
+                  <DetailField label="YouTube videos" value={formatCount(selectedRow.youtube_video_count)} />
                   <DetailField
                     label="Linked user"
                     value={
