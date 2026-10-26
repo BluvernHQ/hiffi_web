@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/config"
 import { getThumbnailUrl, getVideoUrl } from "@/lib/storage"
 import { buildPlaybackCandidates, resolveVideoBaseUrl } from "@/lib/video-profiles"
 import { extractCreatorSameAs } from "@/lib/seo/social"
+import { pickHlsUrl } from "@/lib/hls-playback"
 import {
   buildSeoImageProxyUrl,
   buildSeoVideoStreamProxyUrl,
@@ -118,6 +119,8 @@ export type SeoVideo = {
   storageVideoPath?: string
   originalProfile?: string | null
   profiles?: string[] | null
+  /** Signed HLS master playlist when the API enabled HLS for this video; "" otherwise. */
+  hlsUrl?: string
   creatorUsername: string
   /** Display name for SEO titles and MusicVideoObject (falls back to username). */
   creatorDisplayName: string
@@ -311,6 +314,7 @@ function seoVideoFromPayload(videoId: string, json: unknown): SeoVideo | null {
     storageVideoPath,
     originalProfile: originalProfile ?? null,
     profiles,
+    hlsUrl: pickHlsUrl(raw.hls_url ?? nestedRaw?.hls_url),
     creatorUsername: creator,
     creatorDisplayName,
     createdAt: v.created_at,

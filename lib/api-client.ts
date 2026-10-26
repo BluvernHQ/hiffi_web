@@ -122,6 +122,8 @@ export interface Video {
   /** Signed HLS master playlist; present only when the backend enables HLS for this video. */
   hls_url?: string
   hls_status?: string
+  /** Upload state from the API, e.g. "temp" while the video is still processing. */
+  status?: string
 }
 
 /** Public curated playlist row from GET /playlists/curated (no owner) */
