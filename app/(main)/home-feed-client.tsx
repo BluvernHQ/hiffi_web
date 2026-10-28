@@ -55,6 +55,7 @@ import {
   saveHomeFeedPersistedState,
   setLastKnownHomeScrollTop,
 } from "@/lib/home-feed-session"
+import { isInitialHomeReload, scrollMainContentToTop } from "@/lib/main-content-scroll"
 import { resetSeed } from "@/lib/seed-manager"
 import { OPENED_VIDEO_FROM_MOOD } from "@/lib/analytics/mood-mix-analytics"
 import {
@@ -769,6 +770,7 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     }
 
     const restored = loadHomeFeedPersistedState()
+    const reloaded = isInitialHomeReload()
     if (restored) {
       skipSsrSnapshotRef.current = true
       restoredFromSessionRef.current = true
@@ -780,8 +782,12 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
             : null
       setFeedSeed(restored.seed)
       feedSeedRef.current = restored.seed
-      const scrollTop = restored.scrollTop > 0 ? restored.scrollTop : getLastKnownHomeScrollTop()
-      pendingRestoreScrollRef.current = scrollTop > 0 ? scrollTop : null
+      const scrollTop = reloaded
+        ? 0
+        : restored.scrollTop > 0
+          ? restored.scrollTop
+          : getLastKnownHomeScrollTop()
+      pendingRestoreScrollRef.current = !reloaded && scrollTop > 0 ? scrollTop : null
       const cache: FeedCache = {
         videos: restored.videos as any[],
         offset: restored.videos.length,
@@ -810,7 +816,10 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
       setHasMore(cache.hasMore)
       setLoading(false)
       setHydrated(true)
-      if (scrollTop > 0) {
+      if (reloaded) {
+        clearHomeScrollPersistence()
+        scrollMainContentToTop()
+      } else if (scrollTop > 0) {
         restoreHomeFeedScroll(scrollTop)
       }
       return
@@ -842,6 +851,10 @@ export function HomeFeedClient({ initialVideos, seed, initialSnapshot }: HomeFee
     }
 
     setHydrated(true)
+    if (reloaded) {
+      clearHomeScrollPersistence()
+      scrollMainContentToTop()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

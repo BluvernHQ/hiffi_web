@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type CSSProperties } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { getWorkersBaseUrl } from "@/lib/storage"
@@ -68,6 +68,8 @@ interface AuthenticatedImageProps {
   onError?: () => void
 }
 
+type ImagePhase = { url: string | null; status: "loading" | "loaded" | "error" }
+
 /**
  * Image component that uses a server-side proxy to fetch authenticated images.
  * This eliminates the need for fetch -> Blob -> URL.createObjectURL on the client,
@@ -89,27 +91,41 @@ export function AuthenticatedImage({
 }: AuthenticatedImageProps) {
   const displayUrl = displayUrlFor(src, authenticated)
   const directThumbnail = Boolean(displayUrl && isPublicThumbnailUrl(displayUrl))
-  const [failedUrl, setFailedUrl] = useState<string | null>(null)
-  const imageLoadError = Boolean(displayUrl) && failedUrl === displayUrl
+  const [phase, setPhase] = useState<ImagePhase>({
+    url: displayUrl,
+    status: displayUrl ? "loading" : "error",
+  })
 
-  const markImageFailed = (img?: HTMLImageElement | null) => {
-    if (img && !(img.complete && img.naturalWidth === 0)) return
-    if (!displayUrl || failedUrl === displayUrl) return
-    setFailedUrl(displayUrl)
-    onError?.()
+  if (phase.url !== displayUrl) {
+    setPhase({ url: displayUrl, status: displayUrl ? "loading" : "error" })
   }
 
-  const handleImageError = () => {
-    markImageFailed()
-  }
+  const status: ImagePhase["status"] =
+    phase.url === displayUrl ? phase.status : displayUrl ? "loading" : "error"
 
-  // A cached 404 can fail before React attaches onError, which leaves the browser's
-  // broken-image icon in the corner instead of the watermark.
-  const failedImageRef = (img: HTMLImageElement | null) => {
-    if (img?.complete && img.naturalWidth === 0) markImageFailed(img)
-  }
+  useEffect(() => {
+    if (!displayUrl) return
+    let cancelled = false
+    const probe = new window.Image()
+    const finish = (ok: boolean) => {
+      if (cancelled) return
+      setPhase((prev) => {
+        const next: ImagePhase["status"] = ok ? "loaded" : "error"
+        if (prev.url === displayUrl && prev.status === next) return prev
+        return { url: displayUrl, status: next }
+      })
+      if (!ok) onError?.()
+    }
+    probe.onload = () => finish(probe.naturalWidth > 0)
+    probe.onerror = () => finish(false)
+    probe.src = displayUrl
+    if (probe.complete) finish(probe.naturalWidth > 0)
+    return () => {
+      cancelled = true
+    }
+  }, [displayUrl, onError])
 
-  if (!displayUrl || imageLoadError) {
+  if (!displayUrl || status !== "loaded") {
     return (
       <VideoThumbnailPlaceholder
         fill={fill}
@@ -122,6 +138,7 @@ export function AuthenticatedImage({
   }
 
   const imageLoading = priority ? "eager" : "lazy"
+  const imageClassName = cn(fill && "absolute inset-0 size-full", className)
 
   if (directThumbnail) {
     return (
@@ -132,12 +149,10 @@ export function AuthenticatedImage({
         alt={alt}
         width={fill ? undefined : width}
         height={fill ? undefined : height}
-        className={cn(fill && "absolute inset-0 size-full", className)}
+        className={imageClassName}
         loading={imageLoading}
         decoding="async"
         fetchPriority={priority ? "high" : "low"}
-        ref={failedImageRef}
-        onError={handleImageError}
       />
     )
   }
@@ -148,12 +163,10 @@ export function AuthenticatedImage({
         src={displayUrl}
         alt={alt}
         fill
-        className={className}
+        className={imageClassName}
         priority={priority}
         loading={imageLoading}
         sizes={sizes}
-        ref={failedImageRef}
-        onError={handleImageError}
         unoptimized={true}
       />
     )
@@ -165,12 +178,10 @@ export function AuthenticatedImage({
       alt={alt}
       width={width}
       height={height}
-      className={className}
+      className={imageClassName}
       priority={priority}
       loading={imageLoading}
       sizes={sizes}
-      ref={failedImageRef}
-      onError={handleImageError}
       unoptimized={true}
     />
   )

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation"
 import {
   getMainContentScrollTop,
   getPersistedScrollStorageKey,
+  isInitialHomeReload,
+  markLeftInitialDocument,
   restoreMainContentScroll,
   saveMainContentScroll,
   scrollMainContentToTop,
@@ -40,19 +42,27 @@ export function MainContentScrollCoordinator() {
   const prevPathnameRef = useRef(pathname)
   const popNavigationRef = useRef(false)
   const activeKey = getPersistedScrollStorageKey(pathname)
+  // Refresh of "/" opens at the top once. Back from the player restores later.
+  const suppressLayoutRestoreRef = useRef(isInitialHomeReload())
+  const suppressEffectRestoreRef = useRef(isInitialHomeReload())
 
   useLayoutEffect(() => {
     const prevPathname = prevPathnameRef.current
     const prevKey = getPersistedScrollStorageKey(prevPathname)
 
     if (prevKey && prevPathname !== pathname) {
+      markLeftInitialDocument()
       saveMainContentScroll(prevKey, undefined, { preferLastKnown: true })
     }
 
     const nextKey = getPersistedScrollStorageKey(pathname)
     const isPopNavigation = popNavigationRef.current
     popNavigationRef.current = false
-    if (nextKey) {
+    const reloadedHome = nextKey === "/" && suppressLayoutRestoreRef.current
+    if (reloadedHome) {
+      suppressLayoutRestoreRef.current = false
+      scrollMainContentToTop()
+    } else if (nextKey) {
       restoreMainContentScroll(nextKey)
     } else if (prevPathname !== pathname && !isPopNavigation && !window.location.hash) {
       scrollMainContentToTop()
@@ -64,6 +74,11 @@ export function MainContentScrollCoordinator() {
   useEffect(() => {
     const key = getPersistedScrollStorageKey(pathname)
     if (!key) return
+    if (key === "/" && suppressEffectRestoreRef.current) {
+      suppressEffectRestoreRef.current = false
+      scrollMainContentToTop()
+      return
+    }
 
     restoreMainContentScroll(key)
     const timers = [0, 50, 150, 350].map((delay) =>

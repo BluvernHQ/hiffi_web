@@ -16,6 +16,33 @@ export function getPersistedScrollStorageKey(pathname: string): string | null {
   return MAIN_CONTENT_SCROLL_PERSIST_PATHS[pathname] ?? null
 }
 
+/** True for a browser reload of this document. Stays true for the whole visit. */
+function isDocumentReload(): boolean {
+  if (typeof window === "undefined") return false
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined
+  if (nav?.type !== "reload") return false
+  try {
+    return new URL(nav.name).pathname === "/"
+  } catch {
+    return false
+  }
+}
+
+let navigatedAwayFromInitialLoad = false
+
+/**
+ * True while this document is still the reloaded home page.
+ * Becomes false after the first client navigation, so Back from watch restores scroll.
+ */
+export function isInitialHomeReload(): boolean {
+  if (navigatedAwayFromInitialLoad) return false
+  return isDocumentReload()
+}
+
+export function markLeftInitialDocument(): void {
+  navigatedAwayFromInitialLoad = true
+}
+
 export function getMainContentScrollTop(): number {
   if (typeof document === "undefined") return 0
   return document.getElementById(MAIN_CONTENT_ID)?.scrollTop ?? 0

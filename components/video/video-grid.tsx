@@ -135,6 +135,8 @@ export function VideoGrid({
   const onLoadMoreRef = useRef(onLoadMore)
   const loadingRef = useRef(loading)
   const hasMoreRef = useRef(hasMore)
+  const sentinelVisibleRef = useRef(false)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     onLoadMoreRef.current = onLoadMore
@@ -148,16 +150,40 @@ export function VideoGrid({
     hasMoreRef.current = hasMore
   }, [hasMore])
 
-  const throttledLoadMore = useCallback(() => {
-    const now = Date.now()
-    if (now - lastLoadTime.current < LOAD_THROTTLE_MS) {
-      return
-    }
-    lastLoadTime.current = now
-    if (hasMoreRef.current && !loadingRef.current && onLoadMoreRef.current) {
-      onLoadMoreRef.current()
+  const clearLoadRetry = useCallback(() => {
+    if (retryTimerRef.current != null) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
     }
   }, [])
+
+  // IntersectionObserver only fires when visibility changes. If the sentinel is
+  // already on screen while a page is loading or inside the throttle window,
+  // that event is dropped and nothing loads until the user scrolls away and back.
+  const requestLoadMore = useCallback(() => {
+    if (!sentinelVisibleRef.current || !hasMoreRef.current || !onLoadMoreRef.current) {
+      clearLoadRetry()
+      return
+    }
+    if (loadingRef.current) return
+
+    const wait = LOAD_THROTTLE_MS - (Date.now() - lastLoadTime.current)
+    if (wait > 0) {
+      if (retryTimerRef.current != null) return
+      retryTimerRef.current = setTimeout(() => {
+        retryTimerRef.current = null
+        requestLoadMore()
+      }, wait)
+      return
+    }
+
+    lastLoadTime.current = Date.now()
+    onLoadMoreRef.current()
+  }, [clearLoadRetry])
+
+  useEffect(() => {
+    if (!loading) requestLoadMore()
+  }, [loading, requestLoadMore])
 
   useEffect(() => {
     const target = observerTarget.current
@@ -166,9 +192,9 @@ export function VideoGrid({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
-          throttledLoadMore()
-        }
+        sentinelVisibleRef.current = Boolean(entries[0]?.isIntersecting)
+        if (sentinelVisibleRef.current) requestLoadMore()
+        else clearLoadRetry()
       },
       {
         root: scrollRoot,
@@ -181,10 +207,12 @@ export function VideoGrid({
     observer.observe(target)
 
     return () => {
+      sentinelVisibleRef.current = false
+      clearLoadRetry()
       observer.unobserve(target)
       observer.disconnect()
     }
-  }, [throttledLoadMore, hasMore, prefetchSentinelIndex])
+  }, [requestLoadMore, clearLoadRetry, hasMore, prefetchSentinelIndex])
 
   const isInitialLoad = loading && safeVideos.length === 0
   const isLoadingMore = loading && safeVideos.length > 0

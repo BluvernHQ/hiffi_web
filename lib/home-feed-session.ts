@@ -81,6 +81,9 @@ export function clearHomeFeedPersistedState(): void {
 export function clearHomeScrollPersistence(): void {
   if (typeof window === "undefined") return
   lastKnownHomeScrollTop = 0
+  if (memoryFeedState) {
+    memoryFeedState = { ...memoryFeedState, scrollTop: 0 }
+  }
   const key = getPersistedScrollStorageKey("/")
   if (!key) return
   try {

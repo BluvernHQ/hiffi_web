@@ -1,8 +1,8 @@
-import Image from "next/image"
 import Link from "next/link"
 import { fetchHomeFeedInitial } from "@/lib/seo/fetch-public"
 import { buildSeoImageProxyUrl } from "@/lib/seo/video-public-urls"
 import { getThumbnailUrl } from "@/lib/storage"
+import { AuthenticatedImage, VideoThumbnailPlaceholder } from "@/components/video/authenticated-image"
 
 type HomeFeedSsrSnapshotProps = {
   seed: string
@@ -61,17 +61,18 @@ export async function HomeFeedSsrSnapshot({
               >
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
                   {thumbnailUrl ? (
-                    <Image
+                    <AuthenticatedImage
                       src={thumbnailUrl}
                       alt={`${title}${username ? ` by ${username}` : ""}`}
                       fill
                       sizes="(min-width: 1024px) 25vw, 50vw"
-                      loading={index === 0 ? "eager" : "lazy"}
-                      fetchPriority={index === 0 ? "high" : "auto"}
-                      unoptimized
+                      priority={index === 0}
+                      authenticated={false}
                       className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                     />
-                  ) : null}
+                  ) : (
+                    <VideoThumbnailPlaceholder fill />
+                  )}
                 </div>
                 <div className="px-1 pt-2">
                   <h2 className="line-clamp-2 text-sm font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
