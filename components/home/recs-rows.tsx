@@ -36,6 +36,23 @@ type RowsState = {
   uncharted: Video[]
 }
 
+function uniqueVideos(videos: Video[]): Video[] {
+  const seenIds = new Set<string>()
+  const seenContent = new Set<string>()
+  return videos.filter((video) => {
+    const videoId = video.video_id?.trim()
+    const contentKey = [video.video_title, video.user_uid || video.user_username, video.video_thumbnail]
+      .map((value) => value?.trim().toLocaleLowerCase() || "")
+      .join("\u001f")
+
+    if (videoId && seenIds.has(videoId)) return false
+    if (contentKey !== "\u001f\u001f" && seenContent.has(contentKey)) return false
+    if (videoId) seenIds.add(videoId)
+    if (contentKey !== "\u001f\u001f") seenContent.add(contentKey)
+    return true
+  })
+}
+
 function SectionHeading({
   title,
   hint,
@@ -246,12 +263,13 @@ function VideoRow({
   openId: TrackingId
   action?: ReactNode
 }) {
-  if (videos.length === 0) return null
+  const unique = uniqueVideos(videos)
+  if (unique.length === 0) return null
   return (
     <section className="mb-8">
       <SectionHeading title={title} hint={hint} action={action} />
       <Rail label={title}>
-        {videos.map((video) => (
+        {unique.map((video) => (
           <RailVideo key={video.video_id} video={video} openId={openId} />
         ))}
       </Rail>
